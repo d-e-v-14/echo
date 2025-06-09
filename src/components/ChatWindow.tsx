@@ -4,18 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import { Video, Phone, Plus } from "lucide-react";
 import MessageInput from "@/components/MessageInput";
 
-// ✅ Timestamp component rendered only on the client
+// ✅ Timestamp component
 const ClientTimestamp: React.FC<{ timestamp: string }> = ({ timestamp }) => {
   const [formatted, setFormatted] = useState("");
 
   useEffect(() => {
     const date = new Date(timestamp);
-
     const hours = date.getHours();
     const minutes = date.getMinutes();
     const ampm = hours >= 12 ? "PM" : "AM";
-    const formattedHours = ("0" + (hours % 12 || 12)).slice(-2); // force 2-digit
-    const formattedMinutes = ("0" + minutes).slice(-2); // force 2-digit
+    const formattedHours = ("0" + (hours % 12 || 12)).slice(-2);
+    const formattedMinutes = ("0" + minutes).slice(-2);
 
     const formattedTime = `${formattedHours}:${formattedMinutes} ${ampm}`;
     setFormatted(formattedTime);
@@ -81,7 +80,7 @@ export default function ChatWindow() {
     <div
       className="flex flex-col flex-1 text-white select-none"
       style={{
-        backgroundImage: "url('/image.png')", // or use an external URL
+        backgroundImage: "url('/image.png')",
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
@@ -128,11 +127,11 @@ export default function ChatWindow() {
               />
             )}
             <div>
-              <div className="flex items-center gap-2">
-                <span className="font-semibold">{msg.name}</span>
+              <div className="flex items-center gap-2 pt-1">
+                <span className="font-semibold leading-none">{msg.name}</span>
                 <ClientTimestamp timestamp={msg.timestamp} />
               </div>
-              <p className="text-gray-200">{msg.message}</p>
+              <p className="text-gray-200 mt-1">{msg.message}</p>
             </div>
             {msg.isSender && (
               <img

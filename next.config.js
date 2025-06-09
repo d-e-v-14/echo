@@ -1,18 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "i.pravatar.cc",
-      },
-    ],
-  },
+  reactStrictMode: true,
+  swcMinify: true,
+  output: "standalone",
 };
 
-module.exports = {
-  images: {
-    domains: ["avatars.dicebear.com"],
-  },
-};
-
+module.exports = nextConfig;

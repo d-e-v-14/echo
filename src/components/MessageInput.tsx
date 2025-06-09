@@ -1,12 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { Smile, Send, ImagePlus, Camera, Mic, Sticker } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Smile, Send, ImagePlus, Camera, Mic } from "lucide-react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
-import { GiphyFetch } from "@giphy/js-fetch-api";
-import { Grid } from "@giphy/react-components";
 
-const gf = new GiphyFetch("YOUR_GIPHY_API_KEY"); // Replace this
+const TENOR_API_KEY = "***REMOVED***";
 
 export default function MessageInput({
   sendMessage,
@@ -16,6 +14,19 @@ export default function MessageInput({
   const [text, setText] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
+  const [gifs, setGifs] = useState<any[]>([]);
+
+  // Fetch trending GIFs from Tenor
+  useEffect(() => {
+    if (showGifPicker) {
+      fetch(
+        `https://tenor.googleapis.com/v2/featured?key=${TENOR_API_KEY}&limit=9&media_filter=gif`
+      )
+        .then((res) => res.json())
+        .then((data) => setGifs(data.results || []))
+        .catch((err) => console.error("Failed to load GIFs", err));
+    }
+  }, [showGifPicker]);
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
     setText((prev) => prev + emojiData.emoji);
@@ -36,18 +47,23 @@ export default function MessageInput({
         </div>
       )}
 
-      {/* GIF Picker */}
+      {/* Tenor GIF Picker */}
       {showGifPicker && (
-        <div className="absolute bottom-20 right-4 z-50 bg-black p-2 rounded shadow-lg">
-          <Grid
-            width={300}
-            columns={3}
-            fetchGifs={(offset) => gf.trending({ offset, limit: 9 })}
-            onGifClick={(gif) => {
-              sendMessage(gif.images.original.url);
-              setShowGifPicker(false);
-            }}
-          />
+        <div className="absolute bottom-20 right-4 z-50 bg-black p-2 rounded shadow-lg w-80">
+          <div className="grid grid-cols-3 gap-2">
+            {gifs.map((gif) => (
+              <img
+                key={gif.id}
+                src={gif.media_formats.gif.url}
+                alt="gif"
+                className="w-full h-auto cursor-pointer rounded hover:scale-105 transition"
+                onClick={() => {
+                  sendMessage(gif.media_formats.gif.url);
+                  setShowGifPicker(false);
+                }}
+              />
+            ))}
+          </div>
         </div>
       )}
 
@@ -72,7 +88,7 @@ export default function MessageInput({
           <Mic className="w-5 h-5 text-white hover:scale-110 transition" />
         </button>
 
-        {/* Input Field */}
+        {/* Input */}
         <input
           type="text"
           className="flex-1 bg-transparent text-white placeholder-white/70 focus:outline-none"
