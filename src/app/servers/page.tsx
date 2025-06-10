@@ -5,7 +5,8 @@ import { FaHashtag, FaCog } from "react-icons/fa";
 import EmojiPicker, { Theme } from "emoji-picker-react";
 import type { EmojiClickData } from "emoji-picker-react";
 
-const TENOR_API_KEY = "***REMOVED***";
+const TENOR_API_KEY = process.env.NEXT_PUBLIC_TENOR_API_KEY!;
+
 
 const ServersPage: React.FC = () => {
   const [activeChannel, setActiveChannel] = useState("general");

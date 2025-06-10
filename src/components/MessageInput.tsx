@@ -18,15 +18,18 @@ export default function MessageInput({
 
   // Fetch trending GIFs from Tenor
   useEffect(() => {
-    if (showGifPicker) {
-      fetch(
-        `https://tenor.googleapis.com/v2/featured?key=${TENOR_API_KEY}&limit=9&media_filter=gif`
-      )
-        .then((res) => res.json())
-        .then((data) => setGifs(data.results || []))
-        .catch((err) => console.error("Failed to load GIFs", err));
-    }
-  }, [showGifPicker]);
+  if (showGifPicker) {
+    const apiKey = process.env.NEXT_PUBLIC_TENOR_API_KEY;
+    const url = `https://tenor.googleapis.com/v2/search?q=trending&key=${apiKey}&limit=12`;
+
+    fetch(url)
+      .then((res) => res.json())
+      .then((data) => setGifs(data.results || []))
+      .catch((err) => console.error("Failed to load GIFs", err));
+  }
+}, [showGifPicker]);
+
+
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
     setText((prev) => prev + emojiData.emoji);
