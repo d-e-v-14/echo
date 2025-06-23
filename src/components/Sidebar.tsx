@@ -81,7 +81,6 @@ export default function Sidebar() {
             </button>
           </div>
 
-          {/* Nav Links */}
           <nav className="flex flex-col gap-1 px-2">
             {navItems.map((item) => {
               const isActive = pathname === item.path;
