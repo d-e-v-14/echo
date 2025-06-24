@@ -50,7 +50,7 @@ export default function Sidebar() {
     >
       {/* Background */}
       <div
-        className="absolute inset-0 z-0 bg-no-repeat bg-cover"
+        className="absolute inset-0 z-0 bg-no-repeat bg-cover opacity-9"
         style={{ backgroundImage: "url('/sidebar-bg.png')" }}
       />
 
