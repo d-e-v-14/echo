@@ -112,32 +112,35 @@ export default function Sidebar() {
         </div>
 
         {/* Bottom Section: Profile */}
-        <div className="p-4 flex items-center gap-3 mt-auto">
-          <Link href="/profile">
-            <div className="relative group shrink-0 cursor-pointer">
-              <div className="p-[2px] rounded-full bg-gradient-to-tr from-purple-500 via-pink-500 to-indigo-500">
-                <Image
-                  src="/User_profil.png"
-                  alt="User"
-                  width={40}
-                  height={40}
-                  className="rounded-full bg-white"
-                />
-              </div>
-              <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-[#1a1a1a] rounded-full" />
-            </div>
-          </Link>
+        <Link href="/profile">
+  <div className="p-4 flex items-center gap-3 mt-auto cursor-pointer group hover:bg-white/10 transition rounded-lg">
+    {/* Profile Image */}
+    <div className="relative shrink-0">
+      <div className="p-[2px] rounded-full bg-gradient-to-tr from-purple-500 via-pink-500 to-indigo-500">
+        <Image
+          src="/User_profil.png"
+          alt="User"
+          width={40}
+          height={40}
+          className="rounded-full bg-white"
+        />
+      </div>
+      <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-[#1a1a1a] rounded-full" />
+    </div>
 
-          {!collapsed && (
-            <div className="flex justify-between items-center flex-1">
-              <div className="flex flex-col">
-                <span className="font-semibold text-white">Sophie Fortune</span>
-                <span className="text-xs text-gray-400">@sophiefortune</span>
-              </div>
-              <Settings className="text-gray-400 w-5 h-5 cursor-pointer" />
-            </div>
-          )}
+    {!collapsed && (
+      <div className="flex justify-between items-center flex-1">
+        <div className="flex flex-col">
+          <span className="font-semibold text-white group-hover:underline">Sophie Fortune</span>
+          <span className="text-xs text-gray-400">@sophiefortune</span>
         </div>
+        <Settings className="text-gray-400 w-5 h-5 group-hover:text-white" />
+      </div>
+    )}
+  </div>
+</Link>
+
+        
       </div>
     </aside>
   );

@@ -1,26 +1,58 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
+import axios from "axios";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export default function ProfilePage() {
-  const [displayName, setDisplayName] = useState("Sophie Fortune");
-  const [username, setUsername] = useState("@sophie&89");
-  const [about, setAbout] = useState(
-    "Gamer, dreamer, meme enthusiast. I run on caffeine and chaos. Fluent in sarcasm, bad puns, and Discord emojis. Here to vibe, chat, laugh, and pretend I’m productive."
-  );
+  const [displayName, setDisplayName] = useState("");
+  const [username, setUsername] = useState("");
+  const [about, setAbout] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [editing, setEditing] = useState({
     name: false,
     username: false,
     about: false,
   });
 
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/api/profiles`, {
+          withCredentials: true,
+        });
+        const profile = res.data;
+        setDisplayName(profile.displayName);
+        setUsername(profile.username);
+        setAbout(profile.about);
+        setEmail(profile.email);
+        setPhone(profile.phone);
+      } catch (err) {
+        console.error("Failed to fetch profile", err);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  const handleDelete = async () => {
+    try {
+      await axios.delete(`${API_BASE_URL}/api/profiles/1`, {
+        withCredentials: true,
+      });
+      alert("Account deleted.");
+    } catch (err) {
+      console.error("Failed to delete profile", err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black text-white flex justify-center items-center p-10 select-none">
       <div className="flex flex-col md:flex-row gap-10 w-full max-w-6xl">
         {/* Left: Profile Card & About */}
         <div className="flex-1">
-          {/* Profile Card with dark overlay */}
           <div className="relative rounded-3xl text-center text-white shadow-xl p-12 overflow-hidden">
             <div
               className="absolute inset-0 z-0 bg-black bg-opacity-95"
@@ -127,7 +159,7 @@ export default function ProfilePage() {
             <div>
               <label className="block text-sm mb-1">Email</label>
               <input
-                value="sophie.fortune@gmail.com"
+                value={email}
                 readOnly
                 className="w-full p-2 rounded-md bg-[#222] border border-white/30 text-white"
               />
@@ -137,31 +169,27 @@ export default function ProfilePage() {
             <div>
               <label className="block text-sm mb-1">Phone Number</label>
               <input
-                value="+91 9876543210"
+                value={phone}
                 readOnly
                 className="w-full p-2 rounded-md bg-[#222] border border-white/30 text-white"
               />
             </div>
           </div>
 
-          {/* Buttons Section */}
-          <div className="flex flex-col gap-14 mt-10">
-            {/* First row: only Change Password */}
-            <div>
-              <button className="bg-yellow-400 text-black px-6 py-2 rounded-md font-semibold hover:brightness-110">
-                Change Password
-              </button>
-            </div>
-
-            {/* Second row: Disable + Delete */}
-            <div className="flex gap-14">
-              <button className="bg-red-600 text-white px-6 py-2 rounded-md font-semibold hover:bg-red-700">
-                Disable Account
-              </button>
-              <button className="bg-blue-800 text-white px-6 py-2 rounded-md font-semibold hover:bg-blue-900">
-                Delete Account
-              </button>
-            </div>
+          {/* Buttons in One Row */}
+          <div className="flex flex-row flex-nowrap gap-6 mt-10 overflow-x-auto">
+            <button className="bg-yellow-400 text-black px-6 py-2 rounded-md font-semibold hover:brightness-110 whitespace-nowrap">
+              Change Password
+            </button>
+            <button className="bg-red-600 text-white px-6 py-2 rounded-md font-semibold hover:bg-red-700 whitespace-nowrap">
+              Disable Account
+            </button>
+            <button
+              className="bg-blue-800 text-white px-6 py-2 rounded-md font-semibold hover:bg-blue-900 whitespace-nowrap"
+              onClick={handleDelete}
+            >
+              Delete Account
+            </button>
           </div>
         </div>
       </div>

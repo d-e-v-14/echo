@@ -1,10 +1,9 @@
 "use client";
-
 import { useEffect, useRef, useState } from "react";
 import { Video, Phone, Plus } from "lucide-react";
 import MessageInput from "@/components/MessageInput";
+import { fetchMessages, uploadMessage } from "../app/api/API";
 
-// ✅ Timestamp component
 const ClientTimestamp: React.FC<{ timestamp: string }> = ({ timestamp }) => {
   const [formatted, setFormatted] = useState("");
 
@@ -15,9 +14,7 @@ const ClientTimestamp: React.FC<{ timestamp: string }> = ({ timestamp }) => {
     const ampm = hours >= 12 ? "PM" : "AM";
     const formattedHours = ("0" + (hours % 12 || 12)).slice(-2);
     const formattedMinutes = ("0" + minutes).slice(-2);
-
-    const formattedTime = `${formattedHours}:${formattedMinutes} ${ampm}`;
-    setFormatted(formattedTime);
+    setFormatted(`${formattedHours}:${formattedMinutes} ${ampm}`);
   }, [timestamp]);
 
   return <span className="text-xs text-gray-400">{formatted}</span>;
@@ -33,26 +30,20 @@ type Message = {
 };
 
 export default function ChatWindow() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 1,
-      name: "PRANAV",
-      isSender: false,
-      message: "Hey!",
-      avatarUrl: "https://avatars.dicebear.com/api/bottts/pranav.svg",
-      timestamp: new Date().toISOString(),
-    },
-    {
-      id: 2,
-      name: "RAHUL",
-      isSender: true,
-      message: "What's up?",
-      avatarUrl: "/User_profil.png",
-      timestamp: new Date().toISOString(),
-    },
-  ]);
-
+  const [messages, setMessages] = useState<Message[]>([]);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const loadMessages = async () => {
+      try {
+        const res = await fetchMessages("server1", "general"); // ✅ pass server/channel
+        setMessages(res.data);
+      } catch (err) {
+        console.error("Failed to fetch messages", err);
+      }
+    };
+    loadMessages();
+  }, []);
 
   useEffect(() => {
     if (scrollContainerRef.current) {
@@ -61,19 +52,19 @@ export default function ChatWindow() {
     }
   }, [messages]);
 
-  const sendMessage = (text: string) => {
-    const now = new Date();
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: prev.length + 1,
-        name: "RAHUL",
-        isSender: true,
-        message: text,
-        avatarUrl: "/User_profil.png",
-        timestamp: now.toISOString(),
-      },
-    ]);
+  const sendMessage = async (text: string) => {
+    const newMessage = {
+      name: "RAHUL",
+      message: text,
+      avatarUrl: "/User_profil.png",
+    };
+
+    try {
+      const res = await uploadMessage("server1", "general", newMessage); // ✅
+      setMessages((prev) => [...prev, res.data]);
+    } catch (err) {
+      console.error("Failed to upload message", err);
+    }
   };
 
   return (
@@ -103,7 +94,7 @@ export default function ChatWindow() {
         </div>
       </div>
 
-      {/* Message Container */}
+      {/* Message List */}
       <div
         ref={scrollContainerRef}
         className="flex-1 p-6 flex flex-col gap-6 overflow-y-auto justify-end"
