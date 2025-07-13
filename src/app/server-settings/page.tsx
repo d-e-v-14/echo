@@ -7,8 +7,15 @@ import Members from "./components/ServerSettings/Members";
 import InvitePeople from "./components/ServerSettings/InvitePeople";
 import Leave from "./components/ServerSettings/Leave";
 
+const initialRoles = [
+  { id: 1, name: "Admin", color: "#ed4245", permissions: ["Manage Server", "Ban Members"] },
+  { id: 2, name: "Moderator", color: "#5865f2", permissions: ["Kick Members", "Manage Messages"] },
+  { id: 3, name: "Member", color: "#43b581", permissions: ["Send Messages"] },
+];
+
 export default function ServerSettingsPage() {
   const [selected, setSelected] = useState<string>("Overview");
+  const [roles, setRoles] = useState(initialRoles);
 
   let Content;
   switch (selected) {
@@ -16,7 +23,7 @@ export default function ServerSettingsPage() {
       Content = <Overview />;
       break;
     case "Role":
-      Content = <Role />;
+      Content = <Role roles={roles} setRoles={setRoles} />;
       break;
     case "Members":
       Content = <Members />;

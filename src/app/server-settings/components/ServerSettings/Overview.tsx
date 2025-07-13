@@ -26,6 +26,7 @@ export default function Overview() {
           />
         </div>
       </div>
+
       <div className="mb-6">
         <label className="block font-semibold mb-2 text-[#b5bac1]">Server Icon</label>
         <div className="flex items-center gap-4">
@@ -60,26 +61,39 @@ export default function Overview() {
       </div>
       <div className="mb-8">
         <label className="block font-semibold mb-2 text-[#b5bac1]">Region</label>
-        <select
-          className="w-full bg-black text-white border-2 border-[#72767d] rounded px-4 py-3 focus:border-[#b5bac1] focus:outline-none transition-all duration-200 transform hover:-translate-y-1 focus:-translate-y-1"
-          value={region}
-          onChange={(e) => setRegion(e.target.value)}
-        >
-          <option value="">Select a region</option>
-          <option value="us-east">US East</option>
-          <option value="us-west">US West</option>
-          <option value="us-central">US Central</option>
-          <option value="eu-west">EU West</option>
-          <option value="eu-central">EU Central</option>
-          <option value="singapore">Singapore</option>
-          <option value="sydney">Sydney</option>
-          <option value="japan">Japan</option>
-          <option value="russia">Russia</option>
-          <option value="brazil">Brazil</option>
-          <option value="hongkong">Hong Kong</option>
-          <option value="southafrica">South Africa</option>
-          <option value="india">India</option>
-        </select>
+        <div className="relative w-full">
+          <select
+            className="w-full bg-black text-white border-2 border-[#72767d] rounded px-4 py-3 pr-10 appearance-none focus:border-[#b5bac1] focus:outline-none transition-all duration-200 transform hover:-translate-y-1 focus:-translate-y-1"
+            value={region}
+            onChange={(e) => setRegion(e.target.value)}
+          >
+            <option value="">Select a region</option>
+            <option value="us-east">US East</option>
+            <option value="us-west">US West</option>
+            <option value="us-central">US Central</option>
+            <option value="eu-west">EU West</option>
+            <option value="eu-central">EU Central</option>
+            <option value="singapore">Singapore</option>
+            <option value="sydney">Sydney</option>
+            <option value="japan">Japan</option>
+            <option value="russia">Russia</option>
+            <option value="brazil">Brazil</option>
+            <option value="hongkong">Hong Kong</option>
+            <option value="southafrica">South Africa</option>
+            <option value="india">India</option>
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+            <svg
+              className="w-5 h-5 text-[#b5bac1]"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              viewBox="0 0 24 24"
+            >
+              <path d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
       </div>
       <div className="flex justify-end">
         <button
