@@ -14,3 +14,41 @@
 .scrollbar::-webkit-scrollbar-track {
   background: #1a1a1a;
 }
+
+body {
+  overflow-x: hidden;
+}
+
+@layer utilities {
+  /* Act as a border */
+  .card-wrapper-1 {
+    @apply relative overflow-hidden rounded-full bg-gradient-to-br from-[#3D7DFD] from-5% to-[#FA2626] to-50% py-5;
+  }
+  .card-wrapper-2 {
+    @apply relative overflow-hidden rounded-full bg-gradient-to-br from-[#1E5989] to-[#FDC03D] 
+  }
+
+  /* Gradient */
+  .card-wrapper-1::before {
+    background: conic-gradient(
+        rgba(241, 10, 10, 0.4) 0deg,
+      rgba(244, 114, 182, 0.4) 0deg,
+      transparent 80deg
+    );
+
+    @apply absolute left-[-25%] top-[-25%] h-[150%] w-[150%] animate-border-spin content-[''];
+  }
+
+  /* Body */
+  .card-content-1 {
+    @apply absolute left-[8px] top-[8px] h-[calc(100%-16px)] w-[calc(100%-16px)] rounded-full bg-gradient-to-r from-[#0B1450] to-[#2A3AA3];
+  }
+  .card-content-2 {
+    @apply absolute left-[8px] top-[8px] h-[calc(100%-16px)] w-[calc(100%-16px)] rounded-full bg-[#D85D29];
+  }
+
+  .gradient-border {
+    @apply p-[2px] bg-gradient-to-r from-cyan-500 to-blue-500 rounded-lg inline-block;
+  }
+}
+
