@@ -42,6 +42,9 @@ const ServersPage: React.FC = () => {
   const [gifResults, setGifResults] = useState<any[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const userId =
+    typeof window !== "undefined" ? localStorage.getItem("userId") || "" : "";
+
   useEffect(() => {
     const loadServers = async () => {
       try {
@@ -60,14 +63,16 @@ const ServersPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!selectedServerId) return;
+    if (!selectedServerId || !userId) return;
+
     const loadChannels = async () => {
       try {
-        const res = await fetchChannelsByServer(selectedServerId);
+        const res = await fetchChannelsByServer(selectedServerId, userId);
         const data = res.data as ChannelsResponse;
         setChannelsByServer((prev) => ({ ...prev, [selectedServerId]: data }));
         const firstChannel = Object.values(data)[0]?.[0];
         if (firstChannel) setActiveChannel(firstChannel);
+
         const sectionState: Record<string, boolean> = {};
         Object.keys(data).forEach((sec) => (sectionState[sec] = true));
         setExpandedSections(sectionState);
@@ -76,20 +81,20 @@ const ServersPage: React.FC = () => {
       }
     };
     loadChannels();
-  }, [selectedServerId]);
+  }, [selectedServerId, userId]);
 
   useEffect(() => {
-    if (!selectedServerId || !activeChannel) return;
+    if (!activeChannel) return;
     const loadMessages = async () => {
       try {
-        const res = await fetchMessages(selectedServerId, activeChannel);
+        const res = await fetchMessages(activeChannel, false);
         setMessages(res.data || []);
       } catch (err) {
         console.error("Failed to fetch messages", err);
       }
     };
     loadMessages();
-  }, [selectedServerId, activeChannel]);
+  }, [activeChannel]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -101,13 +106,13 @@ const ServersPage: React.FC = () => {
 
   const handleSend = async () => {
     if (!message.trim()) return;
-    const newMsg = {
-      name: "You",
-      message,
-      avatarUrl: "/User_profil.png",
-    };
     try {
-      const res = await uploadMessage(selectedServerId, activeChannel, newMsg);
+      const res = await uploadMessage({
+        message,
+        senderId: userId,
+        channelId: activeChannel,
+        isDM: false,
+      });
       setMessages((prev) => [...prev, res]);
       setMessage("");
       setShowEmoji(false);
@@ -166,11 +171,13 @@ const ServersPage: React.FC = () => {
       {activeChannel === name && <FaCog size={12} />}
     </div>
   );
+
   return (
     <div className="flex h-screen">
+      {/* Server Sidebar */}
       <div
-        className="w-16 p-2 flex flex-col items-center bg-cover bg-center"
-        style={{ backgroundImage: "url('/gradient-background.png')" }}
+        className="w-16 p-2 flex flex-col bg-black  items-center bg-cover bg-center"
+        
       >
         {servers.map((server, idx) => (
           <img
@@ -188,10 +195,9 @@ const ServersPage: React.FC = () => {
         ))}
       </div>
 
+      {/* Channel List */}
       <div className="w-72 overflow-y-scroll text-white px-4 py-6 space-y-4 border-r border-gray-800 bg-gradient-to-b from-black via-black to-[#0f172a]">
-        <div className="flex items-center gap-2 mb-2">
-          <h2 className="text-xl font-bold">{selectedServerName}</h2>
-        </div>
+        <h2 className="text-xl font-bold mb-2">{selectedServerName}</h2>
         {Object.entries(channelsByServer[selectedServerId] || {}).map(
           ([section, channels]) => (
             <div key={section}>
@@ -211,8 +217,9 @@ const ServersPage: React.FC = () => {
         )}
       </div>
 
+      {/* Chat Window */}
       <div className="flex-1 relative text-white px-6 pt-6 pb-6 overflow-hidden bg-black bg-[radial-gradient(ellipse_at_bottom,rgba(37,99,235,0.15)_0%,rgba(0,0,0,1)_85%)] flex flex-col">
-        <h1 className="text-2xl font-bold mb-4 text-center text-white [user-select:none]">
+        <h1 className="text-2xl font-bold mb-4 text-center">
           Welcome to #{activeChannel}
         </h1>
 
@@ -221,13 +228,17 @@ const ServersPage: React.FC = () => {
             {messages.map((msg, idx) => (
               <div className="flex items-start gap-4" key={idx}>
                 <img
-                  src={`https://api.dicebear.com/7.x/thumbs/svg?seed=${msg.seed}`}
+                  src={`https://api.dicebear.com/7.x/thumbs/svg?seed=${
+                    msg.seed || "user"
+                  }`}
                   alt="avatar"
                   className="w-10 h-10 rounded-full"
                 />
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className={`font-semibold ${msg.color}`}>
+                    <span
+                      className={`font-semibold ${msg.color || "text-white"}`}
+                    >
                       {msg.name}
                     </span>
                     <span className="text-xs text-gray-400">
@@ -250,6 +261,7 @@ const ServersPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Input Box */}
         <div className="mt-4 bg-white/10 backdrop-blur-md rounded-2xl flex items-center p-4 ring-2 ring-white/10 shadow-lg w-[90%] max-w-2xl mx-auto">
           <button
             className="px-3 text-white text-xl"
@@ -314,8 +326,6 @@ const ServersPage: React.FC = () => {
           )}
         </div>
       </div>
-
-      <div ref={bottomRef} />
     </div>
   );
 };
