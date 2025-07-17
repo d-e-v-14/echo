@@ -40,59 +40,80 @@ const ServersPage: React.FC = () => {
   const [showEmoji, setShowEmoji] = useState(false);
   const [showGifs, setShowGifs] = useState(false);
   const [gifResults, setGifResults] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const userId =
-    typeof window !== "undefined" ? localStorage.getItem("userId") || "" : "";
+    typeof window !== "undefined"
+      ? localStorage.getItem("userId") || "guest"
+      : "guest";
 
+  // Load servers
   useEffect(() => {
     const loadServers = async () => {
       try {
-        const res = await fetchServers();
-        const data = res.data;
+        setLoading(true);
+        const data = await fetchServers();
         setServers(data);
         if (data.length > 0) {
           setSelectedServerId(data[0].id);
           setSelectedServerName(data[0].name);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error fetching servers", err);
+        setError("Failed to load servers. Please try again.");
+      } finally {
+        setLoading(false);
       }
     };
+
     loadServers();
   }, []);
 
-  useEffect(() => {
-    if (!selectedServerId || !userId) return;
+  // Load channels when server is selected
 
-    const loadChannels = async () => {
-      try {
-        const res = await fetchChannelsByServer(selectedServerId, userId);
-        const data = res.data as ChannelsResponse;
-        setChannelsByServer((prev) => ({ ...prev, [selectedServerId]: data }));
-        const firstChannel = Object.values(data)[0]?.[0];
-        if (firstChannel) setActiveChannel(firstChannel);
 
-        const sectionState: Record<string, boolean> = {};
-        Object.keys(data).forEach((sec) => (sectionState[sec] = true));
-        setExpandedSections(sectionState);
-      } catch (err) {
-        console.error("Error fetching channels", err);
-      }
-    };
-    loadChannels();
-  }, [selectedServerId, userId]);
+    useEffect(() => {
+      if (!selectedServerId || !userId) return;
 
+      const loadChannels = async () => {
+        try {
+          const data = await fetchChannelsByServer(selectedServerId);
+          setChannelsByServer((prev) => ({
+            ...prev,
+            [selectedServerId]: data,
+          }));
+
+          const sectionState: Record<string, boolean> = {};
+          Object.keys(data).forEach((sec) => (sectionState[sec] = true));
+          setExpandedSections(sectionState);
+        } catch (err) {
+          console.error("Error fetching channels", err);
+          setError("Failed to load channels");
+        }
+      };
+
+      loadChannels();
+    }, [selectedServerId, userId]);
+
+
+  
+
+  // Load messages when channel is selected
   useEffect(() => {
     if (!activeChannel) return;
+
     const loadMessages = async () => {
       try {
         const res = await fetchMessages(activeChannel, false);
         setMessages(res.data || []);
       } catch (err) {
         console.error("Failed to fetch messages", err);
+        setError("Failed to load messages");
       }
     };
+
     loadMessages();
   }, [activeChannel]);
 
@@ -106,6 +127,7 @@ const ServersPage: React.FC = () => {
 
   const handleSend = async () => {
     if (!message.trim()) return;
+
     try {
       const res = await uploadMessage({
         message,
@@ -119,6 +141,7 @@ const ServersPage: React.FC = () => {
       setShowGifs(false);
     } catch (err) {
       console.error("Error sending message:", err);
+      setError("Failed to send message");
     }
   };
 
@@ -133,7 +156,7 @@ const ServersPage: React.FC = () => {
       );
       const data = await res.json();
       setGifResults(Array.isArray(data.results) ? data.results : []);
-    } catch (error) {
+    } catch {
       setGifResults([]);
     }
   };
@@ -172,13 +195,68 @@ const ServersPage: React.FC = () => {
     </div>
   );
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-black text-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p>Loading servers...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-black text-white">
+        <div className="text-center">
+          <p className="text-red-400 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-black text-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p>Loading servers...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-black text-white">
+        <div className="text-center">
+          <p className="text-red-400 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login prompt if not authenticated
+
   return (
     <div className="flex h-screen">
       {/* Server Sidebar */}
-      <div
-        className="w-16 p-2 flex flex-col bg-black  items-center bg-cover bg-center"
-        
-      >
+      <div className="w-16 p-2 flex flex-col bg-black items-center bg-cover bg-center">
         {servers.map((server, idx) => (
           <img
             key={server.id}
@@ -222,6 +300,12 @@ const ServersPage: React.FC = () => {
         <h1 className="text-2xl font-bold mb-4 text-center">
           Welcome to #{activeChannel}
         </h1>
+
+        {error && (
+          <div className="bg-red-500/20 border border-red-500 text-red-200 px-4 py-2 rounded mb-4">
+            {error}
+          </div>
+        )}
 
         <div className="flex-1 flex flex-col justify-end overflow-y-auto gap-4 pr-2">
           <div className="flex flex-col gap-4">

@@ -48,13 +48,28 @@ export default function ChatList() {
   const [dms, setDms] = useState<any[]>([]);
   const searchParams = useSearchParams();
   const router = useRouter();
-
   const selected = searchParams.get("dm");
 
   useEffect(() => {
     const fetchDMs = async () => {
       try {
-        const userId = "f669cc38-3176-442c-ad53-882474437408"; // Replace with actual dynamic user ID
+        if (typeof window === "undefined") return; 
+
+        const token = localStorage.getItem("token");
+        if (!token) {
+          console.warn("No token found in localStorage");
+          return;
+        }
+
+        // OPTIONAL: decode userId from token
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        const userId = payload.sub;
+
+        if (!userId) {
+          console.error("User ID not found in token");
+          return;
+        }
+
         const data = await getUserDMs(userId);
         setDms(data);
       } catch (err) {

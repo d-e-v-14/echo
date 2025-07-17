@@ -16,7 +16,7 @@ export default function ChatWindow({ channelId, isDM }: ChatWindowProps) {
   const loadMessages = async () => {
     try {
       const res = await fetchMessages(channelId, isDM);
-      setMessages(res);
+      setMessages(res.data);
     } catch (err) {
       console.error("Failed to fetch messages", err);
     }
