@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="2dee1387-15a0-4c2f-a8be-99b4fbe97d24" name="Changes" comment="Resolved merge conflicts">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tailwind.config.js" beforeDir="false" afterPath="$PROJECT_DIR$/tailwind.config.js" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="SWAP_SIDES_IN_COMPARE_BRANCHES" value="true" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;MEHELIGHOSH&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/MEHELIGHOSH/echo-web.git&quot;,
+    &quot;accountId&quot;: &quot;1be9c8af-373c-4069-9650-051ee6a345fe&quot;
+  }
+}</component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="ProjectErrors" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;customColor&quot;: &quot;&quot;,
+  &quot;associatedIndex&quot;: 5
+}</component>
+  <component name="ProjectId" id="2y3NBF1U6a8tZcDm6JU310O6qnF" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Node.js.supabaseClient.ts.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "cleanup-login-signup",
+    "last_opened_file_path": "C:/Users/MEHELI GHOSH/WebstormProjects/echo-web/public",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "ts.external.directory.path": "C:\\Users\\MEHELI GHOSH\\WebstormProjects\\echo-web\\node_modules\\typescript\\lib",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\MEHELI GHOSH\WebstormProjects\echo-web\public" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\MEHELI GHOSH\WebstormProjects\echo-web\src\app\(app)" />
+      <recent name="C:\Users\MEHELI GHOSH\WebstormProjects\echo-web\src\app\auth" />
+      <recent name="C:\Users\MEHELI GHOSH\WebstormProjects\echo-web\src\app" />
+      <recent name="C:\Users\MEHELI GHOSH\WebstormProjects\echo-web\src\app\" />
+      <recent name="C:\Users\MEHELI GHOSH\WebstormProjects\echo-web/src/app/" />
+    </key>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-js-predefined-d6986cc7102b-1632447f56bf-JavaScript-WS-243.26574.96" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="2dee1387-15a0-4c2f-a8be-99b4fbe97d24" name="Changes" comment="" />
+      <created>1749059160087</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1749059160087</updated>
+      <workItem from="1749059161373" duration="847000" />
+      <workItem from="1749060022585" duration="3060000" />
+      <workItem from="1749063118691" duration="340000" />
+      <workItem from="1749409430761" duration="524000" />
+      <workItem from="1749489426403" duration="2747000" />
+      <workItem from="1749498258164" duration="2984000" />
+      <workItem from="1749586002613" duration="6723000" />
+      <workItem from="1749654246620" duration="2928000" />
+      <workItem from="1750313287213" duration="629000" />
+      <workItem from="1750313933473" duration="488000" />
+      <workItem from="1750431324237" duration="8732000" />
+      <workItem from="1750602219651" duration="6209000" />
+      <workItem from="1750612858231" duration="1734000" />
+      <workItem from="1750662072659" duration="25713000" />
+      <workItem from="1750757712413" duration="2356000" />
+      <workItem from="1750782125562" duration="931000" />
+      <workItem from="1751468989091" duration="4898000" />
+      <workItem from="1751558264045" duration="3543000" />
+      <workItem from="1751565671933" duration="180000" />
+      <workItem from="1751565866532" duration="5893000" />
+      <workItem from="1752078324858" duration="1683000" />
+      <workItem from="1752329753324" duration="621000" />
+      <workItem from="1752425652480" duration="1552000" />
+      <workItem from="1752598096132" duration="7712000" />
+      <workItem from="1752670639445" duration="13301000" />
+    </task>
+    <task id="LOCAL-00001" summary="I have fixed the stuff. I saw VITE on the resource material that was sent to us so i thought we needed to use it. Please reveiw it once.">
+      <option name="closed" value="true" />
+      <created>1749061824598</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1749061824598</updated>
+    </task>
+    <task id="LOCAL-00002" summary="I have fixed the stuff. I saw VITE on the resource material that was sent to us so i thought we needed to use it. Please reveiw it once.">
+      <option name="closed" value="true" />
+      <created>1749062307237</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1749062307237</updated>
+    </task>
+    <task id="LOCAL-00003" summary="I have fixed the stuff. I saw VITE on the resource material that was sent to us so i thought we needed to use it. Please reveiw it once.">
+      <option name="closed" value="true" />
+      <created>1749063069489</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1749063069489</updated>
+    </task>
+    <task id="LOCAL-00004" summary="I have fixed the stuff. I saw VITE on the resource material that was sent to us so i thought we needed to use it. Please reveiw it once.">
+      <option name="closed" value="true" />
+      <created>1749063181096</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1749063181096</updated>
+    </task>
+    <task id="LOCAL-00005" summary="reverted gitignore.">
+      <option name="closed" value="true" />
+      <created>1749496823941</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1749496823941</updated>
+    </task>
+    <task id="LOCAL-00006" summary="Fixed readme">
+      <option name="closed" value="true" />
+      <created>1749497587966</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1749497587967</updated>
+    </task>
+    <task id="LOCAL-00007" summary="It was using files from my old vite+react project that I submitted hence why there was so much random stuff on there. I think I fixed it now...">
+      <option name="closed" value="true" />
+      <created>1749501077633</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1749501077633</updated>
+    </task>
+    <task id="LOCAL-00008" summary="deleted eslint.config and vite.config and i copied gitignore from the original repo and it has that next-env.d.ts in it so i have no removed it yet. Let me know If i ignore the warnings and remove it anyway.">
+      <option name="closed" value="true" />
+      <created>1749586339130</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1749586339130</updated>
+    </task>
+    <task id="LOCAL-00009" summary="Did the sign in with Google. and changed background color to black.">
+      <option name="closed" value="true" />
+      <created>1749592165366</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1749592165366</updated>
+    </task>
+    <task id="LOCAL-00010" summary="Supbase Authentication.">
+      <option name="closed" value="true" />
+      <created>1749656514270</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1749656514270</updated>
+    </task>
+    <task id="LOCAL-00011" summary="Email confirmation directly leads to the login page.">
+      <option name="closed" value="true" />
+      <created>1750314421040</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1750314421040</updated>
+    </task>
+    <task id="LOCAL-00012" summary="profile page added.">
+      <option name="closed" value="true" />
+      <created>1750432927053</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1750432927053</updated>
+    </task>
+    <task id="LOCAL-00013" summary="interchanged sign in and sing up in login.">
+      <option name="closed" value="true" />
+      <created>1750433765295</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1750433765296</updated>
+    </task>
+    <task id="LOCAL-00014" summary="made supbase changes">
+      <option name="closed" value="true" />
+      <created>1750437287233</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1750437287233</updated>
+    </task>
+    <task id="LOCAL-00015" summary="Profile page made.">
+      <option name="closed" value="true" />
+      <created>1750693552661</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1750693552661</updated>
+    </task>
+    <task id="LOCAL-00016" summary="changes in the wave aroudn the avatar.">
+      <option name="closed" value="true" />
+      <created>1750694392039</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1750694392039</updated>
+    </task>
+    <task id="LOCAL-00017" summary="Login and Signup using postman backend routes and supabase">
+      <option name="closed" value="true" />
+      <created>1750699949612</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1750699949612</updated>
+    </task>
+    <task id="LOCAL-00018" summary="Further changes in Profile Page as asked.">
+      <option name="closed" value="true" />
+      <created>1750760088605</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1750760088606</updated>
+    </task>
+    <task id="LOCAL-00019" summary="Login and signup">
+      <option name="closed" value="true" />
+      <created>1751471659303</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1751471659303</updated>
+    </task>
+    <task id="LOCAL-00020" summary="Removed sidebar and only kept it on pages as required by figma doc.">
+      <option name="closed" value="true" />
+      <created>1752337428641</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1752337428641</updated>
+    </task>
+    <task id="LOCAL-00021" summary="Forget and reset password backend integration.">
+      <option name="closed" value="true" />
+      <created>1752674499730</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1752674499730</updated>
+    </task>
+    <task id="LOCAL-00022" summary="Resolved merge conflicts">
+      <option name="closed" value="true" />
+      <created>1752843283602</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1752843283602</updated>
+    </task>
+    <option name="localTasksCounter" value="23" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="I have fixed the stuff. I saw VITE on the resource material that was sent to us so i thought we needed to use it. Please reveiw it once." />
+    <MESSAGE value="reverted gitignore." />
+    <MESSAGE value="Fixed readme" />
+    <MESSAGE value="It was using files from my old vite+react project that I submitted hence why there was so much random stuff on there. I think I fixed it now..." />
+    <MESSAGE value="deleted eslint.config and vite.config and i copied gitignore from the original repo and it has that next-env.d.ts in it so i have no removed it yet. Let me know If i ignore the warnings and remove it anyway." />
+    <MESSAGE value="Did the sign in with Google. and changed background color to black." />
+    <MESSAGE value="Supbase Authentication." />
+    <MESSAGE value="Email confirmation directly leads to the login page." />
+    <MESSAGE value="profile page added." />
+    <MESSAGE value="interchanged sign in and sing up in login." />
+    <MESSAGE value="made supbase changes" />
+    <MESSAGE value="Profile page made." />
+    <MESSAGE value="changes in the wave aroudn the avatar." />
+    <MESSAGE value="Login and Signup using postman backend routes and supabase" />
+    <MESSAGE value="Further changes in Profile Page as asked." />
+    <MESSAGE value="Login and signup" />
+    <MESSAGE value="WIP: temp commit before rebase" />
+    <MESSAGE value="Removed sidebar and only kept it on pages as required by figma doc." />
+    <MESSAGE value="Forget and reset password backend integration." />
+    <MESSAGE value="Resolved merge conflicts" />
+    <option name="LAST_COMMIT_MESSAGE" value="Resolved merge conflicts" />
+  </component>
+</project>

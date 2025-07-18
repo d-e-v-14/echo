@@ -1,13 +1,13 @@
-"use client"
-import React from 'react';
-import Navbar from '@/components/navbar'
-import SharkWithEyes from '@/components/shark';
-import AOS from 'aos';
-import 'aos/dist/aos.css';
-import { useEffect, useState } from 'react';
+'use client';
+import React, { useEffect, useState } from "react";
+import Navbar from "@/components/navbar";
+import SharkWithEyes from "@/components/shark";
+import AOS from "aos";
+import "aos/dist/aos.css";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
-
+  const router = useRouter();
   const [faq, setfaq] = useState<number | null>(null);
   const [showNavbar, setShowNavbar] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
@@ -15,6 +15,17 @@ export default function Home() {
   const [name, setname] = useState<string>()
   const [email, setemail] = useState<string>()
   const [message, setmessage] = useState<string>()
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash;
+      const match = hash.match(/access_token=([^&]+)/);
+      const token = match ? match[1] : null;
+
+      if (token) {
+        router.replace(`/reset-password?token=${token}`);
+      }
+    }
+  }, [router]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -406,4 +417,5 @@ export default function Home() {
       </div>
     </>
   )
-} 
+}
+
