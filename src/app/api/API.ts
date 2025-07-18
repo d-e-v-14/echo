@@ -243,3 +243,6 @@ export const removeAuthToken = (): void => {
 export const isAuthenticated = (): boolean => {
   return getToken() !== null;
 };
+
+/*localStorage.setItem("token", "your_token_here");
+*/

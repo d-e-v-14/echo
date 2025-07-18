@@ -1,11 +1,12 @@
+
 "use client";
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import ChatList from "@/components/ChatList";
-import ChatWindow from "@/components/ChatWindow";
+import ChatList from "./ChatList";
+import ChatWindow from "./ChatWindow";
 
-export default function MessagesPage() {
+export default function MessagesPageContent() {
   const searchParams = useSearchParams();
   const selectedDM = searchParams.get("dm");
   const [dmId, setDmId] = useState<string | null>(null);
