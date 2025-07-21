@@ -73,32 +73,28 @@ const ServersPage: React.FC = () => {
 
   // Load channels when server is selected
 
+  useEffect(() => {
+    if (!selectedServerId || !userId) return;
 
-    useEffect(() => {
-      if (!selectedServerId || !userId) return;
+    const loadChannels = async () => {
+      try {
+        const data = await fetchChannelsByServer(selectedServerId);
+        setChannelsByServer((prev) => ({
+          ...prev,
+          [selectedServerId]: data,
+        }));
 
-      const loadChannels = async () => {
-        try {
-          const data = await fetchChannelsByServer(selectedServerId);
-          setChannelsByServer((prev) => ({
-            ...prev,
-            [selectedServerId]: data,
-          }));
+        const sectionState: Record<string, boolean> = {};
+        Object.keys(data).forEach((sec) => (sectionState[sec] = true));
+        setExpandedSections(sectionState);
+      } catch (err) {
+        console.error("Error fetching channels", err);
+        setError("Failed to load channels");
+      }
+    };
 
-          const sectionState: Record<string, boolean> = {};
-          Object.keys(data).forEach((sec) => (sectionState[sec] = true));
-          setExpandedSections(sectionState);
-        } catch (err) {
-          console.error("Error fetching channels", err);
-          setError("Failed to load channels");
-        }
-      };
-
-      loadChannels();
-    }, [selectedServerId, userId]);
-
-
-  
+    loadChannels();
+  }, [selectedServerId, userId]);
 
   // Load messages when channel is selected
   useEffect(() => {
