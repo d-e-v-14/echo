@@ -244,5 +244,4 @@ export const isAuthenticated = (): boolean => {
   return getToken() !== null;
 };
 
-/*localStorage.setItem("token", "your_token_here");
-*/
+

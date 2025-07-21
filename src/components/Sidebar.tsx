@@ -112,7 +112,7 @@ export default function Sidebar() {
         </div>
 
         {/* Bottom Section: Profile */}
-        <Link href="/profile">
+        <Link href="/profile-setiings">
   <div className="p-4 flex items-center gap-3 mt-auto cursor-pointer group hover:bg-white/10 transition rounded-lg">
     {/* Profile Image */}
     <div className="relative shrink-0">
