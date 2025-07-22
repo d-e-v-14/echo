@@ -6,7 +6,7 @@ import EmojiPicker, { Theme } from "emoji-picker-react";
 import type { EmojiClickData } from "emoji-picker-react";
 import {
   fetchServers,
-  fetchChannelsByServer,
+  fetchChannelsByUser,
   fetchMessages,
   uploadMessage,
 } from "@/app/api/API";
@@ -22,19 +22,21 @@ const serverIcons: string[] = [
   "/hackbattle.png",
 ];
 
-type ChannelsResponse = Record<string, string[]>;
+interface Channel {
+  id: string;
+  name: string;
+  type: string;
+  is_private: boolean;
+}
 
 const ServersPage: React.FC = () => {
   const [servers, setServers] = useState<any[]>([]);
   const [selectedServerId, setSelectedServerId] = useState<string>("");
   const [selectedServerName, setSelectedServerName] = useState<string>("");
   const [channelsByServer, setChannelsByServer] = useState<
-    Record<string, ChannelsResponse>
+    Record<string, Channel[]>
   >({});
-  const [expandedSections, setExpandedSections] = useState<
-    Record<string, boolean>
-  >({});
-  const [activeChannel, setActiveChannel] = useState<string>("");
+  const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [message, setMessage] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
@@ -49,7 +51,6 @@ const ServersPage: React.FC = () => {
       ? localStorage.getItem("userId") || "guest"
       : "guest";
 
-  // Load servers
   useEffect(() => {
     const loadServers = async () => {
       try {
@@ -71,22 +72,16 @@ const ServersPage: React.FC = () => {
     loadServers();
   }, []);
 
-  // Load channels when server is selected
-
   useEffect(() => {
     if (!selectedServerId || !userId) return;
 
     const loadChannels = async () => {
       try {
-        const data = await fetchChannelsByServer(selectedServerId);
+        const data: Channel[] = await fetchChannelsByUser(userId);
         setChannelsByServer((prev) => ({
           ...prev,
           [selectedServerId]: data,
         }));
-
-        const sectionState: Record<string, boolean> = {};
-        Object.keys(data).forEach((sec) => (sectionState[sec] = true));
-        setExpandedSections(sectionState);
       } catch (err) {
         console.error("Error fetching channels", err);
         setError("Failed to load channels");
@@ -96,13 +91,12 @@ const ServersPage: React.FC = () => {
     loadChannels();
   }, [selectedServerId, userId]);
 
-  // Load messages when channel is selected
   useEffect(() => {
     if (!activeChannel) return;
 
     const loadMessages = async () => {
       try {
-        const res = await fetchMessages(activeChannel, false);
+        const res = await fetchMessages(activeChannel.id, false);
         setMessages(res.data || []);
       } catch (err) {
         console.error("Failed to fetch messages", err);
@@ -117,18 +111,14 @@ const ServersPage: React.FC = () => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const toggleSection = (title: string) => {
-    setExpandedSections((prev) => ({ ...prev, [title]: !prev[title] }));
-  };
-
   const handleSend = async () => {
-    if (!message.trim()) return;
+    if (!message.trim() || !activeChannel) return;
 
     try {
       const res = await uploadMessage({
         message,
         senderId: userId,
-        channelId: activeChannel,
+        channelId: activeChannel.id,
         isDM: false,
       });
       setMessages((prev) => [...prev, res]);
@@ -173,21 +163,21 @@ const ServersPage: React.FC = () => {
     });
   };
 
-  const renderChannel = (name: string) => (
+  const renderChannel = (channel: Channel) => (
     <div
-      key={name}
+      key={channel.id}
       className={`flex items-center justify-between px-3 py-1 text-sm rounded-md cursor-pointer transition-all ${
-        activeChannel === name
+        activeChannel?.id === channel.id
           ? "bg-[#2f3136] text-white"
           : "text-gray-400 hover:bg-[#2f3136] hover:text-white"
       }`}
-      onClick={() => setActiveChannel(name)}
+      onClick={() => setActiveChannel(channel)}
     >
       <span className="flex items-center gap-1">
         <FaHashtag size={12} />
-        {name}
+        {channel.name}
       </span>
-      {activeChannel === name && <FaCog size={12} />}
+      {activeChannel?.id === channel.id && <FaCog size={12} />}
     </div>
   );
 
@@ -217,38 +207,6 @@ const ServersPage: React.FC = () => {
       </div>
     );
   }
-
-  // Show loading state
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-black text-white">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p>Loading servers...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show error state
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-black text-white">
-        <div className="text-center">
-          <p className="text-red-400 mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Show login prompt if not authenticated
-
   return (
     <div className="flex h-screen">
       {/* Server Sidebar */}
@@ -272,36 +230,16 @@ const ServersPage: React.FC = () => {
       {/* Channel List */}
       <div className="w-72 overflow-y-scroll text-white px-4 py-6 space-y-4 border-r border-gray-800 bg-gradient-to-b from-black via-black to-[#0f172a]">
         <h2 className="text-xl font-bold mb-2">{selectedServerName}</h2>
-        {Object.entries(channelsByServer[selectedServerId] || {}).map(
-          ([section, channels]) => (
-            <div key={section}>
-              <div
-                className="flex justify-between items-center text-sm text-gray-400 mt-4 cursor-pointer"
-                onClick={() => toggleSection(section)}
-              >
-                <span>{section}</span>
-                <button className="text-white text-lg">
-                  {expandedSections[section] ? "−" : "+"}
-                </button>
-              </div>
-              {expandedSections[section] &&
-                channels.map((channel) => renderChannel(channel))}
-            </div>
-          )
+        {(channelsByServer[selectedServerId] || []).map((channel) =>
+          renderChannel(channel)
         )}
       </div>
 
       {/* Chat Window */}
       <div className="flex-1 relative text-white px-6 pt-6 pb-6 overflow-hidden bg-black bg-[radial-gradient(ellipse_at_bottom,rgba(37,99,235,0.15)_0%,rgba(0,0,0,1)_85%)] flex flex-col">
         <h1 className="text-2xl font-bold mb-4 text-center">
-          Welcome to #{activeChannel}
+          Welcome to #{activeChannel?.name || "channel"}
         </h1>
-
-        {error && (
-          <div className="bg-red-500/20 border border-red-500 text-red-200 px-4 py-2 rounded mb-4">
-            {error}
-          </div>
-        )}
 
         <div className="flex-1 flex flex-col justify-end overflow-y-auto gap-4 pr-2">
           <div className="flex flex-col gap-4">
@@ -359,7 +297,7 @@ const ServersPage: React.FC = () => {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             className="flex-1 bg-transparent outline-none text-white placeholder-gray-300 px-4 py-3 text-base"
-            placeholder={`Message #${activeChannel}`}
+            placeholder={`Message #${activeChannel?.name || ""}`}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
           />
           <button

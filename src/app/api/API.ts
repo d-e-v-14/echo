@@ -2,14 +2,14 @@ import axios from "axios";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL!;
 
-// Type definitions
-interface Server {
+// ---------- Types ----------
+export interface Server {
   id: string;
   name: string;
   iconUrl?: string;
 }
 
-interface Message {
+export interface Message {
   id?: string;
   name: string;
   seed: string;
@@ -18,26 +18,31 @@ interface Message {
   timestamp: string;
 }
 
-interface ChannelsResponse {
-  [sectionName: string]: string[];
-}
-
 interface ApiResponse<T> {
   data: T;
   success?: boolean;
   message?: string;
 }
 
-// Function to get JWT token from localStorage
-const getToken = (): string | null => {
-  if (typeof window !== "undefined") {
-    return (
-      localStorage.getItem("token") || localStorage.getItem("supabase_token")
-    );
+// ---------- Token Utilities ----------
+const getToken = (): string | null =>
+  typeof window !== "undefined"
+    ? localStorage.getItem("token") || localStorage.getItem("supabase_token")
+    : null;
+
+const getUserIdFromToken = (token: string | null): string | null => {
+  if (!token) return null;
+  try {
+    const payloadBase64 = token.split(".")[1];
+    const decodedPayload = JSON.parse(atob(payloadBase64));
+    return decodedPayload.sub || null;
+  } catch (error) {
+    console.error("Failed to decode token:", error);
+    return null;
   }
-  return null;
 };
 
+// ---------- Axios Setup ----------
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
@@ -46,34 +51,24 @@ const apiClient = axios.create({
   },
 });
 
-// Request interceptor to add JWT token to all requests
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = getToken();
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+apiClient.interceptors.request.use((config) => {
+  const token = getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-);
+  return config;
+});
 
-// Response interceptor to handle authentication errors
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 || error.response?.status === 403) {
-      // Handle authentication errors
+    if ([401, 403].includes(error.response?.status)) {
       console.error("Authentication failed:", error.response?.data);
-      
     }
     return Promise.reject(error);
   }
 );
 
-// --- Server APIs ---
 export const createServer = async (payload: {
   name: string;
   iconUrl?: string;
@@ -124,48 +119,18 @@ export const fetchServers = async (): Promise<Server[]> => {
   }
 };
 
-// --- Channel APIs ---
-const getAuthToken = (): string | null =>
-  localStorage.getItem("token") || localStorage.getItem("supabase_token");
-
-
-// Utility to extract userId (sub) from token
-const getUserIdFromToken = (token: string | null): string | null => {
-  if (!token) return null;
+// ---------- Channel APIs ----------
+export const fetchChannelsByUser = async (userId: string): Promise<any> => {
   try {
-    const payloadBase64 = token.split(".")[1];
-    const decodedPayload = JSON.parse(atob(payloadBase64));
-    return decodedPayload.sub || null;
+    const response = await apiClient.get(`/api/user/${userId}/getChannels`);
+    return response.data;
   } catch (error) {
-    console.error("Failed to decode token:", error);
+    console.error("Error fetching channels:", error);
     return null;
   }
 };
 
-// ✅ Fetch channels by server using userId from token
-export const fetchChannelsByServer = async (serverId: string) => {
-  const token = getAuthToken();
-  const userId = getUserIdFromToken(token);
-
-  if (!token || !userId) {
-    throw new Error("No authentication token or userId found");
-  }
-
-  try {
-    const res = await axios.get(
-      `${API_BASE_URL}/api/user/${userId}/getChannels`,
-     
-      
-    );
-    return res.data;
-  } catch (error) {
-    console.error("Error fetching channels by server:", error);
-    throw error;
-  }
-};
-
-
-// --- Message APIs ---
+// ---------- Message APIs ----------
 export const uploadMessage = async (payload: {
   message: string;
   senderId: string;
@@ -190,43 +155,38 @@ export const fetchMessages = async (
   offset: number = 1
 ): Promise<ApiResponse<Message[]>> => {
   try {
-    const response = await apiClient.get<
-      { messages: Message[] } | { data: Message[] }
-    >(
+    const response = await apiClient.get<{
+      messages?: Message[];
+      data?: Message[];
+    }>(
       `/api/message/fetch?channel_id=${channelId}&is_dm=${isDM}&offset=${offset}`
     );
 
-    const messages =
-      "messages" in response.data
-        ? response.data.messages
-        : response.data.data || [];
+    const messages = response.data.messages || response.data.data || [];
 
-    return {
-      data: messages,
-    };
+    return { data: messages };
   } catch (error) {
     console.error("Error fetching messages:", error);
     throw error;
   }
 };
 
-// --- Direct Messages ---
+// ---------- Direct Messages ----------
 export const getUserDMs = async (userId: string): Promise<any> => {
   try {
     const response = await apiClient.get(`/api/message/${userId}/getDms`);
     return response.data;
   } catch (error: any) {
     if (error?.code === "ECONNABORTED") {
-      console.error("Request timed out - server might be slow or down");
+      console.error("Request timed out");
       throw new Error("Request timed out. Please try again.");
     }
-
-    console.error("Error fetching user DMs:", error.message || error);
-    throw new Error("Unexpected error occurred while fetching DMs.");
+    console.error("Error fetching DMs:", error.message || error);
+    throw new Error("Error fetching DMs");
   }
 };
 
-// --- Authentication helpers ---
+// ---------- Auth Utils ----------
 export const setAuthToken = (token: string): void => {
   if (typeof window !== "undefined") {
     localStorage.setItem("token", token);
@@ -244,4 +204,6 @@ export const isAuthenticated = (): boolean => {
   return getToken() !== null;
 };
 
-
+export const getLoggedInUserId = (): string | null => {
+  return getUserIdFromToken(getToken());
+};

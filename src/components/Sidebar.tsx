@@ -91,14 +91,14 @@ export default function Sidebar() {
                     href={item.path}
                     className={clsx(
                       "flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all",
-                      "flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all",
+                     
                       isActive
                         ? "bg-white/20 text-white shadow-md"
                         : "text-gray-300 hover:bg-white/10 hover:text-white"
                     )}
                   >
                     <item.icon className="w-5 h-5" />
-                    {!collapsed && <span>{item.label}</span>}
+                    
                     {!collapsed && <span>{item.label}</span>}
                   </Link>
 
