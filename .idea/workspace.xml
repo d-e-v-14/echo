@@ -4,10 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="2dee1387-15a0-4c2f-a8be-99b4fbe97d24" name="Changes" comment="Resolved merge conflicts">
+    <list default="true" id="2dee1387-15a0-4c2f-a8be-99b4fbe97d24" name="Changes" comment="Changed bio to show default message if no bio message present.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tailwind.config.js" beforeDir="false" afterPath="$PROJECT_DIR$/tailwind.config.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -26,12 +24,12 @@
 }</component>
   <component name="GithubPullRequestsUISettings">{
   &quot;selectedUrlAndAccountId&quot;: {
-    &quot;url&quot;: &quot;https://github.com/MEHELIGHOSH/echo-web.git&quot;,
+    &quot;url&quot;: &quot;https://github.com/IEEECS-VIT/echo-web.git&quot;,
     &quot;accountId&quot;: &quot;1be9c8af-373c-4069-9650-051ee6a345fe&quot;
   }
 }</component>
   <component name="ProblemsViewState">
-    <option name="selectedTabId" value="ProjectErrors" />
+    <option name="selectedTabId" value="CurrentFile" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;customColor&quot;: &quot;&quot;,
@@ -47,13 +45,14 @@
     "Node.js.supabaseClient.ts.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "cleanup-login-signup",
+    "git-widget-placeholder": "#13 on Integration",
     "last_opened_file_path": "C:/Users/MEHELI GHOSH/WebstormProjects/echo-web/public",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "preferences.keymap",
     "ts.external.directory.path": "C:\\Users\\MEHELI GHOSH\\WebstormProjects\\echo-web\\node_modules\\typescript\\lib",
     "vue.rearranger.settings.migration": "true"
   }
@@ -110,6 +109,7 @@
       <workItem from="1752425652480" duration="1552000" />
       <workItem from="1752598096132" duration="7712000" />
       <workItem from="1752670639445" duration="13301000" />
+      <workItem from="1753114696411" duration="3375000" />
     </task>
     <task id="LOCAL-00001" summary="I have fixed the stuff. I saw VITE on the resource material that was sent to us so i thought we needed to use it. Please reveiw it once.">
       <option name="closed" value="true" />
@@ -287,7 +287,15 @@
       <option name="project" value="LOCAL" />
       <updated>1752843283602</updated>
     </task>
-    <option name="localTasksCounter" value="23" />
+    <task id="LOCAL-00023" summary="Changed bio to show default message if no bio message present.">
+      <option name="closed" value="true" />
+      <created>1753115142671</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1753115142671</updated>
+    </task>
+    <option name="localTasksCounter" value="24" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -325,6 +333,7 @@
     <MESSAGE value="Removed sidebar and only kept it on pages as required by figma doc." />
     <MESSAGE value="Forget and reset password backend integration." />
     <MESSAGE value="Resolved merge conflicts" />
-    <option name="LAST_COMMIT_MESSAGE" value="Resolved merge conflicts" />
+    <MESSAGE value="Changed bio to show default message if no bio message present." />
+    <option name="LAST_COMMIT_MESSAGE" value="Changed bio to show default message if no bio message present." />
   </component>
 </project>

@@ -2,6 +2,7 @@
 import { login } from "../../api";
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function Login() {
   const [identifier, setIdentifier] = useState('');
@@ -9,6 +10,7 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [message, setMessage] = useState('');
   const [success, setSuccess] = useState(false);
+  const router = useRouter();
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -19,6 +21,8 @@ export default function Login() {
       const data = await login(identifier, password);
       setSuccess(true);
       setMessage(data.message || 'Login successful!');
+      router.push('/profile');
+
     } catch (error: any) {
       setSuccess(false);
       setMessage(
