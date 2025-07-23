@@ -9,10 +9,10 @@ interface Props {
 }
 
 const MessageBubble: React.FC<Props> = ({
-  name,
+
   isSender = false,
   message,
-  avatarUrl,
+ 
   timestamp,
 }) => {
   return (
