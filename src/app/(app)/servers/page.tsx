@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { FaHashtag, FaCog } from "react-icons/fa";
+import { FaHashtag, FaCog, FaVolumeUp } from "react-icons/fa";
+import  VoiceChannel  from "@/components/VoiceChannel";
 import EmojiPicker, { Theme } from "emoji-picker-react";
 import type { EmojiClickData } from "emoji-picker-react";
 import {
@@ -30,14 +31,27 @@ interface Channel {
 }
 
 const ServersPage: React.FC = () => {
+
+  const router = useRouter();
+  const [activeChannel, setActiveChannel] = useState("general");
+  const [activeVoiceChannel, setActiveVoiceChannel] = useState<string | null>(null);
+  const [expandedSections, setExpandedSections] = useState<
+    Record<string, boolean>
+  >({
+    General: true,
+    "Voice Channels": true,
+    Support: true,
+    Events: true,
+    Resources: true,
+  });
+
   const [servers, setServers] = useState<any[]>([]);
   const [selectedServerId, setSelectedServerId] = useState<string>("");
   const [selectedServerName, setSelectedServerName] = useState<string>("");
   const [channelsByServer, setChannelsByServer] = useState<
     Record<string, Channel[]>
   >({});
-  const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
-  const [messages, setMessages] = useState<any[]>([]);
+
   const [message, setMessage] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
   const [showGifs, setShowGifs] = useState(false);
@@ -72,40 +86,96 @@ const ServersPage: React.FC = () => {
     loadServers();
   }, []);
 
-  useEffect(() => {
-    if (!selectedServerId || !userId) return;
+useEffect(() => {
+  if (!selectedServerId || !userId) return;
 
-    const loadChannels = async () => {
-      try {
-        const data: Channel[] = await fetchChannelsByUser(userId);
-        setChannelsByServer((prev) => ({
-          ...prev,
-          [selectedServerId]: data,
-        }));
-      } catch (err) {
-        console.error("Error fetching channels", err);
-        setError("Failed to load channels");
-      }
-    };
+  const loadChannels = async () => {
+    try {
+      const data: Channel[] = await fetchChannelsByUser(userId);
+      setChannelsByServer((prev) => ({
+        ...prev,
+        [selectedServerId]: data,
+      }));
+    } catch (err) {
+      console.error("Error fetching channels", err);
+      setError("Failed to load channels");
+    }
+  };
 
-    loadChannels();
-  }, [selectedServerId, userId]);
+  loadChannels();
+}, [selectedServerId, userId]);
 
-  useEffect(() => {
-    if (!activeChannel) return;
+useEffect(() => {
+  if (!activeChannel) return;
 
-    const loadMessages = async () => {
-      try {
-        const res = await fetchMessages(activeChannel.id, false);
-        setMessages(res.data || []);
-      } catch (err) {
-        console.error("Failed to fetch messages", err);
-        setError("Failed to load messages");
-      }
-    };
+  const loadMessages = async () => {
+    try {
+      const res = await fetchMessages(activeChannel.id, false);
+      setMessages(res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch messages", err);
+      setError("Failed to load messages");
+    }
+  };
 
-    loadMessages();
-  }, [activeChannel]);
+  loadMessages();
+}, [activeChannel]);
+
+// Helper and render functions
+const handlejoinvoiceChannel = (name: string) => {
+  setActiveVoiceChannel(name);
+};
+
+// MODIFIED to work with a Channel object
+const renderChannel = (channel: Channel) => (
+  <div
+    key={channel.id}
+    className={`flex items-center justify-between px-3 py-1 text-sm rounded-md cursor-pointer transition-all ${
+      activeChannel?.id === channel.id // Use object ID for comparison
+        ? "bg-[#2f3136] text-white"
+        : "text-gray-400 hover:bg-[#2f3136] hover:text-white"
+    }`}
+    onClick={() => setActiveChannel(channel)} // Set the entire object as active
+  >
+    <span className="flex items-center gap-1">
+      <FaHashtag size={12} />
+      {channel.name}
+    </span>
+    {activeChannel?.id === channel.id && <FaCog size={12} />}
+  </div>
+);
+
+// No changes needed for voice channel functions if they are handled by name
+const renderVoiceChannel = (name: string) => (
+  <div
+    key={name}
+    className={`flex items-center justify-between px-3 py-1 text-sm rounded-md cursor-pointer transition-all ${
+      activeVoiceChannel === name
+        ? "bg-[#2f3136] text-white"
+        : "text-gray-400 hover:bg-[#2f3136] hover:text-white"
+    }`}
+    onClick={() => handlejoinvoiceChannel(name)}
+  >
+    <span className="flex items-center gap-1">
+      <FaVolumeUp size={12} />
+      {name}
+    </span>
+    {activeVoiceChannel === name && <FaCog size={12} />}
+  </div>
+);
+
+// Standalone utility function, no changes needed
+const formatTimestamp = (timestamp: string) => {
+  const date = new Date(timestamp);
+  return date.toLocaleString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+};
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -227,11 +297,57 @@ const ServersPage: React.FC = () => {
         ))}
       </div>
 
+      {/* Channels */}
+      <div className="w-72 h-screen overflow-y-scroll text-white px-4 py-6 space-y-4 border-r border-gray-800 bg-gradient-to-b from-black via-black to-[#0f172a] scrollbar scrollbar-thumb-white/90 scrollbar-track-[#1a1a1a]">
+        <div className="flex items-center gap-2 mb-2">
+          <img
+            src="/hackbattle.png"
+            className="w-8 h-8 rounded-full"
+            alt="server"
+          />
+          <h2 className="text-xl font-bold">Hackbattle</h2>
+           <button
+              className="ml-2 p-2 rounded-full hover:bg-[#23272a] transition"
+              title="Server Settings"
+              onClick={() => router.push("/server-settings")}>
+              <FaCog className="w-5 h-5 text-[#b5bac1] hover:text-white" />
+          </button>
+        </div>
+        {[
+          { title: "General", channels: ["general", "welcome"] },
+          { title: "Voice Channels", channels: ["technical", "voice-general"] },
+          { title: "Support", channels: ["tickets", "faq"] },
+          { title: "Events", channels: ["upcoming", "chapter-meetings"] },
+          { title: "Resources", channels: ["study-material", "project-repos"] },
+        ].map((section, idx) => (
+          <div key={idx}>
+            <div
+              className="flex justify-between items-center text-sm text-gray-400 mt-4 cursor-pointer"
+              onClick={() => toggleSection(section.title)}
+            >
+              <span>{section.title}</span>
+              <button className="text-white text-lg">
+                {expandedSections[section.title] ? "−" : "+"}
+              </button>
+            </div>
+            {expandedSections[section.title] &&
+              (section.title === "Voice Channels" 
+                ? section.channels.map((channel) => renderVoiceChannel(channel))
+                : section.channels.map((channel) => renderChannel(channel)))}
+          </div>
+        ))}
+        {activeVoiceChannel && (
+          <div className="mt-4">
+            <VoiceChannel channelId={activeVoiceChannel} 
+             onHangUp={() => setActiveVoiceChannel(null)} />
+          </div>
+
       {/* Channel List */}
       <div className="w-72 overflow-y-scroll text-white px-4 py-6 space-y-4 border-r border-gray-800 bg-gradient-to-b from-black via-black to-[#0f172a]">
         <h2 className="text-xl font-bold mb-2">{selectedServerName}</h2>
         {(channelsByServer[selectedServerId] || []).map((channel) =>
           renderChannel(channel)
+
         )}
       </div>
 
