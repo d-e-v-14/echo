@@ -18,10 +18,16 @@ export default function Login() {
     setSuccess(false);
 
     try {
-      const data = await login(identifier, password);
+      const response = await login(identifier, password);
+      if(response.status==200){
       setSuccess(true);
-      setMessage(data.message || 'Login successful!');
-      router.push('/profile');
+      if (typeof window !== "undefined") {
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+      }
+      setMessage(response.data.message || 'Login successful!');
+
+      router.push('/servers ');
+      }
 
     } catch (error: any) {
       setSuccess(false);

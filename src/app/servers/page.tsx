@@ -12,6 +12,9 @@ import {
   fetchMessages,
   uploadMessage,
 } from "@/app/api/API";
+import { io } from "socket.io-client";
+
+const socket = io("http://localhost:5000");
 
 const TENOR_API_KEY = process.env.NEXT_PUBLIC_TENOR_API_KEY!;
 
@@ -63,8 +66,35 @@ const ServersPage: React.FC = () => {
   
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const userId = typeof window !== "undefined" ? localStorage.getItem("userId") || "guest" : "guest";
+  
+  
+  interface User {
+    id: string;
+    email: string;
+    fullname: string;
+    username: string;
+    avatar_url: string | null;
+    bio: string;
+    created_at: string;
+    date_of_birth: string;
+    status: "online" | "offline" | "idle" | "dnd";
+  }
 
+  const user: User = typeof window !== "undefined"
+  ? JSON.parse(localStorage.getItem("user") || "{}")
+  : {
+      id: "guest",
+      email: "guest@example.com",
+      fullname: "Guest",
+      username: "guest",
+      avatar_url: null,
+      bio: "",
+      created_at: "",
+      date_of_birth: "",
+      status: "offline"
+    };
+
+  
   // Effect to load servers on initial render
   useEffect(() => {
     const loadServers = async () => {
@@ -89,15 +119,16 @@ const ServersPage: React.FC = () => {
 
   // Effect to load channels when server changes
   useEffect(() => {
-    if (!selectedServerId || !userId) return;
+    if (!selectedServerId || !user) return;
 
     const loadChannels = async () => {
       try {
         // Assuming fetchChannelsByServer could take a serverId in the future
         const data: Channel[] = await fetchChannelsByServer(selectedServerId);
+        console.log("data ", data);
         setChannels(data);
         // Set the first text channel as active by default
-        const firstTextChannel = data.find(c => c.type === 'text');
+        const firstTextChannel = data.find(c => c.type === "TEXT");
         setActiveChannel(firstTextChannel || null);
       } catch (err) {
         console.error("Error fetching channels for server:", selectedServerId, err);
@@ -106,26 +137,24 @@ const ServersPage: React.FC = () => {
       }
     };
     loadChannels();
-  }, [selectedServerId, userId]);
+  }, [selectedServerId]);
 
   // Effect to load messages when active channel changes
   useEffect(() => {
-    if (!activeChannel) {
-        setMessages([]);
-        return;
+    if (!activeChannel) return;
+  
+    socket.emit("join_text_channel", activeChannel.id);
+  
+    socket.off("receive_message"); // clean up old listener
+    socket.on("receive_message", (msg) => {
+      setMessages(prev => [...prev, msg]);
+    });
+  
+    return () => {
+      socket.off("receive_message");
     };
-
-    const loadMessages = async () => {
-      try {
-        const res = await fetchMessages(activeChannel.id, false);
-        setMessages(res.data || []);
-      } catch (err) {
-        console.error("Failed to fetch messages for channel:", activeChannel.id, err);
-        setError("Failed to load messages");
-      }
-    };
-    loadMessages();
   }, [activeChannel]);
+  
 
   // Effect to scroll to the bottom of the chat on new messages
   useEffect(() => {
@@ -149,17 +178,23 @@ const ServersPage: React.FC = () => {
   // --- Handlers ---
   const handleSend = async (content: string = message) => {
     if (!content.trim() || !activeChannel) return;
-
+  
     try {
       const newMessage = {
-        message: content,
-        senderId: userId,
         channelId: activeChannel.id,
-        isDM: false,
+        message: content,
+        name: user.fullname,
+        senderId: user.id,
+        seed: "user",
+        color: "text-blue-400",
+        timestamp: new Date().toISOString(),
       };
-      const res = await uploadMessage(newMessage);
-      setMessages((prev) => [...prev, res]); // Add new message returned from API
-      setMessage(""); // Clear input
+      
+      
+  
+      socket.emit("send_message", newMessage);
+      setMessages((prev) => [...prev, newMessage]);
+      setMessage("");
       setShowEmoji(false);
       setShowGifs(false);
     } catch (err) {
@@ -167,6 +202,7 @@ const ServersPage: React.FC = () => {
       setError("Failed to send message");
     }
   };
+  
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
     setMessage((prev) => prev + emojiData.emoji);

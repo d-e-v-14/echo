@@ -1,6 +1,5 @@
 import { io, Socket } from 'socket.io-client';
 
-// This class encapsulates all the logic for the voice chat.
 export class VoiceService {
     private socket: Socket | null = null;
     private localStream: MediaStream | null = null;
@@ -8,7 +7,6 @@ export class VoiceService {
     private onRemoteStreamCallback: ((stream: MediaStream, socketId: string) => void) | null = null;
     private onUserDisconnectedCallback: ((socketId: string) => void) | null = null;
 
-    // Use a public STUN server from Google for NAT traversal
     private peerConnectionConfig: RTCConfiguration = {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
@@ -18,17 +16,12 @@ export class VoiceService {
 
     constructor(private serverUrl: "http://localhost:5000") {}
 
-    /**
-     * Connects to the Socket.IO server and initializes the local microphone stream.
-     */
     public async connect(): Promise<void> {
         if (this.socket) return;
 
         try {
-            // Get microphone access
             this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
 
-            // Connect to the socket server
             this.socket = io(this.serverUrl);
             this.setupSocketListeners();
             console.log('Successfully connected to voice server and got local stream.');

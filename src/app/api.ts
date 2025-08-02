@@ -41,7 +41,7 @@ export const login = async (
       });
       // The browser will automatically handle the Set-Cookie header from the response
       // because `withCredentials: true` is configured on the apiClient instance.
-      return response.data;
+      return response;
     } catch (error) {
       console.error("Error during login:", error);
       throw error;
