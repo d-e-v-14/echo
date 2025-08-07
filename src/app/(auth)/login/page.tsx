@@ -19,6 +19,7 @@ export default function Login() {
 
     try {
       const response = await login(identifier, password);
+      console.log(response);
       if(response.status==200){
       setSuccess(true);
       if (typeof window !== "undefined") {

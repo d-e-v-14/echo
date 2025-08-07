@@ -1,7 +1,8 @@
 // In your component file (e.g., src/components/VoiceChannel.tsx)
 
-import { useEffect, useState } from 'react';
-import { VoiceService } from '../lib/voiceservice'; // Corrected import path
+import { useEffect, useRef, useState } from 'react';
+import { VideoVoiceService } from '../lib/voiceservice'; // Corrected import path
+import { FaMicrophone, FaMicrophoneSlash, FaPhoneSlash, FaVideo, FaVideoSlash } from 'react-icons/fa';
 
 // IMPORTANT: Replace this with the actual URL of your backend server
 const SERVER_URL = 'http://localhost:5000'; 
@@ -12,29 +13,35 @@ interface VoiceChannelProps {
     onHangUp: () => void;
 }
 
-const VoiceChannel = (props: VoiceChannelProps) => {
-    const { channelId, onHangUp } = props; // Destructure props here for cleaner use below
+const VideoPlayer = ({ stream, isMuted = false, isLocal = false }: { stream: MediaStream, isMuted?: boolean, isLocal?: boolean }) => {
+    const videoRef = useRef<HTMLVideoElement>(null);
+    useEffect(() => {
+        if (videoRef.current && stream) videoRef.current.srcObject = stream;
+    }, [stream]);
+    return (
+        <div className="bg-black rounded-lg overflow-hidden relative aspect-video">
+            <video ref={videoRef} autoPlay playsInline muted={isMuted} className={`w-full h-full object-cover ${isLocal ? 'transform -scale-x-100' : ''}`} />
+        </div>
+    );
+};
 
-    const [voiceService, setVoiceService] = useState<VoiceService | null>(null);
+const VoiceChannel = ({ channelId, onHangUp }: { channelId: string; onHangUp: () => void; }) => {
+    const [service, setService] = useState<VideoVoiceService | null>(null);
+    const [localStream, setLocalStream] = useState<MediaStream | null>(null);
     const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
-    const [isConnected, setIsConnected] = useState(false);
+    const [isMuted, setIsMuted] = useState(false);
+    const [isCameraOn, setIsCameraOn] = useState(true);
 
     useEffect(() => {
-        // Initialize the service when the component mounts
-        const service = new VoiceService(SERVER_URL);
-
-        service.connect().then(() => {
-            setVoiceService(service);
-            service.joinChannel(channelId);
-            setIsConnected(true);
-
-            // Handle receiving streams from other users
-            service.onRemoteStream((stream, socketId) => {
+        const videoService = new VideoVoiceService("http://localhost:5000");
+        videoService.connect().then(() => {
+            setService(videoService);
+            setLocalStream(videoService.getLocalStream());
+            videoService.joinChannel(channelId);
+            videoService.onRemoteStream((stream, socketId) => {
                 setRemoteStreams(prev => new Map(prev).set(socketId, stream));
             });
-            
-            // Handle users leaving
-            service.onUserDisconnected((socketId) => {
+            videoService.onUserDisconnected((socketId) => {
                 setRemoteStreams(prev => {
                     const newStreams = new Map(prev);
                     newStreams.delete(socketId);
@@ -43,54 +50,43 @@ const VoiceChannel = (props: VoiceChannelProps) => {
             });
         }).catch(error => {
             console.error("Failed to connect to voice service:", error);
-            alert("Could not connect to voice chat. Please check your microphone permissions.");
+            alert("Could not connect. Please check permissions and try again.");
+            onHangUp();
         });
 
-        // Cleanup on component unmount
-        return () => {
-            service.disconnect();
-            setIsConnected(false);
-        };
-    }, [channelId]); // Re-connect if the channelId prop changes
+        return () => videoService.disconnect();
+    }, [channelId, onHangUp]);
+
+    const handleToggleMute = () => {
+        const newMutedState = !isMuted;
+        service?.toggleAudio(!newMutedState);
+        setIsMuted(newMutedState);
+    };
+
+    const handleToggleCamera = () => {
+        const newCameraState = !isCameraOn;
+        service?.toggleVideo(newCameraState);
+        setIsCameraOn(newCameraState);
+    };
 
     return (
-        <div className="p-4 bg-gray-800 rounded-lg text-white">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h3 className="font-bold text-lg">Voice Channel: {channelId}</h3>
-                    {isConnected ? (
-                        <p className="text-sm text-green-400">You are connected.</p>
-                    ) : (
-                        <p className="text-sm text-yellow-400">Connecting...</p>
-                    )}
-                </div>
-                {/* --- NEW: Hang Up Button --- */}
-                <button 
-                    onClick={onHangUp}
-                    className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded-md text-white font-semibold transition-colors"
-                    title="Leave Voice Channel"
-                >
-                    Hang Up
-                </button>
-            </div>
-            
-            <div className="mt-2">
-                <h4 className="font-semibold">Connected Users:</h4>
-                {/* Dynamically create audio players for each remote stream */}
-                {Array.from(remoteStreams.entries()).map(([socketId, stream]) => (
-                    <div key={socketId}>
-                        <p className="text-xs text-gray-300">User: {socketId.substring(0, 6)}...</p>
-                        <audio
-                            autoPlay
-                            ref={audioEl => {
-                                if (audioEl && stream) {
-                                    audioEl.srcObject = stream;
-                                }
-                            }}
-                        />
-                    </div>
+        <div className="p-2 bg-gray-900 rounded-lg flex flex-col h-full">
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2 overflow-y-auto">
+                {localStream && <VideoPlayer stream={localStream} isMuted={true} isLocal={true} />}
+                {Array.from(remoteStreams.entries()).map(([id, stream]) => (
+                    <VideoPlayer key={id} stream={stream} />
                 ))}
-                {remoteStreams.size === 0 && isConnected && <p className="text-xs text-gray-400">You're the first one here!</p>}
+            </div>
+            <div className="flex items-center justify-center space-x-4 mt-2 p-2 bg-gray-800 rounded-md">
+                <button onClick={handleToggleMute} className="p-3 rounded-full bg-gray-700 hover:bg-gray-600 transition">
+                    {isMuted ? <FaMicrophoneSlash size={20} className="text-yellow-400" /> : <FaMicrophone size={20} />}
+                </button>
+                <button onClick={handleToggleCamera} className="p-3 rounded-full bg-gray-700 hover:bg-gray-600 transition">
+                    {isCameraOn ? <FaVideo size={20} /> : <FaVideoSlash size={20} className="text-yellow-400" />}
+                </button>
+                <button onClick={onHangUp} className="p-3 rounded-full bg-red-600 hover:bg-red-500 transition">
+                    <FaPhoneSlash size={20} />
+                </button>
             </div>
         </div>
     );

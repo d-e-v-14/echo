@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation"; // 1. IMPORT useRouter
 import { FaHashtag, FaCog, FaVolumeUp } from "react-icons/fa";
-import VoiceChannel from "@/components/VoiceChannel";
 import EmojiPicker, { Theme } from "emoji-picker-react";
 import type { EmojiClickData } from "emoji-picker-react";
+import VoiceChannel from "@/components/VoiceChannel"; // Import the VoiceChannel component
 import {
   fetchServers,
   fetchChannelsByServer,
@@ -80,9 +80,9 @@ const ServersPage: React.FC = () => {
     status: "online" | "offline" | "idle" | "dnd";
   }
 
-  const user: User = typeof window !== "undefined"
-  ? JSON.parse(localStorage.getItem("user") || "{}")
-  : {
+  const userItem = typeof window !== "undefined"? localStorage.getItem("user") : null;
+  const user:  User=   userItem && userItem !== "undefined" ? JSON.parse(userItem) :
+  {
       id: "guest",
       email: "guest@example.com",
       fullname: "Guest",
@@ -181,6 +181,7 @@ const ServersPage: React.FC = () => {
   
     try {
       const newMessage = {
+        id: crypto.randomUUID(), // Generate a unique ID for the message
         channelId: activeChannel.id,
         message: content,
         name: user.fullname,
@@ -298,7 +299,7 @@ const ServersPage: React.FC = () => {
             ))}
         </div>
 
-        {/* Voice Channels */}
+        {/*    Channels */}
         <div className="px-2">
             <h3 className="text-xs font-bold uppercase text-gray-400 mt-4 mb-2">Voice Channels</h3>
             {voiceChannels.map((channel) => (
