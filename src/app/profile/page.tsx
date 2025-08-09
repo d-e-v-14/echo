@@ -1,41 +1,33 @@
 "use client";
 import { useEffect, useState } from "react";
-import Sidebar from "../../components/Sidebar";
-import Link from 'next/link';
-import { fetchProfile,profile } from "../api";
-import { useRouter } from "next/navigation";
+import { getUser } from "../api";
+import type { User } from "../api";
 export default function ProfilePage() {
     const numPolygons = 10;
     const maxOpacity = 0.6;
     const minOpacity = 0.1;
-    const [profile, setProfile] = useState<profile | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState<User | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const router = useRouter();
     useEffect(() => {
-        const getProfileData = async () => {
+        const fetchUser = async () => {
             try {
-                const data = await fetchProfile();
-                setProfile(data);
+                const userData = await getUser();
+                setUser(userData);
             } catch (err) {
-                console.error("Failed to fetch profile:", err);
-                setError("Could not load profile");
-            } finally {
-                setLoading(false);
+                setError("Failed to load user profile. Please try again.");
             }
         };
-
-        getProfileData();
+        fetchUser();
     }, []);
-
-    if (loading) return <p>Loading...</p>;
-    if (error) return <p>{error}</p>;
-    if (!profile) {
-        return <p>Loading profile...</p>; // or your loading UI
+    if (error) {
+        return <div className="text-red-500">{error}</div>;
+    }
+    if (!user) {
+        return <div className="text-white">Loading...</div>;
     }
     return (
         <div className="flex min-h-screen bg-black text-white relative font-poppins">
-            <Sidebar />
+
             {/* Main Content */}
             <main className="flex-1 p-10 flex flex-col gap-6 relative">
                 {/* Banner */}
@@ -56,26 +48,18 @@ export default function ProfilePage() {
                             className="absolute -top-[100px] -left-[30px] z-20"
                             style={{ width: 220, height: 220 }}
                         >
-                            {/* SVG clipPath definition (hidden) */}
-                            <svg width="0" height="0" style={{ position: "absolute" }}>
-                                <defs>
-                                    <clipPath id="hexClip" clipPathUnits="objectBoundingBox">
-                                        <polygon points="0.25 0.067, 0.75 0.067, 1 0.5, 0.75 0.933, 0.25 0.933, 0 0.5" />
-                                    </clipPath>
-                                </defs>
-                            </svg>
                             <img
-                                src={profile?.avatar_url || "/avatar.png"}
+                                src={user?.avatar_url || "/avatar.png"}
                                 alt="Avatar"
                                 style={{
-                                    width: 134,
-                                    height: 128,
+                                    width: 130,
+                                    height: 130,
                                     objectFit: "cover",
                                     position: "absolute",
-                                    top: -26,
-                                    left: 12,
+                                    top: -28,
+                                    left: 18,
                                     clipPath: "url(#hexClip)",
-                                    zIndex: 4,
+                                    zIndex: 3,
                                 }}
                                 draggable={false}
                             />
@@ -139,7 +123,7 @@ export default function ProfilePage() {
 
                         <div className="mt-8 ml-1">
                             <h1 className="text-3xl font-bold flex items-center gap-[23rem]">
-                                {profile.fullname}
+                                {user.fullname}
                                 <span className="text-white/50 text-lg cursor-pointer">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -148,9 +132,9 @@ export default function ProfilePage() {
 
                                 </span>
                             </h1>
-                            <p className="text-sm text-white/60">@{profile.username}</p>
+                            <p className="text-sm text-white/60">@{user.username}</p>
                             <div className="mt-6">
-                                <h3 className="text-sm font-semibold mb-1 flex items-center gap-[30rem]">
+                                <h3 className="text-sm font-semibold mb-1 flex items-center gap-[32rem]">
                                     About <span className="text-white/50 text-sm cursor-pointer ml-[2.59rem]">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -160,7 +144,7 @@ export default function ProfilePage() {
                                 </span>
                                 </h3>
                                 <p className="w-[41rem] text-white/60 text-sm border-t border-white/20 pt-4 text-[1.12rem]">
-                                    {profile?.bio||"Enter interesting details about you!"}
+                                    {user?.bio||"Enter interesting details about you!"}
                                 </p>
                             </div>
                             <div className="mt-6">
@@ -169,8 +153,7 @@ export default function ProfilePage() {
                                 </h3>
                                 <hr className="my-4 border-t border-white/20" />
                                 <div className="flex gap-4">
-                                    <button className="bg-yellow-600 hover:bg-yellow-500 text-black font-semibold px-2 py-1 rounded-md text-sm"
-                                            onClick={() => router.push("/profile-settings")}>
+                                    <button className="bg-yellow-600 hover:bg-yellow-500 text-black font-semibold px-2 py-1 rounded-md text-sm">
                                         Change Avatar
                                     </button>
                                     <button className="bg-yellow-600 hover:bg-yellow-500 text-black font-semibold px-2 py-1 rounded-md text-sm">
@@ -182,11 +165,9 @@ export default function ProfilePage() {
                                 <h3 className="text-sm font-semibold mb-2">Account Settings</h3>
                                 <hr className="my-2 border-t border-white/20" />
 
-                                <Link
-                                    href="/profile-settings"
-                                    className="bg-blue-700 hover:bg-blue-600 px-2 py-1 rounded-md text-white text-sm">
+                                <button className="bg-blue-700 hover:bg-blue-600 px-2 py-1 rounded-md text-white text-sm">
                                     Settings
-                                </Link>
+                                </button>
                             </div>
                         </div>
                     </div>
