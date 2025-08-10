@@ -235,7 +235,7 @@ const ServersPage: React.FC = () => {
       <div className="w-16 p-2 flex flex-col items-center bg-black space-y-3">
         {servers.length === 0 ? (
           <div className="text-white text-xs text-center px-2">
-            <p className="rotate-[-90deg] whitespace-nowrap">No Servers</p>
+         
           </div>
         ) : (
           servers.map((server, idx) => (
