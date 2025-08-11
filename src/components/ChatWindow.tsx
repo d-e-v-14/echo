@@ -7,7 +7,6 @@ import {socket} from "@/socket";
 
 const channelId="room123"; //change this to userid for dms and channelid for channels
 const senderId= "SENDER"; //this will be the display name of user 
-
 import MessageInput from "./MessageInput";
 import { fetchMessages, uploadMessage } from "@/app/api/API";
 
@@ -36,8 +35,7 @@ export default function ChatWindow({ channelId, isDM }: ChatWindowProps) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  useEffect(() => {
+   useEffect(() => {
     console.log('Socket initialized:', socket.connected);
   
     if (!socket.connected) {
@@ -94,6 +92,7 @@ export default function ChatWindow({ channelId, isDM }: ChatWindowProps) {
       senderId,
       content: text,
     });
+
   const handleSend = async (msg: string) => {
     try {
       const newMsg = await uploadMessage({
@@ -124,6 +123,5 @@ export default function ChatWindow({ channelId, isDM }: ChatWindowProps) {
       <MessageInput sendMessage={handleSend} />
     </div>
   );
-  }
 }
-
+}

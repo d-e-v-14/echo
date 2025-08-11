@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getUserDMs } from "@/app/api/API";
 import { useSearchParams, useRouter } from "next/navigation";
+import { Search, X } from "lucide-react";
 
 const ClientOnlyTimestamp = ({ time }: { time: string }) => {
   const [formatted, setFormatted] = useState("");
@@ -46,6 +47,8 @@ const ChatItem = ({
 
 export default function ChatList() {
   const [dms, setDms] = useState<any[]>([]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const searchParams = useSearchParams();
   const router = useRouter();
   const selected = searchParams.get("dm");
@@ -53,7 +56,7 @@ export default function ChatList() {
   useEffect(() => {
     const fetchDMs = async () => {
       try {
-        if (typeof window === "undefined") return; 
+        if (typeof window === "undefined") return;
 
         const token = localStorage.getItem("token");
         if (!token) {
@@ -61,7 +64,6 @@ export default function ChatList() {
           return;
         }
 
-        // OPTIONAL: decode userId from token
         const payload = JSON.parse(atob(token.split(".")[1]));
         const userId = payload.sub;
 
@@ -80,10 +82,45 @@ export default function ChatList() {
     fetchDMs();
   }, []);
 
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchTerm.trim()) return;
+    router.push(`/messages/new?username=${encodeURIComponent(searchTerm)}`);
+    setSearchTerm("");
+    setSearchOpen(false);
+  };
+
   return (
     <div className="w-72 bg-black text-white p-4 flex flex-col gap-4 border-r border-gray-800 overflow-y-auto">
-      <h2 className="text-xl font-semibold">Messages</h2>
+      {/* Header row */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold">Messages</h2>
+        <button
+          onClick={() => setSearchOpen((prev) => !prev)}
+          className="p-1 rounded hover:bg-gray-800"
+        >
+          {searchOpen ? <X size={18} /> : <Search size={18} />}
+        </button>
+      </div>
 
+      {/* Search input appears when open */}
+      {searchOpen && (
+        <form
+          onSubmit={handleSearchSubmit}
+          className="flex items-center bg-gray-900 rounded-lg px-2"
+        >
+          <Search size={16} className="text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search username"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="bg-transparent text-sm flex-1 px-2 py-1 outline-none text-white placeholder-gray-400"
+          />
+        </form>
+      )}
+
+      {/* DM list */}
       {dms.length === 0 ? (
         <p className="text-gray-400 text-sm">No DMs yet</p>
       ) : (
