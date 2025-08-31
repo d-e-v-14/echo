@@ -50,13 +50,13 @@ export const login = async (identifier: string, password: string) => {
 };
 
 export const forgotPassword = async (email: string) => {
-    const response = await api.post("/auth/forgot-password", { email });
+    const response = await api.post("/api/auth/forgot-password", { email });
     return response.data;
 };
 
 export const resetPassword = async (newPassword: string, token: string) => {
     const response = await api.post(
-        "/auth/reset-password",
+        "/api/auth/reset-password",
         { new_password: newPassword },
         { headers: { Authorization: `Bearer ${token}` } }
     );

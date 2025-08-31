@@ -59,7 +59,7 @@ export const createServer = async (payload: {
 
     // The server will identify the owner from the session cookie.
     const response = await apiClient.post<Server>(
-      "/newserver/create/",
+      "/api/newserver/create/",
       formData,
       {
         headers: {
@@ -76,7 +76,7 @@ export const createServer = async (payload: {
 
 export const fetchServers = async (): Promise<Server[]> => {
   try {
-    const response = await apiClient.get(`${API_BASE_URL}/newserver/getServers/`);
+    const response = await apiClient.get(`${API_BASE_URL}/api/newserver/getServers/`);
     console.log("response.data")
     return response.data;
   } catch (error) {
@@ -89,7 +89,7 @@ export const fetchServers = async (): Promise<Server[]> => {
 // The server can identify the user from the request cookie, so userId is not needed.
 export const fetchChannelsByServer = async (serverId: string): Promise<any> => {
   try {
-    const response = await apiClient.get(`/channel/${serverId}/getChannels`);
+    const response = await apiClient.get(`/api/channel/${serverId}/getChannels`);
     return response.data;
   } catch (error) {
     console.error("Error fetching channels:", error);
@@ -106,7 +106,7 @@ export const uploadMessage = async (payload: {
   try {
     // The server will get the senderId from the authenticated user's session.
     const response = await apiClient.post<Message>(
-      "/message/upload",
+      "/api/message/upload",
       payload
     );
     return response.data;
@@ -126,7 +126,7 @@ export const fetchMessages = async (
       messages?: Message[];
       data?: Message[];
     }>(
-      `/message/fetch?channel_id=${channelId}&is_dm=${isDM}&offset=${offset}`
+      `/api/message/fetch?channel_id=${channelId}&is_dm=${isDM}&offset=${offset}`
     );
 
     const messages = response.data.messages || response.data.data || [];
@@ -142,7 +142,7 @@ const userId= getUser();
 // The server identifies the user from the cookie, so userId is not needed.
 export const getUserDMs = async (): Promise<any> => {
   try {
-    const response = await apiClient.get(`/message/${userId}/getDms`);
+    const response = await apiClient.get(`/api/message/${userId}/getDms`);
     return response.data;
   } catch (error: any) {
     if (error?.code === "ECONNABORTED") {
