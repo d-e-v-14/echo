@@ -40,12 +40,12 @@ export interface profile {
 }
 
 export const register = async (email: string, username: string, password: string) => {
-    const response = await api.post("/auth/register", { email, username, password });
+    const response = await api.post("/api/auth/register", { email, username, password });
     return response.data;
 };
 
 export const login = async (identifier: string, password: string) => {
-    const response = await api.post("/auth/login", { identifier, password });
+    const response = await api.post("/api/auth/login", { identifier, password });
     return response.data;
 };
 

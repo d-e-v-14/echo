@@ -137,19 +137,34 @@ export const fetchMessages = async (
   }
 };
 
-const userId= getUser();
 // ---------- Direct Messages ----------
-// The server identifies the user from the cookie, so userId is not needed.
+// Fetch user's direct messages with error handling
 export const getUserDMs = async (): Promise<any> => {
   try {
-    const response = await apiClient.get(`/api/message/${userId}/getDms`);
-    return response.data;
+    const user = await getUser();
+    if (!user || !user.id) {
+      throw new Error('User not authenticated');
+    }
+
+    console.log("Fetching DMs for user:", user.id);
+    const response = await apiClient.get(`/api/message/${user.id}/getDms`);
+    
+    return {
+      data: response.data,
+      success: true
+    };
   } catch (error: any) {
     if (error?.code === "ECONNABORTED") {
-      console.error("Request timed out");
+      console.error("❌ Request timed out");
       throw new Error("Request timed out. Please try again.");
     }
-    console.error("Error fetching DMs:", error.message || error);
-    throw new Error("Error fetching DMs");
+    
+    if (error.message === 'User not authenticated') {
+      console.error("❌ Authentication error:", error.message);
+      throw new Error("Please login to view messages");
+    }
+
+    console.error("❌ Error fetching DMs:", error.message || error);
+    throw new Error("Failed to fetch messages. Please try again later.");
   }
 };
