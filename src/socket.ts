@@ -10,7 +10,11 @@ interface PeerConnection {
 
 // Base socket configuration
 const baseConfig = {
+    // We need cookies; instruct browser to include credentials
+    // Note: Server MUST set CORS { origin: <frontend>, credentials: true }
     withCredentials: true,
+    // Prefer WebSocket to reduce XHR preflight issues during development
+    transports: ["websocket"],
     reconnection: true,
     reconnectionAttempts: 5,
     reconnectionDelay: 1000,

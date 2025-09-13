@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Socket } from "socket.io-client";
 import MessageInput from "./MessageInput";
-import { fetchMessages, uploadMessage } from "@/app/api/API";
+import { fetchMessages } from "@/app/api/API";
 import { createAuthSocket } from "@/socket";
+import VideoPanel from "./VideoPanel";
 
 interface Message {
   id: string | number;
@@ -12,18 +13,27 @@ interface Message {
   senderId: string;
   timestamp: string;
   avatarUrl?: string;
+  username?: string;
 }
 
 interface ChatWindowProps {
   channelId: string;
   isDM: boolean;
   currentUserId: string;
+  // Optional media streams when connected to a voice/video room
+  localStream?: MediaStream | null;
+  remoteStreams?: { id: string; stream: MediaStream }[];
 }
 
-export default function ChatWindow({ channelId, isDM, currentUserId }: ChatWindowProps) {
+export default function ChatWindow({ channelId, isDM, currentUserId, localStream = null, remoteStreams = [] }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
+  // Cache usernames by senderId to avoid 'Unknown' on live messages
+  const usernamesRef = useRef<Record<string, string>>({});
+  // Local mic/camera state
+  const [micOn, setMicOn] = useState<boolean>(true);
+  const [camOn, setCamOn] = useState<boolean>(true);
 
   // Initialize socket when component mounts
   useEffect(() => {
@@ -35,27 +45,56 @@ export default function ChatWindow({ channelId, isDM, currentUserId }: ChatWindo
     };
   }, [currentUserId]);
 
-  const loadMessages = async () => {
+  const loadMessages = useCallback(async () => {
     try {
-      const res = await fetchMessages(channelId, isDM);
+      const res = await fetchMessages(channelId);
       // Transform the messages to match our Message interface
       const formattedMessages: Message[] = res.data.map((msg: any) => ({
         id: msg.id,
         content: msg.content || msg.message,
         senderId: msg.sender_id || msg.senderId,
         timestamp: msg.timestamp || new Date().toISOString(),
-        avatarUrl: msg.sender_id === currentUserId ? "/User_profil.png" : "https://avatars.dicebear.com/api/bottts/user.svg"
-      }));
+        avatarUrl: msg.sender_id === currentUserId ? "/User_profil.png" : "https://avatars.dicebear.com/api/bottts/user.svg",
+        username:
+          ((msg.sender_id || msg.senderId) === currentUserId ? "You" :
+            (msg.username ||
+             (msg.sender && (msg.sender.username || msg.sender.fullname || msg.sender.name)) ||
+             msg.sender_name || msg.senderName || msg.username ||
+             "Unknown"))
+      }))
+      // Ensure oldest → newest so UI shows latest at the bottom
+      .sort((a: Message, b: Message) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      // Build/update username cache from fetched messages
+      const map: Record<string, string> = { ...usernamesRef.current };
+      for (const m of formattedMessages) {
+        if (m.senderId && m.username && m.username !== 'Unknown') {
+          map[m.senderId] = m.username;
+        } else if (m.senderId === currentUserId) {
+          map[m.senderId] = 'You';
+        }
+      }
+      usernamesRef.current = map;
       setMessages(formattedMessages);
     } catch (err) {
       console.error("Failed to fetch messages", err);
     }
-  };
+  }, [channelId, currentUserId]);
 
   // Load initial messages
   useEffect(() => {
     if (channelId) loadMessages();
-  }, [channelId]);
+  }, [channelId, loadMessages]);
+
+  // Apply mic/cam toggles to local stream tracks
+  useEffect(() => {
+    if (!localStream) return;
+    localStream.getAudioTracks().forEach(t => (t.enabled = micOn));
+  }, [localStream, micOn]);
+
+  useEffect(() => {
+    if (!localStream) return;
+    localStream.getVideoTracks().forEach(t => (t.enabled = camOn));
+  }, [localStream, camOn]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -105,13 +144,13 @@ export default function ChatWindow({ channelId, isDM, currentUserId }: ChatWindo
     // Keep track of received message IDs to prevent duplicates
     const receivedMessageIds = new Set<string | number>();
 
-    const handleIncomingMessage = (data: { 
-      senderId: string; 
-      content: string; 
-      messageId?: string | number;
-      timestamp?: string;
-    }) => {
-      const messageId = data.messageId || Date.now();
+    const handleIncomingMessage = (saved: any) => {
+      // Backend broadcasts saved message as 'new_message'
+      // Expected fields: { id, content, sender_id, channel_id, timestamp }
+      const messageId = saved?.id || saved?.messageId || Date.now();
+
+      // Ignore if message belongs to a different channel
+      if (saved?.channel_id && saved.channel_id !== channelId) return;
 
       // Prevent duplicate messages
       if (receivedMessageIds.has(messageId)) {
@@ -119,21 +158,36 @@ export default function ChatWindow({ channelId, isDM, currentUserId }: ChatWindo
         return;
       }
 
+      const senderId = saved?.sender_id || saved?.senderId || "";
+      // Resolve username: prefer payload, else cache, else fallback
+      const resolvedUsername = (senderId === currentUserId) ? 'You' : (
+        saved?.username ||
+        (saved?.sender && (saved.sender.username || saved.sender.fullname || saved.sender.name)) ||
+        saved?.sender_name || saved?.senderName || saved?.name ||
+        usernamesRef.current[senderId] || 'Unknown'
+      );
+
       const newMessage: Message = {
         id: messageId,
-        content: data.content,
-        senderId: data.senderId,
-        timestamp: data.timestamp || new Date().toISOString(),
-        avatarUrl: data.senderId === currentUserId 
+        content: saved?.content || saved?.message || "",
+        senderId,
+        timestamp: saved?.timestamp || new Date().toISOString(),
+        avatarUrl: (saved?.sender_id || saved?.senderId) === currentUserId 
           ? "/User_profil.png" 
-          : "https://avatars.dicebear.com/api/bottts/user.svg"
+          : "https://avatars.dicebear.com/api/bottts/user.svg",
+        username: resolvedUsername
       };
+
+      // Update cache if we've learned a username
+      if (senderId && resolvedUsername && resolvedUsername !== 'Unknown') {
+        usernamesRef.current[senderId] = resolvedUsername;
+      }
 
       setMessages(prev => {
         // Remove any optimistic message with the same content if it exists
         const filtered = prev.filter(msg => 
           !(msg.senderId === currentUserId && 
-            msg.content === data.content && 
+            msg.content === (saved?.content || saved?.message || "") && 
             Date.now() - new Date(msg.timestamp).getTime() < 30000)
         );
 
@@ -154,7 +208,10 @@ export default function ChatWindow({ channelId, isDM, currentUserId }: ChatWindo
       }, 5 * 60 * 1000);
     };
 
-    socket.on("chat_message", handleIncomingMessage);
+    socket.on("new_message", handleIncomingMessage);
+    socket.on('message_error', (errMsg: string) => {
+      console.error('❌ message_error:', errMsg);
+    });
 
     // Handle missed messages during disconnection
     socket.on('reconnect', async () => {
@@ -163,56 +220,19 @@ export default function ChatWindow({ channelId, isDM, currentUserId }: ChatWindo
     });
 
     return () => {
-      socket.off("chat_message");
+      socket.off("new_message");
+      socket.off('message_error');
       socket.off("reconnect");
     };
-  }, [socket, currentUserId, loadMessages]);
-
-  const tryEmitMessage = async (socket: Socket, messageData: { channelId: string; senderId: string; content: string }, maxRetries: number = 3): Promise<void> => {
-    let retryCount = 0;
-
-    const emitWithTimeout = (): Promise<void> => {
-      return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Socket message timeout'));
-        }, 5000);
-
-        socket.emit("chat_message", messageData, (acknowledgment: any) => {
-          clearTimeout(timeout);
-          if (acknowledgment?.error) {
-            reject(new Error(acknowledgment.error));
-          } else {
-            console.log('✅ Message delivered successfully');
-            resolve();
-          }
-        });
-      });
-    };
-
-    while (retryCount < maxRetries) {
-      try {
-        await emitWithTimeout();
-        return; // Success, exit the function
-      } catch (error) {
-        retryCount++;
-        console.log(`❌ Message delivery attempt ${retryCount} failed:`, error);
-        if (retryCount < maxRetries) {
-          const delay = 1000 * retryCount; // Exponential backoff
-          console.log(`🔄 Retrying in ${delay}ms...`);
-          await new Promise(r => setTimeout(r, delay));
-        }
-      }
-    }
-    throw new Error(`Failed to deliver message after ${maxRetries} attempts`);
-  };
+  }, [socket, currentUserId, loadMessages, channelId]);
 
   const handleSend = async (text: string) => {
     if (!text.trim() || !socket) return;
 
     const messageData = {
-      channelId,
-      senderId: currentUserId,
       content: text,
+      channelId: channelId,
+      senderId: currentUserId,
     };
 
     // Optimistically add message to UI
@@ -221,30 +241,45 @@ export default function ChatWindow({ channelId, isDM, currentUserId }: ChatWindo
       content: text,
       senderId: currentUserId,
       timestamp: new Date().toISOString(),
-      avatarUrl: "/User_profil.png"
+      avatarUrl: "/User_profil.png",
+      username: "You"
     };
     setMessages(prev => [...prev, optimisticMessage]);
 
+    // Emit once; backend will persist and echo via 'new_message'.
     try {
-      // Try to send via socket with retries
-      await tryEmitMessage(socket, messageData);
-
-      // If socket succeeds, store in database
-      await uploadMessage({
-        message: text,
-        channelId,
-        isDM,
-      });
-
+      socket.emit('send_message', messageData);
     } catch (err) {
-      console.error("💔 Failed to send message:", err);
-      // Show error to user
-      alert('Failed to send message. Please check your connection and try again.');
+      console.error('💔 Failed to emit message:', err);
     }
   };
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
+      {/* Video/Voice panel on top when streams are present */}
+      {(localStream || (remoteStreams && remoteStreams.length > 0)) && (
+        <div className="p-4 pb-0">
+          <div className="relative">
+            <VideoPanel localStream={localStream || undefined} remotes={remoteStreams} />
+            <div className="absolute bottom-3 right-3 flex gap-2">
+              <button
+                onClick={() => setMicOn(v => !v)}
+                className={`px-3 py-1 rounded-md text-sm ${micOn ? 'bg-green-600/80' : 'bg-red-600/80'}`}
+                title={micOn ? 'Mute mic' : 'Unmute mic'}
+              >
+                {micOn ? 'Mic On' : 'Mic Off'}
+              </button>
+              <button
+                onClick={() => setCamOn(v => !v)}
+                className={`px-3 py-1 rounded-md text-sm ${camOn ? 'bg-green-600/80' : 'bg-red-600/80'}`}
+                title={camOn ? 'Turn camera off' : 'Turn camera on'}
+              >
+                {camOn ? 'Cam On' : 'Cam Off'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
         {messages.map((msg) => (
           <div
@@ -254,6 +289,10 @@ export default function ChatWindow({ channelId, isDM, currentUserId }: ChatWindo
             <div className={`bg-white/10 backdrop-blur-md p-2 rounded-lg text-white max-w-lg
               ${msg.senderId === currentUserId ? 'bg-blue-600/50' : 'bg-gray-600/50'}`}
             >
+              {/* Sender label */}
+              <div className="text-[11px] leading-none text-gray-300 mb-1">
+                {msg.senderId === currentUserId ? 'You' : (msg.username || 'Unknown')}
+              </div>
               <div className="text-sm">{msg.content}</div>
               <div className="text-xs text-gray-400 mt-1">
                 {new Date(msg.timestamp).toLocaleTimeString()}

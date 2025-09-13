@@ -72,7 +72,7 @@ export default function ChatList() {
           return;
         }
 
-        const data = await getUserDMs(userId);
+        const data = await getUserDMs();
         setDms(data);
       } catch (err) {
         console.error("Failed to load DMs", err);
