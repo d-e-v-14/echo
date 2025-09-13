@@ -76,7 +76,7 @@ export const createServer = async (payload: {
 
 export const fetchServers = async (): Promise<Server[]> => {
   try {
-    const response = await apiClient.get(`${API_BASE_URL}/api/newserver/getServers/`);
+    const response = await apiClient.get(`/api/newserver/getServers/`);
     console.log("response.data")
     return response.data;
   } catch (error) {
@@ -116,18 +116,15 @@ export const uploadMessage = async (payload: {
   }
 };
 
-export const fetchMessages = async (
-  channelId: string,
-  isDM: boolean = false,
-  offset: number = 1
-): Promise<ApiResponse<Message[]>> => {
+export const fetchMessages = async (channel_id: string): Promise<ApiResponse<Message[]>> => {
   try {
     const response = await apiClient.get<{
       messages?: Message[];
       data?: Message[];
     }>(
-      `/api/message/fetch?channel_id=${channelId}&is_dm=${isDM}&offset=${offset}`
+      `/api/message/fetch?channel_id=${channel_id}`
     );
+    console.log(response.data);
 
     const messages = response.data.messages || response.data.data || [];
     return { data: messages };

@@ -112,6 +112,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ activeUser, messages, currentUs
                 {messages.map((msg) => (
                     <div key={msg.id} className={`mb-4 flex ${msg.sender_id === currentUser?.id ? 'justify-end' : 'justify-start'}`}>
                         <div className={`p-3 rounded-lg max-w-lg ${msg.sender_id === currentUser?.id ? 'bg-blue-700' : 'bg-gray-600'}`}>
+                            {/* Sender label */}
+                            <div className="text-xs text-gray-300 mb-1">
+                                {msg.sender_id === currentUser?.id ? 'You' : activeUser.fullname}
+                            </div>
                             {msg.media_url && (
                                 <img src={msg.media_url} alt="Uploaded content" className="max-w-xs rounded-lg mb-2" />
                             )}
@@ -176,51 +180,77 @@ export default function MessagesPageContent() {
 
 const socketRef = useRef<Socket | null>(null);
 
-
+// Single socket setup and event wiring
 useEffect(() => {
-    if (currentUser?.id && !socketRef.current) {
-        console.log(`Initializing socket connection for user: ${currentUser.id}`);
+    if (!currentUser?.id) return;
+
+    // Create socket once
+    if (!socketRef.current) {
         const newSocket = io(process.env.NEXT_PUBLIC_API_URL!, {
             auth: { userId: currentUser.id }
         });
         socketRef.current = newSocket;
     }
 
-    const socket = socketRef.current;
-    if (socket) {
-        const handleNewMessage = (newMessage: DirectMessage) => {
-            // Determine partner based on the CURRENT user at the time of the event
-            setCurrentUser(currentUser => {
-                if (!currentUser) return null;
+    const socket = socketRef.current!;
 
-                const partnerId = newMessage.sender_id === currentUser.id
-                    ? newMessage.receiver_id
-                    : newMessage.sender_id;
+    const handleNewMessage = (incoming: DirectMessage) => {
+        // Normalize timestamp
+        const incomingMsg: DirectMessage = {
+            ...incoming,
+            timestamp: incoming.timestamp || new Date().toISOString(),
+        };
 
-                setMessages(prevMap => {
-                    const newMap = new Map(prevMap);
-                    const currentDms = newMap.get(partnerId) || [];
-                    if (!currentDms.some(m => m.id === newMessage.id)) {
-                        const updatedDms = [...currentDms, newMessage];
-                        updatedDms.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-                        newMap.set(partnerId, updatedDms);
-                    }
-                    return newMap;
-                });
+        const partnerId = incomingMsg.sender_id === currentUser.id
+            ? incomingMsg.receiver_id
+            : incomingMsg.sender_id;
 
-                return currentUser;
+        setMessages(prevMap => {
+            const newMap = new Map(prevMap);
+            const currentDms = newMap.get(partnerId) || [];
+
+            // De-duplicate: remove optimistic message with same sender+content close in time
+            const thresholdMs = 60_000; // 60s window
+            const incTime = new Date(incomingMsg.timestamp).getTime();
+            let updated = currentDms.filter(m => {
+                const sameSender = m.sender_id === incomingMsg.sender_id;
+                const sameContent = (m.content || "") === (incomingMsg.content || "");
+                const nearInTime = Math.abs(new Date(m.timestamp).getTime() - incTime) < thresholdMs;
+                return !(sameSender && sameContent && nearInTime);
             });
-        };
 
-        socket.on("dm_sent_confirmation", handleNewMessage);
-        socket.on("receive_dm", handleNewMessage);
+            // If exact id exists, avoid duplicate; otherwise append to the end (arrival order)
+            if (!updated.some(m => m.id === incomingMsg.id)) {
+                updated = [...updated, incomingMsg];
+            }
 
-        return () => {
-            socket.off("dm_sent_confirmation", handleNewMessage);
-            socket.off("receive_dm", handleNewMessage);
-        };
-    }
-}, [currentUser]);
+            newMap.set(partnerId, updated);
+            return newMap;
+        });
+    };
+
+    const handleError = (errorMessage: any) => {
+        console.error("Socket DM Error:", errorMessage);
+    };
+
+    const onConnect = () => {
+        // Connected
+    };
+
+    socket.on("connect", onConnect);
+    socket.on("dm_sent_confirmation", handleNewMessage);
+    socket.on("receive_dm", handleNewMessage);
+    socket.on("dm_error", handleError);
+
+    return () => {
+        socket.off("connect", onConnect);
+        socket.off("dm_sent_confirmation", handleNewMessage);
+        socket.off("receive_dm", handleNewMessage);
+        socket.off("dm_error", handleError);
+        socket.disconnect();
+        socketRef.current = null;
+    };
+}, [currentUser?.id]);
 
 
     // Effect to get user and initialize socket
@@ -234,80 +264,85 @@ useEffect(() => {
         }
     }, [router]);
     
-    useEffect(() => {
-        // Only connect if we have a user and the socket doesn't exist yet
-        if (currentUser?.id && !socketRef.current) {
-            // Pass the userId in the `auth` object. This is what the backend expects.
-            const newSocket = io(process.env.NEXT_PUBLIC_API_URL!, {
-                auth: {
-                    userId: currentUser.id
-                }
-            });
-
-            socketRef.current = newSocket;
-
-            // Setup listeners
-            newSocket.on("connect", () => {
-                 if (socketRef.current?.id === newSocket.id) {
-            }
-            });
-            
-            // newSocket.on("dm_sent_confirmation", addMessageToState => {
-            //     console.log("Received dm_sent_confirmation:", addMessageToState);
-            // });
-
-            // newSocket.on("receive_dm", (messageData) => {
-            //     // This is for the receiver. We need to know if this line is EVER reached.
-            //     console.log("--- MESSAGE RECEIVED ON CLIENT ---");
-            //     console.log("Event 'receive_dm' was triggered with this data:", messageData);
-            //     console.log("---------------------------------");
-            //     addMessageToState(messageData);
-            // });
-
-
-            newSocket.on("dm_error", (errorMessage) => {
-                console.error("Socket DM Error:", errorMessage);
-                // Optionally show a toast notification to the user
-            });
-
-            // Cleanup on component unmount OR when currentUser changes
-            return () => {
-                if (!socketRef.current){
-                console.log('Disconnecting chat socket...');
-                newSocket.off("dm_error");
-                newSocket.disconnect();
-                socketRef.current = null;
-                }
-            };
-        }
-    }, [currentUser]); // Re-run if currentUser changes
+    // Removed duplicate socket setup effect; handled in single effect above
 
     // --- EFFECT TO FETCH HISTORICAL DMS (with improved error logging) ---
     useEffect(() => {
-        // --- ADDED GUARD ---: Ensure we have a valid user before fetching
+        // Ensure we have a valid user before fetching
         if (currentUser && currentUser.id) {
             const fetchDms = async () => {
                 try {
                     setIsLoading(true);
                     setError(null);
-                    const response = await getUserDMs(); 
-                    
+                    const payload = await getUserDMs();
+
+                    // Normalize different possible response shapes
+                    const top = (payload as any)?.data ?? payload;
+                    let threads: any[] = [];
+                    if (Array.isArray(top)) {
+                        threads = top;
+                    } else if (Array.isArray((top as any)?.threads)) {
+                        threads = (top as any).threads;
+                    } else if (Array.isArray((top as any)?.data)) {
+                        threads = (top as any).data;
+                    } else {
+                        console.warn("Unexpected DM response shape", top);
+                        threads = [];
+                    }
+
                     const users: User[] = [];
                     const messagesMap = new Map<string, DirectMessage[]>();
 
-                    (response.threads || []).forEach((thread: any) => {
-                        if (thread.other_user) {
-                            users.push({
-                                id: thread.other_user.id,
-                                fullname: thread.other_user.username, 
-                                avatar_url: thread.other_user.avatar_url
-                            });
-                        }
-                        if (thread.messages && thread.other_user) {
-                            const sortedMessages = thread.messages.sort(
-                                (a: DirectMessage, b: DirectMessage) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-                            );
-                            messagesMap.set(thread.other_user.id, sortedMessages);
+                    threads.forEach((thread: any) => {
+                        // Two possible shapes supported:
+                        // A) { other_user: { id, username/fullname/name, avatar_url }, messages: [...] }
+                        // B) { recipientId, recipientName, lastMessage, updatedAt, messages?: [...] }
+                        const other = thread.other_user;
+                        if (other && other.id) {
+                            const name = other.fullname || other.username || other.name || "Unknown User";
+                            users.push({ id: String(other.id), fullname: String(name), avatar_url: other.avatar_url });
+                            if (Array.isArray(thread.messages)) {
+                                const sorted = thread.messages
+                                    .map((m: any) => ({
+                                        id: String(m.id ?? `${other.id}-${m.timestamp ?? Math.random()}`),
+                                        content: m.content ?? m.message ?? "",
+                                        sender_id: String(m.sender_id ?? m.senderId ?? ""),
+                                        receiver_id: String(m.receiver_id ?? m.receiverId ?? other.id),
+                                        timestamp: String(m.timestamp ?? new Date().toISOString()),
+                                        thread_id: m.thread_id,
+                                        media_url: m.media_url ?? null,
+                                    }))
+                                    .sort((a: DirectMessage, b: DirectMessage) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+                                messagesMap.set(String(other.id), sorted);
+                            }
+                        } else if (thread.recipientId) {
+                            const rid = String(thread.recipientId);
+                            const name = thread.recipientName || "Unknown User";
+                            users.push({ id: rid, fullname: name });
+                            if (Array.isArray(thread.messages)) {
+                                const sorted = thread.messages
+                                    .map((m: any) => ({
+                                        id: String(m.id ?? `${rid}-${m.timestamp ?? Math.random()}`),
+                                        content: m.content ?? m.message ?? "",
+                                        sender_id: String(m.sender_id ?? m.senderId ?? ""),
+                                        receiver_id: String(m.receiver_id ?? m.receiverId ?? rid),
+                                        timestamp: String(m.timestamp ?? new Date().toISOString()),
+                                        thread_id: m.thread_id,
+                                        media_url: m.media_url ?? null,
+                                    }))
+                                    .sort((a: DirectMessage, b: DirectMessage) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+                                messagesMap.set(rid, sorted);
+                            } else if (thread.lastMessage) {
+                                // Minimal conversation with lastMessage only
+                                const minimal: DirectMessage = {
+                                    id: `${rid}-last`,
+                                    content: thread.lastMessage,
+                                    sender_id: "",
+                                    receiver_id: rid,
+                                    timestamp: String(thread.updatedAt ?? new Date().toISOString()),
+                                } as DirectMessage;
+                                messagesMap.set(rid, [minimal]);
+                            }
                         }
                     });
 
@@ -315,7 +350,6 @@ useEffect(() => {
                     setMessages(messagesMap);
 
                 } catch (error: any) {
-                    // --- IMPROVED LOGGING ---: Log the detailed error from the server
                     console.error("--- DETAILED FETCH ERROR ---");
                     console.error(error);
                     if (error.response) {
@@ -341,17 +375,39 @@ useEffect(() => {
     // Effect for handling incoming socket events
 
     const handleSendMessage = async (content: string, file: File | null) => {
-    if (!currentUser || !activeDmId || !content.trim()) return;
+        if (!currentUser || !activeDmId || !content.trim()) return;
 
-    if (socketRef.current) {
-        const dmPayload = {
-            senderId: currentUser.id,
-            receiverId: activeDmId,
-            message: content
+        // Optimistic update
+        const tempId = `temp-${Date.now()}`;
+        const tempMessage: DirectMessage = {
+            id: tempId,
+            content,
+            sender_id: currentUser.id,
+            receiver_id: activeDmId,
+            timestamp: new Date().toISOString(),
+            media_url: null,
         };
-        socketRef.current.emit("send_dm", dmPayload);
-    }
-};
+
+        setMessages(prev => {
+            const newMap = new Map(prev);
+            const list = newMap.get(activeDmId) || [];
+            const updated = [...list, tempMessage]; // keep arrival order
+            newMap.set(activeDmId, updated);
+            return newMap;
+        });
+
+        // Emit to server
+        if (socketRef.current) {
+            const dmPayload: any = {
+                senderId: currentUser.id,
+                receiverId: activeDmId,
+                message: content,
+                // clientMessageId could be used by backend to echo back for precise de-duplication
+                clientMessageId: tempId,
+            };
+            socketRef.current.emit("send_dm", dmPayload);
+        }
+    };
 
     const handleSelectDm = (userId: string) => {
         setActiveDmId(userId);
@@ -363,7 +419,10 @@ useEffect(() => {
         const lastMessageObj = userMessages.length > 0 ? userMessages[userMessages.length - 1] : null;
         let lastMessage = "No messages yet.";
         if (lastMessageObj) {
-            lastMessage = lastMessageObj.media_url ? "Sent an attachment" : lastMessageObj.content;
+            const isSender = lastMessageObj.sender_id === currentUser?.id;
+            const content = lastMessageObj.media_url ? "Sent an attachment" : (lastMessageObj.content || "");
+            const prefix = isSender ? "You: " : `${user.fullname}: `;
+            lastMessage = `${prefix}${content}`.trim();
         }
         return { user, lastMessage };
     });

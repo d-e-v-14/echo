@@ -11,6 +11,12 @@ const SERVER_URL = process.env.NEXT_PUBLIC_API_URL;
 interface VoiceChannelProps {
     channelId: string;
     onHangUp: () => void;
+    // When true, do not render any video/control UI; just manage connection and callbacks
+    headless?: boolean;
+    // Stream lifting callbacks for parent to render video elsewhere (e.g., ChatWindow)
+    onLocalStreamChange?: (stream: MediaStream | null) => void;
+    onRemoteStreamAdded?: (id: string, stream: MediaStream) => void;
+    onRemoteStreamRemoved?: (id: string) => void;
 }
 
 const VideoPlayer = ({ stream, isMuted = false, isLocal = false }: { stream: MediaStream, isMuted?: boolean, isLocal?: boolean }) => {
@@ -25,7 +31,7 @@ const VideoPlayer = ({ stream, isMuted = false, isLocal = false }: { stream: Med
     );
 };
 
-const VoiceChannel = ({ channelId, onHangUp }: { channelId: string; onHangUp: () => void; }) => {
+const VoiceChannel = ({ channelId, onHangUp, headless = false, onLocalStreamChange, onRemoteStreamAdded, onRemoteStreamRemoved }: VoiceChannelProps) => {
     const [service, setService] = useState<VideoVoiceService | null>(null);
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
     const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
@@ -36,10 +42,16 @@ const VoiceChannel = ({ channelId, onHangUp }: { channelId: string; onHangUp: ()
         const videoService = new VideoVoiceService(`${process.env.NEXT_PUBLIC_API_URL}`);
         videoService.connect().then(() => {
             setService(videoService);
-            setLocalStream(videoService.getLocalStream());
+            const ls = videoService.getLocalStream();
+            setLocalStream(ls);
+            onLocalStreamChange?.(ls ?? null);
             videoService.joinChannel(channelId);
             videoService.onRemoteStream((stream, socketId) => {
-                setRemoteStreams(prev => new Map(prev).set(socketId, stream));
+                setRemoteStreams(prev => {
+                    const next = new Map(prev).set(socketId, stream);
+                    return next;
+                });
+                onRemoteStreamAdded?.(socketId, stream);
             });
             videoService.onUserDisconnected((socketId) => {
                 setRemoteStreams(prev => {
@@ -47,6 +59,7 @@ const VoiceChannel = ({ channelId, onHangUp }: { channelId: string; onHangUp: ()
                     newStreams.delete(socketId);
                     return newStreams;
                 });
+                onRemoteStreamRemoved?.(socketId);
             });
         }).catch(error => {
             console.error("Failed to connect to voice service:", error);
@@ -54,8 +67,11 @@ const VoiceChannel = ({ channelId, onHangUp }: { channelId: string; onHangUp: ()
             onHangUp();
         });
 
-        return () => videoService.disconnect();
-    }, [channelId, onHangUp]);
+        return () => {
+            onLocalStreamChange?.(null);
+            videoService.disconnect();
+        };
+    }, [channelId, onHangUp, onLocalStreamChange, onRemoteStreamAdded, onRemoteStreamRemoved]);
 
     const handleToggleMute = () => {
         const newMutedState = !isMuted;
@@ -68,6 +84,11 @@ const VoiceChannel = ({ channelId, onHangUp }: { channelId: string; onHangUp: ()
         service?.toggleVideo(newCameraState);
         setIsCameraOn(newCameraState);
     };
+
+    if (headless) {
+        // In headless mode, manage connection only; parent renders UI elsewhere
+        return null;
+    }
 
     return (
         <div className="p-2 bg-gray-900 rounded-lg flex flex-col h-full">

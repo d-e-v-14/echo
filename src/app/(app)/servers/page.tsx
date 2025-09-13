@@ -1,16 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { FaHashtag, FaCog, FaVolumeUp } from "react-icons/fa";
 import VoiceChannel from "@/components/VoiceChannel";
-import EmojiPicker, { Theme } from "emoji-picker-react";
-import type { EmojiClickData } from "emoji-picker-react";
 import { fetchServers, fetchChannelsByServer } from "@/app/api/API";
-import { io } from "socket.io-client";
+import Chatwindow from "@/components/ChatWindow";
 
-const socket = io("http://localhost:5000");
-const TENOR_API_KEY = process.env.NEXT_PUBLIC_TENOR_API_KEY!;
 
 const serverIcons: string[] = [
   "/hackbattle.png",
@@ -28,34 +24,22 @@ interface Channel {
   is_private: boolean;
 }
 
-interface Message {
-  id: string;
-  message: string;
-  senderId: string;
-  name: string;
-  seed: string;
-  color: string;
-  timestamp: string;
-}
-
 const ServersPage: React.FC = () => {
   const router = useRouter();
   const [servers, setServers] = useState<any[]>([]);
   const [selectedServerId, setSelectedServerId] = useState<string>("");
+  const [noServer, setNoServer] = useState<boolean>(false);
   const [selectedServerName, setSelectedServerName] = useState<string>("");
   const [channels, setChannels] = useState<Channel[]>([]);
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
   const [activeVoiceChannel, setActiveVoiceChannel] = useState<string | null>(
     null
   );
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [message, setMessage] = useState("");
-  const [showEmoji, setShowEmoji] = useState(false);
-  const [showGifs, setShowGifs] = useState(false);
-  const [gifResults, setGifResults] = useState<any[]>([]);
+  // Lifted media streams to pass into ChatWindow
+  const [localMediaStream, setLocalMediaStream] = useState<MediaStream | null>(null);
+  const [remoteMediaStreams, setRemoteMediaStreams] = useState<{ id: string; stream: MediaStream }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
 
   interface User {
     id: string;
@@ -89,10 +73,14 @@ const ServersPage: React.FC = () => {
       try {
         setLoading(true);
         const data = await fetchServers();
+        console.log(data);
         setServers(data);
         if (data.length > 0) {
           setSelectedServerId(data[0].id);
           setSelectedServerName(data[0].name);
+        }
+        else{
+          setNoServer(true);
         }
       } catch (err) {
         console.error("Error fetching servers", err);
@@ -109,8 +97,11 @@ const ServersPage: React.FC = () => {
     const loadChannels = async () => {
       try {
         const data: Channel[] = await fetchChannelsByServer(selectedServerId);
-        setChannels(data);
-        const firstTextChannel = data.find((c) => c.type === "TEXT");
+        console.log(data);
+        // Normalize channel types to lowercase to avoid casing mismatches
+        const normalized = (data || []).map((c) => ({ ...c, type: (c.type || "").toLowerCase() }));
+        setChannels(normalized);
+        const firstTextChannel = normalized.find((c) => c.type === "text");
         setActiveChannel(firstTextChannel || null);
       } catch (err) {
         console.error("Error fetching channels", err);
@@ -121,122 +112,42 @@ const ServersPage: React.FC = () => {
     loadChannels();
   }, [selectedServerId]);
 
-  useEffect(() => {
-    if (!activeChannel) return;
-
-    socket.emit("join_text_channel", activeChannel.id);
-
-    const handleReceiveMessage = (msg: any) => {
-      setMessages((prev) => [...prev, msg]);
-    };
-
-    socket.on("receive_message", handleReceiveMessage);
-
-    return () => {
-      socket.off("receive_message", handleReceiveMessage);
-    };
-  }, [activeChannel]);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  useEffect(() => {
-    const fetchTenorGifs = async () => {
-      try {
-        const res = await fetch(
-          `https://tenor.googleapis.com/v2/search?q=trending&key=${TENOR_API_KEY}&limit=12`
-        );
-        const data = await res.json();
-        setGifResults(Array.isArray(data.results) ? data.results : []);
-      } catch {
-        setGifResults([]);
-      }
-    };
-    if (showGifs) fetchTenorGifs();
-  }, [showGifs]);
-
-  const handleSend = async (content: string = message) => {
-    if (!content.trim() || !activeChannel) return;
-    const newMessage = {
-      channelId: activeChannel.id,
-      message: content,
-      name: user.fullname,
-      senderId: user.id,
-      seed: "user",
-      color: "text-blue-400",
-      timestamp: new Date().toISOString(),
-    };
-    socket.emit("send_message", newMessage);
-    setMessages((prev) => [...prev, newMessage]);
-    setMessage("");
-    setShowEmoji(false);
-    setShowGifs(false);
-  };
-
-  const handleEmojiClick = (emojiData: EmojiClickData) => {
-    setMessage((prev) => prev + emojiData.emoji);
-  };
-
-  const handleGifClick = (gifUrl: string) => {
-    handleSend(gifUrl);
-  };
+  // Derived channel lists
+  const textChannels = channels.filter((c) => c.type === "text");
+  const voiceChannels = channels.filter((c) => c.type === "voice");
 
   const handleJoinVoiceChannel = (channelName: string) => {
     setActiveVoiceChannel(channelName);
   };
 
-  const formatTimestamp = (timestamp: string) => {
-    if (!timestamp) return "";
-    const date = new Date(timestamp);
-    return date.toLocaleString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-      day: "numeric",
-      month: "short",
-      year: "numeric",
+  const handleRemoteAdded = (id: string, stream: MediaStream) => {
+    setRemoteMediaStreams(prev => {
+      const exists = prev.find(p => p.id === id);
+      if (exists) {
+        return prev.map(p => (p.id === id ? { id, stream } : p));
+      }
+      return [...prev, { id, stream }];
     });
   };
 
-  const textChannels = channels.filter((c) => c.type === "text");
-  const voiceChannels = channels.filter((c) => c.type === "voice");
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-black text-white">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p>Loading servers...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-black text-white">
-        <div className="text-center">
-          <p className="text-red-400 mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const handleRemoteRemoved = (id: string) => {
+    setRemoteMediaStreams(prev => prev.filter(p => p.id !== id));
+  };
 
   return (
     <div className="flex h-screen bg-black">
       {/* Server Sidebar */}
       <div className="w-16 p-2 flex flex-col items-center bg-black space-y-3">
-        {servers.length === 0 ? (
-          <div className="text-white text-xs text-center px-2">
-         
-          </div>
+        {loading ? (
+          // Sidebar skeleton while loading
+          <>
+            <div className="w-12 h-12 rounded-full bg-gray-800 animate-pulse" />
+            <div className="w-12 h-12 rounded-full bg-gray-800 animate-pulse" />
+            <div className="w-12 h-12 rounded-full bg-gray-800 animate-pulse" />
+            <div className="w-12 h-12 rounded-full bg-gray-800 animate-pulse" />
+          </>
+        ) : servers.length === 0 ? (
+          <div className="text-white text-xs text-center px-2"></div>
         ) : (
           servers.map((server, idx) => (
             <img
@@ -256,7 +167,29 @@ const ServersPage: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      {servers.length === 0 ? (
+      {loading ? (
+        // Loading state for main content
+        <div className="flex-1 flex items-center justify-center text-white text-center px-4">
+          <div>
+            <div className="mx-auto mb-4 w-10 h-10 border-4 border-gray-700 border-t-blue-500 rounded-full animate-spin" />
+            <p className="text-gray-400">Loading servers…</p>
+          </div>
+        </div>
+      ) : error ? (
+        // Error state
+        <div className="flex-1 flex items-center justify-center text-white text-center px-4">
+          <div>
+            <h1 className="text-2xl font-semibold mb-2">Failed to load servers</h1>
+            <p className="text-gray-400 mb-4">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      ) : servers.length === 0 ? (
         <div className="flex-1 flex items-center justify-center text-white text-center px-4">
           <div>
             <h1 className="text-2xl font-semibold mb-2">
@@ -344,10 +277,33 @@ const ServersPage: React.FC = () => {
 
             {activeVoiceChannel && (
               <div className="mt-auto p-2">
+                {/* Headless: manage connection only; video will render inside ChatWindow */}
                 <VoiceChannel
                   channelId={activeVoiceChannel}
-                  onHangUp={() => setActiveVoiceChannel(null)}
+                  onHangUp={() => {
+                    setActiveVoiceChannel(null);
+                    setLocalMediaStream(null);
+                    setRemoteMediaStreams([]);
+                  }}
+                  headless
+                  onLocalStreamChange={setLocalMediaStream}
+                  onRemoteStreamAdded={handleRemoteAdded}
+                  onRemoteStreamRemoved={handleRemoteRemoved}
                 />
+                {/* Compact hangup bar so users can leave the call from sidebar */}
+                <div className="flex items-center justify-between bg-gray-900 rounded-md p-2 mt-2">
+                  <div className="text-xs text-gray-300 truncate mr-2">In voice: {activeVoiceChannel}</div>
+                  <button
+                    onClick={() => {
+                      setActiveVoiceChannel(null);
+                      setLocalMediaStream(null);
+                      setRemoteMediaStreams([]);
+                    }}
+                    className="px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500"
+                  >
+                    Hang up
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -359,99 +315,14 @@ const ServersPage: React.FC = () => {
                 <h1 className="text-2xl font-bold mb-4 text-center">
                   Welcome to #{activeChannel.name}
                 </h1>
-                <div className="flex-1 overflow-y-auto pr-2 space-y-4">
-                  {messages.map((msg, i) => (
-                    <div className="flex items-start gap-4" key={i}>
-                      <img
-                        src={`https://api.dicebear.com/7.x/thumbs/svg?seed=${
-                          msg.seed || "user"
-                        }`}
-                        alt="avatar"
-                        className="w-10 h-10 rounded-full"
-                      />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`font-semibold ${
-                              msg.color || "text-white"
-                            }`}
-                          >
-                            {msg.name}
-                          </span>
-                          <span className="text-xs text-gray-400">
-                            {formatTimestamp(msg.timestamp)}
-                          </span>
-                        </div>
-                        {msg.message.startsWith("http") &&
-                        (msg.message.endsWith(".gif") ||
-                          msg.message.includes("tenor.com")) ? (
-                          <img
-                            src={msg.message}
-                            alt="gif"
-                            className="rounded-lg mt-2 max-w-xs cursor-pointer"
-                            onClick={() => window.open(msg.message, "_blank")}
-                          />
-                        ) : (
-                          <p className="text-gray-200">{msg.message}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  <div ref={bottomRef} />
-                </div>
-
-                {/* Message Input */}
-                <div className="mt-4 bg-white/10 backdrop-blur-md rounded-2xl flex items-center p-4 ring-2 ring-white/10 shadow-lg w-[90%] max-w-2xl mx-auto">
-                  <button
-                    className="px-3 text-white text-xl"
-                    onClick={() => setShowEmoji((p) => !p)}
-                  >
-                    😊
-                  </button>
-                  <button
-                    className="px-3 text-white text-xl font-semibold"
-                    onClick={() => setShowGifs((p) => !p)}
-                  >
-                    GIF
-                  </button>
-                  <input
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    className="flex-1 bg-transparent outline-none text-white placeholder-gray-300 px-4 py-3 text-base"
-                    placeholder={`Message #${activeChannel.name}`}
-                    onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                <div className="flex-1 overflow-hidden">
+                  <Chatwindow
+                    channelId={activeChannel.id}
+                    isDM={false}
+                    currentUserId={user.id}
+                    localStream={localMediaStream}
+                    remoteStreams={remoteMediaStreams}
                   />
-                  <button
-                    className="px-3 text-white font-semibold hover:text-blue-400"
-                    onClick={() => handleSend()}
-                  >
-                    Send
-                  </button>
-                  {showEmoji && (
-                    <div className="absolute bottom-20 left-4 z-50">
-                      <EmojiPicker
-                        onEmojiClick={handleEmojiClick}
-                        theme={Theme.DARK}
-                      />
-                    </div>
-                  )}
-                  {showGifs && (
-                    <div className="absolute bottom-20 right-4 z-50 w-[300px] h-[300px] bg-black rounded-xl overflow-auto p-2 space-y-2">
-                      {gifResults.map((gif, idx) => {
-                        const gifUrl = gif.media_formats?.gif?.url;
-                        if (!gifUrl) return null;
-                        return (
-                          <img
-                            key={idx}
-                            src={gifUrl}
-                            alt="gif"
-                            className="w-full rounded cursor-pointer"
-                            onClick={() => handleGifClick(gifUrl)}
-                          />
-                        );
-                      })}
-                    </div>
-                  )}
                 </div>
               </>
             ) : (
