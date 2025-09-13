@@ -184,7 +184,6 @@ export default function ChatWindow({ channelId, isDM, currentUserId, localStream
       }
 
       setMessages(prev => {
-        // Remove any optimistic message with the same content if it exists
         const filtered = prev.filter(msg => 
           !(msg.senderId === currentUserId && 
             msg.content === (saved?.content || saved?.message || "") && 
@@ -209,9 +208,9 @@ export default function ChatWindow({ channelId, isDM, currentUserId, localStream
     };
 
     socket.on("new_message", handleIncomingMessage);
-    socket.on('message_error', (errMsg: string) => {
-      console.error('❌ message_error:', errMsg);
-    });
+    // socket.on('message_error', (errMsg: string) => {
+    //   console.error('❌ message_error:', errMsg);
+    // });
 
     // Handle missed messages during disconnection
     socket.on('reconnect', async () => {
@@ -248,6 +247,7 @@ export default function ChatWindow({ channelId, isDM, currentUserId, localStream
 
     // Emit once; backend will persist and echo via 'new_message'.
     try {
+      console.log(messageData)
       socket.emit('send_message', messageData);
     } catch (err) {
       console.error('💔 Failed to emit message:', err);
