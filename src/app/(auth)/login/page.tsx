@@ -161,8 +161,7 @@ export default function Login() {
             <div className="flex items-center justify-center mt-4 mb-6 md:mb-4 relative">
               <div className="flex-grow h-px bg-white opacity-40" />
               <div className="font-poppins text-sm md:text-base font-normal text-white mx-3.5 md:mx-4">
-                or Sign In With
-              </div>
+                Or</div>
               <div className="flex-grow h-px bg-white opacity-40" />
             </div>
 

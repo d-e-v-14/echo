@@ -1,7 +1,7 @@
 // In your component file (e.g., src/components/VoiceChannel.tsx)
 
 import { useEffect, useRef, useState } from 'react';
-import { VideoVoiceService } from '../lib/voiceservice'; // Corrected import path
+import { MediaStreamManager } from '@/socket'; // Use MediaStreamManager directly
 import { FaMicrophone, FaMicrophoneSlash, FaPhoneSlash, FaVideo, FaVideoSlash } from 'react-icons/fa';
 
 // IMPORTANT: Replace this with the actual URL of your backend server
@@ -10,6 +10,7 @@ const SERVER_URL = process.env.NEXT_PUBLIC_API_URL;
 // Define the props for the component
 interface VoiceChannelProps {
     channelId: string;
+    userId: string; // Add userId prop
     onHangUp: () => void;
     // When true, do not render any video/control UI; just manage connection and callbacks
     headless?: boolean;
@@ -17,6 +18,7 @@ interface VoiceChannelProps {
     onLocalStreamChange?: (stream: MediaStream | null) => void;
     onRemoteStreamAdded?: (id: string, stream: MediaStream) => void;
     onRemoteStreamRemoved?: (id: string) => void;
+    onVoiceRoster?: (members: any[]) => void;
 }
 
 const VideoPlayer = ({ stream, isMuted = false, isLocal = false }: { stream: MediaStream, isMuted?: boolean, isLocal?: boolean }) => {
@@ -31,57 +33,100 @@ const VideoPlayer = ({ stream, isMuted = false, isLocal = false }: { stream: Med
     );
 };
 
-const VoiceChannel = ({ channelId, onHangUp, headless = false, onLocalStreamChange, onRemoteStreamAdded, onRemoteStreamRemoved }: VoiceChannelProps) => {
-    const [service, setService] = useState<VideoVoiceService | null>(null);
+const VoiceChannel = ({ channelId, userId, onHangUp, headless = false, onLocalStreamChange, onRemoteStreamAdded, onRemoteStreamRemoved, onVoiceRoster }: VoiceChannelProps) => {
+    const [mediaManager, setMediaManager] = useState<MediaStreamManager | null>(null);
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
     const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
     const [isMuted, setIsMuted] = useState(false);
     const [isCameraOn, setIsCameraOn] = useState(true);
+    const [voiceMembers, setVoiceMembers] = useState<any[]>([]);
 
     useEffect(() => {
-        const videoService = new VideoVoiceService(`${process.env.NEXT_PUBLIC_API_URL}`);
-        videoService.connect().then(() => {
-            setService(videoService);
-            const ls = videoService.getLocalStream();
-            setLocalStream(ls);
-            onLocalStreamChange?.(ls ?? null);
-            videoService.joinChannel(channelId);
-            videoService.onRemoteStream((stream, socketId) => {
-                setRemoteStreams(prev => {
-                    const next = new Map(prev).set(socketId, stream);
-                    return next;
+        let isMounted = true;
+        const manager = new MediaStreamManager(userId);
+        
+        const initializeManager = async () => {
+            try {
+                await manager.initialize(true, true);
+                
+                // Check if component is still mounted
+                if (!isMounted) {
+                    manager.disconnect();
+                    return;
+                }
+                
+                setMediaManager(manager);
+                const ls = manager.getLocalStream();
+                setLocalStream(ls);
+                onLocalStreamChange?.(ls);
+
+                // Set up event listeners
+                manager.onStream((stream: MediaStream, socketId: string) => {
+                    if (isMounted) {
+                        setRemoteStreams(prev => {
+                            const next = new Map(prev).set(socketId, stream);
+                            return next;
+                        });
+                        onRemoteStreamAdded?.(socketId, stream);
+                    }
                 });
-                onRemoteStreamAdded?.(socketId, stream);
-            });
-            videoService.onUserDisconnected((socketId) => {
-                setRemoteStreams(prev => {
-                    const newStreams = new Map(prev);
-                    newStreams.delete(socketId);
-                    return newStreams;
+
+                manager.onUserLeft((socketId: string) => {
+                    if (isMounted) {
+                        setRemoteStreams(prev => {
+                            const newStreams = new Map(prev);
+                            newStreams.delete(socketId);
+                            return newStreams;
+                        });
+                        onRemoteStreamRemoved?.(socketId);
+                    }
                 });
-                onRemoteStreamRemoved?.(socketId);
-            });
-        }).catch(error => {
-            console.error("Failed to connect to voice service:", error);
-            alert("Could not connect. Please check permissions and try again.");
-            onHangUp();
-        });
+
+                manager.onVoiceRoster((members: any[]) => {
+                    if (isMounted) {
+                        setVoiceMembers(members);
+                        onVoiceRoster?.(members);
+                    }
+                });
+
+                manager.onUserJoined((socketId: string, userId: string) => {
+                    console.log("User joined voice channel:", { socketId, userId });
+                });
+
+                manager.onVoiceState((socketId: string, userId: string, state: any) => {
+                    console.log("Voice state update:", { socketId, userId, state });
+                });
+
+                // Join the voice channel
+                manager.joinVoiceChannel(channelId);
+                
+            } catch (error: any) {
+                console.error("Failed to initialize media manager:", error);
+                if (isMounted) {
+                    alert("Could not connect. Please check permissions and try again.");
+                    onHangUp();
+                }
+            }
+        };
+
+        initializeManager();
 
         return () => {
+            isMounted = false;
             onLocalStreamChange?.(null);
-            videoService.disconnect();
+            manager.disconnect();
         };
-    }, [channelId, onHangUp, onLocalStreamChange, onRemoteStreamAdded, onRemoteStreamRemoved]);
+    }, [channelId, userId, onHangUp, onLocalStreamChange, onRemoteStreamAdded, onRemoteStreamRemoved, onVoiceRoster]);
 
     const handleToggleMute = () => {
         const newMutedState = !isMuted;
-        service?.toggleAudio(!newMutedState);
+        mediaManager?.toggleAudio(!newMutedState);
         setIsMuted(newMutedState);
     };
 
     const handleToggleCamera = () => {
         const newCameraState = !isCameraOn;
-        service?.toggleVideo(newCameraState);
+        mediaManager?.toggleVideo(newCameraState);
         setIsCameraOn(newCameraState);
     };
 

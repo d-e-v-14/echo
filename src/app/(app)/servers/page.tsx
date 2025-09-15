@@ -280,6 +280,7 @@ const ServersPage: React.FC = () => {
                 {/* Headless: manage connection only; video will render inside ChatWindow */}
                 <VoiceChannel
                   channelId={activeVoiceChannel}
+                  userId={user.id}
                   onHangUp={() => {
                     setActiveVoiceChannel(null);
                     setLocalMediaStream(null);
