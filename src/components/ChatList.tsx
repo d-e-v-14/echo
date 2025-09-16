@@ -93,33 +93,42 @@ export default function ChatList() {
   return (
     <div className="w-72 bg-black text-white p-4 flex flex-col gap-4 border-r border-gray-800 overflow-y-auto">
       {/* Header row */}
+
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Messages</h2>
-        <button
-          onClick={() => setSearchOpen((prev) => !prev)}
-          className="p-1 rounded hover:bg-gray-800"
-        >
-          {searchOpen ? <X size={18} /> : <Search size={18} />}
-        </button>
+        {!searchOpen ? (
+          <>
+            <h2 className="text-xl font-semibold">Messages</h2>
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="p-2 rounded hover:bg-gray-800 text-white"
+            >
+              <Search size={20} />
+            </button>
+          </>
+        ) : (
+          <form
+            onSubmit={handleSearchSubmit}
+            className="flex items-center bg-gray-900 rounded-lg px-2 flex-1"
+          >
+            <Search size={16} className="text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search username"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              autoFocus
+              className="bg-transparent text-sm flex-1 px-2 py-1 outline-none text-white placeholder-gray-400"
+            />
+            <button
+              type="button"
+              onClick={() => setSearchOpen(false)}
+              className="p-1 rounded hover:bg-gray-800"
+            >
+              <X size={16} />
+            </button>
+          </form>
+        )}
       </div>
-
-      {/* Search input appears when open */}
-      {searchOpen && (
-        <form
-          onSubmit={handleSearchSubmit}
-          className="flex items-center bg-gray-900 rounded-lg px-2"
-        >
-          <Search size={16} className="text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search username"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-transparent text-sm flex-1 px-2 py-1 outline-none text-white placeholder-gray-400"
-          />
-        </form>
-      )}
-
       {/* DM list */}
       {dms.length === 0 ? (
         <p className="text-gray-400 text-sm">No DMs yet</p>

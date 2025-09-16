@@ -7,7 +7,6 @@ import VoiceChannel from "@/components/VoiceChannel";
 import { fetchServers, fetchChannelsByServer } from "@/app/api/API";
 import Chatwindow from "@/components/ChatWindow";
 
-
 const serverIcons: string[] = [
   "/hackbattle.png",
   "/image_6.png",
@@ -36,8 +35,12 @@ const ServersPage: React.FC = () => {
     null
   );
   // Lifted media streams to pass into ChatWindow
-  const [localMediaStream, setLocalMediaStream] = useState<MediaStream | null>(null);
-  const [remoteMediaStreams, setRemoteMediaStreams] = useState<{ id: string; stream: MediaStream }[]>([]);
+  const [localMediaStream, setLocalMediaStream] = useState<MediaStream | null>(
+    null
+  );
+  const [remoteMediaStreams, setRemoteMediaStreams] = useState<
+    { id: string; stream: MediaStream }[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,8 +81,7 @@ const ServersPage: React.FC = () => {
         if (data.length > 0) {
           setSelectedServerId(data[0].id);
           setSelectedServerName(data[0].name);
-        }
-        else{
+        } else {
           setNoServer(true);
         }
       } catch (err) {
@@ -99,7 +101,10 @@ const ServersPage: React.FC = () => {
         const data: Channel[] = await fetchChannelsByServer(selectedServerId);
         console.log(data);
         // Normalize channel types to lowercase to avoid casing mismatches
-        const normalized = (data || []).map((c) => ({ ...c, type: (c.type || "").toLowerCase() }));
+        const normalized = (data || []).map((c) => ({
+          ...c,
+          type: (c.type || "").toLowerCase(),
+        }));
         setChannels(normalized);
         const firstTextChannel = normalized.find((c) => c.type === "text");
         setActiveChannel(firstTextChannel || null);
@@ -121,21 +126,22 @@ const ServersPage: React.FC = () => {
   };
 
   const handleRemoteAdded = (id: string, stream: MediaStream) => {
-    setRemoteMediaStreams(prev => {
-      const exists = prev.find(p => p.id === id);
+    setRemoteMediaStreams((prev) => {
+      const exists = prev.find((p) => p.id === id);
       if (exists) {
-        return prev.map(p => (p.id === id ? { id, stream } : p));
+        return prev.map((p) => (p.id === id ? { id, stream } : p));
       }
       return [...prev, { id, stream }];
     });
   };
 
   const handleRemoteRemoved = (id: string) => {
-    setRemoteMediaStreams(prev => prev.filter(p => p.id !== id));
+    setRemoteMediaStreams((prev) => prev.filter((p) => p.id !== id));
   };
+  
 
   return (
-    <div className="flex h-screen bg-black">
+    <div className="flex h-screen bg-black select-none">
       {/* Server Sidebar */}
       <div className="w-16 p-2 flex flex-col items-center bg-black space-y-3">
         {loading ? (
@@ -179,7 +185,9 @@ const ServersPage: React.FC = () => {
         // Error state
         <div className="flex-1 flex items-center justify-center text-white text-center px-4">
           <div>
-            <h1 className="text-2xl font-semibold mb-2">Failed to load servers</h1>
+            <h1 className="text-2xl font-semibold mb-2">
+              Failed to load servers
+            </h1>
             <p className="text-gray-400 mb-4">{error}</p>
             <button
               onClick={() => window.location.reload()}
@@ -292,7 +300,9 @@ const ServersPage: React.FC = () => {
                 />
                 {/* Compact hangup bar so users can leave the call from sidebar */}
                 <div className="flex items-center justify-between bg-gray-900 rounded-md p-2 mt-2">
-                  <div className="text-xs text-gray-300 truncate mr-2">In voice: {activeVoiceChannel}</div>
+                  <div className="text-xs text-gray-300 truncate mr-2">
+                    In voice: {activeVoiceChannel}
+                  </div>
                   <button
                     onClick={() => {
                       setActiveVoiceChannel(null);
@@ -309,13 +319,90 @@ const ServersPage: React.FC = () => {
           </div>
 
           {/* Chat Window */}
-          <div className="flex-1 relative text-white px-6 pt-6 pb-6 overflow-hidden bg-[radial-gradient(ellipse_at_bottom,rgba(37,99,235,0.15)_0%,rgba(0,0,0,1)_85%)] flex flex-col">
-            {activeChannel ? (
+          {/* Main Content Area */}
+          <div className="flex-1 relative text-white bg-[radial-gradient(ellipse_at_bottom,rgba(37,99,235,0.15)_0%,rgba(0,0,0,1)_85%)] flex flex-col">
+            {activeVoiceChannel ? (
+           
               <>
-                <h1 className="text-2xl font-bold mb-4 text-center">
+                <div className="p-4 border-b border-gray-800 flex items-center justify-between">
+                  <h1 className="text-lg font-semibold">
+                    Voice Channel – {activeVoiceChannel}
+                  </h1>
+                  <button
+                    onClick={() => {
+                      setActiveVoiceChannel(null);
+                      setLocalMediaStream(null);
+                      setRemoteMediaStreams([]);
+                    }}
+                    className="px-4 py-2 rounded bg-red-600 hover:bg-red-500 text-sm"
+                  >
+                    Hang Up
+                  </button>
+                </div>
+
+                <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-4 overflow-y-auto">
+                  {/* Local Stream */}
+                  {localMediaStream && (
+                    <div className="flex flex-col items-center bg-gray-800 rounded-lg p-2">
+                      <video
+                        ref={(video) => {
+                          if (video) video.srcObject = localMediaStream;
+                        }}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="w-full h-48 bg-black rounded-lg object-cover"
+                      />
+                      <span className="mt-2 text-sm text-gray-300">You</span>
+                    </div>
+                  )}
+
+                  {/* Remote Streams */}
+                  {remoteMediaStreams.map((remote) => (
+                    <div
+                      key={remote.id}
+                      className="flex flex-col items-center bg-gray-800 rounded-lg p-2"
+                    >
+                      <video
+                        ref={(video) => {
+                          if (video) video.srcObject = remote.stream;
+                        }}
+                        autoPlay
+                        playsInline
+                        className="w-full h-48 bg-black rounded-lg object-cover"
+                      />
+                      <span className="mt-2 text-sm text-gray-300">
+                        {remote.id}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Control Bar */}
+                <div className="p-4 border-t border-gray-800 flex items-center justify-center space-x-4">
+                  <button className="px-4 py-2 bg-gray-700 rounded hover:bg-gray-600">
+                     Mute
+                  </button>
+                 
+                  <button
+                    onClick={() => {
+                      setActiveVoiceChannel(null);
+                      setLocalMediaStream(null);
+                      setRemoteMediaStreams([]);
+                    }}
+                    className="px-4 py-2 bg-red-600 rounded hover:bg-red-500"
+                  >
+                    Leave Call
+                  </button>
+                </div>
+              </>
+            ) : activeChannel ? (
+            
+              <>
+                <h1 className="text-2xl font-bold mb-4 text-center pt-6">
                   Welcome to #{activeChannel.name}
                 </h1>
-                <div className="flex-1 overflow-hidden">
+                <div className="flex-1 overflow-y-auto px-6 pb-6 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900 rounded-lg">
                   <Chatwindow
                     channelId={activeChannel.id}
                     isDM={false}

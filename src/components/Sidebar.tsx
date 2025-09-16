@@ -23,7 +23,7 @@ const navItems = [
   { label: "Servers", icon: Users, path: "/servers" },
   { label: "Messages", icon: MessageSquareText, path: "/messages" },
   { label: "Friends", icon: UserIcon, path: "/friends" },
-  { label: "Channels", icon: Phone, path: "/channels" },
+
   { label: "Notifications", icon: Bell, path: "/notifications" },
 ];
 
