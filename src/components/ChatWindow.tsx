@@ -305,4 +305,5 @@ export default function ChatWindow({ channelId, isDM, currentUserId, localStream
       <MessageInput sendMessage={handleSend} />
     </div>
   );
+
 }
