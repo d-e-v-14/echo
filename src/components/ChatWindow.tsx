@@ -308,4 +308,5 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
       <MessageInput sendMessage={handleSend} isSending={isSending} />
     </div>
   );
+
 }
