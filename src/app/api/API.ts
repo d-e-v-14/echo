@@ -113,6 +113,7 @@ export const uploadMessage = async (payload: {
     const formData = new FormData();
     
     // Use exact field names as specified by backend
+    formData.append("sender_id", payload.sender_id || "");
     formData.append("channel_id", payload.channel_id);
     formData.append("content", payload.content || "");
     if (payload.file) formData.append("file", payload.file);
@@ -149,6 +150,7 @@ export const uploaddm = async (payload: {
     const formData = new FormData();
     
     // Use exact field names as specified by backend
+    formData.append("sender_id", payload.sender_id);
     formData.append("receiver_id", payload.receiver_id);
     formData.append("content", payload.message || "");
     if (payload.mediaurl) formData.append("file", payload.mediaurl);

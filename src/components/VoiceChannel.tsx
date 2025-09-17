@@ -1,20 +1,16 @@
-// In your component file (e.g., src/components/VoiceChannel.tsx)
+// src/components/VoiceChannel.tsx
+
+"use client";
 
 import { useEffect, useRef, useState } from 'react';
-import { MediaStreamManager } from '@/socket'; // Use MediaStreamManager directly
+import { MediaStreamManager, createAuthSocket } from '@/socket';
 import { FaMicrophone, FaMicrophoneSlash, FaPhoneSlash, FaVideo, FaVideoSlash } from 'react-icons/fa';
 
-// IMPORTANT: Replace this with the actual URL of your backend server
-const SERVER_URL = process.env.NEXT_PUBLIC_API_URL; 
-
-// Define the props for the component
 interface VoiceChannelProps {
     channelId: string;
-    userId: string; // Add userId prop
+    userId: string;
     onHangUp: () => void;
-    // When true, do not render any video/control UI; just manage connection and callbacks
     headless?: boolean;
-    // Stream lifting callbacks for parent to render video elsewhere (e.g., ChatWindow)
     onLocalStreamChange?: (stream: MediaStream | null) => void;
     onRemoteStreamAdded?: (id: string, stream: MediaStream) => void;
     onRemoteStreamRemoved?: (id: string) => void;
@@ -34,104 +30,118 @@ const VideoPlayer = ({ stream, isMuted = false, isLocal = false }: { stream: Med
 };
 
 const VoiceChannel = ({ channelId, userId, onHangUp, headless = false, onLocalStreamChange, onRemoteStreamAdded, onRemoteStreamRemoved, onVoiceRoster }: VoiceChannelProps) => {
-    const [mediaManager, setMediaManager] = useState<MediaStreamManager | null>(null);
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
     const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
     const [isMuted, setIsMuted] = useState(false);
     const [isCameraOn, setIsCameraOn] = useState(true);
     const [voiceMembers, setVoiceMembers] = useState<any[]>([]);
 
+    const socketRef = useRef<ReturnType<typeof createAuthSocket> | null>(null);
+    const managerRef = useRef<MediaStreamManager | null>(null);
+    const isManagerInitialized = useRef(false);
+
+    // This effect creates the single socket and manager instance once.
     useEffect(() => {
         let isMounted = true;
-        const manager = new MediaStreamManager(userId);
         
-        const initializeManager = async () => {
-            try {
-                await manager.initialize(true, true);
-                
-                // Check if component is still mounted
-                if (!isMounted) {
-                    manager.disconnect();
+        if (!socketRef.current) {
+            const socket = createAuthSocket(userId);
+            const manager = new MediaStreamManager(userId, socket);
+            socketRef.current = socket;
+            managerRef.current = manager;
+        }
+
+        const manager = managerRef.current;
+        if (!manager) return;
+
+        // Initialize the manager and set up all event listeners once
+        const setupManagerAndListeners = async () => {
+            if (!isManagerInitialized.current) {
+                try {
+                    await manager.initialize(true, true);
+                    isManagerInitialized.current = true;
+                } catch (error) {
+                    console.error("Failed to initialize media manager:", error);
+                    if (isMounted) {
+                        alert("Could not connect. Please check permissions and try again.");
+                        onHangUp();
+                    }
                     return;
                 }
-                
-                setMediaManager(manager);
-                const ls = manager.getLocalStream();
-                setLocalStream(ls);
-                onLocalStreamChange?.(ls);
-
-                // Set up event listeners
-                manager.onStream((stream: MediaStream, socketId: string) => {
-                    if (isMounted) {
-                        setRemoteStreams(prev => {
-                            const next = new Map(prev).set(socketId, stream);
-                            return next;
-                        });
-                        onRemoteStreamAdded?.(socketId, stream);
-                    }
-                });
-
-                manager.onUserLeft((socketId: string) => {
-                    if (isMounted) {
-                        setRemoteStreams(prev => {
-                            const newStreams = new Map(prev);
-                            newStreams.delete(socketId);
-                            return newStreams;
-                        });
-                        onRemoteStreamRemoved?.(socketId);
-                    }
-                });
-
-                manager.onVoiceRoster((members: any[]) => {
-                    if (isMounted) {
-                        setVoiceMembers(members);
-                        onVoiceRoster?.(members);
-                    }
-                });
-
-                manager.onUserJoined((socketId: string, userId: string) => {
-                    console.log("User joined voice channel:", { socketId, userId });
-                });
-
-                manager.onVoiceState((socketId: string, userId: string, state: any) => {
-                    console.log("Voice state update:", { socketId, userId, state });
-                });
-
-                // Join the voice channel
-                manager.joinVoiceChannel(channelId);
-                
-            } catch (error: any) {
-                console.error("Failed to initialize media manager:", error);
-                if (isMounted) {
-                    alert("Could not connect. Please check permissions and try again.");
-                    onHangUp();
-                }
             }
+            
+            manager.onStream((stream: MediaStream, socketId: string) => {
+                if (isMounted) {
+                    setRemoteStreams(prev => new Map(prev).set(socketId, stream));
+                    onRemoteStreamAdded?.(socketId, stream);
+                }
+            });
+            manager.onUserLeft((socketId: string) => {
+                if (isMounted) {
+                    setRemoteStreams(prev => {
+                        const newStreams = new Map(prev);
+                        newStreams.delete(socketId);
+                        return newStreams;
+                    });
+                    onRemoteStreamRemoved?.(socketId);
+                }
+            });
+            manager.onVoiceRoster((members: any[]) => {
+                if (isMounted) {
+                    setVoiceMembers(members);
+                    onVoiceRoster?.(members);
+                }
+            });
+            manager.onUserJoined((socketId: string, userId: string) => {
+                console.log("User joined voice channel:", { socketId, userId });
+            });
+            manager.onVoiceState((socketId: string, userId: string, state: any) => {
+                console.log("Voice state update:", { socketId, userId, state });
+            });
         };
-
-        initializeManager();
-
+        setupManagerAndListeners();
+        
         return () => {
             isMounted = false;
-            onLocalStreamChange?.(null);
-            manager.disconnect();
+            if (managerRef.current) {
+                managerRef.current.disconnect();
+            }
+            if (socketRef.current?.connected) {
+                socketRef.current.disconnect();
+            }
         };
-    }, [channelId, userId, onHangUp, onLocalStreamChange, onRemoteStreamAdded, onRemoteStreamRemoved, onVoiceRoster]);
+    }, []);
+
+    // This effect handles joining/leaving channels based on channelId changes
+    useEffect(() => {
+        const manager = managerRef.current;
+        if (!manager || !isManagerInitialized.current) return;
+
+        manager.leaveVoiceChannel();
+        manager.joinVoiceChannel(channelId);
+
+        setLocalStream(manager.getLocalStream());
+        onLocalStreamChange?.(manager.getLocalStream());
+
+        return () => {
+            manager.leaveVoiceChannel();
+        };
+    }, [channelId, onLocalStreamChange]);
+
 
     const handleToggleMute = () => {
         const newMutedState = !isMuted;
-        mediaManager?.toggleAudio(!newMutedState);
+        managerRef.current?.toggleAudio(!newMutedState);
         setIsMuted(newMutedState);
     };
 
     const handleToggleCamera = () => {
         const newCameraState = !isCameraOn;
-        mediaManager?.toggleVideo(newCameraState);
+        managerRef.current?.toggleVideo(newCameraState);
         setIsCameraOn(newCameraState);
     };
 
     if (headless) {
-        // In headless mode, manage connection only; parent renders UI elsewhere
         return null;
     }
 
