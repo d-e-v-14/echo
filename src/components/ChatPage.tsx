@@ -4,8 +4,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {io} from 'socket.io-client';
 import { Paperclip, X } from 'lucide-react'; // Using lucide-react for icons
-import { getUserDMs } from '@/app/api/API'; 
+import { getUserDMs, uploaddm } from '@/app/api/API'; 
 import {Socket} from "socket.io-client";
+import MessageBubble from './MessageBubble';
+import MessageAttachment from './MessageAttachment';
 
 
 interface User {
@@ -110,19 +112,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ activeUser, messages, currentUs
             </div>
             <div className="flex-1 p-4 overflow-y-auto">
                 {messages.map((msg) => (
-                    <div key={msg.id} className={`mb-4 flex ${msg.sender_id === currentUser?.id ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`p-3 rounded-lg max-w-lg ${msg.sender_id === currentUser?.id ? 'bg-blue-700' : 'bg-gray-600'}`}>
-                            {/* Sender label */}
-                            <div className="text-xs text-gray-300 mb-1">
-                                {msg.sender_id === currentUser?.id ? 'You' : activeUser.fullname}
-                            </div>
-                            {msg.media_url && (
-                                <img src={msg.media_url} alt="Uploaded content" className="max-w-xs rounded-lg mb-2" />
-                            )}
-                            {msg.content && <p>{msg.content}</p>}
-                            <span className="text-xs text-gray-400 mt-1 block text-right">{new Date(msg.timestamp).toLocaleTimeString()}</span>
-                        </div>
-                    </div>
+                    <MessageBubble
+                        key={msg.id}
+                        isSender={msg.sender_id === currentUser?.id}
+                        message={msg.content}
+                        timestamp={new Date(msg.timestamp).toLocaleTimeString()}
+                        name={msg.sender_id === currentUser?.id ? 'You' : activeUser.fullname}
+                    >
+                        {msg.media_url && (
+                            <MessageAttachment media_url={msg.media_url} />
+                        )}
+                    </MessageBubble>
                 ))}
                 <div ref={bottomRef} />
             </div>
@@ -131,7 +131,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ activeUser, messages, currentUs
                     <div className="mb-2 flex items-center bg-gray-700 p-2 rounded-md">
                         <Paperclip className="h-5 w-5 mr-2 text-gray-400" />
                         <span className="text-sm text-white truncate flex-1">{file.name}</span>
-                        <button onClick={() => setFile(null)} className="ml-2 text-gray-400 hover:text-white">
+                        <button onClick={() => setFile(null)} className="ml-2 text-gray-400 hover:text-white" aria-label="Remove attachment">
                             <X className="h-5 w-5" />
                         </button>
                     </div>
@@ -194,39 +194,64 @@ useEffect(() => {
 
     const socket = socketRef.current!;
 
-    const handleNewMessage = (incoming: DirectMessage) => {
-        // Normalize timestamp
-        const incomingMsg: DirectMessage = {
-            ...incoming,
-            timestamp: incoming.timestamp || new Date().toISOString(),
-        };
-
-        const partnerId = incomingMsg.sender_id === currentUser.id
-            ? incomingMsg.receiver_id
-            : incomingMsg.sender_id;
-
-        setMessages(prevMap => {
-            const newMap = new Map(prevMap);
-            const currentDms = newMap.get(partnerId) || [];
-
-            // De-duplicate: remove optimistic message with same sender+content close in time
-            const thresholdMs = 60_000; // 60s window
-            const incTime = new Date(incomingMsg.timestamp).getTime();
-            let updated = currentDms.filter(m => {
-                const sameSender = m.sender_id === incomingMsg.sender_id;
-                const sameContent = (m.content || "") === (incomingMsg.content || "");
-                const nearInTime = Math.abs(new Date(m.timestamp).getTime() - incTime) < thresholdMs;
-                return !(sameSender && sameContent && nearInTime);
-            });
-
-            // If exact id exists, avoid duplicate; otherwise append to the end (arrival order)
-            if (!updated.some(m => m.id === incomingMsg.id)) {
-                updated = [...updated, incomingMsg];
+    const handleNewMessage = (raw: any) => {
+        try {
+            if (!raw) return;
+            // Unwrap common envelope shapes
+            const incoming = (raw as any)?.data ?? (raw as any)?.message ?? raw;
+            if (!incoming) return;
+            if (Array.isArray(incoming)) {
+                incoming.forEach(handleNewMessage);
+                return;
             }
 
-            newMap.set(partnerId, updated);
-            return newMap;
-        });
+            // Normalize fields from various possible keys
+            const incomingMsg: DirectMessage = {
+                id: String(incoming.id ?? incoming.message_id ?? incoming.clientMessageId ?? `sock-${Date.now()}`),
+                content: String(incoming.content ?? incoming.message ?? ""),
+                sender_id: String(incoming.sender_id ?? incoming.senderId ?? incoming.from ?? ""),
+                receiver_id: String(incoming.receiver_id ?? incoming.receiverId ?? incoming.to ?? ""),
+                timestamp: String(incoming.timestamp ?? new Date().toISOString()),
+                media_url: incoming.media_url ?? incoming.mediaUrl ?? incoming.media ?? null,
+            };
+
+            const selfId = currentUser?.id;
+            const partnerId = incomingMsg.sender_id === selfId
+                ? incomingMsg.receiver_id
+                : incomingMsg.sender_id;
+            if (!partnerId) {
+                console.warn("Incoming DM missing partner id", incoming);
+                return;
+            }
+
+            setMessages(prevMap => {
+                const newMap = new Map(prevMap);
+                const currentDms = newMap.get(partnerId) || [];
+
+                // De-duplicate: remove optimistic message with same sender+content close in time
+                const thresholdMs = 60_000; // 60s window
+                const incTime = Date.parse(incomingMsg.timestamp);
+                let updated = currentDms.filter(m => {
+                    const sameSender = m.sender_id === incomingMsg.sender_id;
+                    const sameContent = (m.content || "") === (incomingMsg.content || "");
+                    const mTime = Date.parse(m.timestamp);
+                    const nearInTime = Number.isFinite(incTime) && Number.isFinite(mTime)
+                        ? Math.abs(mTime - incTime) < thresholdMs
+                        : false;
+                    return !(sameSender && sameContent && nearInTime);
+                });
+
+                // If exact id exists, avoid duplicate; otherwise append to the end (arrival order)
+                if (!updated.some(m => m.id === incomingMsg.id)) {
+                    updated = [...updated, incomingMsg];
+                }
+
+                newMap.set(partnerId, updated);
+                return newMap;
+            });
+        } catch (e) {
+            console.error("Failed to handle incoming DM:", e, raw);
+        }
     };
 
     const handleError = (errorMessage: any) => {
@@ -375,13 +400,16 @@ useEffect(() => {
     // Effect for handling incoming socket events
 
     const handleSendMessage = async (content: string, file: File | null) => {
-        if (!currentUser || !activeDmId || !content.trim()) return;
+        if (!currentUser || !activeDmId) return;
+        if (!content.trim() && !file) return; // allow media-only messages
+
+        console.log(activeDmId);
 
         // Optimistic update
         const tempId = `temp-${Date.now()}`;
         const tempMessage: DirectMessage = {
             id: tempId,
-            content,
+            content: content.trim(),
             sender_id: currentUser.id,
             receiver_id: activeDmId,
             timestamp: new Date().toISOString(),
@@ -396,16 +424,48 @@ useEffect(() => {
             return newMap;
         });
 
-        // Emit to server
-        if (socketRef.current) {
-            const dmPayload: any = {
-                senderId: currentUser.id,
-                receiverId: activeDmId,
-                message: content,
-                // clientMessageId could be used by backend to echo back for precise de-duplication
-                clientMessageId: tempId,
-            };
-            socketRef.current.emit("send_dm", dmPayload);
+        // Send via API route only; backend will broadcast via socket
+        try {
+            const dmPayload = {
+                sender_id: currentUser.id,
+                receiver_id: activeDmId,
+                message: content.trim(),
+                mediaurl: file ?? undefined,
+            } as const;
+
+            const saved = await uploaddm(dmPayload);
+            if (!saved) {
+                console.warn("DM upload returned no data");
+            }
+            // Optionally reconcile temp message with saved (id/media_url) if backend doesn't echo quickly
+            if (saved && (saved.id || saved.media_url)) {
+                setMessages(prev => {
+                    const newMap = new Map(prev);
+                    const list = newMap.get(activeDmId) || [];
+                    const idx = list.findIndex(m => m.id === tempId);
+                    if (idx !== -1) {
+                        const next = [...list];
+                        next[idx] = {
+                            ...next[idx],
+                            id: String(saved.id ?? tempId),
+                            media_url: saved.media_url ?? next[idx].media_url ?? null,
+                            content: saved.content ?? saved.message ?? next[idx].content,
+                            timestamp: String(saved.timestamp ?? next[idx].timestamp),
+                        } as DirectMessage;
+                        newMap.set(activeDmId, next);
+                    }
+                    return newMap;
+                });
+            }
+        } catch (e) {
+            console.error("Failed to send DM via API:", e);
+            // Roll back optimistic message on error
+            setMessages(prev => {
+                const newMap = new Map(prev);
+                const list = (newMap.get(activeDmId) || []).filter(m => m.id !== tempId);
+                newMap.set(activeDmId, list);
+                return newMap;
+            });
         }
     };
 

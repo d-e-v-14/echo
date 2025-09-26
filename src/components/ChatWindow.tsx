@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Socket } from "socket.io-client";
-import MessageInput from "./MessageInput";
-import { fetchMessages } from "@/app/api/API";
+import MessageInput from "./MessageInput"; // This import is now correct
+import MessageAttachment from "./MessageAttachment"; // Import the new component
+import { fetchMessages, uploadMessage } from "@/app/api/API";
 import { createAuthSocket } from "@/socket";
 import VideoPanel from "./VideoPanel";
+import MessageBubble from "./MessageBubble";
 
 interface Message {
   id: string | number;
@@ -14,28 +16,27 @@ interface Message {
   timestamp: string;
   avatarUrl?: string;
   username?: string;
+  file?: string;
+  mediaUrl?: string; // Add support for media_url from backend
 }
 
 interface ChatWindowProps {
   channelId: string;
   isDM: boolean;
   currentUserId: string;
-  // Optional media streams when connected to a voice/video room
   localStream?: MediaStream | null;
   remoteStreams?: { id: string; stream: MediaStream }[];
 }
 
-export default function ChatWindow({ channelId, isDM, currentUserId, localStream = null, remoteStreams = [] }: ChatWindowProps) {
+export default function ChatWindow({ channelId, currentUserId, localStream = null, remoteStreams = [] }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
-  // Cache usernames by senderId to avoid 'Unknown' on live messages
   const usernamesRef = useRef<Record<string, string>>({});
-  // Local mic/camera state
   const [micOn, setMicOn] = useState<boolean>(true);
   const [camOn, setCamOn] = useState<boolean>(true);
+  const [isSending, setIsSending] = useState(false);
 
-  // Initialize socket when component mounts
   useEffect(() => {
     const newSocket = createAuthSocket(currentUserId);
     setSocket(newSocket);
@@ -48,7 +49,6 @@ export default function ChatWindow({ channelId, isDM, currentUserId, localStream
   const loadMessages = useCallback(async () => {
     try {
       const res = await fetchMessages(channelId);
-      // Transform the messages to match our Message interface
       const formattedMessages: Message[] = res.data.map((msg: any) => ({
         id: msg.id,
         content: msg.content || msg.message,
@@ -60,11 +60,11 @@ export default function ChatWindow({ channelId, isDM, currentUserId, localStream
             (msg.username ||
              (msg.sender && (msg.sender.username || msg.sender.fullname || msg.sender.name)) ||
              msg.sender_name || msg.senderName || msg.username ||
-             "Unknown"))
+             "Unknown")),
+        mediaUrl: msg.media_url || msg.mediaUrl // Handle backend's snake_case media_url
       }))
-      // Ensure oldest → newest so UI shows latest at the bottom
       .sort((a: Message, b: Message) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-      // Build/update username cache from fetched messages
+      
       const map: Record<string, string> = { ...usernamesRef.current };
       for (const m of formattedMessages) {
         if (m.senderId && m.username && m.username !== 'Unknown') {
@@ -80,12 +80,10 @@ export default function ChatWindow({ channelId, isDM, currentUserId, localStream
     }
   }, [channelId, currentUserId]);
 
-  // Load initial messages
   useEffect(() => {
     if (channelId) loadMessages();
   }, [channelId, loadMessages]);
 
-  // Apply mic/cam toggles to local stream tracks
   useEffect(() => {
     if (!localStream) return;
     localStream.getAudioTracks().forEach(t => (t.enabled = micOn));
@@ -96,35 +94,26 @@ export default function ChatWindow({ channelId, isDM, currentUserId, localStream
     localStream.getVideoTracks().forEach(t => (t.enabled = camOn));
   }, [localStream, camOn]);
 
-  // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Socket connection monitoring and health checks
   useEffect(() => {
     if (!socket) return;
-
-    console.log('Socket initialized:', socket.connected);
-
     socket.on('connect', () => {
-      console.log('✅ Socket connected:', socket.id);
-      // Join the room after connection
       socket.emit("join_room", channelId);
     });
-
+    
     socket.on('connect_error', (error: Error) => {
-      console.error('❌ Socket connection error:', error);
+      console.error('💔 Socket connection error:', error);
     });
 
     socket.on('disconnect', (reason) => {
       console.log('❌ Socket disconnected:', reason);
     });
 
-    // Health monitoring
     const pingInterval = setInterval(() => {
       if (!socket.connected) {
-        console.log('🔄 Socket disconnected, attempting to reconnect...');
         socket.connect();
       }
     }, 5000);
@@ -137,29 +126,26 @@ export default function ChatWindow({ channelId, isDM, currentUserId, localStream
     };
   }, [socket, channelId]);
 
-  // Message handling with duplicate detection and ordering
   useEffect(() => {
     if (!socket) return;
-
-    // Keep track of received message IDs to prevent duplicates
     const receivedMessageIds = new Set<string | number>();
 
     const handleIncomingMessage = (saved: any) => {
-      // Backend broadcasts saved message as 'new_message'
-      // Expected fields: { id, content, sender_id, channel_id, timestamp }
+      console.log('[Socket new_message] Received:', saved); // Debug log
+      
       const messageId = saved?.id || saved?.messageId || Date.now();
-
-      // Ignore if message belongs to a different channel
       if (saved?.channel_id && saved.channel_id !== channelId) return;
 
-      // Prevent duplicate messages
       if (receivedMessageIds.has(messageId)) {
-        console.log('🔄 Duplicate message received, ignoring:', messageId);
         return;
       }
 
+      // Log media_url specifically
+      if (saved?.media_url) {
+        console.log('[Socket new_message] Message has media_url:', saved.media_url);
+      }
+
       const senderId = saved?.sender_id || saved?.senderId || "";
-      // Resolve username: prefer payload, else cache, else fallback
       const resolvedUsername = (senderId === currentUserId) ? 'You' : (
         saved?.username ||
         (saved?.sender && (saved.sender.username || saved.sender.fullname || saved.sender.name)) ||
@@ -175,10 +161,10 @@ export default function ChatWindow({ channelId, isDM, currentUserId, localStream
         avatarUrl: (saved?.sender_id || saved?.senderId) === currentUserId 
           ? "/User_profil.png" 
           : "https://avatars.dicebear.com/api/bottts/user.svg",
-        username: resolvedUsername
+        username: resolvedUsername,
+        mediaUrl: saved?.media_url || saved?.mediaUrl // Handle backend's snake_case media_url
       };
 
-      // Update cache if we've learned a username
       if (senderId && resolvedUsername && resolvedUsername !== 'Unknown') {
         usernamesRef.current[senderId] = resolvedUsername;
       }
@@ -190,7 +176,6 @@ export default function ChatWindow({ channelId, isDM, currentUserId, localStream
             Date.now() - new Date(msg.timestamp).getTime() < 30000)
         );
 
-        // Add new message and sort by timestamp
         const updated = [...filtered, newMessage].sort(
           (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
@@ -198,46 +183,37 @@ export default function ChatWindow({ channelId, isDM, currentUserId, localStream
         return updated;
       });
 
-      // Add to received messages set
       receivedMessageIds.add(messageId);
 
-      // Clean up old message IDs after 5 minutes
       setTimeout(() => {
         receivedMessageIds.delete(messageId);
       }, 5 * 60 * 1000);
     };
 
     socket.on("new_message", handleIncomingMessage);
-    // socket.on('message_error', (errMsg: string) => {
-    //   console.error('❌ message_error:', errMsg);
-    // });
-
-    // Handle missed messages during disconnection
     socket.on('reconnect', async () => {
-      console.log('🔄 Reconnected, fetching missed messages...');
       await loadMessages();
     });
 
     return () => {
       socket.off("new_message");
-      socket.off('message_error');
       socket.off("reconnect");
     };
   }, [socket, currentUserId, loadMessages, channelId]);
 
-  const handleSend = async (text: string) => {
-    if (!text.trim() || !socket) return;
+  const handleSend = async (text: string, file: File | null) => {
+    if (text.trim() === "" && !file) return;
 
-    const messageData = {
-      content: text,
-      channelId: channelId,
-      senderId: currentUserId,
-    };
+    setIsSending(true);
 
-    // Optimistically add message to UI
+    // Show upload progress for files
+    if (file) {
+      console.log(`📤 Uploading file: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
+    }
+
     const optimisticMessage: Message = {
-      id: Date.now(),
-      content: text,
+      id: `temp-${Date.now()}`,
+      content: file ? `${text} 📎 Uploading ${file.name}...` : text,
       senderId: currentUserId,
       timestamp: new Date().toISOString(),
       avatarUrl: "/User_profil.png",
@@ -245,18 +221,41 @@ export default function ChatWindow({ channelId, isDM, currentUserId, localStream
     };
     setMessages(prev => [...prev, optimisticMessage]);
 
-    // Emit once; backend will persist and echo via 'new_message'.
     try {
-      console.log(messageData)
-      socket.emit('send_message', messageData);
-    } catch (err) {
-      console.error('💔 Failed to emit message:', err);
+      const response = await uploadMessage({
+        content: text.trim(),
+        channel_id: channelId,
+        sender_id: currentUserId,
+        file: file || undefined,
+      });
+      
+      console.log('[Upload Message] Response:', response); // Debug log
+      if (response.media_url) {
+        console.log('[Upload Message] Response has media_url:', response.media_url);
+      }
+
+    } catch (err: any) {
+      console.error('💔 Failed to upload message:', err);
+      
+      // Handle specific error types based on backend specification
+      let errorMessage = 'Upload failed';
+      if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      // Show user-friendly error message
+      // You can integrate with your toast/notification system here
+      alert(`Upload failed: ${errorMessage}`);
+      
+      // Remove optimistic message on failure
+      setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
+    } finally {
+      setIsSending(false);
     }
   };
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
-      {/* Video/Voice panel on top when streams are present */}
       {(localStream || (remoteStreams && remoteStreams.length > 0)) && (
         <div className="p-4 pb-0">
           <div className="relative">
@@ -280,29 +279,24 @@ export default function ChatWindow({ channelId, isDM, currentUserId, localStream
           </div>
         </div>
       )}
-      <div className="flex-1 overflow-y-auto p-4 space-y-2">
+      <div className="flex-1 overflow-y-auto p-4">
         {messages.map((msg) => (
-          <div
+          <MessageBubble
             key={msg.id}
-            className={`flex ${msg.senderId === currentUserId ? 'justify-end' : 'justify-start'}`}
+            message={msg.content}
+            isSender={msg.senderId === currentUserId}
+            timestamp={new Date(msg.timestamp).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
           >
-            <div className={`bg-white/10 backdrop-blur-md p-2 rounded-lg text-white max-w-lg
-              ${msg.senderId === currentUserId ? 'bg-blue-600/50' : 'bg-gray-600/50'}`}
-            >
-              {/* Sender label */}
-              <div className="text-[11px] leading-none text-gray-300 mb-1">
-                {msg.senderId === currentUserId ? 'You' : (msg.username || 'Unknown')}
-              </div>
-              <div className="text-sm">{msg.content}</div>
-              <div className="text-xs text-gray-400 mt-1">
-                {new Date(msg.timestamp).toLocaleTimeString()}
-              </div>
-            </div>
-          </div>
+            {msg.mediaUrl && <MessageAttachment media_url={msg.mediaUrl} />}
+          </MessageBubble>
         ))}
         <div ref={messagesEndRef} />
       </div>
-      <MessageInput sendMessage={handleSend} />
+
+      <MessageInput sendMessage={handleSend} isSending={isSending} />
     </div>
   );
 

@@ -2,7 +2,7 @@ import { apiClient } from "@/utils/apiClient";
 
 import { getUser } from "../api";
 import { get } from "http";
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 // ---------- Types ----------
 export interface Server {
@@ -18,6 +18,11 @@ export interface Message {
   color: string;
   message: string;
   timestamp: string;
+  media_url?: string; // Add media_url field for image support
+  mediaUrl?: string; // Also support camelCase variant
+  content?: string; // Add content field as backend uses this
+  sender_id?: string; // Add sender_id field
+  channel_id?: string; // Add channel_id field
 }
 
 interface ApiResponse<T> {
@@ -99,19 +104,74 @@ export const fetchChannelsByServer = async (serverId: string): Promise<any> => {
 
 // ---------- Message APIs ----------
 export const uploadMessage = async (payload: {
-  message: string;
-  channelId: string;
-  isDM: boolean;
+  file?: File;
+  content?: string;
+  sender_id?: string; // Optional, server can get from session
+  channel_id: string;
 }): Promise<Message> => {
   try {
-    // The server will get the senderId from the authenticated user's session.
-    const response = await apiClient.post<Message>(
-      "/api/message/upload",
-      payload
-    );
-    return response.data;
+    const formData = new FormData();
+    
+    // Use exact field names as specified by backend
+    formData.append("sender_id", payload.sender_id || "");
+    formData.append("channel_id", payload.channel_id);
+    formData.append("content", payload.content || "");
+    if (payload.file) formData.append("file", payload.file);
+
+    const response = await fetch(`${API_BASE_URL}/api/message/upload`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include' // As specified by backend
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      const errorMessage = err.error || err.msg || 'Upload failed';
+      console.error('Upload error:', errorMessage);
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    console.log('[Upload Message] Success:', result);
+    return result;
   } catch (error) {
     console.error("Error uploading message:", error);
+    throw error;
+  }
+};
+
+export const uploaddm = async (payload: {
+  mediaurl?: File;
+  message: string;
+  sender_id: string;
+  receiver_id: string;
+}) => {
+  try {
+    const formData = new FormData();
+    
+    // Use exact field names as specified by backend
+    formData.append("receiver_id", payload.receiver_id);
+    formData.append("content", payload.message || "");
+    if (payload.mediaurl) formData.append("file", payload.mediaurl);
+
+    const response = await fetch(`${API_BASE_URL}/api/message/upload_dm`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include' // As specified by backend
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      const errorMessage = err.error || err.msg || 'DM upload failed';
+      console.error('DM Upload error:', errorMessage);
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    console.log('[Upload DM] Success:', result);
+    return result;
+  } catch (error) {
+    console.error("Error uploading DM:", error);
     throw error;
   }
 };
@@ -124,9 +184,17 @@ export const fetchMessages = async (channel_id: string): Promise<ApiResponse<Mes
     }>(
       `/api/message/fetch?channel_id=${channel_id}`
     );
-    console.log(response.data);
+    console.log('API Response for fetchMessages:', response.data);
 
     const messages = response.data.messages || response.data.data || [];
+    
+    // Log each message to verify media_url field
+    messages.forEach((msg: any, index: number) => {
+      if (msg.media_url) {
+        console.log(`Message ${index} has media_url:`, msg.media_url);
+      }
+    });
+    
     return { data: messages };
   } catch (error) {
     console.error("Error fetching messages:", error);

@@ -19,40 +19,90 @@ export default function VideoPanel({ localStream, remotes = [], collapsed }: Pro
     }
   }, [localStream]);
 
-  return (
-    <div className={`w-full ${collapsed ? "h-0 overflow-hidden" : "h-auto"} rounded-lg`}>
-      <div className="aspect-video w-full bg-black/70 rounded-lg overflow-hidden">
-        {/* Local video large */}
-        <video
-          ref={localRef}
-          autoPlay
-          muted
-          playsInline
-          className="w-full h-full object-cover"
-        />
-      </div>
+  // Calculate grid layout based on total participants
+  const totalParticipants = 1 + remotes.length; // 1 for local user + remotes
+  const getGridCols = (count: number) => {
+    if (count === 1) return "grid-cols-1";
+    if (count === 2) return "grid-cols-2";
+    if (count <= 4) return "grid-cols-2";
+    if (count <= 6) return "grid-cols-3";
+    return "grid-cols-4";
+  };
 
-      {remotes.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
-          {remotes.map(r => (
-            <RemoteVideo key={r.id} stream={r.stream} />
-          ))}
+  const getGridRows = (count: number) => {
+    if (count <= 2) return "grid-rows-1";
+    if (count <= 4) return "grid-rows-2";
+    if (count <= 6) return "grid-rows-2";
+    return "grid-rows-3";
+  };
+
+  if (collapsed) {
+    return <div className="w-full h-0 overflow-hidden" />;
+  }
+
+  return (
+    <div className="w-full h-auto rounded-lg">
+      <div className={`grid ${getGridCols(totalParticipants)} ${getGridRows(totalParticipants)} gap-2 w-full`}>
+        {/* Local video */}
+        <div className="relative aspect-video bg-gray-900 rounded-lg overflow-hidden border-2 border-blue-500">
+          {localStream ? (
+            <video
+              ref={localRef}
+              autoPlay
+              muted
+              playsInline
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-gray-800">
+              <div className="text-center text-white">
+                <div className="w-16 h-16 mx-auto mb-2 bg-blue-500 rounded-full flex items-center justify-center">
+                  <span className="text-2xl font-bold">You</span>
+                </div>
+                <p className="text-sm">Camera off</p>
+              </div>
+            </div>
+          )}
+          <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+            You
+          </div>
         </div>
-      )}
+
+        {/* Remote videos */}
+        {remotes.map(r => (
+          <RemoteVideo key={r.id} stream={r.stream} userId={r.id} />
+        ))}
+      </div>
     </div>
   );
 }
 
-function RemoteVideo({ stream }: { stream: MediaStream }) {
+function RemoteVideo({ stream, userId }: { stream: MediaStream; userId: string }) {
   const ref = useRef<HTMLVideoElement>(null);
+  
   useEffect(() => {
     if (ref.current && stream && ref.current.srcObject !== stream) {
       ref.current.srcObject = stream;
     }
   }, [stream]);
+
   return (
-    <div className="aspect-video bg-black/60 rounded-md overflow-hidden">
-      <video ref={ref} autoPlay playsInline className="w-full h-full object-cover" />
+    <div className="relative aspect-video bg-gray-900 rounded-lg overflow-hidden border-2 border-gray-600">
+      {stream ? (
+        <video ref={ref} autoPlay playsInline className="w-full h-full object-cover" />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-gray-800">
+          <div className="text-center text-white">
+            <div className="w-12 h-12 mx-auto mb-2 bg-gray-600 rounded-full flex items-center justify-center">
+              <span className="text-lg font-bold">{userId.charAt(0).toUpperCase()}</span>
+            </div>
+            <p className="text-xs">Camera off</p>
+          </div>
+        </div>
+      )}
+      <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+        {userId}
+      </div>
     </div>
   );
 }

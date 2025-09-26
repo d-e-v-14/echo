@@ -285,19 +285,6 @@ const ServersPage: React.FC = () => {
 
             {activeVoiceChannel && (
               <div className="mt-auto p-2">
-                {/* Headless: manage connection only; video will render inside ChatWindow */}
-                <VoiceChannel
-                  channelId={activeVoiceChannel}
-                  onHangUp={() => {
-                    setActiveVoiceChannel(null);
-                    setLocalMediaStream(null);
-                    setRemoteMediaStreams([]);
-                  }}
-                  headless
-                  onLocalStreamChange={setLocalMediaStream}
-                  onRemoteStreamAdded={handleRemoteAdded}
-                  onRemoteStreamRemoved={handleRemoteRemoved}
-                />
                 {/* Compact hangup bar so users can leave the call from sidebar */}
                 <div className="flex items-center justify-between bg-gray-900 rounded-md p-2 mt-2">
                   <div className="text-xs text-gray-300 truncate mr-2">
@@ -322,80 +309,13 @@ const ServersPage: React.FC = () => {
           {/* Main Content Area */}
           <div className="flex-1 relative text-white bg-[radial-gradient(ellipse_at_bottom,rgba(37,99,235,0.15)_0%,rgba(0,0,0,1)_85%)] flex flex-col">
             {activeVoiceChannel ? (
-           
-              <>
-                <div className="p-4 border-b border-gray-800 flex items-center justify-between">
-                  <h1 className="text-lg font-semibold">
-                    Voice Channel – {activeVoiceChannel}
-                  </h1>
-                  <button
-                    onClick={() => {
-                      setActiveVoiceChannel(null);
-                      setLocalMediaStream(null);
-                      setRemoteMediaStreams([]);
-                    }}
-                    className="px-4 py-2 rounded bg-red-600 hover:bg-red-500 text-sm"
-                  >
-                    Hang Up
-                  </button>
-                </div>
-
-                <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-4 overflow-y-auto">
-                  {/* Local Stream */}
-                  {localMediaStream && (
-                    <div className="flex flex-col items-center bg-gray-800 rounded-lg p-2">
-                      <video
-                        ref={(video) => {
-                          if (video) video.srcObject = localMediaStream;
-                        }}
-                        autoPlay
-                        playsInline
-                        muted
-                        className="w-full h-48 bg-black rounded-lg object-cover"
-                      />
-                      <span className="mt-2 text-sm text-gray-300">You</span>
-                    </div>
-                  )}
-
-                  {/* Remote Streams */}
-                  {remoteMediaStreams.map((remote) => (
-                    <div
-                      key={remote.id}
-                      className="flex flex-col items-center bg-gray-800 rounded-lg p-2"
-                    >
-                      <video
-                        ref={(video) => {
-                          if (video) video.srcObject = remote.stream;
-                        }}
-                        autoPlay
-                        playsInline
-                        className="w-full h-48 bg-black rounded-lg object-cover"
-                      />
-                      <span className="mt-2 text-sm text-gray-300">
-                        {remote.id}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Control Bar */}
-                <div className="p-4 border-t border-gray-800 flex items-center justify-center space-x-4">
-                  <button className="px-4 py-2 bg-gray-700 rounded hover:bg-gray-600">
-                     Mute
-                  </button>
-                 
-                  <button
-                    onClick={() => {
-                      setActiveVoiceChannel(null);
-                      setLocalMediaStream(null);
-                      setRemoteMediaStreams([]);
-                    }}
-                    className="px-4 py-2 bg-red-600 rounded hover:bg-red-500"
-                  >
-                    Leave Call
-                  </button>
-                </div>
-              </>
+              <VoiceChannel
+                channelId={activeVoiceChannel}
+                userId={user.id}
+                onHangUp={() => {
+                  setActiveVoiceChannel(null);
+                }}
+              />
             ) : activeChannel ? (
             
               <>
