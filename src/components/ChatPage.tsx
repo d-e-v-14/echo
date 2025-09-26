@@ -6,6 +6,8 @@ import {io} from 'socket.io-client';
 import { Paperclip, X } from 'lucide-react'; // Using lucide-react for icons
 import { getUserDMs, uploaddm } from '@/app/api/API'; 
 import {Socket} from "socket.io-client";
+import MessageBubble from './MessageBubble';
+import MessageAttachment from './MessageAttachment';
 
 
 interface User {
@@ -110,19 +112,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ activeUser, messages, currentUs
             </div>
             <div className="flex-1 p-4 overflow-y-auto">
                 {messages.map((msg) => (
-                    <div key={msg.id} className={`mb-4 flex ${msg.sender_id === currentUser?.id ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`p-3 rounded-lg max-w-lg ${msg.sender_id === currentUser?.id ? 'bg-blue-700' : 'bg-gray-600'}`}>
-                            {/* Sender label */}
-                            <div className="text-xs text-gray-300 mb-1">
-                                {msg.sender_id === currentUser?.id ? 'You' : activeUser.fullname}
-                            </div>
-                            {msg.media_url && (
-                                <img src={msg.media_url} alt="Uploaded content" className="max-w-xs rounded-lg mb-2" />
-                            )}
-                            {msg.content && <p>{msg.content}</p>}
-                            <span className="text-xs text-gray-400 mt-1 block text-right">{new Date(msg.timestamp).toLocaleTimeString()}</span>
-                        </div>
-                    </div>
+                    <MessageBubble
+                        key={msg.id}
+                        isSender={msg.sender_id === currentUser?.id}
+                        message={msg.content}
+                        timestamp={new Date(msg.timestamp).toLocaleTimeString()}
+                        name={msg.sender_id === currentUser?.id ? 'You' : activeUser.fullname}
+                    >
+                        {msg.media_url && (
+                            <MessageAttachment media_url={msg.media_url} />
+                        )}
+                    </MessageBubble>
                 ))}
                 <div ref={bottomRef} />
             </div>

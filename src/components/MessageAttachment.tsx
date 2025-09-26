@@ -1,12 +1,14 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 
 interface MessageAttachmentProps {
   media_url: string;
 }
 
 export default function MessageAttachment({ media_url }: MessageAttachmentProps) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   if (!media_url) return null;
 
   // Extract file extension from URL (remove query params first)
@@ -15,16 +17,37 @@ export default function MessageAttachment({ media_url }: MessageAttachmentProps)
   
   if (imageExts.includes(ext)) {
     return (
-      <img 
-        src={media_url} 
-        alt="attachment" 
-        className="max-w-60 rounded-lg object-cover border border-white/20"
-        loading="lazy"
-        onError={(e) => {
-          console.error('Failed to load image:', media_url);
-          e.currentTarget.style.display = 'none';
-        }}
-      />
+      <>
+        <img 
+          src={media_url} 
+          alt="attachment" 
+          className="max-w-60 rounded-lg object-cover border border-white/20 cursor-pointer"
+          loading="lazy"
+          onClick={() => setIsModalOpen(true)}
+          onError={(e) => {
+            console.error('Failed to load image:', media_url);
+            e.currentTarget.style.display = 'none';
+          }}
+        />
+        {isModalOpen && (
+          <div 
+            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center"
+            onClick={() => setIsModalOpen(false)}
+          >
+            <img 
+              src={media_url} 
+              alt="attachment full-size" 
+              className="max-w-[95vw] max-h-[95vh] object-contain"
+            />
+            <button 
+              className="absolute top-4 right-4 text-white text-2xl font-bold"
+              onClick={() => setIsModalOpen(false)}
+            >
+              &times;
+            </button>
+          </div>
+        )}
+      </>
     );
   }
 

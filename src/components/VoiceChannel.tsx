@@ -23,7 +23,7 @@ const VideoPlayer = ({ stream, isMuted = false, isLocal = false }: { stream: Med
         if (videoRef.current && stream) videoRef.current.srcObject = stream;
     }, [stream]);
     return (
-        <div className="bg-black rounded-lg overflow-hidden relative aspect-video">
+        <div className="bg-black rounded-lg overflow-hidden relative">
             <video ref={videoRef} autoPlay playsInline muted={isMuted} className={`w-full h-full object-cover ${isLocal ? 'transform -scale-x-100' : ''}`} />
         </div>
     );
@@ -59,6 +59,9 @@ const VoiceChannel = ({ channelId, userId, onHangUp, headless = false, onLocalSt
             if (!isManagerInitialized.current) {
                 try {
                     await manager.initialize(true, true);
+                    if (isMounted) {
+                        setLocalStream(manager.getLocalStream());
+                    }
                     isManagerInitialized.current = true;
                 } catch (error) {
                     console.error("Failed to initialize media manager:", error);
@@ -140,6 +143,12 @@ const VoiceChannel = ({ channelId, userId, onHangUp, headless = false, onLocalSt
         managerRef.current?.toggleVideo(newCameraState);
         setIsCameraOn(newCameraState);
     };
+
+    useEffect(() => {
+        if (managerRef.current) {
+            managerRef.current.toggleVideo(isCameraOn);
+        }
+    }, [isCameraOn]);
 
     if (headless) {
         return null;

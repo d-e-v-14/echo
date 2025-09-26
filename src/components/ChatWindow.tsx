@@ -7,6 +7,7 @@ import MessageAttachment from "./MessageAttachment"; // Import the new component
 import { fetchMessages, uploadMessage } from "@/app/api/API";
 import { createAuthSocket } from "@/socket";
 import VideoPanel from "./VideoPanel";
+import MessageBubble from "./MessageBubble";
 
 interface Message {
   id: string | number;
@@ -278,29 +279,19 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
           </div>
         </div>
       )}
-      <div className="flex-1 overflow-y-auto p-4 space-y-2">
+      <div className="flex-1 overflow-y-auto p-4">
         {messages.map((msg) => (
-          <div
+          <MessageBubble
             key={msg.id}
-            className={`flex ${msg.senderId === currentUserId ? 'justify-end' : 'justify-start'}`}
+            message={msg.content}
+            isSender={msg.senderId === currentUserId}
+            timestamp={new Date(msg.timestamp).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
           >
-            <div className={`bg-white/10 backdrop-blur-md p-2 rounded-lg text-white max-w-lg
-              ${msg.senderId === currentUserId ? 'bg-blue-600/50' : 'bg-gray-600/50'}`}
-            >
-              <div className="text-[11px] leading-none text-gray-300 mb-1">
-                {msg.senderId === currentUserId ? 'You' : (msg.username || 'Unknown')}
-              </div>
-              {msg.content && <div className="text-sm">{msg.content}</div>}
-              {msg.mediaUrl && (
-                <div className="mt-2">
-                  <MessageAttachment media_url={msg.mediaUrl} />
-                </div>
-              )}
-              <div className="text-xs text-gray-400 mt-1">
-                {new Date(msg.timestamp).toLocaleTimeString()}
-              </div>
-            </div>
-          </div>
+            {msg.mediaUrl && <MessageAttachment media_url={msg.mediaUrl} />}
+          </MessageBubble>
         ))}
         <div ref={messagesEndRef} />
       </div>

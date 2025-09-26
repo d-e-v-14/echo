@@ -6,14 +6,14 @@ interface Props {
   message: string;
   avatarUrl?: string;
   timestamp: string;
+  children?: React.ReactNode; // Allow children to be passed
 }
 
 const MessageBubble: React.FC<Props> = ({
-
   isSender = false,
   message,
- 
   timestamp,
+  children,
 }) => {
   return (
     <div className={`flex ${isSender ? "justify-end" : "justify-start"} mb-2`}>
@@ -29,7 +29,8 @@ const MessageBubble: React.FC<Props> = ({
               : "bg-[#2b2d31] text-white rounded-bl-none"
           }`}
         >
-          <p className="text-sm">{message}</p>
+          {message && <p className="text-sm">{message}</p>}
+          {children && <div className={message ? "mt-2" : ""}>{children}</div>}
         </div>
         <span className="text-[10px] text-gray-400 mt-1">{timestamp}</span>
       </div>
