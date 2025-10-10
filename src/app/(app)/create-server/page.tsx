@@ -1,25 +1,15 @@
 "use client";
 import { useRouter } from "next/navigation";
 
+
 export default function CreateServerPage() {
   const router = useRouter();
 
   return (
     <div className="flex min-h-screen bg-black text-white">
-      {/* Sidebar */}
-      <div className="w-16 p-2 flex flex-col items-center bg-black space-y-3 border-r border-gray-800">
-        <button
-          onClick={() => router.push("/create-server")}
-          className="w-12 h-12 rounded-full bg-gray-700 hover:bg-gray-600 text-white text-2xl flex items-center justify-center transition-transform hover:scale-105 mb-2"
-          title="Create Server"
-        >
-          +
-        </button>
-      </div>
-
-      {/* Main content centered */}
+      {/* Main content */}
       <main className="flex-1 flex items-center justify-center bg-black">
-        <div className="w-full max-w-md p-8 bg-gray-900 rounded-lg shadow-lg">
+        <div className="w-full max-w-md p-8 bg-black rounded-lg shadow-lg">
           <h1 className="text-2xl font-bold mb-6 text-center">
             Create a Server
           </h1>
@@ -35,7 +25,14 @@ export default function CreateServerPage() {
             >
               Create
             </button>
+     
           </form>
+          <button
+            onClick={() => router.push("/servers")}
+            className="mt-6 w-full py-4 text-lg rounded-md bg-gray-700 hover:bg-gray-600 transition-all"
+          >
+            ← Back to Servers
+          </button>
         </div>
       </main>
     </div>
