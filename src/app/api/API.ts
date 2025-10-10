@@ -325,3 +325,32 @@ export const fetchAllFriends = async (
     throw error;
   }
 };
+
+
+export const joinServer = async (inviteCode: string): Promise<any> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/newserver/joinServer/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+      body: JSON.stringify({ inviteCode }),
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      const msg = err.error || err.message || "Failed to join server.";
+      throw new Error(msg);
+    }
+
+    const data = await response.json();
+    console.log("[Join Server] Success:", data);
+    return data;
+  } catch (error: any) {
+    console.error("❌ Error joining server:", error.message || error);
+    throw new Error(error.message || "Failed to join server.");
+  }
+};
+
