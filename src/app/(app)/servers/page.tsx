@@ -138,7 +138,6 @@ const ServersPage: React.FC = () => {
   const handleRemoteRemoved = (id: string) => {
     setRemoteMediaStreams((prev) => prev.filter((p) => p.id !== id));
   };
-  
 
   return (
     <div className="flex h-screen bg-black select-none">
@@ -309,15 +308,16 @@ const ServersPage: React.FC = () => {
           {/* Main Content Area */}
           <div className="flex-1 relative text-white bg-[radial-gradient(ellipse_at_bottom,rgba(37,99,235,0.15)_0%,rgba(0,0,0,1)_85%)] flex flex-col">
             {activeVoiceChannel ? (
-              <VoiceChannel
-                channelId={activeVoiceChannel}
-                userId={user.id}
-                onHangUp={() => {
-                  setActiveVoiceChannel(null);
-                }}
-              />
+              <div className="flex-1 w-full h-full">
+                <VoiceChannel
+                  channelId={activeVoiceChannel}
+                  userId={user.id}
+                  onHangUp={() => {
+                    setActiveVoiceChannel(null);
+                  }}
+                />
+              </div>
             ) : activeChannel ? (
-            
               <>
                 <h1 className="text-2xl font-bold mb-4 text-center pt-6">
                   Welcome to #{activeChannel.name}

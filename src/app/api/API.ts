@@ -31,6 +31,7 @@ interface ApiResponse<T> {
   message?: string;
 }
 
+
 // ---------- Axios Setup ----------
 // The apiClient is configured to send credentials (like cookies) with each request.
 // This removes the need for manual token handling on the client-side.
@@ -231,5 +232,96 @@ export const getUserDMs = async (): Promise<any> => {
 
     console.error("❌ Error fetching DMs:", error.message || error);
     throw new Error("Failed to fetch messages. Please try again later.");
+  }
+};
+
+
+// ---------- Friends APIs ----------
+
+
+export interface Friend {
+  id: string;
+  username: string;
+  displayName?: string;
+  status?: "online" | "offline" | "pending" | "blocked";
+  avatarUrl?: string;
+}
+
+export interface FriendRequest {
+  requestId: string;
+  senderId: string;
+  receiverId: string;
+  status: "pending" | "accepted" | "rejected";
+  createdAt?: string;
+}
+
+// ---------- API Functions ----------
+
+export const addFriend = async (user2_id: string): Promise<FriendRequest> => {
+  try {
+    const response = await apiClient.post<FriendRequest>(`/api/friends/add_friend`, {
+      user2_id,
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error adding friend:", error?.response?.data || error.message);
+    throw error;
+  }
+};
+
+
+export const fetchFriendRequests = async (
+  user2_id: string
+): Promise<FriendRequest[]> => {
+  try {
+    const response = await apiClient.get<FriendRequest[]>(
+      `/api/friends/friend_requests`,
+      {
+        params: { user2_id }, 
+      }
+    );
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Error fetching friend requests:",
+      error?.response?.data || error.message
+    );
+    throw error;
+  }
+};
+
+
+export const respondToFriendRequest = async (
+  requestId: string,
+  status: "accepted" | "rejected"
+): Promise<FriendRequest> => {
+  try {
+    const response = await apiClient.put<FriendRequest>(`/api/friends/request`, {
+      requestId,
+      status,
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error responding to friend request:", error?.response?.data || error.message);
+    throw error;
+  }
+};
+
+
+export const fetchAllFriends = async (
+  requestId: string,
+  status: "accepted" | "rejected" = "accepted"
+): Promise<Friend[]> => {
+  try {
+    const response = await apiClient.get<Friend[]>(`/api/friends/all`, {
+      params: { requestId, status }, 
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Error fetching friends:",
+      error?.response?.data || error.message
+    );
+    throw error;
   }
 };
