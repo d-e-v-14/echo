@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import {io} from 'socket.io-client';
 import { Paperclip, X } from 'lucide-react'; // Using lucide-react for icons
 import { getUserDMs, uploaddm } from '@/app/api/API'; 
-import {Socket} from "socket.io-client";
+import { Socket } from "socket.io-client";
+import { createAuthSocket } from '@/socket';
 import MessageBubble from './MessageBubble';
 import MessageAttachment from './MessageAttachment';
 
@@ -166,7 +167,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ activeUser, messages, currentUs
 // =============================================================
 // 3. Main Page Content (Parent Component with updated logic)
 // =============================================================
-export default function MessagesPageContent() {
+function MessagesPageContentInner() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const selectedDM = searchParams.get("dm");
@@ -186,9 +187,7 @@ useEffect(() => {
 
     // Create socket once
     if (!socketRef.current) {
-        const newSocket = io(process.env.NEXT_PUBLIC_API_URL!, {
-            auth: { userId: currentUser.id }
-        });
+        const newSocket = createAuthSocket(currentUser.id);
         socketRef.current = newSocket;
     }
 
@@ -510,5 +509,13 @@ useEffect(() => {
                 />
             </div>
         </div>
+    );
+}
+
+export default function MessagesPageContent() {
+    return (
+        <Suspense fallback={<div className="flex h-screen items-center justify-center text-white">Loading messages…</div>}>
+            <MessagesPageContentInner />
+        </Suspense>
     );
 }
