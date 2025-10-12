@@ -1,23 +1,25 @@
 // src/socket.ts
 
 import { io, Socket } from 'socket.io-client';
+import { VoiceVideoManager } from './lib/VoiceVideoManager';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 const baseConfig = {
-    withCredentials: true,
-    transports: ["websocket", "polling"],
-    upgrade: true,
+    withCredentials: false, // Disable credentials to avoid CORS issues
+    transports: ["polling"], // Start with polling only
+    upgrade: false, // Don't try to upgrade to websocket initially
     reconnection: true,
-    reconnectionAttempts: 10,
-    reconnectionDelay: 1000,
-    reconnectionDelayMax: 5000,
-    maxReconnectionAttempts: 10,
-    timeout: 20000,
-    forceNew: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 2000,
+    timeout: 10000,
+    forceNew: true, // Force new connection for testing
+    autoConnect: true,
 };
 
 export const createAuthSocket = (userId: string): Socket => {
+    console.log("🔌 Attempting to connect to:", API_URL, "for user:", userId);
+    
     const socket = io(API_URL, {
         ...baseConfig,
         auth: { userId }
@@ -25,6 +27,24 @@ export const createAuthSocket = (userId: string): Socket => {
 
     socket.on("connect", () => {
         console.log("✅ Connected to main socket with id:", socket.id);
+        console.log("🔌 Connection transport:", socket.io.engine.transport.name);
+        console.log("🔌 Socket connected:", socket.connected);
+    });
+
+    socket.on("connecting", () => {
+        console.log("🔄 Socket is connecting...");
+    });
+
+    socket.io.on("open", () => {
+        console.log("🔓 Socket.io engine opened");
+    });
+
+    socket.io.on("close", (reason) => {
+        console.log("🔒 Socket.io engine closed:", reason);
+    });
+
+    socket.io.on("error", (error) => {
+        console.error("🔥 Socket.io engine error:", error);
     });
 
     socket.on("connect_error", (err) => {
@@ -356,3 +376,6 @@ export class MediaStreamManager {
         this.socket.off();
     }
 }
+
+// Export the new enhanced VoiceVideoManager
+export { VoiceVideoManager };

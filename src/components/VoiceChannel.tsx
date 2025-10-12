@@ -3,7 +3,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
-import { MediaStreamManager, createAuthSocket } from '@/socket';
+import { createAuthSocket } from '@/socket';
+import { VoiceVideoManager } from '@/lib/VoiceVideoManager';
 import { FaMicrophone, FaMicrophoneSlash, FaPhoneSlash, FaVideo, FaVideoSlash, FaRedo } from 'react-icons/fa';
 
 interface VoiceChannelProps {
@@ -125,10 +126,11 @@ const VoiceChannel = ({ channelId, userId, onHangUp, headless = false, onLocalSt
     const [isInitializing, setIsInitializing] = useState(false);
     const [hasPermissions, setHasPermissions] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
+    const [isVoiceChannelConnected, setIsVoiceChannelConnected] = useState(false);
     const [connectionError, setConnectionError] = useState<string | null>(null);
 
     const socketRef = useRef<ReturnType<typeof createAuthSocket> | null>(null);
-    const managerRef = useRef<MediaStreamManager | null>(null);
+    const managerRef = useRef<VoiceVideoManager | null>(null);
     const isManagerInitialized = useRef(false);
 
     // This effect creates the single socket and manager instance once.
@@ -137,7 +139,7 @@ const VoiceChannel = ({ channelId, userId, onHangUp, headless = false, onLocalSt
         
         if (!socketRef.current) {
             const socket = createAuthSocket(userId);
-            const manager = new MediaStreamManager(userId, socket);
+            const manager = new VoiceVideoManager(userId, socket);
             socketRef.current = socket;
             managerRef.current = manager;
             
@@ -203,20 +205,20 @@ const VoiceChannel = ({ channelId, userId, onHangUp, headless = false, onLocalSt
                 }
             }
             
-            manager.onStream((stream: MediaStream, socketId: string) => {
+            manager.onStream((stream: MediaStream, peerId: string, type: 'video' | 'screen') => {
                 if (isMounted) {
-                    setRemoteStreams(prev => new Map(prev).set(socketId, stream));
-                    onRemoteStreamAdded?.(socketId, stream);
+                    setRemoteStreams(prev => new Map(prev).set(peerId, stream));
+                    onRemoteStreamAdded?.(peerId, stream);
                 }
             });
-            manager.onUserLeft((socketId: string) => {
+            manager.onUserLeft((peerId: string) => {
                 if (isMounted) {
                     setRemoteStreams(prev => {
                         const newStreams = new Map(prev);
-                        newStreams.delete(socketId);
+                        newStreams.delete(peerId);
                         return newStreams;
                     });
-                    onRemoteStreamRemoved?.(socketId);
+                    onRemoteStreamRemoved?.(peerId);
                 }
             });
             manager.onVoiceRoster((members: any[]) => {
@@ -231,6 +233,9 @@ const VoiceChannel = ({ channelId, userId, onHangUp, headless = false, onLocalSt
                     }));
                     setVoiceMembers(voiceMembers);
                     onVoiceRoster?.(members);
+                    
+                    // Voice channel is connected when we receive roster
+                    setIsVoiceChannelConnected(true);
                 }
             });
             manager.onUserJoined((socketId: string, userId: string) => {
@@ -244,8 +249,8 @@ const VoiceChannel = ({ channelId, userId, onHangUp, headless = false, onLocalSt
                     }));
                 }
             });
-            manager.onVoiceState((socketId: string, userId: string, state: any) => {
-                console.log("Voice state update:", { socketId, userId, state });
+            manager.onMediaState((socketId: string, userId: string, state: any) => {
+                console.log("Media state update:", { socketId, userId, state });
                 if (isMounted) {
                     setVoiceStates(prev => new Map(prev).set(socketId, {
                         muted: state.muted || false,
@@ -290,11 +295,17 @@ const VoiceChannel = ({ channelId, userId, onHangUp, headless = false, onLocalSt
 
         const joinChannel = async () => {
             try {
+                setIsVoiceChannelConnected(false); // Reset voice channel status
                 manager.leaveVoiceChannel();
                 await manager.joinVoiceChannel(channelId);
                 
                 setLocalStream(manager.getLocalStream());
                 onLocalStreamChange?.(manager.getLocalStream());
+                
+                // Set a timeout to assume connection after a delay if no roster comes
+                setTimeout(() => {
+                    setIsVoiceChannelConnected(true);
+                }, 2000);
             } catch (error) {
                 console.error('Failed to join voice channel:', error);
                 setPermissionError('Failed to connect to voice channel. Please check your connection and try again.');
@@ -305,6 +316,7 @@ const VoiceChannel = ({ channelId, userId, onHangUp, headless = false, onLocalSt
 
         return () => {
             manager.leaveVoiceChannel();
+            setIsVoiceChannelConnected(false);
         };
     }, [channelId, onLocalStreamChange]);
 
@@ -472,9 +484,9 @@ Find this site (${window.location.origin}) and set permissions to "Allow"`;
                     {connectionError} - Click the reconnect button below
                 </div>
             )}
-            {!isConnected && !connectionError && hasPermissions && (
+            {(!isConnected || !isVoiceChannelConnected) && !connectionError && hasPermissions && (
                 <div className="mb-2 p-2 bg-yellow-600 rounded text-center text-white text-sm">
-                    Connecting to voice server...
+                    {!isConnected ? 'Connecting to server...' : 'Joining voice channel...'}
                 </div>
             )}
             
