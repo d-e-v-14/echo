@@ -296,7 +296,14 @@ const ServersPage: React.FC = () => {
               <button
                 className="p-2 rounded-full hover:bg-[#23272a] transition"
                 title="Server Settings"
-                onClick={() => router.push("/server-settings")}
+                onClick={() => {
+                  if (selectedServerId) {
+                    localStorage.setItem('currentServerId', selectedServerId);
+                    router.push(`/server-settings?serverId=${selectedServerId}`);
+                  } else {
+                    alert('Please select a server first');
+                  }
+                }}
               >
                 <FaCog className="w-5 h-5 text-[#b5bac1] hover:text-white" />
               </button>

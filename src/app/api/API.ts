@@ -1,7 +1,6 @@
 import { apiClient } from "@/utils/apiClient";
-
 import { getUser } from "../api";
-import { get } from "http";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 // ---------- Types ----------
@@ -81,7 +80,6 @@ export const createServer = async (payload: {
 export const fetchServers = async (): Promise<Server[]> => {
   try {
     const response = await apiClient.get(`/api/newserver/getServers/`);
-    console.log("response.data")
     return response.data;
   } catch (error) {
     console.error("Error fetching servers:", error);
@@ -131,7 +129,6 @@ export const uploadMessage = async (payload: {
     }
 
     const result = await response.json();
-    console.log('[Upload Message] Success:', result);
     return result;
   } catch (error) {
     console.error("Error uploading message:", error);
@@ -168,7 +165,6 @@ export const uploaddm = async (payload: {
     }
 
     const result = await response.json();
-    console.log('[Upload DM] Success:', result);
     return result;
   } catch (error) {
     console.error("Error uploading DM:", error);
@@ -184,17 +180,8 @@ export const fetchMessages = async (channel_id: string): Promise<ApiResponse<Mes
     }>(
       `/api/message/fetch?channel_id=${channel_id}`
     );
-    console.log('API Response for fetchMessages:', response.data);
 
     const messages = response.data.messages || response.data.data || [];
-    
-    // Log each message to verify media_url field
-    messages.forEach((msg: any, index: number) => {
-      if (msg.media_url) {
-        console.log(`Message ${index} has media_url:`, msg.media_url);
-      }
-    });
-    
     return { data: messages };
   } catch (error) {
     console.error("Error fetching messages:", error);
@@ -328,28 +315,15 @@ export const fetchAllFriends = async (
 
 export const joinServer = async (inviteCode: string): Promise<any> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/newserver/joinServer/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-      body: JSON.stringify({ inviteCode }),
-      credentials: "include",
+    const response = await apiClient.post('/api/newserver/joinwithinvite', {
+      inviteCode
     });
 
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      const msg = err.error || err.message || "Failed to join server.";
-      throw new Error(msg);
-    }
-
-    const data = await response.json();
-    console.log("[Join Server] Success:", data);
-    return data;
+    return response.data;
   } catch (error: any) {
-    console.error("❌ Error joining server:", error.message || error);
-    throw new Error(error.message || "Failed to join server.");
+    console.error("Error joining server:", error.response?.data || error.message || error);
+    const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || "Failed to join server.";
+    throw new Error(errorMessage);
   }
 };
 
@@ -386,5 +360,40 @@ export const getUserAvatar = async (userId: string): Promise<string> => {
 
   // Fallback to default avatar
   return "/User_profil.png";
+};
+
+export const deleteServer = async (serverId: string): Promise<any> => {
+  try {
+    const response = await apiClient.delete(`/api/newserver/${serverId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error deleting server:", error.response?.data || error.message || error);
+    const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || "Failed to delete server.";
+    throw new Error(errorMessage);
+  }
+};
+
+export const transferServerOwnership = async (serverId: string, newOwnerId: string): Promise<any> => {
+  try {
+    const response = await apiClient.post(`/api/newserver/${serverId}/transfer-ownership`, {
+      newOwnerId
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error transferring ownership:", error.response?.data || error.message || error);
+    const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || "Failed to transfer ownership.";
+    throw new Error(errorMessage);
+  }
+};
+
+export const getServerMembers = async (serverId: string): Promise<any> => {
+  try {
+    const response = await apiClient.get(`/api/newserver/${serverId}/members`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error getting server members:", error.response?.data || error.message || error);
+    const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || "Failed to get server members.";
+    throw new Error(errorMessage);
+  }
 };
 
