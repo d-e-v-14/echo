@@ -9,6 +9,7 @@ const menuItems = [
   "Members",
   "Invite people",
   "Leave",
+  "Danger Zone",
 ];
 
 export default function Sidebar({ selected, onSelect }: SidebarProps) {
