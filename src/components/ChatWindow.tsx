@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Socket } from "socket.io-client";
 import MessageInput from "./MessageInput"; // This import is now correct
 import MessageAttachment from "./MessageAttachment"; // Import the new component
-import { fetchMessages, uploadMessage } from "@/app/api/API";
+import { fetchMessages, uploadMessage, getUserAvatar } from "@/app/api/API";
+import { getUser } from "@/app/api";
 import { createAuthSocket } from "@/socket";
 import VideoPanel from "./VideoPanel";
 import MessageBubble from "./MessageBubble";
@@ -33,9 +34,42 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
   const usernamesRef = useRef<Record<string, string>>({});
+  const avatarCacheRef = useRef<Record<string, string>>({});
   const [micOn, setMicOn] = useState<boolean>(true);
   const [camOn, setCamOn] = useState<boolean>(true);
   const [isSending, setIsSending] = useState(false);
+
+  // Function to get user avatar with caching
+  const getAvatarUrl = async (userId: string): Promise<string> => {
+    if (userId === currentUserId) {
+      // Get current user's avatar from their profile
+      try {
+        const user = await getUser();
+        if (user?.avatar_url) {
+          return user.avatar_url;
+        }
+      } catch (error) {
+        console.error("Failed to get current user's avatar:", error);
+      }
+      return "/User_profil.png"; // Fallback for current user
+    }
+    
+    // Check cache first for other users
+    if (avatarCacheRef.current[userId]) {
+      return avatarCacheRef.current[userId];
+    }
+    
+    try {
+      const avatarUrl = await getUserAvatar(userId);
+      avatarCacheRef.current[userId] = avatarUrl;
+      return avatarUrl;
+    } catch (error) {
+      console.error(`Failed to get avatar for user ${userId}:`, error);
+      const fallbackAvatar = "https://avatars.dicebear.com/api/bottts/user.svg";
+      avatarCacheRef.current[userId] = fallbackAvatar;
+      return fallbackAvatar;
+    }
+  };
 
   useEffect(() => {
     const newSocket = createAuthSocket(currentUserId);
@@ -49,24 +83,34 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
   const loadMessages = useCallback(async () => {
     try {
       const res = await fetchMessages(channelId);
-      const formattedMessages: Message[] = res.data.map((msg: any) => ({
-        id: msg.id,
-        content: msg.content || msg.message,
-        senderId: msg.sender_id || msg.senderId,
-        timestamp: msg.timestamp || new Date().toISOString(),
-        avatarUrl: msg.sender_id === currentUserId ? "/User_profil.png" : "https://avatars.dicebear.com/api/bottts/user.svg",
-        username:
-          ((msg.sender_id || msg.senderId) === currentUserId ? "You" :
-            (msg.username ||
-             (msg.sender && (msg.sender.username || msg.sender.fullname || msg.sender.name)) ||
-             msg.sender_name || msg.senderName || msg.username ||
-             "Unknown")),
-        mediaUrl: msg.media_url || msg.mediaUrl // Handle backend's snake_case media_url
-      }))
-      .sort((a: Message, b: Message) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      const formattedMessages: Message[] = await Promise.all(
+        res.data.map(async (msg: any) => {
+          const senderId = msg.sender_id || msg.senderId;
+          const avatarUrl = await getAvatarUrl(senderId);
+          
+          return {
+            id: msg.id,
+            content: msg.content || msg.message,
+            senderId,
+            timestamp: msg.timestamp || new Date().toISOString(),
+            avatarUrl,
+            username:
+              (senderId === currentUserId ? "You" :
+                (msg.username ||
+                 (msg.sender && (msg.sender.username || msg.sender.fullname || msg.sender.name)) ||
+                 msg.sender_name || msg.senderName || msg.username ||
+                 "Unknown")),
+            mediaUrl: msg.media_url || msg.mediaUrl // Handle backend's snake_case media_url
+          };
+        })
+      );
+      
+      const sortedMessages = formattedMessages.sort((a: Message, b: Message) => 
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
       
       const map: Record<string, string> = { ...usernamesRef.current };
-      for (const m of formattedMessages) {
+      for (const m of sortedMessages) {
         if (m.senderId && m.username && m.username !== 'Unknown') {
           map[m.senderId] = m.username;
         } else if (m.senderId === currentUserId) {
@@ -74,7 +118,7 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
         }
       }
       usernamesRef.current = map;
-      setMessages(formattedMessages);
+      setMessages(sortedMessages);
     } catch (err) {
       console.error("Failed to fetch messages", err);
     }
@@ -130,7 +174,7 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
     if (!socket) return;
     const receivedMessageIds = new Set<string | number>();
 
-    const handleIncomingMessage = (saved: any) => {
+    const handleIncomingMessage = async (saved: any) => {
       console.log('[Socket new_message] Received:', saved); // Debug log
       
       const messageId = saved?.id || saved?.messageId || Date.now();
@@ -153,14 +197,15 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
         usernamesRef.current[senderId] || 'Unknown'
       );
 
+      // Get actual avatar URL
+      const avatarUrl = await getAvatarUrl(senderId);
+
       const newMessage: Message = {
         id: messageId,
         content: saved?.content || saved?.message || "",
         senderId,
         timestamp: saved?.timestamp || new Date().toISOString(),
-        avatarUrl: (saved?.sender_id || saved?.senderId) === currentUserId 
-          ? "/User_profil.png" 
-          : "https://avatars.dicebear.com/api/bottts/user.svg",
+        avatarUrl,
         username: resolvedUsername,
         mediaUrl: saved?.media_url || saved?.mediaUrl // Handle backend's snake_case media_url
       };
@@ -290,7 +335,9 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
         {messages.map((msg) => (
           <MessageBubble
             key={msg.id}
+            name={msg.username}
             message={msg.content}
+            avatarUrl={msg.avatarUrl}
             isSender={msg.senderId === currentUserId}
             timestamp={new Date(msg.timestamp).toLocaleTimeString([], {
               hour: "2-digit",

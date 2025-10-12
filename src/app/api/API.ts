@@ -353,3 +353,38 @@ export const joinServer = async (inviteCode: string): Promise<any> => {
   }
 };
 
+// Function to fetch user profile by ID
+export const fetchUserProfile = async (userId: string): Promise<any> => {
+  try {
+    const response = await apiClient.get(`/api/profile/${userId}`);
+    return response.data.user;
+  } catch (error) {
+    console.error(`Failed to fetch profile for user ${userId}:`, error);
+    return null;
+  }
+};
+
+// Cache for user profiles to avoid repeated API calls
+const userProfileCache = new Map<string, any>();
+
+export const getUserAvatar = async (userId: string): Promise<string> => {
+  // Check cache first
+  if (userProfileCache.has(userId)) {
+    const profile = userProfileCache.get(userId);
+    return profile?.avatar_url || "/User_profil.png";
+  }
+
+  try {
+    const profile = await fetchUserProfile(userId);
+    if (profile) {
+      userProfileCache.set(userId, profile);
+      return profile.avatar_url || "/User_profil.png";
+    }
+  } catch (error) {
+    console.error(`Error fetching avatar for user ${userId}:`, error);
+  }
+
+  // Fallback to default avatar
+  return "/User_profil.png";
+};
+
