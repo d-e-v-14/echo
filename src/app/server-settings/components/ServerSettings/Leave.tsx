@@ -1,21 +1,58 @@
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { leaveServer, ServerDetails } from "@/app/api";
 
-export default function Leave() {
+interface LeaveProps {
+  serverId: string;
+  serverDetails: ServerDetails | null;
+}
+
+export default function Leave({ serverId, serverDetails }: LeaveProps) {
   const [showConfirm, setShowConfirm] = useState(false);
-  const [serverName] = useState("Hack Battle");
   const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const router = useRouter();
 
-  const handleLeaveServer = () => {
-    if (input === serverName) {
-      alert(`You have left the server: ${serverName}`);
-    } else {
-      alert("Please type the server name exactly to confirm.");
+  const serverName = serverDetails?.name || "Unknown Server";
+
+  const handleLeaveServer = async () => {
+    if (input !== serverName) {
+      setError("Please type the server name exactly to confirm.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      await leaveServer(serverId);
+      
+      // Clear server from localStorage
+      localStorage.removeItem('currentServerId');
+      
+      // Show success message and redirect
+      alert(`You have successfully left ${serverName}`);
+      router.push('/'); // Redirect to home page or dashboard
+      
+    } catch (err) {
+      console.error("Error leaving server:", err);
+      setError("Failed to leave server. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="max-w-lg mx-auto p-8 text-white">
       <h1 className="text-2xl font-bold mb-8">Leave Server</h1>
+      
+      {error && (
+        <div className="bg-red-500 text-white p-3 rounded mb-4">
+          {error}
+        </div>
+      )}
+      
       <div className="flex items-center gap-4 mb-8 bg-[#23272a] p-4 rounded">
         <span className="text-3xl">⚠️</span>
         <div>
@@ -31,7 +68,7 @@ export default function Leave() {
       {!showConfirm ? (
         <button
           className="bg-gradient-to-r from-[#ffb347] to-[#ffcc33] text-[#23272a] font-bold rounded px-6 py-2 shadow transition-all duration-200
-            hover:from-[#ffcc33] hover:to-[#ffb347] hover:-translate-y-1 hover:scale-105 focus:outline-none"
+            hover:from-[#ffcc33] hover:to-[#ffb347] hover:-translate-y-1 hover:scale-105 focus:outline-none disabled:opacity-50"
           style={{
             backgroundSize: "200% 200%",
             backgroundPosition: "left center",
@@ -40,6 +77,7 @@ export default function Leave() {
           onMouseEnter={e => (e.currentTarget.style.backgroundPosition = "right center")}
           onMouseLeave={e => (e.currentTarget.style.backgroundPosition = "left center")}
           onClick={() => setShowConfirm(true)}
+          disabled={loading}
         >
           Leave Server
         </button>
@@ -49,15 +87,16 @@ export default function Leave() {
             Type <span className="text-white">{serverName}</span> to confirm:
           </label>
           <input
-            className="bg-black text-white border-2 border-[#72767d] rounded px-4 py-3 mb-4 focus:border-[#b5bac1] focus:outline-none transition-all duration-200 transform hover:-translate-y-1 focus:-translate-y-1"
+            className="w-full bg-black text-white border-2 border-[#72767d] rounded px-4 py-3 mb-4 focus:border-[#b5bac1] focus:outline-none transition-all duration-200 transform hover:-translate-y-1 focus:-translate-y-1"
             value={input}
             onChange={e => setInput(e.target.value)}
             placeholder={serverName}
+            disabled={loading}
           />
           <div className="flex gap-2">
             <button
               className="bg-gradient-to-r from-[#ed4245] to-[#a32224] text-white font-bold rounded px-6 py-2 shadow transition-all duration-200
-                hover:from-[#a32224] hover:to-[#ed4245] hover:-translate-y-1 hover:scale-105 focus:outline-none"
+                hover:from-[#a32224] hover:to-[#ed4245] hover:-translate-y-1 hover:scale-105 focus:outline-none disabled:opacity-50"
               style={{
                 backgroundSize: "200% 200%",
                 backgroundPosition: "left center",
@@ -66,12 +105,18 @@ export default function Leave() {
               onMouseEnter={e => (e.currentTarget.style.backgroundPosition = "right center")}
               onMouseLeave={e => (e.currentTarget.style.backgroundPosition = "left center")}
               onClick={handleLeaveServer}
+              disabled={loading || input !== serverName}
             >
-              Confirm Leave
+              {loading ? "Leaving..." : "Confirm Leave"}
             </button>
             <button
-              className="bg-[#23272a] text-[#ed4245] font-semibold rounded px-6 py-2 border-2 border-[#ed4245] transition hover:bg-[#ed4245] hover:text-white"
-              onClick={() => setShowConfirm(false)}
+              className="bg-[#23272a] text-[#ed4245] font-semibold rounded px-6 py-2 border-2 border-[#ed4245] transition hover:bg-[#ed4245] hover:text-white disabled:opacity-50"
+              onClick={() => {
+                setShowConfirm(false);
+                setInput("");
+                setError("");
+              }}
+              disabled={loading}
             >
               Cancel
             </button>
