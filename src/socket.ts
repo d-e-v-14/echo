@@ -3,7 +3,7 @@
 import { io, Socket } from 'socket.io-client';
 import { VoiceVideoManager } from './lib/VoiceVideoManager';
 
-frontend = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+const frontend = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
 const API_URL = frontend;
 
