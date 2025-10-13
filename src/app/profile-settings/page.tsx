@@ -77,7 +77,7 @@ export default function ProfilePage() {
       formData.append("fullname", displayName);
       formData.append("username", username);
       formData.append("bio", about);
-      if (avatarFile) formData.append("avatar_url", avatarFile);
+      if (avatarFile) formData.append("avatar", avatarFile);
 
       const response = await axios.patch(`${API_BASE_URL}/profile/updateProfile`, formData, {
         withCredentials: true,
@@ -222,6 +222,16 @@ export default function ProfilePage() {
                     onBlur={() => setEditing((prev) => ({ ...prev, name: false }))}
                     className="w-full p-2 rounded-md bg-[#222] border border-white/30 text-white"
                 />
+                {editing.name && (
+                    <div className="mt-2 flex gap-2">
+                      <button onClick={() => setEditing(p => ({...p, name:false}))} className="px-3 py-1 rounded bg-white/10">
+                        Save
+                      </button>
+                      <button onClick={() => setEditing(p => ({...p, name:false}))} className="px-3 py-1 rounded bg-white/10">
+                        Cancel
+                      </button>
+                    </div>
+                )}
               </div>
 
               {/* Username */}
