@@ -149,74 +149,52 @@ const VoiceChannel = ({ channelId, userId, onHangUp, headless = false, onLocalSt
         let statusCheckInterval: NodeJS.Timeout;
         
         if (!socketRef.current) {
-            console.log('🔌 VoiceChannel: Creating new socket for user:', userId);
+            console.log('🔌 Creating socket for user:', userId);
             const socket = createAuthSocket(userId);
             const manager = new VoiceVideoManager(userId, socket);
             socketRef.current = socket;
             managerRef.current = manager;
         
-            // Monitor socket connection status (register listeners FIRST)
             socket.on('connect', () => {
                 if (isMounted) {
-                    console.log('✅ VoiceChannel: Socket CONNECT event fired! ID:', socket.id, 'connected:', socket.connected);
+                    console.log('✅ Socket connected:', socket.id);
                     setIsConnected(true);
                     setConnectionError(null);
                     if (connectionTimeout) clearTimeout(connectionTimeout);
                 }
             });
             
-            // Log the initial socket state
-            console.log('🔌 VoiceChannel: Initial socket state - connected:', socket.connected, 'id:', socket.id);
-            
-            // Set initial connection status based on socket state AFTER registering listeners
-            // Use a small delay to allow the socket to establish connection
+            // Set initial connection status
             setTimeout(() => {
                 if (socket.connected) {
-                    console.log('✅ VoiceChannel: Socket already connected after delay');
                     setIsConnected(true);
                     setConnectionError(null);
-                } else {
-                    console.log('⏳ VoiceChannel: Socket not connected after delay, waiting...');
                 }
             }, 100);
             
-            // Set a timeout to retry connection if it takes too long
             connectionTimeout = setTimeout(() => {
                 if (!socket.connected && isMounted) {
-                    console.warn('⚠️ VoiceChannel: Connection timeout after 5s, retrying...');
+                    console.warn('⚠️ Connection timeout, retrying...');
                     socket.connect();
                 }
             }, 5000);
             
-            // Periodic status check to catch any missed connection events
+            // Periodic status check
             statusCheckInterval = setInterval(() => {
                 if (isMounted && socket.connected) {
-                    // Always set to true when socket is connected, regardless of state
-                    setIsConnected(prev => {
-                        if (!prev) {
-                            console.log('🔄 VoiceChannel: Status check - socket is connected, updating state from false to true');
-                        }
-                        return true;
-                    });
+                    setIsConnected(prev => prev ? prev : true);
                     setConnectionError(null);
                 } else if (isMounted && !socket.connected) {
-                    setIsConnected(prev => {
-                        if (prev) {
-                            console.log('⚠️ VoiceChannel: Status check - socket disconnected, updating state from true to false');
-                        }
-                        return false;
-                    });
+                    setIsConnected(prev => prev ? false : prev);
                 }
             }, 1000);
             
             socket.on('disconnect', (reason: string) => {
                 if (isMounted) {
                     setIsConnected(false);
-                    console.warn('⚠️ VoiceChannel: Socket disconnected:', reason);
+                    console.warn('⚠️ Disconnected:', reason);
                     
-                    // Auto-reconnect for certain disconnect reasons
                     if (reason === 'io server disconnect' || reason === 'transport close') {
-                        console.log('🔄 VoiceChannel: Attempting auto-reconnect...');
                         setTimeout(() => {
                             if (!socket.connected && isMounted) {
                                 socket.connect();
@@ -229,39 +207,15 @@ const VoiceChannel = ({ channelId, userId, onHangUp, headless = false, onLocalSt
             socket.on('connect_error', (error: any) => {
                 if (isMounted) {
                     setIsConnected(false);
-                    const errorMsg = `Connection failed: ${error.message || error.description || 'Unknown error'}`;
+                    const errorMsg = `Connection failed: ${error.message || 'Unknown error'}`;
                     setConnectionError(errorMsg);
-                    console.error('❌ VoiceChannel: Connection error:', error);
+                    console.error('❌ Connection error:', error);
                     if (connectionTimeout) clearTimeout(connectionTimeout);
                 }
             });
-            
-            // Add reconnection event handlers
-            socket.on('reconnect', (attemptNumber: number) => {
-                if (isMounted) {
-                    setIsConnected(true);
-                    setConnectionError(null);
-                    console.log('🔄 VoiceChannel: Reconnected after', attemptNumber, 'attempts');
-                }
-            });
-            
-            socket.on('reconnect_error', (error: any) => {
-                if (isMounted) {
-                    console.error('❌ VoiceChannel: Reconnection error:', error);
-                }
-            });
-            
-            socket.on('reconnect_failed', () => {
-                if (isMounted) {
-                    setConnectionError('Failed to reconnect after multiple attempts. Please refresh the page.');
-                    console.error('💀 VoiceChannel: Reconnection failed');
-                }
-            });
         } else {
-            // Socket already exists, check its current state
             const socket = socketRef.current;
             if (socket.connected && !isConnected) {
-                console.log('🔄 VoiceChannel: Existing socket is connected, updating state');
                 setIsConnected(true);
                 setConnectionError(null);
             }
@@ -405,68 +359,34 @@ const VoiceChannel = ({ channelId, userId, onHangUp, headless = false, onLocalSt
         const manager = managerRef.current;
         const socket = socketRef.current;
         
-        console.log('🔍 VoiceChannel: Join effect running with state:', {
-            hasManager: !!manager,
-            isInitialized: isManagerInitialized.current,
-            hasSocket: !!socket,
-            socketConnected: socket?.connected,
-            isConnected: isConnected,
-            hasPermissions: hasPermissions,
-            channelId: channelId
-        });
-        
         if (!manager || !isManagerInitialized.current) {
-            console.log('⏳ VoiceChannel: Waiting for manager initialization before joining channel');
             return;
         }
         
         if (!socket?.connected) {
-            console.log('⏳ VoiceChannel: Waiting for socket connection before joining channel');
+            console.log('⏳ Waiting for socket connection...');
             return;
         }
         
         if (!hasPermissions) {
-            console.log('⏳ VoiceChannel: Waiting for media permissions before joining channel');
             return;
         }
 
         const joinChannel = async () => {
             try {
-                console.log('🎙️ VoiceChannel: Joining voice channel:', channelId);
-                console.log('🔍 VoiceChannel: Socket state before join:', {
-                    socketId: socket.id,
-                    connected: socket.connected,
-                    disconnected: socket.disconnected
-                });
-                
-                setIsVoiceChannelConnected(false); // Reset voice channel status
+                console.log('🎙️ Joining voice channel:', channelId);
+                setIsVoiceChannelConnected(false);
                 manager.leaveVoiceChannel();
-                
-                console.log('📤 VoiceChannel: Emitting join_voice_channel event...');
                 await manager.joinVoiceChannel(channelId);
-                
-                console.log('✅ VoiceChannel: joinVoiceChannel() completed for channel:', channelId);
-                console.log('🔍 VoiceChannel: Socket state after join:', {
-                    socketId: socket.id,
-                    connected: socket.connected,
-                    disconnected: socket.disconnected
-                });
                 
                 setLocalStream(manager.getLocalStream());
                 onLocalStreamChange?.(manager.getLocalStream());
                 
-                // Set a timeout to assume connection after a delay if no roster comes
                 setTimeout(() => {
-                    console.log('✅ VoiceChannel: Setting voice channel connected to true (timeout)');
                     setIsVoiceChannelConnected(true);
                 }, 2000);
             } catch (error) {
                 console.error('❌ Failed to join voice channel:', error);
-                console.error('❌ Error details:', {
-                    name: (error as Error).name,
-                    message: (error as Error).message,
-                    stack: (error as Error).stack
-                });
                 setPermissionError('Failed to connect to voice channel. Please check your connection and try again.');
             }
         };
@@ -474,7 +394,7 @@ const VoiceChannel = ({ channelId, userId, onHangUp, headless = false, onLocalSt
         joinChannel();
 
         return () => {
-            console.log('👋 VoiceChannel: Leaving voice channel:', channelId);
+            console.log('👋 Leaving voice channel:', channelId);
             manager.leaveVoiceChannel();
             setIsVoiceChannelConnected(false);
         };

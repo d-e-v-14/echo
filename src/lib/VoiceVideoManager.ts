@@ -433,36 +433,12 @@ export class VoiceVideoManager {
   // === VOICE/VIDEO CONTROLS ===
   public async joinVoiceChannel(channelId: string): Promise<void> {
     try {
-      console.log('🎙️ VoiceVideoManager: joinVoiceChannel() called with channelId:', channelId);
-      console.log('🔍 VoiceVideoManager: Socket state:', {
-        socketId: this.socket.id,
-        connected: this.socket.connected,
-        disconnected: this.socket.disconnected
-      });
-      
       await this.ensureConnection();
-      
-      console.log('✅ VoiceVideoManager: Socket connection ensured');
-      console.log('🔍 VoiceVideoManager: Socket state after ensure:', {
-        socketId: this.socket.id,
-        connected: this.socket.connected,
-        disconnected: this.socket.disconnected
-      });
-      
       this.currentChannelId = channelId;
-      
-      console.log('📤 VoiceVideoManager: About to emit join_voice_channel event');
       this.socket.emit('join_voice_channel', channelId);
-      console.log('✅ VoiceVideoManager: join_voice_channel event emitted successfully');
-      
-      console.log('✅ VoiceVideoManager: Joined voice channel:', channelId);
+      console.log('✅ Joined voice channel:', channelId);
     } catch (error) {
-      console.error('❌ VoiceVideoManager: Failed to join voice channel:', error);
-      console.error('❌ VoiceVideoManager: Error details:', {
-        name: (error as Error).name,
-        message: (error as Error).message,
-        stack: (error as Error).stack
-      });
+      console.error('❌ Failed to join voice channel:', error);
       throw error;
     }
   }
@@ -844,21 +820,17 @@ export class VoiceVideoManager {
 
   public ensureConnection(): Promise<void> {
     return new Promise((resolve, reject) => {
-      console.log("🔍 Checking connection status:", this.socket.connected);
-      
       if (this.socket.connected) {
-        console.log("✅ Already connected");
         resolve();
         return;
       }
 
       const timeout = setTimeout(() => {
-        console.error("❌ Connection timeout after 15 seconds");
-        reject(new Error('Connection timeout - backend server may not be running or CORS not configured'));
-      }, 15000); // Increased timeout
+        console.error("❌ Connection timeout");
+        reject(new Error('Connection timeout'));
+      }, 15000);
 
       const onConnect = () => {
-        console.log("✅ Connection established in ensureConnection");
         clearTimeout(timeout);
         this.socket.off('connect', onConnect);
         this.socket.off('connect_error', onError);
@@ -866,7 +838,7 @@ export class VoiceVideoManager {
       };
 
       const onError = (error: any) => {
-        console.error("❌ Connection error in ensureConnection:", error);
+        console.error("❌ Connection error:", error);
         clearTimeout(timeout);
         this.socket.off('connect', onConnect);
         this.socket.off('connect_error', onError);
@@ -877,7 +849,6 @@ export class VoiceVideoManager {
       this.socket.on('connect_error', onError);
 
       if (!this.socket.connected) {
-        console.log("🔄 Manually connecting socket...");
         this.socket.connect();
       }
     });
