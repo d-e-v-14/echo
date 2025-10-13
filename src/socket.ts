@@ -3,7 +3,9 @@
 import { io, Socket } from 'socket.io-client';
 import { VoiceVideoManager } from './lib/VoiceVideoManager';
 
-const API_URL = 'http://localhost:5000';
+frontend = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+
+const API_URL = frontend;
 
 const baseConfig = {
     withCredentials: true,
