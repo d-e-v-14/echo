@@ -148,6 +148,11 @@ export class VoiceVideoManager {
       this.handlePeerDisconnection(socketId);
     });
 
+    // Legacy voice state event (backward compatibility with old backend)
+    this.socket.on('user_voice_state', ({ socketId, userId, muted, speaking, video }) => {
+      this.onMediaStateCallback?.(socketId, userId, { muted, speaking, video });
+    });
+
     // Enhanced events
     this.socket.on('user_media_state', ({ socketId, userId, ...state }) => {
       this.onMediaStateCallback?.(socketId, userId, state);
@@ -177,17 +182,68 @@ export class VoiceVideoManager {
       this.onRecordingCallback?.('stopped', data);
     });
 
+    this.socket.on('recording_started_confirmation', (data) => {
+      console.log('✅ Recording started:', data);
+      this.onRecordingCallback?.('started_confirmation', data);
+    });
+
+    this.socket.on('recording_stopped_confirmation', (data) => {
+      console.log('✅ Recording stopped:', data);
+      this.onRecordingCallback?.('stopped_confirmation', data);
+    });
+
+    this.socket.on('recording_chunk_ack', (data) => {
+      this.onRecordingCallback?.('chunk_ack', data);
+    });
+
+    this.socket.on('recording_chunk_error', (data) => {
+      this.onRecordingCallback?.('chunk_error', data);
+      console.error('❌ Recording chunk error:', data);
+    });
+
     // Network quality events
     this.socket.on('voice_quality_degraded', (data) => {
+      console.warn('⚠️ Voice quality degraded:', data);
       this.onNetworkQualityCallback?.(data.networkStats);
+      this.onErrorCallback?.({ 
+        type: 'quality_degraded', 
+        severity: data.severity,
+        message: data.message,
+        recommendations: data.recommendations
+      });
     });
 
     this.socket.on('quality_auto_adjusted', (data) => {
+      console.log('🔧 Quality auto-adjusted:', data);
       this.mediaState.mediaQuality = data.newQuality;
     });
 
+    this.socket.on('quality_adjusted', (data) => {
+      console.log('✅ Quality adjusted:', data);
+    });
+
+    this.socket.on('user_quality_changed', (data) => {
+      console.log('👤 User quality changed:', data);
+    });
+
     this.socket.on('optimal_bitrate_recommendation', (data) => {
+      console.log('📊 Optimal bitrate:', data);
       this.applyBitrateSettings(data.recommendations);
+    });
+
+    this.socket.on('bandwidth_optimization_suggestions', (data) => {
+      console.log('💡 Bandwidth optimization suggestions:', data);
+      this.onErrorCallback?.({
+        type: 'bandwidth_optimization',
+        suggestions: data.suggestions,
+        currentStats: data.currentStats,
+        efficiency: data.efficiency
+      });
+    });
+
+    // Device management events
+    this.socket.on('user_device_update', (data) => {
+      console.log('🎛️ User device update:', data);
     });
 
     // WebRTC signaling for regular video
@@ -250,10 +306,17 @@ export class VoiceVideoManager {
 
     // Error handling
     this.socket.on('voice_error', (error) => {
+      console.error('🔴 Voice error:', error);
+      this.onErrorCallback?.(error);
+    });
+
+    this.socket.on('signaling_error', (error) => {
+      console.error('🔴 Signaling error:', error);
       this.onErrorCallback?.(error);
     });
 
     this.socket.on('voice_reconnection_failed', (data) => {
+      console.error('🔴 Reconnection failed:', data);
       this.onErrorCallback?.({ code: 'RECONNECTION_FAILED', ...data });
     });
   }
@@ -370,12 +433,36 @@ export class VoiceVideoManager {
   // === VOICE/VIDEO CONTROLS ===
   public async joinVoiceChannel(channelId: string): Promise<void> {
     try {
+      console.log('🎙️ VoiceVideoManager: joinVoiceChannel() called with channelId:', channelId);
+      console.log('🔍 VoiceVideoManager: Socket state:', {
+        socketId: this.socket.id,
+        connected: this.socket.connected,
+        disconnected: this.socket.disconnected
+      });
+      
       await this.ensureConnection();
+      
+      console.log('✅ VoiceVideoManager: Socket connection ensured');
+      console.log('🔍 VoiceVideoManager: Socket state after ensure:', {
+        socketId: this.socket.id,
+        connected: this.socket.connected,
+        disconnected: this.socket.disconnected
+      });
+      
       this.currentChannelId = channelId;
+      
+      console.log('📤 VoiceVideoManager: About to emit join_voice_channel event');
       this.socket.emit('join_voice_channel', channelId);
-      console.log('✅ Joined voice channel:', channelId);
+      console.log('✅ VoiceVideoManager: join_voice_channel event emitted successfully');
+      
+      console.log('✅ VoiceVideoManager: Joined voice channel:', channelId);
     } catch (error) {
-      console.error('❌ Failed to join voice channel:', error);
+      console.error('❌ VoiceVideoManager: Failed to join voice channel:', error);
+      console.error('❌ VoiceVideoManager: Error details:', {
+        name: (error as Error).name,
+        message: (error as Error).message,
+        stack: (error as Error).stack
+      });
       throw error;
     }
   }
