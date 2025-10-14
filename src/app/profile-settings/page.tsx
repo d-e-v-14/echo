@@ -99,7 +99,6 @@ export default function ProfilePage() {
     }
   };
 
-
   const handleDelete = async () => {
     try {
       await axios.delete(`${API_BASE_URL}/profile/deleteProfile`, {

@@ -63,6 +63,16 @@ export const resetPassword = async (newPassword: string, token: string) => {
     return response.data;
 };
 
+export const logout = async () => {
+    try {
+        const res = await api.get("/auth/logout");
+        return res.data;
+    } catch (err) {
+        console.error("Logout error:", err);
+        throw err;
+    }
+};
+
 export async function getUser(): Promise<profile | null> {
     if (typeof window !== "undefined") {
         const storedUser = localStorage.getItem("user");
