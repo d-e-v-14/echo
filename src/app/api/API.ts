@@ -1,8 +1,7 @@
 import { apiClient } from "@/utils/apiClient";
-
 import { getUser } from "../api";
-import { get } from "http";
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 // ---------- Types ----------
 export interface Server {
@@ -18,6 +17,11 @@ export interface Message {
   color: string;
   message: string;
   timestamp: string;
+  media_url?: string; // Add media_url field for image support
+  mediaUrl?: string; // Also support camelCase variant
+  content?: string; // Add content field as backend uses this
+  sender_id?: string; // Add sender_id field
+  channel_id?: string; // Add channel_id field
 }
 
 interface ApiResponse<T> {
@@ -25,6 +29,7 @@ interface ApiResponse<T> {
   success?: boolean;
   message?: string;
 }
+
 
 // ---------- Axios Setup ----------
 // The apiClient is configured to send credentials (like cookies) with each request.
@@ -53,13 +58,11 @@ export const createServer = async (payload: {
   try {
     const formData = new FormData();
     formData.append("name", payload.name);
-    if (payload.icon) {
+    if (payload.icon) {  
       formData.append("icon", payload.icon);
     }
-
-    // The server will identify the owner from the session cookie.
     const response = await apiClient.post<Server>(
-      "/newserver/create/",
+      "/api/newserver/create/",
       formData,
       {
         headers: {
@@ -76,8 +79,7 @@ export const createServer = async (payload: {
 
 export const fetchServers = async (): Promise<Server[]> => {
   try {
-    const response = await apiClient.get(`${API_BASE_URL}/newserver/getServers/`);
-    console.log("response.data")
+    const response = await apiClient.get(`/api/newserver/getServers/`);
     return response.data;
   } catch (error) {
     console.error("Error fetching servers:", error);
@@ -89,7 +91,7 @@ export const fetchServers = async (): Promise<Server[]> => {
 // The server can identify the user from the request cookie, so userId is not needed.
 export const fetchChannelsByServer = async (serverId: string): Promise<any> => {
   try {
-    const response = await apiClient.get(`/channel/${serverId}/getChannels`);
+    const response = await apiClient.get(`/api/channel/${serverId}/getChannels`);
     return response.data;
   } catch (error) {
     console.error("Error fetching channels:", error);
@@ -99,34 +101,84 @@ export const fetchChannelsByServer = async (serverId: string): Promise<any> => {
 
 // ---------- Message APIs ----------
 export const uploadMessage = async (payload: {
-  message: string;
-  channelId: string;
-  isDM: boolean;
+  file?: File;
+  content?: string;
+  sender_id?: string; // Optional, server can get from session
+  channel_id: string;
 }): Promise<Message> => {
   try {
-    // The server will get the senderId from the authenticated user's session.
-    const response = await apiClient.post<Message>(
-      "/message/upload",
-      payload
-    );
-    return response.data;
+    const formData = new FormData();
+    
+    // Use exact field names as specified by backend
+    formData.append("sender_id", payload.sender_id || "");
+    formData.append("channel_id", payload.channel_id);
+    formData.append("content", payload.content || "");
+    if (payload.file) formData.append("file", payload.file);
+
+    const response = await fetch(`${API_BASE_URL}/api/message/upload`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include' // As specified by backend
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      const errorMessage = err.error || err.msg || 'Upload failed';
+      console.error('Upload error:', errorMessage);
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    return result;
   } catch (error) {
     console.error("Error uploading message:", error);
     throw error;
   }
 };
 
-export const fetchMessages = async (
-  channelId: string,
-  isDM: boolean = false,
-  offset: number = 1
-): Promise<ApiResponse<Message[]>> => {
+export const uploaddm = async (payload: {
+  mediaurl?: File;
+  message: string;
+  sender_id: string;
+  receiver_id: string;
+}) => {
+  try {
+    const formData = new FormData();
+    
+    // Use exact field names as specified by backend
+    formData.append("receiver_id", payload.receiver_id);
+    formData.append("sender_id",payload.sender_id);
+    formData.append("content", payload.message || "");
+    if (payload.mediaurl) formData.append("file", payload.mediaurl);
+
+    const response = await fetch(`${API_BASE_URL}/api/message/upload_dm`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include' // As specified by backend
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      const errorMessage = err.error || err.msg || 'DM upload failed';
+      console.error('DM Upload error:', errorMessage);
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Error uploading DM:", error);
+    throw error;
+  }
+};
+
+export const fetchMessages = async (channel_id: string): Promise<ApiResponse<Message[]>> => {
   try {
     const response = await apiClient.get<{
       messages?: Message[];
       data?: Message[];
     }>(
-      `/message/fetch?channel_id=${channelId}&is_dm=${isDM}&offset=${offset}`
+      `/api/message/fetch?channel_id=${channel_id}`
     );
 
     const messages = response.data.messages || response.data.data || [];
@@ -137,19 +189,211 @@ export const fetchMessages = async (
   }
 };
 
-const userId= getUser();
 // ---------- Direct Messages ----------
-// The server identifies the user from the cookie, so userId is not needed.
+// Fetch user's direct messages with error handling
 export const getUserDMs = async (): Promise<any> => {
   try {
-    const response = await apiClient.get(`/message/${userId}/getDms`);
-    return response.data;
+    const user = await getUser();
+    if (!user || !user.id) {
+      throw new Error('User not authenticated');
+    }
+
+    console.log("Fetching DMs for user:", user.id);
+    const response = await apiClient.get(`/api/message/${user.id}/getDms`);
+    
+    return {
+      data: response.data,
+      success: true
+    };
   } catch (error: any) {
     if (error?.code === "ECONNABORTED") {
-      console.error("Request timed out");
+      console.error(" Request timed out");
       throw new Error("Request timed out. Please try again.");
     }
+    
+    if (error.message === 'User not authenticated') {
+      console.error(" Authentication error:", error.message);
+      throw new Error("Please login to view messages");
+    }
+
     console.error("Error fetching DMs:", error.message || error);
-    throw new Error("Error fetching DMs");
+    throw new Error("Failed to fetch messages. Please try again later.");
   }
 };
+
+
+// ---------- Friends APIs ----------
+
+
+export interface Friend {
+  id: string;
+  username: string;
+  displayName?: string;
+  status?: "online" | "offline" | "pending" | "blocked";
+  avatarUrl?: string;
+}
+
+export interface FriendRequest {
+  requestId: string;
+  senderId: string;
+  receiverId: string;
+  status: "pending" | "accepted" | "rejected";
+  createdAt?: string;
+}
+
+// ---------- API Functions ----------
+
+export const addFriend = async (user2_id: string): Promise<FriendRequest> => {
+  try {
+    const response = await apiClient.post<FriendRequest>(`/api/friends/add_friend`, {
+      user2_id,
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error adding friend:", error?.response?.data || error.message);
+    throw error;
+  }
+};
+
+
+export const fetchFriendRequests = async (
+  user2_id: string
+): Promise<FriendRequest[]> => {
+  try {
+    const response = await apiClient.get<FriendRequest[]>(
+      `/api/friends/friend_requests`,
+      {
+        params: { user2_id }, 
+      }
+    );
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Error fetching friend requests:",
+      error?.response?.data || error.message
+    );
+    throw error;
+  }
+};
+
+
+export const respondToFriendRequest = async (
+  requestId: string,
+  status: "accepted" | "rejected"
+): Promise<FriendRequest> => {
+  try {
+    const response = await apiClient.put<FriendRequest>(`/api/friends/request`, {
+      requestId,
+      status,
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error responding to friend request:", error?.response?.data || error.message);
+    throw error;
+  }
+};
+
+
+export const fetchAllFriends = async (
+  requestId: string,
+  status: "accepted" | "rejected" = "accepted"
+): Promise<Friend[]> => {
+  try {
+    const response = await apiClient.get<Friend[]>(`/api/friends/all`, {
+      params: { requestId, status }, 
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Error fetching friends:",
+      error?.response?.data || error.message
+    );
+    throw error;
+  }
+};
+
+
+export const joinServer = async (inviteCode: string): Promise<any> => {
+  try {
+    const response = await apiClient.post('/api/newserver/joinwithinvite', {
+      inviteCode
+    });
+
+    return response.data;
+  } catch (error: any) {
+    console.error("Error joining server:", error.response?.data || error.message || error);
+    const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || "Failed to join server.";
+    throw new Error(errorMessage);
+  }
+};
+
+// Function to fetch user profile by ID
+export const fetchUserProfile = async (userId: string): Promise<any> => {
+  try {
+    const response = await apiClient.get(`/api/profile/${userId}`);
+    return response.data.user;
+  } catch (error) {
+    console.error(`Failed to fetch profile for user ${userId}:`, error);
+    return null;
+  }
+};
+
+// Cache for user profiles to avoid repeated API calls
+const userProfileCache = new Map<string, any>();
+
+export const getUserAvatar = async (userId: string): Promise<string> => {
+  // Check cache first
+  if (userProfileCache.has(userId)) {
+    const profile = userProfileCache.get(userId);
+    return profile?.avatar_url || "/User_profil.png";
+  }
+
+  try {
+    const profile = await fetchUserProfile(userId);
+    if (profile) {
+      userProfileCache.set(userId, profile);
+      return profile.avatar_url || "/User_profil.png";
+    }
+  } catch (error) {
+    console.error(`Error fetching avatar for user ${userId}:`, error);
+  }
+
+  // Fallback to default avatar
+  return "/User_profil.png";
+};
+
+export const deleteServer = async (serverId: string): Promise<any> => {
+  try {
+    const response = await apiClient.delete(`/api/newserver/${serverId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error deleting server:", error.response?.data || error.message || error);
+    const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || "Failed to delete server.";
+    throw new Error(errorMessage);
+  }
+};
+
+export const transferServerOwnership = async (serverId: string, newOwnerId: string): Promise<any> => {
+  try {
+    const response = await apiClient.post(`/api/newserver/${serverId}/transfer-ownership`, {
+      newOwnerId
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error transferring ownership:", error.response?.data || error.message || error);
+    const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || "Failed to transfer ownership.";
+    throw new Error(errorMessage);
+  }
+};
+
+export const getServerMembers = async (serverId: string): Promise<any> => {
+  try {
+    const response = await apiClient.get(`/api/newserver/${serverId}/members`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error getting server members:", error.response?.data || error.message || error);
+    const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || "Failed to get server members.";
+    throw new Error(errorMessage);
+  }
+};
+

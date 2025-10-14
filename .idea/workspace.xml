@@ -5,10 +5,44 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="2dee1387-15a0-4c2f-a8be-99b4fbe97d24" name="Changes" comment="Profile settings and google login">
+      <change afterPath="$PROJECT_DIR$/src/app/(app)/create-server/page.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/(app)/friends/page.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/(app)/join-server/page.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/(app)/layout.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/(app)/notifications/page.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/(app)/profile-settings/page.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/(app)/servers/page.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/server-settings/components/ServerSettings/DangerZone.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/components/Createserver.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/components/Joinserver.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/components/MessageAttachment.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/components/VideoPanel.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/(auth)/login/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/(auth)/login/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/(auth)/reset-password/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/(auth)/reset-password/page.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/api.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/profile-settings/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/profile-settings/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/profile/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/profile/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/API.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/API.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/(app)/dashboard/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/globals.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/globals.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/messages/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/(app)/messages/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/server-settings/components/ServerSettings/InvitePeople.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/server-settings/components/ServerSettings/InvitePeople.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/server-settings/components/ServerSettings/Leave.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/server-settings/components/ServerSettings/Leave.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/server-settings/components/ServerSettings/Members.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/server-settings/components/ServerSettings/Members.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/server-settings/components/ServerSettings/Overview.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/server-settings/components/ServerSettings/Overview.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/server-settings/components/Sidebar.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/server-settings/components/Sidebar.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/server-settings/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/server-settings/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/servers/page.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/voice/page.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/ChatList.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/ChatList.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/ChatPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/ChatPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/ChatWindow.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/ChatWindow.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/MessageBubble.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/MessageBubble.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/MessageInput.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/MessageInput.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/Sidebar.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/Sidebar.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/VoiceChannel.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/VoiceChannel.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/voiceservice.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/socket.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/socket.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utils/apiClient.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/apiClient.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -48,24 +82,24 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Node.js.supabaseClient.ts.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;restore-google-signin&quot;,
-    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/MEHELI GHOSH/WebstormProjects/EchoWeb&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.keymap&quot;,
-    &quot;ts.external.directory.path&quot;: &quot;C:\\Users\\MEHELI GHOSH\\WebstormProjects\\EchoWeb\\node_modules\\typescript\\lib&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Node.js.supabaseClient.ts.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "Merging restore-google-signin",
+    "ignore.virus.scanning.warn.message": "true",
+    "last_opened_file_path": "C:/Users/MEHELI GHOSH/WebstormProjects/EchoWeb",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "preferences.keymap",
+    "ts.external.directory.path": "C:\\Users\\MEHELI GHOSH\\WebstormProjects\\EchoWeb\\node_modules\\typescript\\lib",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="C:\Users\MEHELI GHOSH\WebstormProjects\EchoWeb" />
@@ -131,6 +165,8 @@
       <workItem from="1754414603064" duration="5871000" />
       <workItem from="1754669578275" duration="17035000" />
       <workItem from="1760430592123" duration="908000" />
+      <workItem from="1754669578275" duration="17464000" />
+      <workItem from="1754845177800" duration="288000" />
     </task>
     <task id="LOCAL-00001" summary="I have fixed the stuff. I saw VITE on the resource material that was sent to us so i thought we needed to use it. Please reveiw it once.">
       <option name="closed" value="true" />
@@ -373,6 +409,7 @@
     <MESSAGE value="Changed bio to show default message if no bio message present." />
     <MESSAGE value="Google signIn integrated" />
     <MESSAGE value="Profile settings and google login" />
+    <MESSAGE value="final integration." />
     <option name="LAST_COMMIT_MESSAGE" value="Profile settings and google login" />
   </component>
 </project>

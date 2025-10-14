@@ -1,93 +1,81 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Smile, Send, ImagePlus, Camera, Mic } from "lucide-react";
+import { useState, useRef } from "react";
+import { Smile, Send, Paperclip, X } from "lucide-react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 
 
-export default function MessageInput({
-  sendMessage,
-}: {
-  sendMessage: (msg: string) => void;
-}) {
+interface MessageInputProps {
+  sendMessage: (text: string, file: File | null) => void;
+  isSending: boolean;
+}
+
+export default function MessageInput({ sendMessage, isSending }: MessageInputProps) {
   const [text, setText] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [showGifPicker, setShowGifPicker] = useState(false);
-  const [gifs, setGifs] = useState<any[]>([]);
-
-  // Fetch trending GIFs from Tenor
-  useEffect(() => {
-  if (showGifPicker) {
-    const apiKey = process.env.NEXT_PUBLIC_TENOR_API_KEY;
-    const url = `https://tenor.googleapis.com/v2/search?q=trending&key=${apiKey}&limit=12`;
-
-    fetch(url)
-      .then((res) => res.json())
-      .then((data) => setGifs(data.results || []))
-      .catch((err) => console.error("Failed to load GIFs", err));
-  }
-}, [showGifPicker]);
-
-
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
     setText((prev) => prev + emojiData.emoji);
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  };
+
   const handleSend = () => {
-    if (text.trim() === "") return;
-    sendMessage(text);
+    if (text.trim() === "" && !file) return;
+    sendMessage(text.trim(), file);
     setText("");
+    setFile(null);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
   return (
     <div className="relative p-4">
-      {/* Emoji Picker */}
       {showEmojiPicker && (
         <div className="absolute bottom-20 left-4 z-50">
           <EmojiPicker theme={Theme.DARK} onEmojiClick={handleEmojiClick} />
         </div>
       )}
 
-      {/* Tenor GIF Picker */}
-      {showGifPicker && (
-        <div className="absolute bottom-20 right-4 z-50 bg-black p-2 rounded shadow-lg w-80">
-          <div className="grid grid-cols-3 gap-2">
-            {gifs.map((gif) => (
-              <img
-                key={gif.id}
-                src={gif.media_formats.gif.url}
-                alt="gif"
-                className="w-full h-auto cursor-pointer rounded hover:scale-105 transition"
-                onClick={() => {
-                  sendMessage(gif.media_formats.gif.url);
-                  setShowGifPicker(false);
-                }}
-              />
-            ))}
-          </div>
+      {file && (
+        <div className="mb-2 flex items-center bg-white/10 p-2 rounded-md">
+          <Paperclip className="h-5 w-5 mr-2 text-gray-400" />
+          <span className="text-sm text-white truncate flex-1">{file.name}</span>
+          <button onClick={() => setFile(null)} className="ml-2 text-gray-400 hover:text-white" aria-label="Remove attachment">
+            <X className="h-5 w-5" />
+          </button>
         </div>
       )}
 
       <div className="bg-white/10 backdrop-blur-lg border border-white/20 text-white rounded-xl flex items-center px-4 py-2 gap-3">
-        {/* Emoji */}
-        <button onClick={() => setShowEmojiPicker((prev) => !prev)}>
+        {/* Hidden file input */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          className="hidden"
+          disabled={isSending}
+        />
+
+        {/* File Attachment Button */}
+        <button onClick={() => fileInputRef.current?.click()} disabled={isSending}>
+          <Paperclip className="w-5 h-5 text-white hover:scale-110 transition" />
+        </button>
+
+        {/* Emoji Button */}
+        <button onClick={() => setShowEmojiPicker((prev) => !prev)} disabled={isSending}>
           <Smile className="w-5 h-5 text-white hover:scale-110 transition" />
-        </button>
-
-        {/* GIFs */}
-        <button onClick={() => setShowGifPicker((prev) => !prev)}>
-          <ImagePlus className="w-5 h-5 text-white hover:scale-110 transition" />
-        </button>
-
-        {/* Camera */}
-        <button>
-          <Camera className="w-5 h-5 text-white hover:scale-110 transition" />
-        </button>
-
-        {/* Mic */}
-        <button>
-          <Mic className="w-5 h-5 text-white hover:scale-110 transition" />
         </button>
 
         {/* Input */}
@@ -97,13 +85,15 @@ export default function MessageInput({
           placeholder="Type a message..."
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
+          onKeyDown={handleKeyDown}
+          disabled={isSending}
         />
 
         {/* Send Button */}
         <button
           onClick={handleSend}
           className="bg-blue-600 hover:bg-blue-700 transition p-2 rounded-full"
+          disabled={isSending || (text.trim() === "" && !file)}
         >
           <Send className="w-4 h-4 text-white" />
         </button>
