@@ -45,8 +45,25 @@ body {
     @apply relative overflow-hidden rounded-full bg-gradient-to-br from-[#3D7DFD] from-5% to-[#FA2626] to-50% py-5;
   }
   .card-wrapper-2 {
-    @apply relative overflow-hidden rounded-full bg-gradient-to-br from-[#1E5989] to-[#FDC03D]
+    @apply relative overflow-hidden rounded-full bg-gradient-to-br from-[#1E5989] to-[#FDC03D];
   }
+
+  /* Voice notification animations */
+  .animate-slide-in-right {
+    animation: slideInRight 0.3s ease-out;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
 
   /* Gradient */
   .card-wrapper-1::before {
@@ -70,5 +87,5 @@ body {
   .gradient-border {
     @apply p-[2px] bg-gradient-to-r from-cyan-500 to-blue-500 rounded-lg inline-block;
   }
-}
+
 

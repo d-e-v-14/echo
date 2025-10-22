@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Sidebar from "./components/Sidebar";
 import Overview from "./components/ServerSettings/Overview";
@@ -16,7 +16,7 @@ const initialRoles = [
   { id: 3, name: "Member", color: "#43b581", permissions: ["Send Messages"] },
 ];
 
-export default function ServerSettingsPage() {
+function ServerSettingsContent() {
   const [selected, setSelected] = useState<string>("Overview");
   const [roles, setRoles] = useState(initialRoles);
   const [serverDetails, setServerDetails] = useState<ServerDetails | null>(null);
@@ -25,7 +25,7 @@ export default function ServerSettingsPage() {
   
   const searchParams = useSearchParams();
   const serverIdFromUrl = searchParams.get('serverId');
-  const serverIdFromStorage = localStorage.getItem('currentServerId');
+  const serverIdFromStorage = typeof window !== 'undefined' ? localStorage.getItem('currentServerId') : null;
   const serverId = serverIdFromUrl || serverIdFromStorage || '';
 
   useEffect(() => {
@@ -111,5 +111,17 @@ export default function ServerSettingsPage() {
       <Sidebar selected={selected} onSelect={setSelected} />
       <main className="flex-1 p-8 bg-black">{Content}</main>
     </div>
+  );
+}
+
+export default function ServerSettingsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen bg-black items-center justify-center">
+        <div className="text-white">Loading server settings...</div>
+      </div>
+    }>
+      <ServerSettingsContent />
+    </Suspense>
   );
 }
