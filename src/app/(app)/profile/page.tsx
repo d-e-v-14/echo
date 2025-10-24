@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import Sidebar from "../../components/Sidebar";
+import Sidebar from "../../../components/Sidebar";
 import Link from 'next/link';
-import { fetchProfile,profile, logout } from "../api";
+import { fetchProfile,profile, logout } from "../../api";
 import { useRouter } from "next/navigation";
 export default function ProfilePage() {
     const numPolygons = 10;
