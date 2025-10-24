@@ -211,13 +211,18 @@ export class VoiceVideoManager {
   private setupSocketListeners(): void {
     // Legacy events (backward compatibility)
     this.socket.on('voice_roster', ({ channelId, members }) => {
+      console.log('📋 [VoiceVideoManager] Voice roster update:', { channelId, members, currentChannel: this.currentChannelId });
       this.onVoiceRosterCallback?.(members);
     });
 
     this.socket.on('user-joined', ({ socketId, userId, channelId }) => {
+      console.log('👋 [VoiceVideoManager] User joined:', { socketId, userId, channelId, currentChannel: this.currentChannelId });
       this.onUserJoinedCallback?.(socketId, userId);
       if (channelId === this.currentChannelId) {
-        this.createPeerConnection(socketId, true, 'video');
+        console.log('🤝 [VoiceVideoManager] Creating peer connection for user:', socketId);
+        this.createPeerConnection(socketId, true, 'video').catch(err => {
+          console.error('❌ [VoiceVideoManager] Failed to create peer connection:', err);
+        });
       }
     });
 
@@ -325,29 +330,51 @@ export class VoiceVideoManager {
 
     // WebRTC signaling for regular video
     this.socket.on('webrtc-offer', async ({ from, sdp, channelId }) => {
+      console.log('📧 [VoiceVideoManager] Received WebRTC offer from:', from, 'channel:', channelId);
       if (channelId === this.currentChannelId) {
-        const pc = await this.createPeerConnection(from, false, 'video');
-        await pc.connection.setRemoteDescription(sdp);
-        const answer = await pc.connection.createAnswer();
-        await pc.connection.setLocalDescription(answer);
-        this.socket.emit('webrtc-answer', { to: from, sdp: answer, channelId });
+        try {
+          const pc = await this.createPeerConnection(from, false, 'video');
+          await pc.connection.setRemoteDescription(sdp);
+          const answer = await pc.connection.createAnswer();
+          await pc.connection.setLocalDescription(answer);
+          this.socket.emit('webrtc-answer', { to: from, sdp: answer, channelId });
+          console.log('✅ [VoiceVideoManager] WebRTC answer sent to:', from);
+        } catch (error) {
+          console.error('❌ [VoiceVideoManager] Error handling WebRTC offer:', error);
+        }
       }
     });
 
     this.socket.on('webrtc-answer', async ({ from, sdp, channelId }) => {
+      console.log('📨 [VoiceVideoManager] Received WebRTC answer from:', from, 'channel:', channelId);
       if (channelId === this.currentChannelId) {
         const peer = this.peers.get(from);
         if (peer) {
-          await peer.connection.setRemoteDescription(sdp);
+          try {
+            await peer.connection.setRemoteDescription(sdp);
+            console.log('✅ [VoiceVideoManager] WebRTC answer processed for:', from);
+          } catch (error) {
+            console.error('❌ [VoiceVideoManager] Error processing WebRTC answer:', error);
+          }
+        } else {
+          console.warn('⚠️ [VoiceVideoManager] No peer found for answer from:', from);
         }
       }
     });
 
     this.socket.on('webrtc-ice-candidate', async ({ from, candidate, channelId }) => {
+      console.log('🧊 [VoiceVideoManager] Received ICE candidate from:', from, 'channel:', channelId);
       if (channelId === this.currentChannelId) {
         const peer = this.peers.get(from);
         if (peer) {
-          await peer.connection.addIceCandidate(candidate);
+          try {
+            await peer.connection.addIceCandidate(candidate);
+            console.log('✅ [VoiceVideoManager] ICE candidate added for:', from);
+          } catch (error) {
+            console.error('❌ [VoiceVideoManager] Error adding ICE candidate:', error);
+          }
+        } else {
+          console.warn('⚠️ [VoiceVideoManager] No peer found for ICE candidate from:', from);
         }
       }
     });
@@ -416,26 +443,35 @@ export class VoiceVideoManager {
 
   // === PEER CONNECTION MANAGEMENT ===
   private async createPeerConnection(peerId: string, isInitiator: boolean, type: 'video' | 'screen'): Promise<PeerConnection> {
+    console.log(`🔧 [VoiceVideoManager] Creating ${type} peer connection for:`, peerId, 'isInitiator:', isInitiator);
+    
     const pc = new RTCPeerConnection(peerConfig);
     const peerConnection: PeerConnection = { connection: pc, stream: null, type };
     
     // Add to appropriate map
     if (type === 'screen') {
       this.screenPeers.set(peerId, peerConnection);
+      console.log(`📺 [VoiceVideoManager] Added screen peer:`, peerId, 'Total screen peers:', this.screenPeers.size);
     } else {
       this.peers.set(peerId, peerConnection);
+      console.log(`🎥 [VoiceVideoManager] Added video peer:`, peerId, 'Total peers:', this.peers.size);
     }
 
     // Add local stream tracks
     const stream = type === 'screen' ? this.localScreenStream : this.localStream;
     if (stream) {
+      console.log(`🎬 [VoiceVideoManager] Adding ${stream.getTracks().length} tracks to peer:`, peerId);
       stream.getTracks().forEach(track => {
+        console.log(`🎵 [VoiceVideoManager] Adding ${track.kind} track:`, track.label, 'enabled:', track.enabled);
         pc.addTrack(track, stream);
       });
+    } else {
+      console.warn(`⚠️ [VoiceVideoManager] No ${type} stream available for peer:`, peerId);
     }
 
     // Handle incoming streams
     pc.ontrack = (event) => {
+      console.log(`🎯 [VoiceVideoManager] Received ${type} stream from:`, peerId, 'tracks:', event.streams[0].getTracks().length);
       peerConnection.stream = event.streams[0];
       this.onStreamCallback?.(event.streams[0], peerId, type);
     };
@@ -443,6 +479,7 @@ export class VoiceVideoManager {
     // Handle ICE candidates
     pc.onicecandidate = (event) => {
       if (event.candidate && this.currentChannelId) {
+        console.log(`🧊 [VoiceVideoManager] Sending ICE candidate to:`, peerId, 'for channel:', this.currentChannelId);
         const eventName = type === 'screen' ? 'screen-share-ice-candidate' : 'webrtc-ice-candidate';
         this.socket.emit(eventName, {
           to: peerId,
@@ -452,17 +489,33 @@ export class VoiceVideoManager {
       }
     };
 
+    // Handle connection state changes
+    pc.onconnectionstatechange = () => {
+      console.log(`🔗 [VoiceVideoManager] Connection state for ${peerId}:`, pc.connectionState);
+    };
+
+    // Handle ICE connection state changes
+    pc.oniceconnectionstatechange = () => {
+      console.log(`🧊 [VoiceVideoManager] ICE connection state for ${peerId}:`, pc.iceConnectionState);
+    };
+
     // Create offer for initiator
     if (isInitiator && this.currentChannelId) {
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      
-      const eventName = type === 'screen' ? 'screen-share-offer' : 'webrtc-offer';
-      this.socket.emit(eventName, {
-        to: peerId,
-        sdp: offer,
-        channelId: this.currentChannelId
-      });
+      console.log(`📤 [VoiceVideoManager] Creating ${type} offer for:`, peerId);
+      try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        
+        const eventName = type === 'screen' ? 'screen-share-offer' : 'webrtc-offer';
+        this.socket.emit(eventName, {
+          to: peerId,
+          sdp: offer,
+          channelId: this.currentChannelId
+        });
+        console.log(`✅ [VoiceVideoManager] ${type} offer sent to:`, peerId);
+      } catch (error) {
+        console.error(`❌ [VoiceVideoManager] Failed to create ${type} offer for:`, peerId, error);
+      }
     }
 
     // Setup connection quality monitoring
@@ -512,10 +565,17 @@ export class VoiceVideoManager {
     try {
       await this.ensureConnection();
       this.currentChannelId = channelId;
+      console.log('🎙️ [VoiceVideoManager] Joining voice channel:', channelId);
+      console.log('🎙️ [VoiceVideoManager] Local stream status:', {
+        hasStream: !!this.localStream,
+        tracks: this.localStream?.getTracks().length || 0,
+        audioTracks: this.localStream?.getAudioTracks().length || 0,
+        videoTracks: this.localStream?.getVideoTracks().length || 0
+      });
       this.socket.emit('join_voice_channel', channelId);
-      console.log('✅ Joined voice channel:', channelId);
+      console.log('✅ [VoiceVideoManager] Join voice channel event emitted');
     } catch (error) {
-      console.error('❌ Failed to join voice channel:', error);
+      console.error('❌ [VoiceVideoManager] Failed to join voice channel:', error);
       throw error;
     }
   }
