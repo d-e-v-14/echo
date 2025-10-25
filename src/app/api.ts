@@ -22,8 +22,13 @@ if (typeof window !== "undefined") {
         getToken(storedToken);
     }
 }
-export const fetchProfile = async ():Promise<profile> => {
-    const res = await api.get("/profile/getProfile");
+export const fetchProfile = async (): Promise<profile> => {
+    if (typeof window === "undefined") throw new Error("Client only");
+
+    const res = await api.get("/api/profile/getProfile", {
+        withCredentials: true,
+    });
+
     return res.data.user;
 };
 
@@ -61,6 +66,16 @@ export const resetPassword = async (newPassword: string, token: string) => {
         { headers: { Authorization: `Bearer ${token}` } }
     );
     return response.data;
+};
+
+export const logout = async () => {
+    try {
+        const res = await api.get("/api/auth/logout");
+        return res.data;
+    } catch (err) {
+        console.error("Logout error:", err);
+        throw err;
+    }
 };
 
 export async function getUser(): Promise<profile | null> {
