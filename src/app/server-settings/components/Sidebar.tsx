@@ -10,6 +10,7 @@ const menuItems = [
   "Invite people",
   "Leave",
   "Danger Zone",
+  "Add Channel"
 ];
 
 export default function Sidebar({ selected, onSelect }: SidebarProps) {
@@ -36,3 +37,4 @@ export default function Sidebar({ selected, onSelect }: SidebarProps) {
     </nav>
   );
 }
+ 

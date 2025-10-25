@@ -219,3 +219,22 @@ export const testDirectPost = async (): Promise<any> => {
     const response = await api.post('/test-post-direct', { test: 'data' });
     return response.data;
 };
+
+export interface ChannelData {
+  name: string;
+  type: "text" | "voice";
+  is_private: boolean;
+}
+
+export const createChannel = async (serverId: string, data: ChannelData) => {
+  if (!serverId) throw new Error("Missing server ID");
+
+
+  const response = await api.post(`/api/channel/${serverId}/NewChannel`, data, {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  return response.data;
+};
