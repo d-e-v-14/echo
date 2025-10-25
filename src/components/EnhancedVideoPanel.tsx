@@ -1,19 +1,177 @@
-// src/components/EnhancedVideoPanel.tsx
-
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { 
-  FaMicrophone, 
-  FaMicrophoneSlash, 
-  FaVideo, 
-  FaVideoSlash,
-  FaDesktop,
-  FaExpand,
-  FaCompress,
-  FaVolumeUp,
-  FaVolumeOff
-} from 'react-icons/fa';
+
+// --- START INLINE SVG ICONS ---
+// Replaced `react-icons/fa` to remove build dependency error.
+
+const IconMicrophone = ({ size = 16, className = "" }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+    <line x1="12" y1="19" x2="12" y2="23"></line>
+    <line x1="8" y1="23" x2="16" y2="23"></line>
+  </svg>
+);
+
+const IconMicrophoneSlash = ({ size = 16, className = "" }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <line x1="1" y1="1" x2="23" y2="23"></line>
+    <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path>
+    <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path>
+    <line x1="12" y1="19" x2="12" y2="23"></line>
+    <line x1="8" y1="23" x2="16" y2="23"></line>
+  </svg>
+);
+
+const IconVideo = ({ size = 16, className = "" }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <polygon points="23 7 16 12 23 17 23 7"></polygon>
+    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+  </svg>
+);
+
+const IconVideoSlash = ({ size = 16, className = "" }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10"></path>
+    <line x1="1" y1="1" x2="23" y2="23"></line>
+  </svg>
+);
+
+const IconDesktop = ({ size = 16, className = "" }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+    <line x1="8" y1="21" x2="16" y2="21"></line>
+    <line x1="12" y1="17" x2="12" y2="21"></line>
+  </svg>
+);
+
+const IconExpand = ({ size = 16, className = "" }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M15 3h6v6"></path>
+    <path d="M9 21H3v-6"></path>
+    <path d="M21 3l-7 7"></path>
+    <path d="M3 21l7-7"></path>
+  </svg>
+);
+
+const IconCompress = ({ size = 16, className = "" }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M4 14h6v6"></path>
+    <path d="M20 10h-6V4"></path>
+    <path d="M14 10l7-7"></path>
+    <path d="M3 21l7-7"></path>
+  </svg>
+);
+
+const IconVolumeUp = ({ size = 16, className = "" }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+  </svg>
+);
+
+const IconVolumeOff = ({ size = 16, className = "" }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+    <line x1="23" y1="9" x2="17" y2="15"></line>
+    <line x1="17" y1="9" x2="23" y2="15"></line>
+  </svg>
+);
+
+// --- END INLINE SVG ICONS ---
+
 
 interface MediaState {
   muted: boolean;
@@ -60,21 +218,50 @@ const ParticipantVideo: React.FC<{
   const [isMuted, setIsMuted] = useState(false);
   const [showControls, setShowControls] = useState(false);
 
-  // Setup video stream
-  useEffect(() => {
-    if (videoRef.current && participant.stream) {
-      videoRef.current.srcObject = participant.stream;
-    }
-  }, [participant.stream]);
+  // Determine the state of video and screen sharing
+  const hasVideoState = participant.mediaState.video;
+  const hasScreenShareStream = participant.screenStream && participant.mediaState.screenSharing;
+  const hasVideoStream = participant.stream && participant.stream.getVideoTracks().length > 0;
+  // Check if the video track is not just present, but also enabled.
+  const hasActiveVideoTrack = hasVideoStream && participant.stream?.getVideoTracks().some(track => track.enabled);
 
-  // Setup screen stream
+  // Determine what will be rendered
+  // We show screen share if it's available
+  const shouldShowScreenShare = hasScreenShareStream;
+  // We show video if video state is on, a track is active, AND we aren't showing screen share
+  const shouldShowVideo = hasVideoState && hasActiveVideoTrack && !shouldShowScreenShare;
+  // We show the avatar if neither of the above are true
+  const shouldShowAvatar = !shouldShowVideo && !shouldShowScreenShare;
+  
+  // --- CORRECTED EFFECT ---
+  // This effect now correctly depends on `shouldShowVideo`.
+  // When `shouldShowVideo` becomes true (i.e., toggling camera on),
+  // the <video> element is rendered, `videoRef.current` becomes available,
+  // and this effect runs to attach the stream.
   useEffect(() => {
-    if (screenRef.current && participant.screenStream) {
+    if (videoRef.current && participant.stream && shouldShowVideo) {
+      if (videoRef.current.srcObject !== participant.stream) {
+        videoRef.current.srcObject = participant.stream;
+      }
+      videoRef.current.play().catch(err => {
+        // This warning is normal if the user hasn't interacted with the page yet
+        console.warn(`Video play failed for ${participant.username}, user may need to interact.`, err);
+      });
+    }
+  }, [participant.stream, shouldShowVideo]); // <--- Dependency on `shouldShowVideo` is the fix
+
+  // --- CORRECTED EFFECT ---
+  // Same logic as above, but for the screen share stream.
+  useEffect(() => {
+    if (screenRef.current && participant.screenStream && shouldShowScreenShare) {
       if (screenRef.current.srcObject !== participant.screenStream) {
         screenRef.current.srcObject = participant.screenStream;
       }
+      screenRef.current.play().catch(err => {
+        console.warn(`Screen share play failed for ${participant.username}.`, err);
+      });
     }
-  }, [participant.screenStream]);
+  }, [participant.screenStream, shouldShowScreenShare]); // <--- Dependency on `shouldShowScreenShare`
 
   const handleVolumeChange = (newVolume: number) => {
     setVolume(newVolume);
@@ -92,16 +279,6 @@ const ParticipantVideo: React.FC<{
     setIsMuted(newMuted);
     handleVolumeChange(newMuted ? 0 : volume);
   };
-
-  const hasVideo = participant.mediaState.video;
-  const hasScreenShare = participant.screenStream && participant.mediaState.screenSharing;
-  const hasVideoStream = participant.stream && participant.stream.getVideoTracks().length > 0;
-  const hasActiveVideoTrack = hasVideoStream && participant.stream?.getVideoTracks().some(track => track.enabled);
-
-  // Determine what will be rendered
-  const shouldShowVideo = hasVideo && hasActiveVideoTrack && !hasScreenShare;
-  const shouldShowScreenShare = hasScreenShare;
-  const shouldShowAvatar = !shouldShowVideo && !shouldShowScreenShare;
 
   return (
     <div 
@@ -126,12 +303,13 @@ const ParticipantVideo: React.FC<{
           
           {/* Screen Share Indicator */}
           <div className="absolute top-2 left-2 bg-blue-600 bg-opacity-90 rounded px-2 py-1 flex items-center space-x-1">
-            <FaDesktop size={12} className="text-white" />
+            <IconDesktop size={12} className="text-white" />
             <span className="text-xs text-white">Screen</span>
           </div>
 
           {/* Picture-in-Picture Video */}
-          {hasVideo && hasActiveVideoTrack && (
+          {/* Show PiP if video state is on and track is active, even during screen share */}
+          {hasVideoState && hasActiveVideoTrack && (
             <div className="absolute bottom-4 right-4 w-32 h-24 bg-gray-800 rounded border border-gray-600 overflow-hidden">
               <video
                 ref={videoRef}
@@ -153,7 +331,7 @@ const ParticipantVideo: React.FC<{
           className={`w-full h-full object-cover ${isLocal ? 'transform -scale-x-100' : ''}`}
         />
       ) : (
-        /* Avatar/Placeholder */
+        /* Avatar/Placeholder (when shouldShowAvatar is true) */
         <div className="w-full h-full flex items-center justify-center bg-gray-800">
           <div className="text-center">
             <div className="w-16 h-16 bg-gray-600 rounded-full flex items-center justify-center mb-2 mx-auto">
@@ -173,22 +351,22 @@ const ParticipantVideo: React.FC<{
       <div className="absolute bottom-2 left-2 flex space-x-1">
         {participant.mediaState.muted && (
           <div className="bg-red-600 rounded-full p-1">
-            <FaMicrophoneSlash size={12} className="text-white" />
+            <IconMicrophoneSlash size={12} className="text-white" />
           </div>
         )}
         {participant.mediaState.speaking && !participant.mediaState.muted && (
           <div className="bg-green-600 rounded-full p-1 animate-pulse">
-            <FaMicrophone size={12} className="text-white" />
+            <IconMicrophone size={12} className="text-white" />
           </div>
         )}
-        {participant.mediaState.video && (
+        {/* This logic shows the *intent* of the camera, which is good */}
+        {participant.mediaState.video ? (
             <div className="bg-gray-600 rounded-full p-1">
-            <FaVideo size={12} className="text-white" />
+            <IconVideo size={12} className="text-white" />
           </div>
-        )}
-        {!participant.mediaState.video && !hasScreenShare && (
+        ) : !shouldShowScreenShare && ( // Only show "camera off" if not screen sharing
           <div className="bg-gray-600 rounded-full p-1">
-            <FaVideoSlash size={12} className="text-white" />
+            <IconVideoSlash size={12} className="text-white" />
           </div>
         )}
       </div>
@@ -196,8 +374,8 @@ const ParticipantVideo: React.FC<{
       {/* Username */}
       <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 rounded px-2 py-1">
         <span className="text-xs text-white">
-          {participant.username}
-          {isLocal && `(You)`}
+          {participant.username || `User ${participant.userId}`}
+          {isLocal && ` (You)`}
         </span>
       </div>
 
@@ -210,7 +388,7 @@ const ParticipantVideo: React.FC<{
               onClick={toggleMute}
               className="text-white hover:text-gray-300 transition-colors"
             >
-              {isMuted ? <FaVolumeOff size={14} /> : <FaVolumeUp size={14} />}
+              {isMuted ? <IconVolumeOff size={14} /> : <IconVolumeUp size={14} />}
             </button>
             <input
               type="range"
@@ -229,7 +407,7 @@ const ParticipantVideo: React.FC<{
               onClick={onToggleFullscreen}
               className="bg-black bg-opacity-70 rounded p-2 text-white hover:text-gray-300 transition-colors"
             >
-              {isFullscreen ? <FaCompress size={14} /> : <FaExpand size={14} />}
+              {isFullscreen ? <IconCompress size={14} /> : <IconExpand size={14} />}
             </button>
           )}
         </div>
@@ -241,7 +419,7 @@ const ParticipantVideo: React.FC<{
           onClick={onToggleFullscreen}
           className="absolute top-4 right-4 bg-black bg-opacity-70 rounded p-2 text-white hover:text-gray-300 transition-colors z-10"
         >
-          <FaCompress size={16} />
+          <IconCompress size={16} />
         </button>
       )}
     </div>
@@ -298,7 +476,7 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
   const isFullscreenMode = !!fullscreenParticipant;
 
   return (
-    <div className="w-full h-full bg-black relative">
+    <div className="w-full h-full bg-black relative overflow-hidden">
       {/* Main Grid */}
       <div className={`grid ${layout.cols} ${layout.rows} gap-2 w-full h-full p-2`}>
         {allParticipants
@@ -337,3 +515,4 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
 };
 
 export default EnhancedVideoPanel;
+
