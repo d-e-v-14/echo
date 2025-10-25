@@ -1,6 +1,7 @@
 "use client";
-import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import Overview from "./components/ServerSettings/Overview";
 import Role from "./components/ServerSettings/Role";
@@ -8,30 +9,47 @@ import Members from "./components/ServerSettings/Members";
 import InvitePeople from "./components/ServerSettings/InvitePeople";
 import Leave from "./components/ServerSettings/Leave";
 import DangerZone from "./components/ServerSettings/DangerZone";
+import AddChannel from "./components/ServerSettings/AddChannel";
 import { getServerDetails, ServerDetails } from "../api";
 
 const initialRoles = [
-  { id: 1, name: "Admin", color: "#ed4245", permissions: ["Manage Server", "Ban Members"] },
-  { id: 2, name: "Moderator", color: "#5865f2", permissions: ["Kick Members", "Manage Messages"] },
+  {
+    id: 1,
+    name: "Admin",
+    color: "#ed4245",
+    permissions: ["Manage Server", "Ban Members"],
+  },
+  {
+    id: 2,
+    name: "Moderator",
+    color: "#5865f2",
+    permissions: ["Kick Members", "Manage Messages"],
+  },
   { id: 3, name: "Member", color: "#43b581", permissions: ["Send Messages"] },
 ];
 
-function ServerSettingsContent() {
+export default function ServerSettingsPage() {
+  const router = useRouter();
   const [selected, setSelected] = useState<string>("Overview");
   const [roles, setRoles] = useState(initialRoles);
-  const [serverDetails, setServerDetails] = useState<ServerDetails | null>(null);
+  const [serverDetails, setServerDetails] = useState<ServerDetails | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const searchParams = useSearchParams();
-  const serverIdFromUrl = searchParams.get('serverId');
-  const serverIdFromStorage = typeof window !== 'undefined' ? localStorage.getItem('currentServerId') : null;
-  const serverId = serverIdFromUrl || serverIdFromStorage || '';
+  const serverIdFromUrl = searchParams.get("serverId");
+  const serverIdFromStorage =
+    typeof window !== "undefined"
+      ? localStorage.getItem("currentServerId")
+      : null;
+  const serverId = serverIdFromUrl || serverIdFromStorage || "";
 
   useEffect(() => {
     const loadServerDetails = async () => {
-      if (!serverId || serverId.trim() === '') {
-        setError('No server ID provided. Please select a server first.');
+      if (!serverId || serverId.trim() === "") {
+        setError("No server ID provided. Please select a server first.");
         setLoading(false);
         return;
       }
@@ -41,8 +59,8 @@ function ServerSettingsContent() {
         setServerDetails(details);
         setError(null);
       } catch (err) {
-        console.error('Failed to load server details:', err);
-        setError('Failed to load server details');
+        console.error("Failed to load server details:", err);
+        setError("Failed to load server details");
       } finally {
         setLoading(false);
       }
@@ -63,12 +81,15 @@ function ServerSettingsContent() {
     return (
       <div className="flex min-h-screen bg-black items-center justify-center">
         <div className="text-center">
-          <div className="text-red-500 text-xl mb-4">{error || 'Server not found'}</div>
-          <div className="text-white mb-4">
-            Please ensure you have selected a server or provide a valid server ID.
+          <div className="text-red-500 text-xl mb-4">
+            {error || "Server not found"}
           </div>
-          <button 
-            onClick={() => window.location.href = '/servers'} 
+          <div className="text-white mb-4">
+            Please ensure you have selected a server or provide a valid server
+            ID.
+          </div>
+          <button
+            onClick={() => router.push("/servers")}
             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
           >
             Go to Servers
@@ -81,7 +102,13 @@ function ServerSettingsContent() {
   let Content;
   switch (selected) {
     case "Overview":
-      Content = <Overview serverId={serverId} serverDetails={serverDetails} onServerUpdate={setServerDetails} />;
+      Content = (
+        <Overview
+          serverId={serverId}
+          serverDetails={serverDetails}
+          onServerUpdate={setServerDetails}
+        />
+      );
       break;
     case "Role":
       Content = <Role roles={roles} setRoles={setRoles} />;
@@ -96,32 +123,42 @@ function ServerSettingsContent() {
       Content = <Leave serverId={serverId} serverDetails={serverDetails} />;
       break;
     case "Danger Zone":
-      Content = <DangerZone 
-        serverId={serverId} 
-        serverName={serverDetails?.name || ''} 
-        isOwner={serverDetails?.isOwner || false} 
-      />;
+      Content = (
+        <DangerZone
+          serverId={serverId}
+          serverName={serverDetails?.name || ""}
+          isOwner={serverDetails?.isOwner || false}
+        />
+      );
+      break;
+    case "Add Channel":
+      Content = <AddChannel />;
       break;
     default:
-      Content = <Overview serverId={serverId} serverDetails={serverDetails} onServerUpdate={setServerDetails} />;
+      Content = (
+        <Overview
+          serverId={serverId}
+          serverDetails={serverDetails}
+          onServerUpdate={setServerDetails}
+        />
+      );
   }
 
   return (
-    <div className="flex min-h-screen bg-black">
+    <div className="flex min-h-screen bg-black text-white">
       <Sidebar selected={selected} onSelect={setSelected} />
-      <main className="flex-1 p-8 bg-black">{Content}</main>
-    </div>
-  );
-}
+      <main className="flex-1 p-8 bg-black relative">
+        {/* 🔙 Back to Servers Button */}
+        <button
+          onClick={() => router.push("/servers")}
+          className="absolute top-6 left-6 flex items-center gap-2 text-gray-300 hover:text-white transition-colors duration-200"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span className="font-medium">Back to Servers</span>
+        </button>
 
-export default function ServerSettingsPage() {
-  return (
-    <Suspense fallback={
-      <div className="flex min-h-screen bg-black items-center justify-center">
-        <div className="text-white">Loading server settings...</div>
-      </div>
-    }>
-      <ServerSettingsContent />
-    </Suspense>
+        <div className="mt-14">{Content}</div>
+      </main>
+    </div>
   );
 }
