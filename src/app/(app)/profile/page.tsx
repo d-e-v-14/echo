@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import Sidebar from "../../components/Sidebar";
+import Sidebar from "../../../components/Sidebar";
 import Link from 'next/link';
-import { fetchProfile,profile } from "../api";
+import { fetchProfile,profile, logout } from "../../api";
 import { useRouter } from "next/navigation";
 export default function ProfilePage() {
     const numPolygons = 10;
@@ -33,6 +33,22 @@ export default function ProfilePage() {
     if (!profile) {
         return <p>Loading profile...</p>; // or your loading UI
     }
+
+    const handleLogout = async () => {
+        try {
+            await logout();
+
+            // clear user data
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+
+            // redirect
+            window.location.href = "/login";
+        } catch (error) {
+            console.error("Failed to logout:", error);
+        }
+    };
+
     return (
         <div className="flex min-h-screen bg-black text-white relative font-poppins">
             <Sidebar />
@@ -187,6 +203,13 @@ export default function ProfilePage() {
                                     className="bg-blue-700 hover:bg-blue-600 px-2 py-1 rounded-md text-white text-sm">
                                     Settings
                                 </Link>
+
+                                <button
+                                    onClick={handleLogout}
+                                    className="bg-red-800 hover:bg-red-700 px-2 py-1 rounded-md text-white text-sm ml-2"
+                                >
+                                    Logout
+                                </button>
                             </div>
                         </div>
                     </div>

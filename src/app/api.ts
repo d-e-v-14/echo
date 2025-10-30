@@ -22,8 +22,13 @@ if (typeof window !== "undefined") {
         getToken(storedToken);
     }
 }
-export const fetchProfile = async ():Promise<profile> => {
-    const res = await api.get("/profile/getProfile");
+export const fetchProfile = async (): Promise<profile> => {
+    if (typeof window === "undefined") throw new Error("Client only");
+
+    const res = await api.get("/api/profile/getProfile", {
+        withCredentials: true,
+    });
+
     return res.data.user;
 };
 
@@ -61,6 +66,16 @@ export const resetPassword = async (newPassword: string, token: string) => {
         { headers: { Authorization: `Bearer ${token}` } }
     );
     return response.data;
+};
+
+export const logout = async () => {
+    try {
+        const res = await api.get("/api/auth/logout");
+        return res.data;
+    } catch (err) {
+        console.error("Logout error:", err);
+        throw err;
+    }
 };
 
 export async function getUser(): Promise<profile | null> {
@@ -218,4 +233,23 @@ export const testDirectPost = async (): Promise<any> => {
     console.log('Testing direct POST to backend...');
     const response = await api.post('/test-post-direct', { test: 'data' });
     return response.data;
+};
+
+export interface ChannelData {
+  name: string;
+  type: "text" | "voice";
+  is_private: boolean;
+}
+
+export const createChannel = async (serverId: string, data: ChannelData) => {
+  if (!serverId) throw new Error("Missing server ID");
+
+
+  const response = await api.post(`/api/channel/${serverId}/NewChannel`, data, {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  return response.data;
 };

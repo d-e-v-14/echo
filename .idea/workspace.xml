@@ -4,8 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="2dee1387-15a0-4c2f-a8be-99b4fbe97d24" name="Changes" comment="final integration.">
+    <list default="true" id="2dee1387-15a0-4c2f-a8be-99b4fbe97d24" name="Changes" comment="Profile settings and google login">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/(app)/profile-settings/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/(app)/profile-settings/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/profile-settings/page.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/profile/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/(app)/profile/page.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -50,7 +54,7 @@
     &quot;Node.js.supabaseClient.ts.executor&quot;: &quot;Run&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;New-branch&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;restore-google-signin&quot;,
     &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
     &quot;last_opened_file_path&quot;: &quot;C:/Users/MEHELI GHOSH/WebstormProjects/EchoWeb&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
@@ -69,11 +73,11 @@
       <recent name="C:\Users\MEHELI GHOSH\WebstormProjects\echo-web\public" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\MEHELI GHOSH\WebstormProjects\EchoWeb\src\app\(app)" />
       <recent name="C:\Users\MEHELI GHOSH\WebstormProjects\echo-web\src\app\(app)" />
       <recent name="C:\Users\MEHELI GHOSH\WebstormProjects\echo-web\src\app\auth" />
       <recent name="C:\Users\MEHELI GHOSH\WebstormProjects\echo-web\src\app" />
       <recent name="C:\Users\MEHELI GHOSH\WebstormProjects\echo-web\src\app\" />
-      <recent name="C:\Users\MEHELI GHOSH\WebstormProjects\echo-web/src/app/" />
     </key>
   </component>
   <component name="SharedIndexes">
@@ -126,8 +130,12 @@
       <workItem from="1754325601642" duration="3175000" />
       <workItem from="1754381007612" duration="11000" />
       <workItem from="1754414603064" duration="5871000" />
+      <workItem from="1754669578275" duration="17035000" />
+      <workItem from="1760430592123" duration="908000" />
       <workItem from="1754669578275" duration="17464000" />
       <workItem from="1754845177800" duration="288000" />
+      <workItem from="1761151321043" duration="6319000" />
+      <workItem from="1761289962721" duration="2173000" />
     </task>
     <task id="LOCAL-00001" summary="I have fixed the stuff. I saw VITE on the resource material that was sent to us so i thought we needed to use it. Please reveiw it once.">
       <option name="closed" value="true" />
@@ -321,13 +329,13 @@
       <option name="project" value="LOCAL" />
       <updated>1754161356219</updated>
     </task>
-    <task id="LOCAL-00025" summary="final integration.">
+    <task id="LOCAL-00025" summary="Profile settings and google login">
       <option name="closed" value="true" />
-      <created>1754687183807</created>
+      <created>1760366484882</created>
       <option name="number" value="00025" />
       <option name="presentableId" value="LOCAL-00025" />
       <option name="project" value="LOCAL" />
-      <updated>1754687183807</updated>
+      <updated>1760366484882</updated>
     </task>
     <option name="localTasksCounter" value="26" />
     <servers />
@@ -369,7 +377,8 @@
     <MESSAGE value="Resolved merge conflicts" />
     <MESSAGE value="Changed bio to show default message if no bio message present." />
     <MESSAGE value="Google signIn integrated" />
+    <MESSAGE value="Profile settings and google login" />
     <MESSAGE value="final integration." />
-    <option name="LAST_COMMIT_MESSAGE" value="final integration." />
+    <option name="LAST_COMMIT_MESSAGE" value="Profile settings and google login" />
   </component>
 </project>
