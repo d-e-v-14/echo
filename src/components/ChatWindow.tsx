@@ -9,6 +9,8 @@ import { getUser } from "@/app/api";
 import { createAuthSocket } from "@/socket";
 import VideoPanel from "./VideoPanel";
 import MessageBubble from "./MessageBubble";
+import UserProfileModal from "./UserProfileModal";
+
 
 interface Message {
   id: string | number;
@@ -70,6 +72,26 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
       return fallbackAvatar;
     }
   };
+  const [selectedUser, setSelectedUser] = useState<{
+    id: string;
+    username: string;
+    avatarUrl: string;
+    about?: string;
+  } | null>(null);
+
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  const openProfile = (msg: Message) => {
+    if (!msg.senderId) return;
+    setSelectedUser({
+      id: msg.senderId,
+      username: msg.username || "Unknown",
+      avatarUrl: msg.avatarUrl || "/User_profil.png",
+      about: "No bio yet...",
+    });
+    setIsProfileOpen(true);
+  };
+
 
   useEffect(() => {
     const newSocket = createAuthSocket(currentUserId);
@@ -343,6 +365,7 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
               hour: "2-digit",
               minute: "2-digit",
             })}
+            onProfileClick={() => openProfile(msg)}
           >
             {msg.mediaUrl && <MessageAttachment media_url={msg.mediaUrl} />}
           </MessageBubble>
@@ -352,6 +375,11 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
       <div className="flex-shrink-0 px-6 pb-6">
         <MessageInput sendMessage={handleSend} isSending={isSending} />
       </div>
+      <UserProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        user={selectedUser}
+      />
     </div>
   );
 
