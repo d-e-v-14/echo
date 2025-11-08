@@ -79,24 +79,16 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
   const [recordingDuration, setRecordingDuration] = useState(0);
 
   // Update states when manager changes
-  useEffect(() => {
-    if (!manager) return;
-
-    // Get initial states
+useEffect(() => {
+  if (!manager) return;
+  const id = setInterval(() => {
     setMediaState(manager.getMediaState());
-    setDeviceInfo(manager.getDeviceInfo());
     setNetworkStats(manager.getNetworkStats());
+    setDeviceInfo(manager.getDeviceInfo()); // optional: keep device list fresh
+  }, 1000);
+  return () => clearInterval(id);
+}, [manager]);
 
-    // Update device info
-    manager.updateDeviceInfo();
-
-    const interval = setInterval(() => {
-      setMediaState(manager.getMediaState());
-      setNetworkStats(manager.getNetworkStats());
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [manager]);
 
   // Recording timer
   useEffect(() => {
@@ -117,40 +109,62 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
     };
   }, [mediaState.recording]);
 
-  const handleToggleAudio = () => {
-    if (!manager) return;
+const handleToggleAudio = async () => {
+  if (!manager) return;
+  try {
     const newMuted = !mediaState.muted;
-    manager.toggleAudio(!newMuted);
-  };
+    await manager.toggleAudio(!newMuted);
+  } catch (e) {
+    console.error('Toggle audio failed:', e);
+  }
+};
 
-  const handleToggleVideo = () => {
-    console.log('🎮 STEP 0: Camera button clicked, current video state:', mediaState.video);
-    if (!manager) return;
-    if(mediaState.video == true){
-      console.log('🎮 STEP 1: Turning video OFF');
-      return manager.toggleVideo(false);  
-    }
-    else{
-      console.log('🎮 STEP 1: Turning video ON');
-      return manager.toggleVideo(true);
-    }
+const toggleDeviceSelector = async () => {
+  const next = !showDeviceSelector;
+  setShowDeviceSelector(next);
+  if (next && manager) {
+    await manager.updateDeviceInfo();
+    setDeviceInfo(manager.getDeviceInfo());
+  }
+};
 
-    
-  };
+const [hasVideoPerm, setHasVideoPerm] = useState(false);
+const [hasAudioPerm, setHasAudioPerm] = useState(false);
 
-  const handleToggleScreenShare = async () => {
-    if (!manager) return;
-    
-    try {
-      if (mediaState.screenSharing) {
-        manager.stopScreenShare();
-      } else {
-        await manager.startScreenShare();
-      }
-    } catch (error) {
-      console.error('Screen share toggle failed:', error);
+useEffect(() => {
+  if (!manager) return;
+  const perms = manager.getAvailablePermissions?.();
+  if (perms) { setHasAudioPerm(!!perms.audio); setHasVideoPerm(!!perms.video); }
+  // keep your 1s polling below; also refresh perms there:
+}, [manager]);
+
+const handleToggleVideo = async () => {
+  if (!manager) return;
+  try {
+    if (mediaState.video) {
+      await manager.toggleVideo(false);
+    } else {
+      if (!hasVideoPerm) return console.warn('No camera permission');
+      await manager.toggleVideo(true); // manager will acquire track if missing (with your class fix)
     }
-  };
+  } catch (e) {
+    console.error('Toggle video failed:', e);
+  }
+};
+
+const handleToggleScreenShare = async () => {
+  if (!manager) return;
+  try {
+    if (mediaState.screenSharing) await manager.stopScreenShare();
+    else await manager.startScreenShare();
+  } catch (e: any) {
+    console.error('Screen share toggle failed:', e);
+    if (e?.name === 'NotAllowedError') {
+      alert('Screen sharing was blocked by the browser.');
+    }
+  }
+};
+
 
   const handleToggleRecording = () => {
     if (!manager) return;
@@ -206,6 +220,8 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
     }
   };
 
+  
+
   const getConnectionQualityIcon = (stats: NetworkStats | null) => {
     if (!stats) return <FaSignal className="opacity-50" />;
     
@@ -242,7 +258,7 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
         {/* Microphone */}
         <button
           onClick={handleToggleAudio}
-          disabled={!isConnected}
+          disabled={!isConnected || !hasVideoPerm}
           className={`p-3 rounded-full transition-all duration-200 ${
             mediaState.muted
               ? 'bg-red-600 hover:bg-red-700 text-white'
@@ -262,7 +278,7 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
               ? 'bg-red-600 hover:bg-red-700 text-white'
               : 'bg-gray-700 hover:bg-gray-600 text-white'
           } ${!isConnected ? 'opacity-50 cursor-not-allowed' : ''}`}
-          title={mediaState.video==false ? 'Turn off camera' : 'Turn on camera'}
+          title={mediaState.video ? 'Turn off camera' : 'Turn on camera'}
         >
           {mediaState.video ? <FaVideo size={20} /> : <FaVideoSlash size={20} />}
         </button>
@@ -332,7 +348,7 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
           {/* Device Selection */}
           <div>
             <button
-              onClick={() => setShowDeviceSelector(!showDeviceSelector)}
+              onClick={toggleDeviceSelector}
               className="flex items-center justify-between w-full text-left text-sm text-gray-300 hover:text-white transition-colors"
             >
               <span>Device Settings</span>
@@ -350,11 +366,11 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
                     className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white"
                   >
                     <option value="">Default</option>
-                    {deviceInfo.audioInputs.map((device) => (
-                      <option key={device.deviceId} value={device.deviceId}>
-                        {device.label || `Microphone ${device.deviceId.substring(0, 8)}`}
-                      </option>
-                    ))}
+                      {deviceInfo.audioInputs.map((d, i) => (
+                        <option key={d.deviceId} value={d.deviceId}>
+                          {d.label || `Microphone ${i+1}`}
+                        </option>
+                      ))}
                   </select>
                 </div>
 

@@ -190,7 +190,7 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
             debugLog(`Health check - Socket: ${actuallyConnected}, State: ${currentState}, ID: ${socket.id || 'none'}`);
           }
         }
-      }, 500); // Check more frequently
+      }, 1500); // Check more frequently
       
       socket.on('disconnect', (reason?: string) => {
         if (isMounted) {
@@ -383,36 +383,57 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
         }
       });
 
+      const toId = (v: any) => String(v ?? '');
+
+
       manager.onVoiceRoster((members: any[]) => {
-        if (isMounted) {
-          debugLog("Voice roster update:", members);
-          setDebugStatus(`Voice roster received: ${members.length} members`);
-          setVoiceMembers(members);
-          
-          const voiceParticipants: Participant[] = members.map(member => ({
-            id: member.socketId || member.id,
-            userId: member.userId || member.user_id,
-            username: member.username || member.name || `User ${(member.userId || member.id).substring(0, 8)}`,
-            stream: null, // Will be set when stream arrives
-            mediaState: {
-              muted: member.muted || false,
-              speaking: member.speaking || false,
-              video: member.video || false,
-              screenSharing: member.screenSharing || false
-            }
-          }));
-          
-          setParticipants(prev => {
-            // Merge with existing participants to preserve streams
-            return voiceParticipants.map(newP => {
-              const existing = prev.find(p => p.id === newP.id);
-              return existing ? { ...existing, ...newP, stream: existing.stream, screenStream: existing.screenStream } : newP;
+          if (isMounted) {
+            debugLog("Voice roster update:", members);
+            setDebugStatus(`Voice roster received: ${members.length} members`);
+            setVoiceMembers(members);
+
+            // helper (put this once near the top of the component, not inside the callback)
+            // const toId = (v: any) => String(v ?? '');
+
+            const voiceParticipants: Participant[] = members.map(member => {
+              const sid = toId(member.socketId || member.id);
+              const uid = toId(member.userId || member.user_id);
+              return {
+                id: sid,                // ALWAYS key by socketId
+                userId: uid,
+                username: member.username || member.name || `User ${uid.slice(0, 8)}`,
+                stream: null,           // will be preserved by merge below if already present
+                screenStream: undefined,
+                mediaState: {
+                  muted: !!member.muted,
+                  speaking: !!member.speaking,
+                  video: !!member.video,
+                  screenSharing: !!member.screenSharing
+                }
+              };
             });
-          });
-          
-          onVoiceRoster?.(members);
-        }
-      });
+
+            // ⬇️ Replace your existing setParticipants(...) here with this:
+            setParticipants(prev => {
+              const prevById = new Map(prev.map(p => [p.id, p]));
+              // Merge roster with existing participants, preserving any live streams
+              const merged = voiceParticipants.map(vp => {
+                const ex = prevById.get(vp.id);
+                return ex
+                  ? { ...vp, stream: ex.stream, screenStream: ex.screenStream }
+                  : vp;
+              });
+              // Keep anyone who still has a live stream but wasn't in this roster tick (server lag, etc.)
+              prev.forEach(p => {
+                if (!prevById.has(p.id) && (p.stream || p.screenStream)) merged.push(p);
+              });
+              return merged;
+            });
+
+            onVoiceRoster?.(members);
+          }
+        });
+
 
       manager.onUserJoined((socketId: string, userId: string) => {
         debugLog("User joined enhanced voice channel:", { socketId, userId });
@@ -466,15 +487,12 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
         }
       });
 
-      manager.onRecording((event: string, data: any) => {
-        console.log("Recording event:", event, data);
-        if (isMounted) {
+        manager.onRecording((event) => {
           setLocalMediaState(prev => ({
             ...prev,
-            recording: event === 'started'
+            recording: event === 'started' || event === 'started_confirmation'
           }));
-        }
-      });
+        });
 
       manager.onError((error: any) => {
         console.error("Enhanced voice error:", error);
@@ -507,44 +525,30 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
     
     return () => {
       isMounted = false;
-      if (connectionTimeoutRef.current) {
-        clearTimeout(connectionTimeoutRef.current);
-      }
-      if (statusCheckIntervalRef.current) {
-        clearInterval(statusCheckIntervalRef.current);
-      }
-      if (managerRef.current) {
-        managerRef.current.disconnect();
-      }
+      if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
+      if (statusCheckIntervalRef.current) clearInterval(statusCheckIntervalRef.current);
+      if (managerRef.current) managerRef.current.disconnect();
       if (socketRef.current) {
-        // Remove all listeners to prevent memory leaks
-        socketRef.current.removeAllListeners();
-        if (socketRef.current.connected) {
-          socketRef.current.disconnect();
-        }
+        socketRef.current.off();      // safe clear for this socket instance
+        if (socketRef.current.connected) socketRef.current.disconnect();
       }
     };
+
   }, [userId]);
 
   // Immediate state check effect - runs when socket ref changes
-  useEffect(() => {
-    const socket = socketRef.current;
-    if (socket) {
-      const actuallyConnected = socket.connected;
-      debugLog(`Immediate state check - Socket connected: ${actuallyConnected}, Current state: ${isConnected}, ID: ${socket.id || 'none'}`);
-      
-      if (actuallyConnected !== isConnected) {
-        debugLog(`Immediate correction needed - Setting state to: ${actuallyConnected}`);
-        setIsConnected(actuallyConnected);
-        setConnectionStatus(actuallyConnected ? 'Connected' : 'Disconnected');
-        setDebugStatus(actuallyConnected ? `Connected: ${socket.id}` : 'Socket disconnected');
-        
-        if (actuallyConnected) {
-          setConnectionError(null);
-        }
-      }
-    }
-  }, [socketRef.current, isConnected]);
+useEffect(() => {
+  const socket = socketRef.current;
+  if (!socket) return;
+  const actuallyConnected = socket.connected;
+  if (actuallyConnected !== isConnected) {
+    setIsConnected(actuallyConnected);
+    setConnectionStatus(actuallyConnected ? 'Connected' : 'Disconnected');
+    setDebugStatus(actuallyConnected ? `Connected: ${socket.id}` : 'Socket disconnected');
+    if (actuallyConnected) setConnectionError(null);
+  }
+}, [isConnected]); // ← remove socketRef.current from deps
+
 
   // Handle channel changes
   useEffect(() => {
@@ -573,7 +577,22 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
         manager.leaveVoiceChannel();
         await manager.joinVoiceChannel(channelId);
         
+        // after await manager.joinVoiceChannel(channelId);
         setDebugStatus('Voice channel join request sent');
+
+        // listen once to first remote stream or a roster echo to mark connected
+        manager.onStream((_s, _peerId) => {
+          setIsVoiceChannelConnected(true);
+          setDebugStatus(`Media flowing`);
+        });
+
+        // optionally also flip when a roster arrives containing self or peers
+        manager.onVoiceRoster((members) => {
+          if (members && members.length > 0) {
+            setIsVoiceChannelConnected(true);
+          }
+        });
+
         
         // Update local streams
         setLocalStream(manager.getLocalStream());
@@ -581,12 +600,7 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
         setLocalMediaState(manager.getMediaState());
         
         onLocalStreamChange?.(manager.getLocalStream());
-        
-        // Set connected state with slight delay
-        setTimeout(() => {
-          setIsVoiceChannelConnected(true);
-          setDebugStatus(`Connected to voice channel: ${channelId}`);
-        }, 2000);
+      
       } catch (error) {
         debugError('Failed to join voice channel:', error);
         setDebugStatus(`Failed to join voice channel: ${error}`);
@@ -696,43 +710,22 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
     }
   };
 
-  const handleManualReconnection = async () => {
-    try {
-      const socket = socketRef.current;
-      if (socket) {
-        debugLog(`Manual reconnection attempt. Current state - connected: ${socket.connected}, ID: ${socket.id || 'none'}`);
-        setConnectionError(null);
-        
-        // Check if socket is actually connected despite UI showing disconnected
-        if (socket.connected) {
-          debugLog('Socket is actually connected, refreshing state...');
-          setIsConnected(true);
-          setConnectionStatus('Connected');
-          setDebugStatus(`Connected: ${socket.id}`);
-          return;
-        }
-        
-        // Disconnect first if partially connected
-        if (socket.connected) {
-          debugLog('Disconnecting existing connection...');
-          socket.disconnect();
-        }
-        
-        setDebugStatus('Manual reconnection in progress...');
-        
-        // Wait a moment then reconnect
-        setTimeout(() => {
-          if (socket) {
-            debugLog('Attempting to reconnect...');
-            socket.connect();
-          }
-        }, 500);
-      }
-    } catch (error) {
-      debugError('Manual reconnection failed:', error);
-      setConnectionError(`Reconnection failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
+ const handleManualReconnection = () => {
+  const socket = socketRef.current;
+  if (!socket) return;
+  setConnectionError(null);
+
+  if (socket.connected) {
+    setIsConnected(true);
+    setConnectionStatus('Connected');
+    setDebugStatus(`Connected: ${socket.id}`);
+    return;
+  }
+
+  setDebugStatus('Manual reconnection…');
+  socket.connect();
+};
+
 
   // Function to refresh connection state
   const refreshConnectionState = () => {

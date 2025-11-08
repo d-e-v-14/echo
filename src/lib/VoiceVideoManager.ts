@@ -49,11 +49,12 @@ interface PeerConnection {
 
 const peerConfig: RTCConfiguration = {
   iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-  ]
+    { urls: ['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302','stun:stun2.l.google.com:19302'] },
+    // { urls: 'turns:turn.yourdomain.com:5349', username: 'user', credential: 'pass' }
+  ],
+  iceTransportPolicy: 'all'
 };
+
 
 export class VoiceVideoManager {
   private socket: Socket;
@@ -156,13 +157,15 @@ export class VoiceVideoManager {
             if (finalStream) {
               // Combine audio and video streams
               const combinedStream = new MediaStream();
-              finalStream.getAudioTracks().forEach(track => combinedStream.addTrack(track));
-              videoStream.getVideoTracks().forEach(track => combinedStream.addTrack(track));
-              
-              // Stop old streams
-              finalStream.getTracks().forEach(track => track.stop());
-              videoStream.getTracks().forEach(track => track.stop());
-              
+              if (finalStream) {
+                finalStream.getAudioTracks().forEach(t => combinedStream.addTrack(t.clone()));
+              }
+              videoStream.getVideoTracks().forEach(t => combinedStream.addTrack(t.clone()));
+
+              // Now it’s safe to stop the old, source tracks
+              finalStream?.getTracks().forEach(t => t.stop());
+              videoStream.getTracks().forEach(t => t.stop());
+
               finalStream = combinedStream;
             } else {
               finalStream = videoStream;
@@ -449,33 +452,24 @@ export class VoiceVideoManager {
   }
 
   // === ICE CANDIDATE MANAGEMENT ===
-  private async handleIceCandidate(from: string, candidate: RTCIceCandidate, type: 'video' | 'screen'): Promise<void> {
-    const peers = type === 'video' ? this.peers : this.screenPeers;
-    const queues = type === 'video' ? this.iceCandidateQueues : this.screenIceCandidateQueues;
-    
-    const peer = peers.get(from);
-    
-    if (peer) {
-      // Check if remote description is set
-      if (peer.connection.remoteDescription) {
-        try {
-          await peer.connection.addIceCandidate(candidate);
-          console.log(`✅ [VoiceVideoManager] ${type} ICE candidate added for:`, from);
-        } catch (error) {
-          console.error(`❌ [VoiceVideoManager] Error adding ${type} ICE candidate:`, error);
-        }
-      } else {
-        // Queue the candidate until remote description is set
-        console.log(`🔄 [VoiceVideoManager] Queueing ${type} ICE candidate for:`, from);
-        if (!queues.has(from)) {
-          queues.set(from, []);
-        }
-        queues.get(from)!.push(candidate);
-      }
+private async handleIceCandidate(from: string, candidate: any, type: 'video'|'screen'): Promise<void> {
+  if (!candidate) return; // end-of-candidates
+  const peers = type === 'video' ? this.peers : this.screenPeers;
+  const queues = type === 'video' ? this.iceCandidateQueues : this.screenIceCandidateQueues;
+  const peer = peers.get(from);
+  const rtc = new RTCIceCandidate(candidate);
+
+  if (peer) {
+    if (peer.connection.remoteDescription) {
+      try { await peer.connection.addIceCandidate(rtc); }
+      catch (e) { console.error('addIceCandidate failed', e); }
     } else {
-      console.warn(`⚠️ [VoiceVideoManager] No ${type} peer found for ICE candidate from:`, from);
+      if (!queues.has(from)) queues.set(from, []);
+      queues.get(from)!.push(rtc);
     }
   }
+}
+
 
   private async processQueuedIceCandidates(peerId: string, type: 'video' | 'screen'): Promise<void> {
     const queues = type === 'video' ? this.iceCandidateQueues : this.screenIceCandidateQueues;
@@ -505,7 +499,15 @@ export class VoiceVideoManager {
   private async createPeerConnection(peerId: string, isInitiator: boolean, type: 'video' | 'screen'): Promise<PeerConnection> {
     console.log(`🔧 [VoiceVideoManager] Creating ${type} peer connection for:`, peerId, 'isInitiator:', isInitiator);
     
-    const pc = new RTCPeerConnection(peerConfig);
+   const pc = new RTCPeerConnection(peerConfig);
+// Ensure we can receive if we have no local tracks yet
+  if (!this.localStream || this.localStream.getAudioTracks().length === 0) {
+    pc.addTransceiver('audio', { direction: 'recvonly' });
+  }
+  if (type === 'video' && (!this.localStream || this.localStream.getVideoTracks().length === 0)) {
+    pc.addTransceiver('video', { direction: 'recvonly' });
+  }
+
     const peerConnection: PeerConnection = { connection: pc, stream: null, type };
     
     // Add to appropriate map
@@ -680,27 +682,30 @@ export class VoiceVideoManager {
     });
   }
 
-  public toggleVideo(bool: boolean): void {
-    console.log('🎥 STEP 2: toggleVideo called, setting video to:', bool);
-    console.log('🎥 STEP 3: Video tracks found:', this.localStream?.getVideoTracks().length || 0);
-    
-    if (bool && this.localStream?.getVideoTracks().length === 0) {
-      console.log('🎥 ERROR: Trying to enable video but no video tracks exist!');
-      console.log('🎥 Need to create new video stream...');
-      // TODO: Re-create video stream
-      return;
-    }
-    
-    this.localStream?.getVideoTracks().forEach((track, index) => {
-      console.log(`🎥 STEP 4.${index + 1}: Track "${track.label}" - enabled: ${track.enabled} -> ${bool}`);
-      track.enabled = bool;
+public async toggleVideo(enabled: boolean): Promise<void> {
+  if (enabled && (!this.localStream || this.localStream.getVideoTracks().length === 0)) {
+    const cam = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    const newTrack = cam.getVideoTracks()[0];
+
+    // Attach to existing peer senders or addTrack if none exists yet
+    this.peers.forEach(peer => {
+      const sender = peer.connection.getSenders().find(s => s.track?.kind === 'video');
+      if (sender) sender.replaceTrack(newTrack);
+      else if (this.localStream) peer.connection.addTrack(newTrack, this.localStream);
     });
-    console.log('🎥 STEP 4: Video tracks enabled/disabled, calling updateMediaState');
-    this.updateMediaState({ 
-      video: bool,
-      activeStreams: { ...this.mediaState.activeStreams, video: bool }
-    });
+
+    // Install locally
+    if (!this.localStream) this.localStream = new MediaStream();
+    this.localStream.addTrack(newTrack);
   }
+
+  this.localStream?.getVideoTracks().forEach(t => (t.enabled = enabled));
+  this.updateMediaState({
+    video: enabled,
+    activeStreams: { ...this.mediaState.activeStreams, video: enabled }
+  });
+}
+
 
   // === ADVANCED FEATURES ===
 
@@ -735,23 +740,19 @@ export class VoiceVideoManager {
     }
   }
 
-  public stopScreenShare(): void {
-    if (this.localScreenStream) {
-      this.localScreenStream.getTracks().forEach(track => track.stop());
-      this.localScreenStream = null;
-    }
-
-    // Close all screen sharing peer connections
-    this.screenPeers.forEach(peer => peer.connection.close());
-    this.screenPeers.clear();
-
-    this.updateMediaState({ 
-      screenSharing: false,
-      activeStreams: { ...this.mediaState.activeStreams, screen: false }
-    });
-
-    console.log('✅ Screen sharing stopped');
+public stopScreenShare(): void {
+  if (this.localScreenStream) {
+    this.localScreenStream.getTracks().forEach(t => t.stop());
+    this.localScreenStream = null;
   }
+  this.screenPeers.forEach(peer => peer.connection.getSenders()
+    .filter(s => s.track?.kind === 'video')
+    .forEach(s => s.replaceTrack(null as any)));
+  this.screenPeers.forEach(peer => peer.connection.close());
+  this.screenPeers.clear();
+  this.updateMediaState({ screenSharing: false, activeStreams: { ...this.mediaState.activeStreams, screen: false } });
+}
+
 
   // Recording
   public startRecording(config: Partial<RecordingConfig> = {}): void {
@@ -806,81 +807,45 @@ export class VoiceVideoManager {
     }
   }
 
-  public async switchCamera(deviceId: string): Promise<void> {
-    try {
-      const constraints = {
-        video: { deviceId: { exact: deviceId } },
-        audio: true
-      };
+public async switchCamera(deviceId: string): Promise<void> {
+  const newStream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } }, audio: false });
+  const videoTrack = newStream.getVideoTracks()[0];
 
-      const newStream = await navigator.mediaDevices.getUserMedia(constraints);
-      const videoTrack = newStream.getVideoTracks()[0];
+  this.peers.forEach(async peer => {
+    const sender = peer.connection.getSenders().find(s => s.track?.kind === 'video');
+    if (sender) await sender.replaceTrack(videoTrack);
+  });
 
-      // Replace track in all peer connections
-      this.peers.forEach(async (peer, peerId) => {
-        const sender = peer.connection.getSenders().find((s: RTCRtpSender) => 
-          s.track && s.track.kind === 'video'
-        );
-        if (sender) {
-          await sender.replaceTrack(videoTrack);
-        }
-      });
+  if (!this.localStream) this.localStream = new MediaStream();
+  const old = this.localStream.getVideoTracks()[0];
+  if (old) { old.stop(); this.localStream.removeTrack(old); }
+  this.localStream.addTrack(videoTrack);
 
-      // Update local stream
-      if (this.localStream) {
-        const oldVideoTrack = this.localStream.getVideoTracks()[0];
-        if (oldVideoTrack) {
-          oldVideoTrack.stop();
-          this.localStream.removeTrack(oldVideoTrack);
-        }
-        this.localStream.addTrack(videoTrack);
-      }
+  // ensure no stray tracks left alive
+  newStream.getAudioTracks().forEach(t => t.stop());
 
-      this.deviceInfo.activeVideoDevice = deviceId;
-      console.log('✅ Camera switched to:', deviceId);
-    } catch (error) {
-      console.error('❌ Failed to switch camera:', error);
-      throw error;
-    }
-  }
+  this.deviceInfo.activeVideoDevice = deviceId;
+}
 
-  public async switchMicrophone(deviceId: string): Promise<void> {
-    try {
-      const constraints = {
-        audio: { deviceId: { exact: deviceId } },
-        video: true
-      };
+public async switchMicrophone(deviceId: string): Promise<void> {
+  const newStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId } }, video: false });
+  const audioTrack = newStream.getAudioTracks()[0];
 
-      const newStream = await navigator.mediaDevices.getUserMedia(constraints);
-      const audioTrack = newStream.getAudioTracks()[0];
+  this.peers.forEach(async peer => {
+    const sender = peer.connection.getSenders().find(s => s.track?.kind === 'audio');
+    if (sender) await sender.replaceTrack(audioTrack);
+  });
 
-      // Replace track in all peer connections
-      this.peers.forEach(async (peer, peerId) => {
-        const sender = peer.connection.getSenders().find((s: RTCRtpSender) => 
-          s.track && s.track.kind === 'audio'
-        );
-        if (sender) {
-          await sender.replaceTrack(audioTrack);
-        }
-      });
+  if (!this.localStream) this.localStream = new MediaStream();
+  const old = this.localStream.getAudioTracks()[0];
+  if (old) { old.stop(); this.localStream.removeTrack(old); }
+  this.localStream.addTrack(audioTrack);
 
-      // Update local stream
-      if (this.localStream) {
-        const oldAudioTrack = this.localStream.getAudioTracks()[0];
-        if (oldAudioTrack) {
-          oldAudioTrack.stop();
-          this.localStream.removeTrack(oldAudioTrack);
-        }
-        this.localStream.addTrack(audioTrack);
-      }
+  // no stray camera
+  newStream.getVideoTracks().forEach(t => t.stop());
 
-      this.deviceInfo.activeAudioDevice = deviceId;
-      console.log('✅ Microphone switched to:', deviceId);
-    } catch (error) {
-      console.error('❌ Failed to switch microphone:', error);
-      throw error;
-    }
-  }
+  this.deviceInfo.activeAudioDevice = deviceId;
+}
 
   // Quality Control
   public adjustQuality(quality: 'low' | 'medium' | 'high' | 'auto'): void {
@@ -910,70 +875,52 @@ export class VoiceVideoManager {
       senders.forEach(async (sender: RTCRtpSender) => {
         if (sender.track) {
           const params = sender.getParameters();
-          if (!params.encodings) {
-            params.encodings = [{}];
-          }
-          
-          if (sender.track.kind === 'audio') {
-            params.encodings[0].maxBitrate = recommendations.audioBitrate * 1000; // Convert to bps
-          } else if (sender.track.kind === 'video') {
-            params.encodings[0].maxBitrate = recommendations.videoBitrate * 1000; // Convert to bps
-          }
-          
-          await sender.setParameters(params);
+            params.encodings = params.encodings?.length ? params.encodings : [{}];
+            for (const enc of params.encodings) {
+              enc.maxBitrate = (sender.track?.kind === 'audio'
+                ? recommendations.audioBitrate
+                : recommendations.videoBitrate) * 1000;
+            }
+            await sender.setParameters(params);
         }
       });
     });
   }
 
-  private setupConnectionQualityMonitoring(peerConnection: RTCPeerConnection): void {
-    const interval = setInterval(async () => {
-      if (peerConnection.connectionState === 'closed') {
-        clearInterval(interval);
-        return;
-      }
+private setupConnectionQualityMonitoring(pc: RTCPeerConnection): void {
+  const timer = setInterval(async () => {
+    if (pc.connectionState === 'closed') { clearInterval(timer); return; }
+    try {
+      const rep = this.parseConnectionStats(await pc.getStats());
+      const lossIn = rep.packetsReceivedIn + rep.packetsLostIn > 0
+        ? rep.packetsLostIn / (rep.packetsReceivedIn + rep.packetsLostIn)
+        : 0;
 
-      try {
-        const stats = await peerConnection.getStats();
-        const report = this.parseConnectionStats(stats);
-        
-        this.networkStats = {
-          latency: report.rtt || 0,
-          packetLoss: report.packetsLost / Math.max(report.packetsSent, 1),
-          bandwidth: report.availableBandwidth || 0,
-          connectionType: this.determineConnectionType(report)
-        };
+      this.networkStats = {
+        latency: rep.rtt || 0,
+        packetLoss: lossIn,
+        bandwidth: rep.availableBandwidth || 0,
+        connectionType: this.determineConnectionType({ rtt: rep.rtt })
+      };
+      if (this.currentChannelId) this.socket.emit('network_quality_update', this.networkStats);
+    } catch (e) { console.error('getStats failed', e); }
+  }, 5000);
+}
 
-        // Send to server for analysis
-        if (this.currentChannelId) {
-          this.socket.emit('network_quality_update', this.networkStats);
-        }
-      } catch (error) {
-        console.error('❌ Failed to get connection stats:', error);
-      }
-    }, 5000);
-  }
+private parseConnectionStats(stats: RTCStatsReport): any {
+  const out: any = { rtt: 0, packetsLostIn: 0, packetsReceivedIn: 0, availableBandwidth: 0 };
+  stats.forEach(s => {
+    if (s.type === 'candidate-pair' && (s as any).state === 'succeeded') {
+      out.rtt = ((s as any).currentRoundTripTime || 0) * 1000;
+      out.availableBandwidth = (s as any).availableOutgoingBitrate || 0;
+    } else if (s.type === 'inbound-rtp' && !(s as any).isRemote) {
+      out.packetsLostIn += (s as any).packetsLost || 0;
+      out.packetsReceivedIn += (s as any).packetsReceived || 0;
+    }
+  });
+  return out;
+}
 
-  private parseConnectionStats(stats: RTCStatsReport): any {
-    const report: any = {
-      rtt: 0,
-      packetsLost: 0,
-      packetsSent: 0,
-      availableBandwidth: 0
-    };
-
-    stats.forEach((stat) => {
-      if (stat.type === 'candidate-pair' && stat.state === 'succeeded') {
-        report.rtt = stat.currentRoundTripTime * 1000; // Convert to ms
-      } else if (stat.type === 'outbound-rtp') {
-        report.packetsSent += stat.packetsSent || 0;
-      } else if (stat.type === 'inbound-rtp') {
-        report.packetsLost += stat.packetsLost || 0;
-      }
-    });
-
-    return report;
-  }
 
   private determineConnectionType(report: any): string {
     if (report.rtt > 200) return 'poor';
