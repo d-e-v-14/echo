@@ -1,4 +1,5 @@
 // src/components/VoiceVideoControls.tsx
+// Voice/Video controls component for Amazon Chime SDK
 
 "use client";
 
@@ -14,7 +15,6 @@ import {
   FaCog,
   FaPhoneSlash,
   FaSignal,
-  FaVolumeUp,
   FaChevronDown,
   FaChevronUp
 } from 'react-icons/fa';
@@ -32,8 +32,10 @@ interface MediaState {
 interface DeviceInfo {
   audioInputs: MediaDeviceInfo[];
   videoInputs: MediaDeviceInfo[];
+  audioOutputs?: MediaDeviceInfo[];
   activeAudioDevice?: string;
   activeVideoDevice?: string;
+  activeAudioOutputDevice?: string;
 }
 
 interface NetworkStats {
@@ -68,8 +70,10 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo>({
     audioInputs: [],
     videoInputs: [],
+    audioOutputs: [],
     activeAudioDevice: undefined,
-    activeVideoDevice: undefined
+    activeVideoDevice: undefined,
+    activeAudioOutputDevice: undefined
   });
 
   const [networkStats, setNetworkStats] = useState<NetworkStats | null>(null);
@@ -77,18 +81,35 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
   const [showDeviceSelector, setShowDeviceSelector] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
+  const [hasVideoPerm, setHasVideoPerm] = useState(false);
+  const [hasAudioPerm, setHasAudioPerm] = useState(false);
 
   // Update states when manager changes
-useEffect(() => {
-  if (!manager) return;
-  const id = setInterval(() => {
-    setMediaState(manager.getMediaState());
-    setNetworkStats(manager.getNetworkStats());
-    setDeviceInfo(manager.getDeviceInfo()); // optional: keep device list fresh
-  }, 1000);
-  return () => clearInterval(id);
-}, [manager]);
-
+  useEffect(() => {
+    if (!manager) return;
+    
+    // Initial permissions check
+    const perms = manager.getAvailablePermissions?.();
+    if (perms) {
+      setHasAudioPerm(!!perms.audio);
+      setHasVideoPerm(!!perms.video);
+    }
+    
+    const id = setInterval(() => {
+      setMediaState(manager.getMediaState());
+      setNetworkStats(manager.getNetworkStats());
+      setDeviceInfo(manager.getDeviceInfo());
+      
+      // Update permissions
+      const currentPerms = manager.getAvailablePermissions?.();
+      if (currentPerms) {
+        setHasAudioPerm(!!currentPerms.audio);
+        setHasVideoPerm(!!currentPerms.video);
+      }
+    }, 1000);
+    
+    return () => clearInterval(id);
+  }, [manager]);
 
   // Recording timer
   useEffect(() => {
@@ -109,62 +130,57 @@ useEffect(() => {
     };
   }, [mediaState.recording]);
 
-const handleToggleAudio = async () => {
-  if (!manager) return;
-  try {
-    const newMuted = !mediaState.muted;
-    await manager.toggleAudio(!newMuted);
-  } catch (e) {
-    console.error('Toggle audio failed:', e);
-  }
-};
-
-const toggleDeviceSelector = async () => {
-  const next = !showDeviceSelector;
-  setShowDeviceSelector(next);
-  if (next && manager) {
-    await manager.updateDeviceInfo();
-    setDeviceInfo(manager.getDeviceInfo());
-  }
-};
-
-const [hasVideoPerm, setHasVideoPerm] = useState(false);
-const [hasAudioPerm, setHasAudioPerm] = useState(false);
-
-useEffect(() => {
-  if (!manager) return;
-  const perms = manager.getAvailablePermissions?.();
-  if (perms) { setHasAudioPerm(!!perms.audio); setHasVideoPerm(!!perms.video); }
-  // keep your 1s polling below; also refresh perms there:
-}, [manager]);
-
-const handleToggleVideo = async () => {
-  if (!manager) return;
-  try {
-    if (mediaState.video) {
-      await manager.toggleVideo(false);
-    } else {
-      if (!hasVideoPerm) return console.warn('No camera permission');
-      await manager.toggleVideo(true); // manager will acquire track if missing (with your class fix)
+  const handleToggleAudio = () => {
+    if (!manager) return;
+    try {
+      const newMuted = !mediaState.muted;
+      manager.toggleAudio(!newMuted);
+    } catch (e) {
+      console.error('Toggle audio failed:', e);
     }
-  } catch (e) {
-    console.error('Toggle video failed:', e);
-  }
-};
+  };
 
-const handleToggleScreenShare = async () => {
-  if (!manager) return;
-  try {
-    if (mediaState.screenSharing) await manager.stopScreenShare();
-    else await manager.startScreenShare();
-  } catch (e: any) {
-    console.error('Screen share toggle failed:', e);
-    if (e?.name === 'NotAllowedError') {
-      alert('Screen sharing was blocked by the browser.');
+  const toggleDeviceSelector = async () => {
+    const next = !showDeviceSelector;
+    setShowDeviceSelector(next);
+    if (next && manager) {
+      await manager.updateDeviceInfo();
+      setDeviceInfo(manager.getDeviceInfo());
     }
-  }
-};
+  };
 
+  const handleToggleVideo = async () => {
+    if (!manager) return;
+    try {
+      if (mediaState.video) {
+        await manager.toggleVideo(false);
+      } else {
+        if (!hasVideoPerm) {
+          console.warn('No camera permission');
+          return;
+        }
+        await manager.toggleVideo(true);
+      }
+    } catch (e) {
+      console.error('Toggle video failed:', e);
+    }
+  };
+
+  const handleToggleScreenShare = async () => {
+    if (!manager) return;
+    try {
+      if (mediaState.screenSharing) {
+        manager.stopScreenShare();
+      } else {
+        await manager.startScreenShare();
+      }
+    } catch (e: any) {
+      console.error('Screen share toggle failed:', e);
+      if (e?.name === 'NotAllowedError') {
+        alert('Screen sharing was blocked by the browser.');
+      }
+    }
+  };
 
   const handleToggleRecording = () => {
     if (!manager) return;
@@ -181,14 +197,16 @@ const handleToggleScreenShare = async () => {
     }
   };
 
-  const handleDeviceChange = async (deviceId: string, type: 'audio' | 'video') => {
+  const handleDeviceChange = async (deviceId: string, type: 'audio' | 'video' | 'speaker') => {
     if (!manager) return;
 
     try {
       if (type === 'audio') {
         await manager.switchMicrophone(deviceId);
-      } else {
+      } else if (type === 'video') {
         await manager.switchCamera(deviceId);
+      } else if (type === 'speaker') {
+        await manager.switchSpeaker(deviceId);
       }
       // Refresh device info
       await manager.updateDeviceInfo();
@@ -219,8 +237,6 @@ const handleToggleScreenShare = async () => {
       default: return 'text-gray-400';
     }
   };
-
-  
 
   const getConnectionQualityIcon = (stats: NetworkStats | null) => {
     if (!stats) return <FaSignal className="opacity-50" />;
@@ -258,12 +274,12 @@ const handleToggleScreenShare = async () => {
         {/* Microphone */}
         <button
           onClick={handleToggleAudio}
-          disabled={!isConnected || !hasVideoPerm}
+          disabled={!isConnected || !hasAudioPerm}
           className={`p-3 rounded-full transition-all duration-200 ${
             mediaState.muted
               ? 'bg-red-600 hover:bg-red-700 text-white'
               : 'bg-gray-700 hover:bg-gray-600 text-white'
-          } ${!isConnected ? 'opacity-50 cursor-not-allowed' : ''}`}
+          } ${(!isConnected || !hasAudioPerm) ? 'opacity-50 cursor-not-allowed' : ''}`}
           title={mediaState.muted ? 'Unmute' : 'Mute'}
         >
           {mediaState.muted ? <FaMicrophoneSlash size={20} /> : <FaMicrophone size={20} />}
@@ -272,12 +288,12 @@ const handleToggleScreenShare = async () => {
         {/* Video */}
         <button
           onClick={handleToggleVideo}
-          disabled={!isConnected}
+          disabled={!isConnected || !hasVideoPerm}
           className={`p-3 rounded-full transition-all duration-200 ${
             !mediaState.video
               ? 'bg-red-600 hover:bg-red-700 text-white'
               : 'bg-gray-700 hover:bg-gray-600 text-white'
-          } ${!isConnected ? 'opacity-50 cursor-not-allowed' : ''}`}
+          } ${(!isConnected || !hasVideoPerm) ? 'opacity-50 cursor-not-allowed' : ''}`}
           title={mediaState.video ? 'Turn off camera' : 'Turn on camera'}
         >
           {mediaState.video ? <FaVideo size={20} /> : <FaVideoSlash size={20} />}
@@ -366,11 +382,11 @@ const handleToggleScreenShare = async () => {
                     className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white"
                   >
                     <option value="">Default</option>
-                      {deviceInfo.audioInputs.map((d, i) => (
-                        <option key={d.deviceId} value={d.deviceId}>
-                          {d.label || `Microphone ${i+1}`}
-                        </option>
-                      ))}
+                    {deviceInfo.audioInputs.map((d, i) => (
+                      <option key={d.deviceId} value={d.deviceId}>
+                        {d.label || `Microphone ${i+1}`}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -383,13 +399,32 @@ const handleToggleScreenShare = async () => {
                     className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white"
                   >
                     <option value="">Default</option>
-                    {deviceInfo.videoInputs.map((device) => (
+                    {deviceInfo.videoInputs.map((device, i) => (
                       <option key={device.deviceId} value={device.deviceId}>
-                        {device.label || `Camera ${device.deviceId.substring(0, 8)}`}
+                        {device.label || `Camera ${i+1}`}
                       </option>
                     ))}
                   </select>
                 </div>
+
+                {/* Speaker Selection (Chime supports this) */}
+                {deviceInfo.audioOutputs && deviceInfo.audioOutputs.length > 0 && (
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Speaker</label>
+                    <select
+                      value={deviceInfo.activeAudioOutputDevice || ''}
+                      onChange={(e) => handleDeviceChange(e.target.value, 'speaker')}
+                      className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white"
+                    >
+                      <option value="">Default</option>
+                      {deviceInfo.audioOutputs.map((device, i) => (
+                        <option key={device.deviceId} value={device.deviceId}>
+                          {device.label || `Speaker ${i+1}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -432,6 +467,11 @@ const handleToggleScreenShare = async () => {
               </div>
             </div>
           )}
+
+          {/* Chime SDK Info */}
+          <div className="text-xs text-gray-500 text-center pt-2 border-t border-gray-700">
+            Powered by Amazon Chime SDK
+          </div>
         </div>
       )}
     </div>

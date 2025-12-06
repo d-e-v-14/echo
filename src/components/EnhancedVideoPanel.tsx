@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useMemo, memo } from "react";
+import { VoiceVideoManager } from "@/lib/VoiceVideoManager";
 
 /* ---------------------- INLINE SVG ICONS (a11y-safe) ---------------------- */
 
@@ -198,33 +199,40 @@ interface MediaState {
 
 interface Participant {
   id: string;
-  userId: string;
+  oduserId: string;
   username?: string;
   stream: MediaStream | null;
   screenStream?: MediaStream | null;
+  tileId?: number; // Chime video tile ID for binding
+  isLocal?: boolean;
   mediaState: MediaState;
 }
 
 interface EnhancedVideoPanelProps {
-  localStream?: MediaStream | null;
-  localScreenStream?: MediaStream | null;
+  manager?: VoiceVideoManager | null;
   participants?: Participant[];
+  localVideoTileId?: number | null;
   localMediaState?: MediaState;
   currentUser?: { username: string };
   collapsed?: boolean;
   onParticipantVolumeChange?: (participantId: string, volume: number) => void;
+  // Legacy props for backward compatibility
+  localStream?: MediaStream | null;
+  localScreenStream?: MediaStream | null;
 }
 
 /* ---------------------------- PARTICIPANT TILE ---------------------------- */
 
 const ParticipantVideo = memo(function ParticipantVideo({
   participant,
+  manager,
   isLocal = false,
   isFullscreen = false,
   onToggleFullscreen,
   onVolumeChange
 }: {
   participant: Participant;
+  manager?: VoiceVideoManager | null;
   isLocal?: boolean;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
@@ -237,6 +245,7 @@ const ParticipantVideo = memo(function ParticipantVideo({
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [showControls, setShowControls] = useState(false);
+  const [isVideoBound, setIsVideoBound] = useState(false);
 
   const hasVideoState = !!participant.mediaState.video;
   const hasScreenShareStream = !!(participant.screenStream && participant.mediaState.screenSharing);
@@ -244,9 +253,64 @@ const ParticipantVideo = memo(function ParticipantVideo({
   const hasActiveVideoTrack =
     hasVideoStream && !!participant.stream?.getVideoTracks().some((t) => t.enabled);
 
-  const shouldShowScreenShare = hasScreenShareStream;
-  const shouldShowVideo = hasVideoState && hasActiveVideoTrack && !shouldShowScreenShare;
+  // Check if we have a Chime video tile to bind
+  const hasTileId = participant.tileId !== undefined && participant.tileId !== null;
+  
+  const shouldShowScreenShare = hasScreenShareStream || participant.mediaState.screenSharing;
+  // Show video if video state is ON - we need to render the <video> element
+  // so that Chime can bind the tile to it. Don't wait for tile ID.
+  const shouldShowVideo = hasVideoState && !shouldShowScreenShare;
 
+  // Debug logging
+  console.log(`[ParticipantVideo ${participant.username}] Render state:`, {
+    hasVideoState,
+    shouldShowScreenShare,
+    shouldShowVideo,
+    mediaState: participant.mediaState,
+    tileId: participant.tileId
+  });
+
+  // Bind Chime video tile to video element
+  useEffect(() => {
+    console.log(`[ParticipantVideo] Tile binding check for ${participant.username}:`, {
+      hasTileId: participant.tileId !== undefined,
+      tileId: participant.tileId,
+      hasManager: !!manager,
+      hasVideoRef: !!videoRef.current,
+      isLocal,
+      shouldShowVideo
+    });
+
+    if (manager && participant.tileId !== undefined && participant.tileId !== null && videoRef.current) {
+      console.log(`[ParticipantVideo] Binding tile ${participant.tileId} for ${participant.username} (isLocal: ${isLocal})`);
+      try {
+        manager.bindVideoElement(participant.tileId, videoRef.current);
+        setIsVideoBound(true);
+        
+        // Also try to play the video
+        videoRef.current.play().catch(err => {
+          console.warn(`[ParticipantVideo] Video play failed:`, err);
+        });
+      } catch (err) {
+        console.error(`[ParticipantVideo] Failed to bind video tile:`, err);
+      }
+    }
+
+    return () => {
+      // Unbind when unmounting or tile changes
+      if (manager && participant.tileId !== undefined && participant.tileId !== null && isVideoBound) {
+        console.log(`[ParticipantVideo] Unbinding tile ${participant.tileId} for ${participant.username}`);
+        try {
+          manager.unbindVideoElement(participant.tileId);
+          setIsVideoBound(false);
+        } catch (err) {
+          // Ignore errors on cleanup
+        }
+      }
+    };
+  }, [manager, participant.tileId, isLocal, shouldShowVideo]);
+
+  // Legacy: track video stream changes (for non-Chime usage)
   useEffect(() => {
     const tracks = participant.stream?.getVideoTracks() || [];
     const bump = () => setShowControls((s) => s);
@@ -264,7 +328,11 @@ const ParticipantVideo = memo(function ParticipantVideo({
     };
   }, [participant.stream]);
 
+  // Legacy: bind stream to video element (fallback if no Chime tile)
   useEffect(() => {
+    // Skip if we're using Chime tile binding
+    if (hasTileId && manager) return;
+
     const hasActiveCam =
       !!participant.stream && participant.stream.getVideoTracks().some((t) => t.enabled);
     if (videoRef.current && participant.stream && hasActiveCam) {
@@ -277,12 +345,12 @@ const ParticipantVideo = memo(function ParticipantVideo({
       videoRef.current.volume = isMuted ? 0 : volume;
     }
     return () => {
-      if (videoRef.current && !participant.stream) {
+      if (videoRef.current && !participant.stream && !hasTileId) {
         videoRef.current.pause();
         videoRef.current.srcObject = null;
       }
     };
-  }, [participant.stream, participant.mediaState.video, participant.mediaState.screenSharing, isMuted, volume]);
+  }, [participant.stream, participant.mediaState.video, participant.mediaState.screenSharing, isMuted, volume, hasTileId, manager]);
 
   useEffect(() => {
     if (screenRef.current && participant.screenStream && shouldShowScreenShare) {
@@ -379,6 +447,7 @@ const ParticipantVideo = memo(function ParticipantVideo({
           playsInline
           muted={isLocal}
           className={`w-full h-full object-cover ${isLocal ? "transform -scale-x-100" : ""}`}
+          style={{ backgroundColor: 'black' }}
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center bg-gray-800">
@@ -389,7 +458,7 @@ const ParticipantVideo = memo(function ParticipantVideo({
               </span>
             </div>
             <p className="text-sm text-gray-300">
-              {participant.username || `User ${participant.userId}`}
+              {participant.username || `User ${participant.oduserId}`}
             </p>
             {!participant.mediaState.video && (
               <p className="text-xs text-gray-500 mt-1">Camera off</p>
@@ -422,7 +491,7 @@ const ParticipantVideo = memo(function ParticipantVideo({
 
       <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 rounded px-2 py-1">
         <span className="text-xs text-white">
-          {participant.username || `User ${participant.userId}`}
+          {participant.username || `User ${participant.oduserId}`}
           {isLocal && ` (You)`}
         </span>
       </div>
@@ -478,38 +547,46 @@ const ParticipantVideo = memo(function ParticipantVideo({
     a.id === b.id &&
     a.stream === b.stream &&
     a.screenStream === b.screenStream &&
+    a.tileId === b.tileId &&
     a.mediaState.muted === b.mediaState.muted &&
     a.mediaState.speaking === b.mediaState.speaking &&
     a.mediaState.video === b.mediaState.video &&
     a.mediaState.screenSharing === b.mediaState.screenSharing &&
     prev.isLocal === next.isLocal &&
-    prev.isFullscreen === next.isFullscreen;
+    prev.isFullscreen === next.isFullscreen &&
+    prev.manager === next.manager;
   return same;
 });
 
 /* ----------------------------- VIDEO PANEL UI ----------------------------- */
 
 const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
-  localStream,
-  localScreenStream,
+  manager,
   participants = [],
+  localVideoTileId,
   localMediaState = { muted: false, speaking: false, video: false, screenSharing: false },
   currentUser,
   collapsed = false,
-  onParticipantVolumeChange
+  onParticipantVolumeChange,
+  // Legacy props
+  localStream,
+  localScreenStream
 }) => {
   const [fullscreenParticipant, setFullscreenParticipant] = useState<string | null>(null);
 
+  // Create local participant object
   const localParticipant: Participant = useMemo(
     () => ({
       id: "local",
-      userId: "local",
+      oduserId: "local",
       username: currentUser?.username || "You",
       stream: localStream || null,
       screenStream: localScreenStream || null,
+      tileId: localVideoTileId !== null ? localVideoTileId : undefined,
+      isLocal: true,
       mediaState: localMediaState
     }),
-    [currentUser?.username, localStream, localScreenStream, localMediaState]
+    [currentUser?.username, localStream, localScreenStream, localVideoTileId, localMediaState]
   );
 
   const allParticipants = useMemo(
@@ -555,7 +632,8 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
             <ParticipantVideo
               key={participant.id}
               participant={participant}
-              isLocal={participant.id === "local"}
+              manager={manager}
+              isLocal={participant.id === "local" || participant.isLocal}
               isFullscreen={participant.id === fullscreenParticipant}
               onToggleFullscreen={() => toggleFullscreen(participant.id)}
               onVolumeChange={(v) => handleParticipantVolumeChange(participant.id, v)}

@@ -1,19 +1,22 @@
 // src/components/EnhancedVoiceChannel.tsx
+// Enhanced voice channel component using Amazon Chime SDK
 
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
-import { VoiceVideoManager, createAuthSocket } from '@/socket';
+import { VoiceVideoManager, VideoTileInfo } from '@/lib/VoiceVideoManager';
 import VoiceVideoControls from './VoiceVideoControls';
 import EnhancedVideoPanel from './EnhancedVideoPanel';
-import { FaMicrophone, FaMicrophoneSlash, FaRedo, FaVideo, FaVideoSlash } from 'react-icons/fa';
+import { FaMicrophone, FaMicrophoneSlash, FaRedo, FaVideoSlash } from 'react-icons/fa';
 
 interface Participant {
   id: string;
-  userId: string;
+  oduserId: string;
   username?: string;
   stream: MediaStream | null;
   screenStream?: MediaStream | null;
+  tileId?: number; // Chime video tile ID for binding
+  isLocal?: boolean;
   mediaState: {
     muted: boolean;
     speaking: boolean;
@@ -45,7 +48,7 @@ interface EnhancedVoiceChannelProps {
   onRemoteStreamRemoved?: (id: string) => void;
   onVoiceRoster?: (members: any[]) => void;
   currentUser?: { username: string };
-  debug?: boolean; // Enable detailed logging for debugging
+  debug?: boolean;
 }
 
 const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
@@ -60,16 +63,16 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
   currentUser,
   debug = false
 }) => {
-  // Enhanced logging utility
+  // Debug logging utility
   const debugLog = (message: string, data?: any) => {
     if (debug) {
-      console.log(`🐛 [EnhancedVoiceChannel] ${message}`, data || '');
+      console.log(`[EnhancedVoiceChannel] ${message}`, data || '');
     }
   };
 
   const debugError = (message: string, error?: any) => {
     if (debug) {
-      console.error(`❌ [EnhancedVoiceChannel] ${message}`, error || '');
+      console.error(`[EnhancedVoiceChannel] ${message}`, error || '');
     } else {
       console.error(message, error);
     }
@@ -77,9 +80,10 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
 
   const debugWarn = (message: string, data?: any) => {
     if (debug) {
-      console.warn(`⚠️ [EnhancedVoiceChannel] ${message}`, data || '');
+      console.warn(`[EnhancedVoiceChannel] ${message}`, data || '');
     }
   };
+
   // State management
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [localScreenStream, setLocalScreenStream] = useState<MediaStream | null>(null);
@@ -106,131 +110,29 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
   const [voiceMembers, setVoiceMembers] = useState<any[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<string>('Disconnected');
   const [debugStatus, setDebugStatus] = useState<string>('Initializing...');
+  
+  // Video tiles tracking for Chime SDK
+  const [videoTiles, setVideoTiles] = useState<Map<number, VideoTileInfo>>(new Map());
+  const [localVideoTileId, setLocalVideoTileId] = useState<number | null>(null);
 
   // Refs
-  const socketRef = useRef<ReturnType<typeof createAuthSocket> | null>(null);
   const managerRef = useRef<VoiceVideoManager | null>(null);
   const isManagerInitialized = useRef(false);
-  const connectionTimeoutRef = useRef<NodeJS.Timeout>();
-  const statusCheckIntervalRef = useRef<NodeJS.Timeout>();
 
-  // Initialize socket and manager
+  // Initialize manager
   useEffect(() => {
     let isMounted = true;
     
-    if (!socketRef.current) {
-      debugLog('Creating socket for user:', userId);
-      const socket = createAuthSocket(userId);
-      const manager = new VoiceVideoManager(userId, socket);
-      socketRef.current = socket;
+    if (!managerRef.current) {
+      debugLog('Creating VoiceVideoManager (Chime) for user:', userId);
+      const manager = new VoiceVideoManager(userId);
       managerRef.current = manager;
-      
-      // Monitor socket connection status with enhanced handling
-      socket.on('connect', () => {
-        if (isMounted) {
-          const actuallyConnected = socket.connected;
-          debugLog(`Socket connect event fired. Actually connected: ${actuallyConnected}, Socket ID: ${socket.id}`);
-          setIsConnected(actuallyConnected);
-          setConnectionError(null);
-          setConnectionStatus(actuallyConnected ? 'Connected' : 'Connection Event But Not Connected');
-          setDebugStatus(actuallyConnected ? `Socket connected: ${socket.id}` : 'Connect event but socket not connected');
-          if (connectionTimeoutRef.current) {
-            clearTimeout(connectionTimeoutRef.current);
-          }
-        }
-      });
-      
-      // Set initial connection status with detailed checking
-      setTimeout(() => {
-        if (socket && isMounted) {
-          const actuallyConnected = socket.connected;
-          debugLog(`Initial status check - Socket connected: ${actuallyConnected}, Socket ID: ${socket.id || 'none'}`);
-          
-          setIsConnected(actuallyConnected);
-          
-          if (actuallyConnected) {
-            setConnectionError(null);
-            setConnectionStatus('Connected');
-            setDebugStatus(`Socket ready: ${socket.id}, initializing media...`);
-          } else {
-            setConnectionStatus('Connecting...');
-            setDebugStatus('Waiting for socket connection...');
-          }
-        }
-      }, 100);
-      
-      // Connection timeout with retry
-      connectionTimeoutRef.current = setTimeout(() => {
-        if (!socket.connected && isMounted) {
-          debugWarn('Connection timeout, retrying...');
-          socket.connect();
-        }
-      }, 5000);
-      
-      // Periodic status check with more detailed logging
-      statusCheckIntervalRef.current = setInterval(() => {
-        if (isMounted && socket) {
-          const actuallyConnected = socket.connected;
-          const currentState = isConnected;
-          
-          // Always update if there's a mismatch
-          if (actuallyConnected !== currentState) {
-            debugLog(`Socket state mismatch detected! Actual: ${actuallyConnected}, State: ${currentState}, Socket ID: ${socket.id || 'none'} - CORRECTING NOW`);
-            setIsConnected(actuallyConnected);
-            setConnectionStatus(actuallyConnected ? 'Connected' : 'Disconnected');
-            setDebugStatus(actuallyConnected ? `Connected: ${socket.id}` : 'Socket disconnected');
-            
-            if (actuallyConnected) {
-              setConnectionError(null);
-            }
-          }
-          
-          // Debug log every few seconds when debug is enabled
-          if (debug && Date.now() % 5000 < 1000) {
-            debugLog(`Health check - Socket: ${actuallyConnected}, State: ${currentState}, ID: ${socket.id || 'none'}`);
-          }
-        }
-      }, 1500); // Check more frequently
-      
-      socket.on('disconnect', (reason?: string) => {
-        if (isMounted) {
-          const actuallyConnected = socket.connected;
-          debugLog(`Socket disconnect event fired. Actually connected: ${actuallyConnected}, Reason: ${reason || 'Unknown'}`);
-          
-          setIsConnected(actuallyConnected);
-          setIsVoiceChannelConnected(false);
-          setConnectionStatus(actuallyConnected ? 'Connected (Disconnect Event)' : 'Disconnected');
-          setDebugStatus(`${actuallyConnected ? 'Disconnect event but still connected' : 'Disconnected'}: ${reason || 'Unknown reason'}`);
-          debugWarn('Socket disconnected:', reason);
-          
-          // Auto-reconnect for certain disconnect reasons
-          if (!actuallyConnected && (reason === 'io server disconnect' || reason === 'transport close')) {
-            setTimeout(() => {
-              if (!socket.connected && isMounted) {
-                setDebugStatus('Auto-reconnecting...');
-                debugLog('Auto-reconnecting...');
-                socket.connect();
-              }
-            }, 2000);
-          }
-        }
-      });
-      
-      socket.on('connect_error', (error: any) => {
-        if (isMounted) {
-          setIsConnected(false);
-          setConnectionStatus('Connection Error');
-          setDebugStatus(`Connection failed: ${error.message || 'Unknown error'}`);
-          setConnectionError(`Connection failed: ${error.message || 'Unknown error'}`);
-          debugError('Connection error:', error);
-        }
-      });
     }
 
     const manager = managerRef.current;
     if (!manager) return;
 
-    // Initialize the manager and set up all event listeners once
+    // Initialize the manager and set up all event listeners
     const setupManagerAndListeners = async () => {
       if (!isManagerInitialized.current) {
         try {
@@ -240,10 +142,8 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
           
           // Try to initialize with graceful degradation
           try {
-            await manager.initialize(true, true); // Get permissions for both audio and video
-            // But turn video OFF by default - let user explicitly turn it ON
-            manager.toggleVideo(false);
-            setDebugStatus('Media permissions granted, video OFF by default');
+            await manager.initialize(true, true);
+            setDebugStatus('Media permissions granted');
           } catch (fullError: any) {
             debugWarn("Full permissions failed, trying graceful degradation:", fullError);
             setDebugStatus('Trying audio-only fallback...');
@@ -265,7 +165,7 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
               } catch (videoError: any) {
                 debugError("All initialization attempts failed:", videoError);
                 setDebugStatus('Media initialization failed');
-                throw fullError; // Throw original error if all fail
+                throw fullError;
               }
             }
           }
@@ -276,9 +176,11 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
             setHasAnyPermissions(hasAnyPerms);
             setLocalMediaState(manager.getMediaState());
             setIsInitializing(false);
+            setIsConnected(true);
             
             if (hasAnyPerms) {
               setDebugStatus('Media ready, waiting for voice channel...');
+              setConnectionStatus('Connected');
             } else {
               setDebugStatus('No media permissions available');
             }
@@ -291,7 +193,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
               } else if (permissions.audio && !permissions.video) {
                 setPermissionError('Audio-only mode: Camera access denied. You can still use voice features.');
               }
-              // If we have both, don't show any error
             }
           }
           isManagerInitialized.current = true;
@@ -302,8 +203,7 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
             
             // Check if manager has any permissions despite the error
             if (manager && manager.hasAnyPermissions()) {
-              const hasAnyPerms = manager.hasAnyPermissions();
-              setHasAnyPermissions(hasAnyPerms);
+              setHasAnyPermissions(true);
               setLocalStream(manager.getLocalStream());
               setLocalMediaState(manager.getMediaState());
               
@@ -317,7 +217,7 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
               }
             } else {
               // No permissions at all - provide helpful error messages
-              if (error?.name === 'NotAllowedError') {
+              if (error?.name === 'NotAllowedError' || error?.message?.includes('permission')) {
                 setPermissionError('Camera and microphone access denied. Please click the camera/microphone icon in your browser address bar and allow permissions, then refresh the page.');
               } else if (error?.name === 'NotFoundError') {
                 setPermissionError('No camera or microphone found. Please connect a device and refresh the page.');
@@ -357,7 +257,7 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
               // Add new participant
               const newParticipant: Participant = {
                 id: peerId,
-                userId: peerId,
+                oduserId: peerId,
                 username: `User ${peerId.substring(0, 8)}`,
                 stream: type === 'video' ? stream : null,
                 screenStream: type === 'screen' ? stream : undefined,
@@ -383,73 +283,75 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
         }
       });
 
-      const toId = (v: any) => String(v ?? '');
-
-
       manager.onVoiceRoster((members: any[]) => {
-          if (isMounted) {
-            debugLog("Voice roster update:", members);
-            setDebugStatus(`Voice roster received: ${members.length} members`);
-            setVoiceMembers(members);
-
-            // helper (put this once near the top of the component, not inside the callback)
-            // const toId = (v: any) => String(v ?? '');
-
-            const voiceParticipants: Participant[] = members.map(member => {
-              const sid = toId(member.socketId || member.id);
-              const uid = toId(member.userId || member.user_id);
-              return {
-                id: sid,                // ALWAYS key by socketId
-                userId: uid,
-                username: member.username || member.name || `User ${uid.slice(0, 8)}`,
-                stream: null,           // will be preserved by merge below if already present
-                screenStream: undefined,
-                mediaState: {
-                  muted: !!member.muted,
-                  speaking: !!member.speaking,
-                  video: !!member.video,
-                  screenSharing: !!member.screenSharing
-                }
-              };
-            });
-
-            // ⬇️ Replace your existing setParticipants(...) here with this:
-            setParticipants(prev => {
-              const prevById = new Map(prev.map(p => [p.id, p]));
-              // Merge roster with existing participants, preserving any live streams
-              const merged = voiceParticipants.map(vp => {
-                const ex = prevById.get(vp.id);
-                return ex
-                  ? { ...vp, stream: ex.stream, screenStream: ex.screenStream }
-                  : vp;
-              });
-              // Keep anyone who still has a live stream but wasn't in this roster tick (server lag, etc.)
-              prev.forEach(p => {
-                if (!prevById.has(p.id) && (p.stream || p.screenStream)) merged.push(p);
-              });
-              return merged;
-            });
-
-            onVoiceRoster?.(members);
-          }
-        });
-
-
-      manager.onUserJoined((socketId: string, userId: string) => {
-        debugLog("User joined enhanced voice channel:", { socketId, userId });
-        setDebugStatus(`User joined: ${userId.substring(0, 8)}`);
         if (isMounted) {
-          // Add new member to voice states if not already present
+          debugLog("Voice roster update:", members);
+          setDebugStatus(`Voice roster received: ${members.length} members`);
+          setVoiceMembers(members);
+
+          // Get local attendee ID to filter out local user from roster
+          const localAttendeeId = manager.getLocalAttendeeId();
+          debugLog("Local attendee ID:", localAttendeeId);
+
+          // Filter out local user from the roster to avoid duplicates
+          // (local user is handled separately via localVideoTileId)
+          const remoteMembers = members.filter(member => {
+            const attendeeId = String(member.attendeeId || member.odattendeeId || member.id || '');
+            return attendeeId !== localAttendeeId;
+          });
+
+          debugLog("Remote members after filtering:", remoteMembers.length);
+
+          const voiceParticipants: Participant[] = remoteMembers.map(member => {
+            const odattendeeId = String(member.odattendeeId || member.attendeeId || member.id || '');
+            const oduserId = String(member.oduserId || member.userId || member.user_id || member.name || '');
+            return {
+              id: odattendeeId,
+              oduserId: oduserId,
+              username: member.odName || member.username || member.name || `User ${oduserId.slice(0, 8)}`,
+              stream: null,
+              screenStream: undefined,
+              isLocal: false,
+              mediaState: {
+                muted: !!member.muted,
+                speaking: !!member.speaking,
+                video: !!member.video,
+                screenSharing: !!member.screenSharing
+              }
+            };
+          });
+
+          // Merge roster with existing participants, preserving video tile IDs
+          setParticipants(prev => {
+            const prevById = new Map(prev.map(p => [p.id, p]));
+            const merged = voiceParticipants.map(vp => {
+              const ex = prevById.get(vp.id);
+              return ex
+                ? { ...vp, stream: ex.stream, screenStream: ex.screenStream, tileId: ex.tileId }
+                : vp;
+            });
+            return merged;
+          });
+
+          onVoiceRoster?.(members);
+          setIsVoiceChannelConnected(true);
+        }
+      });
+
+      manager.onUserJoined((odattendeeId: string, oduserId: string) => {
+        debugLog("User joined enhanced voice channel:", { odattendeeId, oduserId });
+        setDebugStatus(`User joined: ${oduserId.substring(0, 8)}`);
+        if (isMounted) {
           setVoiceMembers(prev => {
-            const exists = prev.find(m => m.socketId === socketId);
+            const exists = prev.find(m => m.odattendeeId === odattendeeId);
             if (!exists) {
               return [...prev, {
-                socketId,
-                userId,
-                username: `User ${userId.substring(0, 8)}`,
+                odattendeeId,
+                oduserId,
+                username: `User ${oduserId.substring(0, 8)}`,
                 muted: false,
                 speaking: false,
-                video: true
+                video: false
               }];
             }
             return prev;
@@ -457,42 +359,44 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
         }
       });
 
-      manager.onMediaState((socketId: string, userId: string, state: any) => {
-        console.log("🎤 Enhanced media state update:", { socketId, userId, state });
+      // onMediaState now has 2 params: (attendeeId, state)
+      manager.onMediaState((attendeeId: string, state: any) => {
+        console.log("Enhanced media state update:", { attendeeId, state });
         if (isMounted) {
           // Update participants
           setParticipants(prev => prev.map(p => 
-            p.id === socketId 
+            p.id === attendeeId 
               ? { ...p, mediaState: { ...p.mediaState, ...state } }
               : p
           ));
           
           // Update voice members
           setVoiceMembers(prev => prev.map(member => 
-            member.socketId === socketId 
+            member.odattendeeId === attendeeId 
               ? { ...member, ...state }
               : member
           ));
         }
       });
 
-      manager.onScreenSharing((socketId: string, userId: string, isSharing: boolean) => {
-        console.log("Screen sharing update:", { socketId, userId, isSharing });
+      // onScreenSharing now has 2 params: (attendeeId, isSharing)
+      manager.onScreenSharing((attendeeId: string, isSharing: boolean) => {
+        console.log("Screen sharing update:", { attendeeId, isSharing });
         if (isMounted) {
           setParticipants(prev => prev.map(p => 
-            p.id === socketId 
+            p.id === attendeeId 
               ? { ...p, mediaState: { ...p.mediaState, screenSharing: isSharing } }
               : p
           ));
         }
       });
 
-        manager.onRecording((event) => {
-          setLocalMediaState(prev => ({
-            ...prev,
-            recording: event === 'started' || event === 'started_confirmation'
-          }));
-        });
+      manager.onRecording((event) => {
+        setLocalMediaState(prev => ({
+          ...prev,
+          recording: event === 'started' || event === 'started_confirmation'
+        }));
+      });
 
       manager.onError((error: any) => {
         console.error("Enhanced voice error:", error);
@@ -501,14 +405,11 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
             case 'VOICE_AUTH_FAILED':
               setConnectionError('Authentication failed. Please log in again.');
               break;
-            case 'VOICE_WEBRTC_SIGNALING_FAILED':
-              setConnectionError('Connection failed. Retrying...');
+            case 'VOICE_JOIN_FAILED':
+              setConnectionError('Failed to join voice channel. Please try again.');
               break;
             case 'VOICE_NETWORK_ERROR':
               setConnectionError('Network error. Please check your connection.');
-              break;
-            case 'RECONNECTION_FAILED':
-              setConnectionError('Failed to reconnect. Please refresh the page.');
               break;
             default:
               setConnectionError(error.message || 'An unknown error occurred.');
@@ -516,8 +417,78 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
         }
       });
 
-      manager.onNetworkQuality((stats) => {
-        // Network quality updates can be handled here for UI indicators
+      // VIDEO TILE HANDLERS (Chime SDK)
+      // When a video tile is created/updated, track it
+      manager.onVideoTileUpdated((tile: VideoTileInfo) => {
+        if (isMounted) {
+          debugLog('Video tile updated:', tile);
+          setDebugStatus(`Video tile ${tile.tileId} updated (local: ${tile.isLocal}, active: ${tile.active})`);
+          
+          // Track the tile
+          setVideoTiles(prev => {
+            const newMap = new Map(prev);
+            newMap.set(tile.tileId, tile);
+            return newMap;
+          });
+
+          // Track local video tile ID
+          if (tile.isLocal) {
+            setLocalVideoTileId(tile.tileId);
+          }
+
+          // Update participants with tile info
+          if (tile.attendeeId && tile.active) {
+            setParticipants(prev => {
+              const existingIndex = prev.findIndex(p => p.id === tile.attendeeId);
+              
+              if (existingIndex >= 0) {
+                // Update existing participant with tile ID
+                const updated = [...prev];
+                updated[existingIndex] = {
+                  ...updated[existingIndex],
+                  tileId: tile.tileId,
+                  isLocal: tile.isLocal,
+                  mediaState: {
+                    ...updated[existingIndex].mediaState,
+                    video: true,
+                    screenSharing: tile.isContent
+                  }
+                };
+                return updated;
+              }
+              return prev;
+            });
+          }
+        }
+      });
+
+      // When a video tile is removed, clean it up
+      manager.onVideoTileRemoved((tileId: number) => {
+        if (isMounted) {
+          debugLog('Video tile removed:', tileId);
+          setDebugStatus(`Video tile ${tileId} removed`);
+          
+          // Get tile info before removing
+          setVideoTiles(prev => {
+            const tile = prev.get(tileId);
+            const newMap = new Map(prev);
+            newMap.delete(tileId);
+            
+            // Update participant to remove video state
+            if (tile?.attendeeId) {
+              setParticipants(prevParts => prevParts.map(p => 
+                p.id === tile.attendeeId
+                  ? { ...p, tileId: undefined, mediaState: { ...p.mediaState, video: false } }
+                  : p
+              ));
+            }
+            
+            return newMap;
+          });
+
+          // Clear local tile ID if it was the local tile
+          setLocalVideoTileId(prev => prev === tileId ? null : prev);
+        }
       });
     };
 
@@ -525,43 +496,17 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
     
     return () => {
       isMounted = false;
-      if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
-      if (statusCheckIntervalRef.current) clearInterval(statusCheckIntervalRef.current);
-      if (managerRef.current) managerRef.current.disconnect();
-      if (socketRef.current) {
-        socketRef.current.off();      // safe clear for this socket instance
-        if (socketRef.current.connected) socketRef.current.disconnect();
+      if (managerRef.current) {
+        managerRef.current.disconnect();
       }
     };
-
   }, [userId]);
 
-  // Immediate state check effect - runs when socket ref changes
-useEffect(() => {
-  const socket = socketRef.current;
-  if (!socket) return;
-  const actuallyConnected = socket.connected;
-  if (actuallyConnected !== isConnected) {
-    setIsConnected(actuallyConnected);
-    setConnectionStatus(actuallyConnected ? 'Connected' : 'Disconnected');
-    setDebugStatus(actuallyConnected ? `Connected: ${socket.id}` : 'Socket disconnected');
-    if (actuallyConnected) setConnectionError(null);
-  }
-}, [isConnected]); // ← remove socketRef.current from deps
-
-
-  // Handle channel changes
+  // Handle channel changes - join the voice channel
   useEffect(() => {
     const manager = managerRef.current;
-    const socket = socketRef.current;
     
     if (!manager || !isManagerInitialized.current) return;
-    
-    if (!socket?.connected) {
-      debugLog('Waiting for socket connection...');
-      setDebugStatus('Waiting for socket connection...');
-      return;
-    }
     
     if (!hasAnyPermissions) {
       debugLog('Waiting for media permissions...');
@@ -574,25 +519,9 @@ useEffect(() => {
         debugLog('Joining voice channel:', channelId);
         setDebugStatus(`Joining voice channel: ${channelId}`);
         setIsVoiceChannelConnected(false);
-        manager.leaveVoiceChannel();
         await manager.joinVoiceChannel(channelId);
         
-        // after await manager.joinVoiceChannel(channelId);
         setDebugStatus('Voice channel join request sent');
-
-        // listen once to first remote stream or a roster echo to mark connected
-        manager.onStream((_s, _peerId) => {
-          setIsVoiceChannelConnected(true);
-          setDebugStatus(`Media flowing`);
-        });
-
-        // optionally also flip when a roster arrives containing self or peers
-        manager.onVoiceRoster((members) => {
-          if (members && members.length > 0) {
-            setIsVoiceChannelConnected(true);
-          }
-        });
-
         
         // Update local streams
         setLocalStream(manager.getLocalStream());
@@ -601,9 +530,9 @@ useEffect(() => {
         
         onLocalStreamChange?.(manager.getLocalStream());
       
-      } catch (error) {
+      } catch (error: any) {
         debugError('Failed to join voice channel:', error);
-        setDebugStatus(`Failed to join voice channel: ${error}`);
+        setDebugStatus(`Failed to join voice channel: ${error.message}`);
         setPermissionError('Failed to connect to voice channel. Please check your connection and try again.');
       }
     };
@@ -619,7 +548,7 @@ useEffect(() => {
       setIsVoiceChannelConnected(false);
       setDebugStatus('Disconnected from voice channel');
     };
-  }, [channelId, onLocalStreamChange, hasAnyPermissions, isConnected]);
+  }, [channelId, onLocalStreamChange, hasAnyPermissions]);
 
   // Update local media state periodically
   useEffect(() => {
@@ -652,7 +581,6 @@ useEffect(() => {
       console.error("Failed to retry permissions:", error);
       setIsInitializing(false);
       
-      // Check if we got partial permissions
       if (manager && manager.hasAnyPermissions()) {
         setHasAnyPermissions(true);
         setLocalStream(manager.getLocalStream());
@@ -710,40 +638,19 @@ useEffect(() => {
     }
   };
 
- const handleManualReconnection = () => {
-  const socket = socketRef.current;
-  if (!socket) return;
-  setConnectionError(null);
-
-  if (socket.connected) {
-    setIsConnected(true);
-    setConnectionStatus('Connected');
-    setDebugStatus(`Connected: ${socket.id}`);
-    return;
-  }
-
-  setDebugStatus('Manual reconnection…');
-  socket.connect();
-};
-
-
-  // Function to refresh connection state
-  const refreshConnectionState = () => {
-    const socket = socketRef.current;
-    if (socket) {
-      const actuallyConnected = socket.connected;
-      debugLog(`MANUAL REFRESH - Socket connected: ${actuallyConnected}, Current state: ${isConnected}, ID: ${socket.id || 'none'}`);
-      
-      // Force update the state regardless
-      setIsConnected(actuallyConnected);
-      setConnectionStatus(actuallyConnected ? 'Connected' : 'Disconnected');
-      setDebugStatus(actuallyConnected ? `Connected: ${socket.id}` : 'Socket disconnected');
-      
-      if (actuallyConnected) {
-        setConnectionError(null);
-      }
-      
-      debugLog(`MANUAL REFRESH COMPLETE - New state: ${actuallyConnected}`);
+  const handleManualReconnection = async () => {
+    const manager = managerRef.current;
+    if (!manager) return;
+    
+    setConnectionError(null);
+    setDebugStatus('Manual reconnection...');
+    
+    try {
+      await manager.joinVoiceChannel(channelId);
+      setIsConnected(true);
+      setConnectionStatus('Connected');
+    } catch (error: any) {
+      setConnectionError(`Reconnection failed: ${error.message}`);
     }
   };
 
@@ -837,6 +744,19 @@ useEffect(() => {
     );
   }
 
+  // Convert Participant[] to expected format for EnhancedVideoPanel
+  // Include tile IDs for proper Chime video binding
+  const panelParticipants = participants.map(p => ({
+    id: p.id,
+    oduserId: p.oduserId,
+    username: p.username,
+    stream: p.stream,
+    screenStream: p.screenStream,
+    tileId: p.tileId,
+    isLocal: p.isLocal || false,
+    mediaState: p.mediaState
+  }));
+
   return (
     <div className="flex flex-col h-full bg-gray-900">
       {/* Partial permissions warning */}
@@ -865,9 +785,9 @@ useEffect(() => {
       {/* Video Panel */}
       <div className="flex-1">
         <EnhancedVideoPanel
-          localStream={localStream}
-          localScreenStream={localScreenStream}
-          participants={participants}
+          manager={managerRef.current}
+          participants={panelParticipants}
+          localVideoTileId={localVideoTileId}
           localMediaState={localMediaState}
           currentUser={currentUser}
           collapsed={false}
@@ -936,24 +856,8 @@ useEffect(() => {
               <span className="text-xs font-mono text-blue-400">DEBUG:</span>
               <span className="text-xs font-mono text-gray-300">{debugStatus}</span>
             </div>
-            <button
-              onClick={refreshConnectionState}
-              className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 rounded"
-              title="Refresh connection state"
-            >
-              Refresh
-            </button>
           </div>
           <div className="flex items-center space-x-4 mt-1">
-            <div className="flex items-center space-x-1">
-              <span className="text-xs font-mono text-green-400">SOCKET:</span>
-              <span className="text-xs font-mono text-gray-300">
-                {socketRef.current?.connected ? 'Connected' : 'Disconnected'}
-              </span>
-              <span className="text-xs font-mono text-gray-500">
-                (ID: {socketRef.current?.id || 'none'})
-              </span>
-            </div>
             <div className="flex items-center space-x-1">
               <span className="text-xs font-mono text-purple-400">STATE:</span>
               <span className="text-xs font-mono text-gray-300">
@@ -988,11 +892,11 @@ useEffect(() => {
           <div className="flex flex-wrap gap-2">
             {voiceMembers.map(member => (
               <div 
-                key={member.socketId || member.id}
+                key={member.odattendeeId || member.id}
                 className="flex items-center space-x-2 bg-gray-700 rounded-full px-3 py-1"
               >
                 <span className="text-xs text-white truncate max-w-20">
-                  {member.username || `User ${(member.userId || member.id).substring(0, 8)}`}
+                  {member.username || member.odName || `User ${(member.oduserId || member.id || '').substring(0, 8)}`}
                 </span>
                 <div className="flex space-x-1">
                   {member.muted && (
