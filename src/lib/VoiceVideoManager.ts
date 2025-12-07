@@ -33,6 +33,7 @@ import {
   ContentShareObserver,
   MeetingSessionStatus,
   DeviceChangeObserver,
+  VideoSource,
 } from 'amazon-chime-sdk-js';
 
 import axios from 'axios';
@@ -751,6 +752,11 @@ export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserv
    * - You bind tiles to <video> elements using bindVideoElement(tileId, element)
    * - Local tile has localTile=true
    * - Content share tiles have isContent=true
+   * 
+   * NOTE: For REMOTE video state, we rely on remoteVideoSourcesDidChange() as the
+   * authoritative source. This callback is only used for:
+   * - Tracking local video state
+   * - Notifying UI about tile creation for binding video elements
    */
   videoTileDidUpdate(tileState: VideoTileState): void {
     if (!tileState.tileId) return;
@@ -771,18 +777,15 @@ export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserv
 
     console.log('[VoiceVideoManager] Video tile updated:', tileInfo);
 
-    // IMPORTANT: Sync video state with roster member
-    // This ensures the roster reflects the actual video tile state
-    if (tileState.boundAttendeeId && !tileState.isContent) {
+    // Only update video state for LOCAL tiles here
+    // Remote video state is handled by remoteVideoSourcesDidChange() to avoid race conditions
+    if (tileState.localTile && tileState.boundAttendeeId && !tileState.isContent) {
       const rosterMember = this.roster.get(tileState.boundAttendeeId);
       if (rosterMember) {
         const hadVideo = rosterMember.video;
         rosterMember.video = tileState.active || false;
-        console.log(`[VoiceVideoManager] Updated roster member ${tileState.boundAttendeeId} video state: ${hadVideo} -> ${rosterMember.video}`);
-        // Broadcast roster update so UI reflects the change
+        console.log(`[VoiceVideoManager] Updated LOCAL roster member ${tileState.boundAttendeeId} video state: ${hadVideo} -> ${rosterMember.video}`);
         this.broadcastRoster();
-      } else {
-        console.log(`[VoiceVideoManager] No roster member found for attendee ${tileState.boundAttendeeId}, tile will be tracked separately`);
       }
     }
 
@@ -797,6 +800,9 @@ export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserv
 
   /**
    * Called when a video tile is removed
+   * 
+   * NOTE: For REMOTE video state, we rely on remoteVideoSourcesDidChange() as the
+   * authoritative source. This callback only handles local tiles and screen sharing.
    */
   videoTileWasRemoved(tileId: number): void {
     const tileInfo = this.videoTiles.get(tileId);
@@ -807,14 +813,13 @@ export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserv
       this.callbacks.onScreenSharing?.(baseAttendeeId, false);
     }
 
-    // IMPORTANT: Sync video state with roster member when tile is removed
-    // This ensures the roster reflects that video is now OFF
-    if (tileInfo?.attendeeId && !tileInfo.isContent) {
+    // Only update video state for LOCAL tiles here
+    // Remote video state is handled by remoteVideoSourcesDidChange() to avoid race conditions
+    if (tileInfo?.isLocal && tileInfo?.attendeeId && !tileInfo.isContent) {
       const rosterMember = this.roster.get(tileInfo.attendeeId);
       if (rosterMember) {
-        console.log(`[VoiceVideoManager] Setting roster member ${tileInfo.attendeeId} video state to false (tile removed)`);
+        console.log(`[VoiceVideoManager] Setting LOCAL roster member ${tileInfo.attendeeId} video state to false (tile removed)`);
         rosterMember.video = false;
-        // Broadcast roster update so UI reflects the change
         this.broadcastRoster();
       }
     }
@@ -842,6 +847,43 @@ export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserv
     console.warn('[VoiceVideoManager] Suggestion to stop video due to poor connection');
   }
 
+  /**
+   * Called when remote video sources change (participants turn video on/off)
+   * This is the PRIMARY callback for detecting remote video state changes!
+   */
+  remoteVideoSourcesDidChange(videoSources: VideoSource[]): void {
+    console.log('[VoiceVideoManager] *** remoteVideoSourcesDidChange called ***');
+    console.log('[VoiceVideoManager] Video sources count:', videoSources.length);
+    console.log('[VoiceVideoManager] Video sources:', videoSources.map(vs => ({
+      attendeeId: vs.attendee?.attendeeId,
+      externalUserId: vs.attendee?.externalUserId
+    })));
+
+    // Get set of attendee IDs that currently have video
+    const attendeesWithVideo = new Set(
+      videoSources.map(source => source.attendee?.attendeeId).filter(Boolean)
+    );
+
+    console.log('[VoiceVideoManager] Attendees with video:', Array.from(attendeesWithVideo));
+
+    // Update all roster members' video state
+    let hasChanges = false;
+    this.roster.forEach((member, attendeeId) => {
+      const hasVideo = attendeesWithVideo.has(attendeeId);
+      if (member.video !== hasVideo) {
+        console.log(`[VoiceVideoManager] Updating ${attendeeId} video state: ${member.video} -> ${hasVideo}`);
+        member.video = hasVideo;
+        hasChanges = true;
+      }
+    });
+
+    // Broadcast roster update if there were changes
+    if (hasChanges) {
+      console.log('[VoiceVideoManager] Broadcasting roster update after video source change');
+      this.broadcastRoster();
+    }
+  }
+
   // ==================== ATTENDEE/ROSTER MANAGEMENT ====================
 
   /**
@@ -851,6 +893,9 @@ export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserv
    * The SDK notifies us when attendees join or leave.
    * We maintain a roster map and subscribe to volume indicators
    * for each attendee to track mute/speaking state.
+   * 
+   * NOTE: Video state is handled by remoteVideoSourcesDidChange() - we always
+   * start with video: false here and let that callback update it.
    */
   private handleAttendeePresence(attendeeId: string, present: boolean, externalUserId?: string): void {
     // Skip content share attendees for the main roster
@@ -859,20 +904,22 @@ export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserv
     const userId = externalUserId || attendeeId;
 
     if (present) {
-      // Attendee joined
+      // Attendee joined - start with video: false
+      // remoteVideoSourcesDidChange() will update this if they have video
       const member: VoiceRosterMember = {
         name: userId,
         attendeeId,
         oduserId: userId,
         muted: false,
         speaking: false,
-        video: false,
+        video: false,  // Always start false, remoteVideoSourcesDidChange handles video state
         screenSharing: false,
         signalStrength: 1
       };
 
       this.roster.set(attendeeId, member);
       this.callbacks.onUserJoined?.(attendeeId, userId);
+      console.log('[VoiceVideoManager] Attendee joined:', { attendeeId, userId });
 
       // Subscribe to volume indicator for this attendee
       this.audioVideo?.realtimeSubscribeToVolumeIndicator(
