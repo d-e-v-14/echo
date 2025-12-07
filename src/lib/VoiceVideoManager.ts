@@ -770,6 +770,22 @@ export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserv
     }
 
     console.log('[VoiceVideoManager] Video tile updated:', tileInfo);
+
+    // IMPORTANT: Sync video state with roster member
+    // This ensures the roster reflects the actual video tile state
+    if (tileState.boundAttendeeId && !tileState.isContent) {
+      const rosterMember = this.roster.get(tileState.boundAttendeeId);
+      if (rosterMember) {
+        const hadVideo = rosterMember.video;
+        rosterMember.video = tileState.active || false;
+        console.log(`[VoiceVideoManager] Updated roster member ${tileState.boundAttendeeId} video state: ${hadVideo} -> ${rosterMember.video}`);
+        // Broadcast roster update so UI reflects the change
+        this.broadcastRoster();
+      } else {
+        console.log(`[VoiceVideoManager] No roster member found for attendee ${tileState.boundAttendeeId}, tile will be tracked separately`);
+      }
+    }
+
     this.callbacks.onVideoTileUpdated?.(tileInfo);
 
     // If this is a content share, update screen sharing state
@@ -785,9 +801,22 @@ export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserv
   videoTileWasRemoved(tileId: number): void {
     const tileInfo = this.videoTiles.get(tileId);
     
+    // Handle content share (screen sharing) removal
     if (tileInfo?.isContent && tileInfo.attendeeId) {
       const baseAttendeeId = tileInfo.attendeeId.split('#')[0];
       this.callbacks.onScreenSharing?.(baseAttendeeId, false);
+    }
+
+    // IMPORTANT: Sync video state with roster member when tile is removed
+    // This ensures the roster reflects that video is now OFF
+    if (tileInfo?.attendeeId && !tileInfo.isContent) {
+      const rosterMember = this.roster.get(tileInfo.attendeeId);
+      if (rosterMember) {
+        console.log(`[VoiceVideoManager] Setting roster member ${tileInfo.attendeeId} video state to false (tile removed)`);
+        rosterMember.video = false;
+        // Broadcast roster update so UI reflects the change
+        this.broadcastRoster();
+      }
     }
 
     this.videoTiles.delete(tileId);

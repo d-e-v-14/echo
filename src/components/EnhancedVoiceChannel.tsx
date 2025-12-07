@@ -321,14 +321,29 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
             };
           });
 
-          // Merge roster with existing participants, preserving video tile IDs
+          // Merge roster with existing participants, preserving video tile IDs and video state
           setParticipants(prev => {
             const prevById = new Map(prev.map(p => [p.id, p]));
             const merged = voiceParticipants.map(vp => {
-              const ex = prevById.get(vp.id);
-              return ex
-                ? { ...vp, stream: ex.stream, screenStream: ex.screenStream, tileId: ex.tileId }
-                : vp;
+              const existing = prevById.get(vp.id);
+              if (existing) {
+                // IMPORTANT: Preserve video state if we have a tileId OR if roster says video is on
+                // This prevents race conditions where roster update overwrites video tile state
+                const preserveVideoState = existing.tileId !== undefined || vp.mediaState.video;
+                return {
+                  ...vp,
+                  stream: existing.stream,
+                  screenStream: existing.screenStream,
+                  tileId: existing.tileId,
+                  mediaState: {
+                    ...vp.mediaState,
+                    // Use roster video state (which is now synced from VoiceVideoManager)
+                    // but if we have a tileId and roster says false, keep true (tile is source of truth)
+                    video: existing.tileId !== undefined ? (vp.mediaState.video || existing.mediaState.video) : vp.mediaState.video,
+                  }
+                };
+              }
+              return vp;
             });
             return merged;
           });
@@ -436,13 +451,13 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
             setLocalVideoTileId(tile.tileId);
           }
 
-          // Update participants with tile info
-          if (tile.attendeeId && tile.active) {
+          // Update participants with tile info (for remote participants only)
+          if (tile.attendeeId && tile.active && !tile.isLocal) {
             setParticipants(prev => {
               const existingIndex = prev.findIndex(p => p.id === tile.attendeeId);
               
               if (existingIndex >= 0) {
-                // Update existing participant with tile ID
+                // Update existing participant with tile ID and video state
                 const updated = [...prev];
                 updated[existingIndex] = {
                   ...updated[existingIndex],
@@ -454,9 +469,29 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
                     screenSharing: tile.isContent
                   }
                 };
+                debugLog(`Updated existing participant ${tile.attendeeId} with tileId ${tile.tileId}`);
                 return updated;
+              } else {
+                // IMPORTANT: Video tile arrived before roster - create placeholder participant
+                // This handles race conditions where video tiles arrive before roster updates
+                debugLog(`Creating placeholder participant for ${tile.attendeeId} (tile arrived before roster)`);
+                const newParticipant: Participant = {
+                  id: tile.attendeeId,
+                  oduserId: tile.attendeeId,
+                  username: `User ${tile.attendeeId.slice(0, 8)}`,
+                  stream: null,
+                  screenStream: undefined,
+                  tileId: tile.tileId,
+                  isLocal: false,
+                  mediaState: {
+                    muted: false,
+                    speaking: false,
+                    video: true,
+                    screenSharing: tile.isContent
+                  }
+                };
+                return [...prev, newParticipant];
               }
-              return prev;
             });
           }
         }
