@@ -452,12 +452,15 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
           }
 
           // Update participants with tile info (for remote participants only)
-          if (tile.attendeeId && tile.active && !tile.isLocal) {
+          // IMPORTANT: Don't wait for tile.active - assign tileId immediately so UI can bind
+          // The tile may not be "active" yet but we need the tileId for binding
+          if (tile.attendeeId && !tile.isLocal) {
             setParticipants(prev => {
               const existingIndex = prev.findIndex(p => p.id === tile.attendeeId);
               
               if (existingIndex >= 0) {
-                // Update existing participant with tile ID and video state
+                // Update existing participant with tile ID
+                // Only set video: true if tile is active, but ALWAYS set tileId
                 const updated = [...prev];
                 updated[existingIndex] = {
                   ...updated[existingIndex],
@@ -465,16 +468,17 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
                   isLocal: tile.isLocal,
                   mediaState: {
                     ...updated[existingIndex].mediaState,
-                    video: true,
-                    screenSharing: tile.isContent
+                    // Only set video true if tile is active, preserve existing state otherwise
+                    video: tile.active ? true : updated[existingIndex].mediaState.video,
+                    screenSharing: tile.isContent ? true : updated[existingIndex].mediaState.screenSharing
                   }
                 };
-                debugLog(`Updated existing participant ${tile.attendeeId} with tileId ${tile.tileId}`);
+                debugLog(`Updated participant ${tile.attendeeId} with tileId ${tile.tileId} (active: ${tile.active})`);
                 return updated;
               } else {
                 // IMPORTANT: Video tile arrived before roster - create placeholder participant
                 // This handles race conditions where video tiles arrive before roster updates
-                debugLog(`Creating placeholder participant for ${tile.attendeeId} (tile arrived before roster)`);
+                debugLog(`Creating placeholder participant for ${tile.attendeeId} (tile arrived before roster, active: ${tile.active})`);
                 const newParticipant: Participant = {
                   id: tile.attendeeId,
                   oduserId: tile.attendeeId,
@@ -486,7 +490,7 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
                   mediaState: {
                     muted: false,
                     speaking: false,
-                    video: true,
+                    video: tile.active, // Only true if tile is already active
                     screenSharing: tile.isContent
                   }
                 };

@@ -271,44 +271,79 @@ const ParticipantVideo = memo(function ParticipantVideo({
   });
 
   // Bind Chime video tile to video element
+  // This effect handles binding the Chime SDK video tile to the HTML video element
   useEffect(() => {
+    const tileId = participant.tileId;
+    const videoEl = videoRef.current;
+    
     console.log(`[ParticipantVideo] Tile binding check for ${participant.username}:`, {
-      hasTileId: participant.tileId !== undefined,
-      tileId: participant.tileId,
+      hasTileId: tileId !== undefined && tileId !== null,
+      tileId,
       hasManager: !!manager,
-      hasVideoRef: !!videoRef.current,
+      hasVideoRef: !!videoEl,
       isLocal,
-      shouldShowVideo
+      shouldShowVideo,
+      hasVideoState
     });
 
-    if (manager && participant.tileId !== undefined && participant.tileId !== null && videoRef.current) {
-      console.log(`[ParticipantVideo] Binding tile ${participant.tileId} for ${participant.username} (isLocal: ${isLocal})`);
-      try {
-        manager.bindVideoElement(participant.tileId, videoRef.current);
-        setIsVideoBound(true);
-        
-        // Also try to play the video
-        videoRef.current.play().catch(err => {
-          console.warn(`[ParticipantVideo] Video play failed:`, err);
-        });
-      } catch (err) {
-        console.error(`[ParticipantVideo] Failed to bind video tile:`, err);
-      }
+    // Early return if we don't have what we need
+    if (!manager || tileId === undefined || tileId === null) {
+      return;
     }
 
-    return () => {
-      // Unbind when unmounting or tile changes
-      if (manager && participant.tileId !== undefined && participant.tileId !== null && isVideoBound) {
-        console.log(`[ParticipantVideo] Unbinding tile ${participant.tileId} for ${participant.username}`);
-        try {
-          manager.unbindVideoElement(participant.tileId);
-          setIsVideoBound(false);
-        } catch (err) {
-          // Ignore errors on cleanup
+    // Function to perform the binding with retry logic
+    const bindTile = (retryCount = 0) => {
+      const currentVideoEl = videoRef.current;
+      
+      if (!currentVideoEl) {
+        // Video element not ready yet, retry after a short delay
+        if (retryCount < 5) {
+          console.log(`[ParticipantVideo] Video element not ready, retry ${retryCount + 1}/5 for tile ${tileId}`);
+          setTimeout(() => bindTile(retryCount + 1), 100);
+        } else {
+          console.warn(`[ParticipantVideo] Video element never became available for tile ${tileId}`);
+        }
+        return;
+      }
+
+      console.log(`[ParticipantVideo] Binding tile ${tileId} for ${participant.username} (isLocal: ${isLocal})`);
+      try {
+        manager.bindVideoElement(tileId, currentVideoEl);
+        setIsVideoBound(true);
+        
+        // Try to play the video
+        currentVideoEl.play().catch(err => {
+          // Autoplay might be blocked, that's okay - user interaction will start it
+          console.warn(`[ParticipantVideo] Video autoplay blocked:`, err.message);
+        });
+        
+        console.log(`[ParticipantVideo] Successfully bound tile ${tileId} for ${participant.username}`);
+      } catch (err) {
+        console.error(`[ParticipantVideo] Failed to bind video tile ${tileId}:`, err);
+        // Retry on failure
+        if (retryCount < 3) {
+          setTimeout(() => bindTile(retryCount + 1), 200);
         }
       }
     };
-  }, [manager, participant.tileId, isLocal, shouldShowVideo]);
+
+    // Start binding process - use a small delay to ensure React has finished rendering
+    const bindTimeout = setTimeout(() => bindTile(0), 50);
+
+    return () => {
+      clearTimeout(bindTimeout);
+      // Unbind when unmounting or tile changes
+      if (manager && tileId !== undefined && tileId !== null) {
+        console.log(`[ParticipantVideo] Cleanup: Unbinding tile ${tileId} for ${participant.username}`);
+        try {
+          manager.unbindVideoElement(tileId);
+        } catch (err) {
+          // Ignore errors on cleanup
+        }
+        setIsVideoBound(false);
+      }
+    };
+  }, [manager, participant.tileId, participant.username, isLocal, shouldShowVideo, hasVideoState]);
 
   // Legacy: track video stream changes (for non-Chime usage)
   useEffect(() => {
