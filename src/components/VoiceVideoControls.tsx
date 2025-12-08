@@ -175,9 +175,12 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
         await manager.startScreenShare();
       }
     } catch (e: any) {
+      // Only show error for non-cancellation errors
+      // NotAllowedError (user cancelled) is handled silently in VoiceVideoManager
       console.error('Screen share toggle failed:', e);
-      if (e?.name === 'NotAllowedError') {
-        alert('Screen sharing was blocked by the browser.');
+      if (e?.name !== 'NotAllowedError' && !e?.message?.includes('Permission denied')) {
+        // Only alert for genuine errors, not user cancellation
+        alert('Screen sharing failed. Please try again.');
       }
     }
   };

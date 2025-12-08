@@ -16,6 +16,7 @@ interface Participant {
   stream: MediaStream | null;
   screenStream?: MediaStream | null;
   tileId?: number; // Chime video tile ID for binding
+  screenTileId?: number; // Chime screen share tile ID for binding
   isLocal?: boolean;
   mediaState: {
     muted: boolean;
@@ -124,8 +125,9 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
     let isMounted = true;
     
     if (!managerRef.current) {
-      debugLog('Creating VoiceVideoManager (Chime) for user:', userId);
-      const manager = new VoiceVideoManager(userId);
+      const username = currentUser?.username || userId;
+      debugLog('Creating VoiceVideoManager (Chime) for user:', { userId, username });
+      const manager = new VoiceVideoManager(userId, username);
       managerRef.current = manager;
     }
 
@@ -327,19 +329,20 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
             const merged = voiceParticipants.map(vp => {
               const existing = prevById.get(vp.id);
               if (existing) {
-                // IMPORTANT: Preserve video state if we have a tileId OR if roster says video is on
+                // IMPORTANT: Preserve video/screen state if we have tile IDs OR if roster says they're on
                 // This prevents race conditions where roster update overwrites video tile state
-                const preserveVideoState = existing.tileId !== undefined || vp.mediaState.video;
                 return {
                   ...vp,
                   stream: existing.stream,
                   screenStream: existing.screenStream,
                   tileId: existing.tileId,
+                  screenTileId: existing.screenTileId,
                   mediaState: {
                     ...vp.mediaState,
-                    // Use roster video state (which is now synced from VoiceVideoManager)
-                    // but if we have a tileId and roster says false, keep true (tile is source of truth)
+                    // Use roster video state but preserve if we have a tileId (tile is source of truth)
                     video: existing.tileId !== undefined ? (vp.mediaState.video || existing.mediaState.video) : vp.mediaState.video,
+                    // Same for screen sharing
+                    screenSharing: existing.screenTileId !== undefined ? (vp.mediaState.screenSharing || existing.mediaState.screenSharing) : vp.mediaState.screenSharing,
                   }
                 };
               }
@@ -454,43 +457,63 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
           // Update participants with tile info (for remote participants only)
           // IMPORTANT: Don't wait for tile.active - assign tileId immediately so UI can bind
           // The tile may not be "active" yet but we need the tileId for binding
+          // Screen share tiles (isContent=true) have attendeeId like "abc123#content-share"
+          // We need to extract the base attendeeId for matching
           if (tile.attendeeId && !tile.isLocal) {
+            // For content share tiles, the attendeeId is "baseId#content-share"
+            // Extract the base ID for participant matching
+            const baseAttendeeId = tile.isContent 
+              ? tile.attendeeId.split('#')[0] 
+              : tile.attendeeId;
+            
             setParticipants(prev => {
-              const existingIndex = prev.findIndex(p => p.id === tile.attendeeId);
+              const existingIndex = prev.findIndex(p => p.id === baseAttendeeId || p.id === tile.attendeeId);
               
               if (existingIndex >= 0) {
                 // Update existing participant with tile ID
-                // Only set video: true if tile is active, but ALWAYS set tileId
                 const updated = [...prev];
-                updated[existingIndex] = {
-                  ...updated[existingIndex],
-                  tileId: tile.tileId,
-                  isLocal: tile.isLocal,
-                  mediaState: {
-                    ...updated[existingIndex].mediaState,
-                    // Only set video true if tile is active, preserve existing state otherwise
-                    video: tile.active ? true : updated[existingIndex].mediaState.video,
-                    screenSharing: tile.isContent ? true : updated[existingIndex].mediaState.screenSharing
-                  }
-                };
-                debugLog(`Updated participant ${tile.attendeeId} with tileId ${tile.tileId} (active: ${tile.active})`);
+                
+                if (tile.isContent) {
+                  // This is a screen share tile - store in screenTileId
+                  updated[existingIndex] = {
+                    ...updated[existingIndex],
+                    screenTileId: tile.tileId,
+                    mediaState: {
+                      ...updated[existingIndex].mediaState,
+                      screenSharing: true
+                    }
+                  };
+                  debugLog(`Updated participant ${baseAttendeeId} with screenTileId ${tile.tileId} (active: ${tile.active})`);
+                } else {
+                  // This is a camera video tile - store in tileId
+                  updated[existingIndex] = {
+                    ...updated[existingIndex],
+                    tileId: tile.tileId,
+                    isLocal: tile.isLocal,
+                    mediaState: {
+                      ...updated[existingIndex].mediaState,
+                      video: tile.active ? true : updated[existingIndex].mediaState.video,
+                    }
+                  };
+                  debugLog(`Updated participant ${tile.attendeeId} with tileId ${tile.tileId} (active: ${tile.active})`);
+                }
                 return updated;
               } else {
                 // IMPORTANT: Video tile arrived before roster - create placeholder participant
-                // This handles race conditions where video tiles arrive before roster updates
-                debugLog(`Creating placeholder participant for ${tile.attendeeId} (tile arrived before roster, active: ${tile.active})`);
+                debugLog(`Creating placeholder participant for ${baseAttendeeId} (tile arrived before roster, active: ${tile.active}, isContent: ${tile.isContent})`);
                 const newParticipant: Participant = {
-                  id: tile.attendeeId,
-                  oduserId: tile.attendeeId,
-                  username: `User ${tile.attendeeId.slice(0, 8)}`,
+                  id: baseAttendeeId,
+                  oduserId: baseAttendeeId,
+                  username: `User ${baseAttendeeId.slice(0, 8)}`,
                   stream: null,
                   screenStream: undefined,
-                  tileId: tile.tileId,
+                  tileId: tile.isContent ? undefined : tile.tileId,
+                  screenTileId: tile.isContent ? tile.tileId : undefined,
                   isLocal: false,
                   mediaState: {
                     muted: false,
                     speaking: false,
-                    video: tile.active, // Only true if tile is already active
+                    video: !tile.isContent && tile.active,
                     screenSharing: tile.isContent
                   }
                 };
@@ -513,13 +536,33 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
             const newMap = new Map(prev);
             newMap.delete(tileId);
             
-            // Update participant to remove video state
+            // Update participant to remove video/screen state
             if (tile?.attendeeId) {
-              setParticipants(prevParts => prevParts.map(p => 
-                p.id === tile.attendeeId
-                  ? { ...p, tileId: undefined, mediaState: { ...p.mediaState, video: false } }
-                  : p
-              ));
+              // For content share tiles, extract base attendeeId
+              const baseAttendeeId = tile.isContent 
+                ? tile.attendeeId.split('#')[0] 
+                : tile.attendeeId;
+              
+              setParticipants(prevParts => prevParts.map(p => {
+                if (p.id === baseAttendeeId || p.id === tile.attendeeId) {
+                  if (tile.isContent) {
+                    // Screen share tile removed
+                    return { 
+                      ...p, 
+                      screenTileId: undefined, 
+                      mediaState: { ...p.mediaState, screenSharing: false } 
+                    };
+                  } else {
+                    // Video tile removed
+                    return { 
+                      ...p, 
+                      tileId: undefined, 
+                      mediaState: { ...p.mediaState, video: false } 
+                    };
+                  }
+                }
+                return p;
+              }));
             }
             
             return newMap;
@@ -792,6 +835,7 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
     stream: p.stream,
     screenStream: p.screenStream,
     tileId: p.tileId,
+    screenTileId: p.screenTileId,
     isLocal: p.isLocal || false,
     mediaState: p.mediaState
   }));

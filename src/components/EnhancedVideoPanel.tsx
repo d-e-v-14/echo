@@ -204,6 +204,7 @@ interface Participant {
   stream: MediaStream | null;
   screenStream?: MediaStream | null;
   tileId?: number; // Chime video tile ID for binding
+  screenTileId?: number; // Chime screen share tile ID for binding
   isLocal?: boolean;
   mediaState: MediaState;
 }
@@ -246,17 +247,20 @@ const ParticipantVideo = memo(function ParticipantVideo({
   const [isMuted, setIsMuted] = useState(false);
   const [showControls, setShowControls] = useState(false);
   const [isVideoBound, setIsVideoBound] = useState(false);
+  const [isScreenBound, setIsScreenBound] = useState(false);
 
   const hasVideoState = !!participant.mediaState.video;
+  const hasScreenShareState = !!participant.mediaState.screenSharing;
   const hasScreenShareStream = !!(participant.screenStream && participant.mediaState.screenSharing);
   const hasVideoStream = !!(participant.stream && participant.stream.getVideoTracks().length > 0);
   const hasActiveVideoTrack =
     hasVideoStream && !!participant.stream?.getVideoTracks().some((t) => t.enabled);
 
-  // Check if we have a Chime video tile to bind
+  // Check if we have Chime video/screen tiles to bind
   const hasTileId = participant.tileId !== undefined && participant.tileId !== null;
+  const hasScreenTileId = participant.screenTileId !== undefined && participant.screenTileId !== null;
   
-  const shouldShowScreenShare = hasScreenShareStream || participant.mediaState.screenSharing;
+  const shouldShowScreenShare = hasScreenShareStream || hasScreenShareState;
   // Show video if video state is ON - we need to render the <video> element
   // so that Chime can bind the tile to it. Don't wait for tile ID.
   const shouldShowVideo = hasVideoState && !shouldShowScreenShare;
@@ -345,6 +349,78 @@ const ParticipantVideo = memo(function ParticipantVideo({
     };
   }, [manager, participant.tileId, participant.username, isLocal, shouldShowVideo, hasVideoState]);
 
+  // Bind Chime SCREEN SHARE tile to screen video element
+  // Similar to video tile binding but for screen share content
+  useEffect(() => {
+    const screenTileId = participant.screenTileId;
+    
+    console.log(`[ParticipantVideo] Screen tile binding check for ${participant.username}:`, {
+      hasScreenTileId: screenTileId !== undefined && screenTileId !== null,
+      screenTileId,
+      hasManager: !!manager,
+      hasScreenRef: !!screenRef.current,
+      shouldShowScreenShare,
+      hasScreenShareState
+    });
+
+    // Early return if we don't have what we need
+    if (!manager || screenTileId === undefined || screenTileId === null) {
+      return;
+    }
+
+    // Function to perform the binding with retry logic
+    const bindScreenTile = (retryCount = 0) => {
+      const currentScreenEl = screenRef.current;
+      
+      if (!currentScreenEl) {
+        // Screen element not ready yet, retry after a short delay
+        if (retryCount < 5) {
+          console.log(`[ParticipantVideo] Screen element not ready, retry ${retryCount + 1}/5 for screen tile ${screenTileId}`);
+          setTimeout(() => bindScreenTile(retryCount + 1), 100);
+        } else {
+          console.warn(`[ParticipantVideo] Screen element never became available for tile ${screenTileId}`);
+        }
+        return;
+      }
+
+      console.log(`[ParticipantVideo] Binding screen tile ${screenTileId} for ${participant.username}`);
+      try {
+        manager.bindVideoElement(screenTileId, currentScreenEl);
+        setIsScreenBound(true);
+        
+        // Try to play the video
+        currentScreenEl.play().catch(err => {
+          console.warn(`[ParticipantVideo] Screen share autoplay blocked:`, err.message);
+        });
+        
+        console.log(`[ParticipantVideo] Successfully bound screen tile ${screenTileId} for ${participant.username}`);
+      } catch (err) {
+        console.error(`[ParticipantVideo] Failed to bind screen tile ${screenTileId}:`, err);
+        // Retry on failure
+        if (retryCount < 3) {
+          setTimeout(() => bindScreenTile(retryCount + 1), 200);
+        }
+      }
+    };
+
+    // Start binding process - use a small delay to ensure React has finished rendering
+    const bindTimeout = setTimeout(() => bindScreenTile(0), 50);
+
+    return () => {
+      clearTimeout(bindTimeout);
+      // Unbind when unmounting or tile changes
+      if (manager && screenTileId !== undefined && screenTileId !== null) {
+        console.log(`[ParticipantVideo] Cleanup: Unbinding screen tile ${screenTileId} for ${participant.username}`);
+        try {
+          manager.unbindVideoElement(screenTileId);
+        } catch (err) {
+          // Ignore errors on cleanup
+        }
+        setIsScreenBound(false);
+      }
+    };
+  }, [manager, participant.screenTileId, participant.username, shouldShowScreenShare, hasScreenShareState]);
+
   // Legacy: track video stream changes (for non-Chime usage)
   useEffect(() => {
     const tracks = participant.stream?.getVideoTracks() || [];
@@ -387,7 +463,11 @@ const ParticipantVideo = memo(function ParticipantVideo({
     };
   }, [participant.stream, participant.mediaState.video, participant.mediaState.screenSharing, isMuted, volume, hasTileId, manager]);
 
+  // Legacy: bind screen stream to screen element (fallback if no Chime screen tile)
   useEffect(() => {
+    // Skip if we're using Chime screen tile binding
+    if (hasScreenTileId && manager) return;
+
     if (screenRef.current && participant.screenStream && shouldShowScreenShare) {
       if (screenRef.current.srcObject !== participant.screenStream) {
         screenRef.current.srcObject = participant.screenStream;
@@ -397,7 +477,7 @@ const ParticipantVideo = memo(function ParticipantVideo({
       });
       screenRef.current.volume = isMuted ? 0 : volume;
     }
-  }, [participant.screenStream, shouldShowScreenShare, isMuted, volume]);
+  }, [participant.screenStream, shouldShowScreenShare, isMuted, volume, hasScreenTileId, manager]);
 
   useEffect(() => {
     if (audioRef.current && participant.stream) {
@@ -583,6 +663,7 @@ const ParticipantVideo = memo(function ParticipantVideo({
     a.stream === b.stream &&
     a.screenStream === b.screenStream &&
     a.tileId === b.tileId &&
+    a.screenTileId === b.screenTileId &&
     a.mediaState.muted === b.mediaState.muted &&
     a.mediaState.speaking === b.mediaState.speaking &&
     a.mediaState.video === b.mediaState.video &&

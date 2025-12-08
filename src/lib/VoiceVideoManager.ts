@@ -170,6 +170,7 @@ export interface VideoTileInfo {
  */
 export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserver, DeviceChangeObserver {
   private userId: string;
+  private username: string;
   private currentChannelId: string | null = null;
 
   // Chime SDK Components
@@ -227,10 +228,11 @@ export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserv
     onNetworkQuality: null as ((stats: NetworkStats) => void) | null,
   };
 
-  constructor(userId: string) {
+  constructor(userId: string, username?: string) {
     this.userId = userId;
+    this.username = username || userId;
     this.logger = new ConsoleLogger('ChimeVoice', LogLevel.WARN);
-    console.log('[VoiceVideoManager] Initialized for user:', userId);
+    console.log('[VoiceVideoManager] Initialized for user:', userId, 'username:', this.username);
   }
 
   // ==================== INITIALIZATION ====================
@@ -595,6 +597,9 @@ export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserv
    * The SDK calls the browser's getDisplayMedia API to capture screen/window.
    * The captured stream is sent as a "content share" which appears as a
    * separate video tile for other participants.
+   * 
+   * NOTE: If the user cancels the screen share dialog, this will throw a
+   * NotAllowedError which should be handled gracefully by the caller.
    */
   async startScreenShare(): Promise<void> {
     if (!this.audioVideo) return;
@@ -607,9 +612,22 @@ export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserv
       console.log('[VoiceVideoManager] Screen sharing started');
     } catch (error: any) {
       console.error('[VoiceVideoManager] Screen share failed:', error);
-      if (error.name === 'NotAllowedError') {
-        this.callbacks.onError?.({ code: 'SCREEN_SHARE_DENIED', message: 'Screen sharing was denied' });
+      
+      // Handle user cancellation gracefully - don't treat as an error
+      if (error.name === 'NotAllowedError' || error.message?.includes('Permission denied')) {
+        console.log('[VoiceVideoManager] Screen share was cancelled by user');
+        // Don't set error state or throw - just silently return
+        // The user intentionally cancelled, this is not an error condition
+        return;
       }
+      
+      // For other errors, notify via callback but don't crash
+      this.callbacks.onError?.({ 
+        code: 'SCREEN_SHARE_FAILED', 
+        message: error.message || 'Screen sharing failed' 
+      });
+      
+      // Re-throw for other genuine errors so caller can handle
       throw error;
     }
   }
@@ -1005,11 +1023,12 @@ export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserv
 
       try {
         // Try to create a new meeting (this also creates the attendee)
+        // Backend expects: attendeeName (required), channelId (required), externalUserId (optional)
+        // Username will be used as both attendeeName and externalUserId for display in Chime roster
         response = await chimeApiClient.post('/meetings', {
-          externalMeetingId: channelId,
-          channelId: channelId,
-          externalUserId: this.userId,
-          attendeeName: this.userId  // Optional: pass user's display name if available
+          attendeeName: this.username,       // Required by backend - will be displayed
+          channelId: channelId,              // Required by backend
+          externalUserId: this.username      // Optional - used as Chime ExternalUserId
         });
         console.log('[VoiceVideoManager] Created new meeting');
       } catch (createError: any) {
@@ -1019,9 +1038,10 @@ export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserv
           console.log('[VoiceVideoManager] Meeting exists, joining:', existingMeetingId);
           
           // Join the existing meeting
+          // Backend expects: attendeeName (required), externalUserId (optional)
           response = await chimeApiClient.post(`/meetings/${existingMeetingId}/attendees`, {
-            externalUserId: this.userId,
-            attendeeName: this.userId
+            attendeeName: this.username,     // Required by backend
+            externalUserId: this.username    // Optional - used as Chime ExternalUserId
           });
         } else {
           throw createError;
