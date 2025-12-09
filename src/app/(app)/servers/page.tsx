@@ -402,6 +402,7 @@ const ServersPageContent: React.FC = () => {
                     currentUserId={user.id}
                     localStream={localMediaStream}
                     remoteStreams={remoteMediaStreams}
+                    serverId={selectedServerId}
                   />
                 </div>
               </>

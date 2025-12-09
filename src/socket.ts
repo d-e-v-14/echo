@@ -23,9 +23,7 @@ export const createAuthSocket = (userId: string): Socket => {
     
     const socket = io(API_URL, {
         ...baseConfig,
-        auth: {
-            userId: userId
-        }
+        auth: { userId }
     });
 
     socket.on("connect", () => {

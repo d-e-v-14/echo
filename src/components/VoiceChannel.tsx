@@ -161,6 +161,7 @@ const VoiceChannel = ({ channelId, userId, onHangUp, headless = false, onLocalSt
                     setIsConnected(true);
                     setConnectionError(null);
                     if (connectionTimeout) clearTimeout(connectionTimeout);
+                    console.log('VoiceChannel: Socket connected');
                 }
             });
             
