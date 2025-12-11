@@ -2,12 +2,19 @@
 
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
-import { FaHashtag, FaCog, FaVolumeUp } from "react-icons/fa";
+import {
+  FaHashtag,
+  FaCog,
+  FaVolumeUp,
+  FaMicrophoneSlash,
+  FaMicrophone,
+  FaVideoSlash,
+  FaPhoneSlash,
+} from "react-icons/fa";
 import VoiceChannel from "@/components/EnhancedVoiceChannel";
 import { fetchServers, fetchChannelsByServer } from "@/app/api/API";
 import Chatwindow from "@/components/ChatWindow";
 import { useSearchParams } from "next/navigation";
-
 
 const serverIcons: string[] = [
   "/hackbattle.png",
@@ -41,6 +48,10 @@ const ServersPageContent: React.FC = () => {
   const [activeVoiceChannel, setActiveVoiceChannel] = useState<string | null>(
     null
   );
+
+  // New: whether the voice UI is minimized (compact bar) while still connected
+  const [isVoiceMinimized, setIsVoiceMinimized] = useState<boolean>(false);
+
   // Lifted media streams to pass into ChatWindow
   const [localMediaStream, setLocalMediaStream] = useState<MediaStream | null>(
     null
@@ -50,6 +61,16 @@ const ServersPageContent: React.FC = () => {
   >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Voice members state (for the member list UI)
+  interface VoiceMember {
+    id: string;
+    username: string;
+    avatar_url?: string | null;
+    status?: "online" | "offline" | "idle" | "dnd";
+    muted?: boolean;
+  }
+  const [voiceMembers, setVoiceMembers] = useState<VoiceMember[]>([]);
 
   interface User {
     id: string;
@@ -145,17 +166,36 @@ const ServersPageContent: React.FC = () => {
       }
     };
     loadServers();
-  }, [refresh]); 
+  }, [refresh]);
 
   // Derived channel lists
   const textChannels = channels.filter((c) => c.type === "text");
   const voiceChannels = channels.filter((c) => c.type === "voice");
 
+  // When joining a voice channel we should open the full voice UI (not minimized)
   const handleJoinVoiceChannel = (channelName: string) => {
     setActiveVoiceChannel(channelName);
+    setIsVoiceMinimized(false); // restore expanded view when joining
+    // reset/prepare voice member list on new join
+    setVoiceMembers((prev) => {
+      // Keep current user present
+      const you: VoiceMember = {
+        id: user.id || "guest",
+        username: user.username || "You",
+        avatar_url: user.avatar_url || null,
+        status: user.status || "online",
+        muted: false,
+      };
+      return [you, ...prev.filter((m) => m.id !== you.id)];
+    });
   };
 
-  const handleRemoteAdded = (id: string, stream: MediaStream) => {
+  // When a remote media stream is added/removed we keep remoteMediaStreams and also update voiceMembers
+  const handleRemoteAdded = (
+    id: string,
+    stream: MediaStream,
+    username?: string
+  ) => {
     setRemoteMediaStreams((prev) => {
       const exists = prev.find((p) => p.id === id);
       if (exists) {
@@ -163,16 +203,43 @@ const ServersPageContent: React.FC = () => {
       }
       return [...prev, { id, stream }];
     });
+
+    // Add to voice members if not present
+    setVoiceMembers((prev) => {
+      if (prev.find((m) => m.id === id)) return prev;
+      const newMember: VoiceMember = {
+        id,
+        username: username || `User-${id.slice(0, 6)}`,
+        avatar_url: null,
+        status: "online",
+        muted: false,
+      };
+      return [...prev, newMember];
+    });
   };
 
   const handleRemoteRemoved = (id: string) => {
     setRemoteMediaStreams((prev) => prev.filter((p) => p.id !== id));
+    setVoiceMembers((prev) => prev.filter((m) => m.id !== id));
+  };
+
+  // Optional: callback that can be passed to VoiceChannel if it emits members updates
+  const onVoiceMembersUpdate = (members: VoiceMember[]) => {
+    setVoiceMembers(members);
+  };
+
+  const onVoiceStateUpdate = (
+    attendeeId: string,
+    state: Partial<VoiceMember>
+  ) => {
+    setVoiceMembers((prev) =>
+      prev.map((m) => (m.id === attendeeId ? { ...m, ...state } : m))
+    );
   };
 
   return (
-    <div className="flex h-screen bg-black select-none">
+    <div className="relative flex h-screen bg-black select-none">
       {/* Server Sidebar */}
-
       <div className="w-16 p-2 flex flex-col items-center bg-black space-y-3 relative">
         {loading ? (
           <>
@@ -200,11 +267,11 @@ const ServersPageContent: React.FC = () => {
           ))
         )}
 
-        {/* ➕ Add Server Button */}
-        <div className="absolute bottom-4">
+        {/*  Add Server Button */}
+        <div className="relative bottom-0">
           <div className="relative group">
             <button
-              className="w-12 h-12 flex items-center justify-center rounded-full bg-gray-800 text-green-500 hover:bg-green-600 hover:text-white transition-all text-3xl font-bold"
+              className="w-12 h-12 px-1  flex items-center justify-center rounded-full bg-gray-800 text-green-500 hover:bg-green-600 hover:text-white transition-all text-3xl font-bold"
               onClick={() => setShowAddMenu((prev) => !prev)}
             >
               +
@@ -290,7 +357,7 @@ const ServersPageContent: React.FC = () => {
       ) : (
         <>
           {/* Channel List */}
-          <div className="w-72 h-screen overflow-y-auto text-white px-2 py-4 space-y-4 border-r border-gray-800 bg-gradient-to-b from-black via-black to-[#0f172a] scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
+          <div className="w-72  h-auto overflow-y-auto text-white px-2 py-4 space-y-4 border-r border-gray-800 bg-black scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
             <div className="flex items-center justify-between px-2 mb-2">
               <h2 className="text-xl font-bold">{selectedServerName}</h2>
               <button
@@ -298,10 +365,12 @@ const ServersPageContent: React.FC = () => {
                 title="Server Settings"
                 onClick={() => {
                   if (selectedServerId) {
-                    localStorage.setItem('currentServerId', selectedServerId);
-                    router.push(`/server-settings?serverId=${selectedServerId}`);
+                    localStorage.setItem("currentServerId", selectedServerId);
+                    router.push(
+                      `/server-settings?serverId=${selectedServerId}`
+                    );
                   } else {
-                    alert('Please select a server first');
+                    alert("Please select a server first");
                   }
                 }}
               >
@@ -321,7 +390,13 @@ const ServersPageContent: React.FC = () => {
                       ? "bg-[#2f3136] text-white"
                       : "text-gray-400 hover:bg-[#2f3136] hover:text-white"
                   }`}
-                  onClick={() => setActiveChannel(channel)}
+                  onClick={() => {
+                    // When clicking a text channel while connected to voice, minimize the voice UI
+                    setActiveChannel(channel);
+                    if (activeVoiceChannel) {
+                      setIsVoiceMinimized(true);
+                    }
+                  }}
                 >
                   <span className="flex items-center gap-2">
                     <FaHashtag size={12} />
@@ -367,6 +442,8 @@ const ServersPageContent: React.FC = () => {
                       setActiveVoiceChannel(null);
                       setLocalMediaStream(null);
                       setRemoteMediaStreams([]);
+                      setVoiceMembers([]);
+                      setIsVoiceMinimized(false);
                     }}
                     className="px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500"
                   >
@@ -380,17 +457,146 @@ const ServersPageContent: React.FC = () => {
           {/* Chat Window */}
           {/* Main Content Area */}
           <div className="flex-1 relative text-white bg-[radial-gradient(ellipse_at_bottom,rgba(37,99,235,0.15)_0%,rgba(0,0,0,1)_85%)] flex flex-col">
-            {activeVoiceChannel ? (
+            {/** If voice is minimized we still show chat content but render a small floating bar that can restore the voice UI or hang up. */}
+
+            {/* Minimized voice bar (floating) */}
+            {activeVoiceChannel && isVoiceMinimized && (
+              <div className="fixed right-6 bottom-6 z-50">
+                <div className="flex items-center gap-3 bg-gray-900 px-3 py-2 rounded-lg shadow-lg">
+                  <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-xs overflow-hidden">
+                    <span className="text-gray-400">
+                      {(user.username || "U").charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="flex flex-col text-sm">
+                    <span className="font-semibold">{activeVoiceChannel}</span>
+                    <span className="text-xs text-gray-400">Connected</span>
+                  </div>
+                  <div className="flex items-center gap-2 pl-3">
+                    <button
+                      onClick={() => setIsVoiceMinimized(false)}
+                      className="px-3 py-1 text-sm rounded bg-[#2f3136] hover:bg-[#3a3c3f]"
+                      title="Restore voice panel"
+                    >
+                      Open
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveVoiceChannel(null);
+                        setLocalMediaStream(null);
+                        setRemoteMediaStreams([]);
+                        setVoiceMembers([]);
+                        setIsVoiceMinimized(false);
+                      }}
+                      className="px-3 py-1 text-sm rounded bg-red-600 hover:bg-red-500"
+                      title="Hang up"
+                    >
+                      Hang up
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeVoiceChannel && !isVoiceMinimized ? (
+              // Voice layout: main VoiceChannel area + right-side member list (Discord-like)
               <div className="flex-1 w-full h-full">
-                <VoiceChannel
-                  channelId={activeVoiceChannel}
-                  userId={user.id}
-                  onHangUp={() => {
-                    setActiveVoiceChannel(null);
-                  }}
-                  debug={process.env.NODE_ENV === 'development'}
-                  currentUser={{ username: user.username }}
-                />
+                <div className="flex h-full">
+                  {/* Main voice area */}
+                  <div className="flex-1 p-4">
+                    {/* Use a typed-cast to avoid potential prop type mismatch with your EnhancedVoiceChannel */}
+                    {/** If EnhancedVoiceChannel supports these callbacks, it can call them to keep
+                     * the serverside member state in sync. If not, we still update voiceMembers
+                     * from handleRemoteAdded/Removed above. */}
+                    {React.createElement(VoiceChannel as any, {
+                      channelId: activeVoiceChannel,
+                      userId: user.id,
+                      onHangUp: () => {
+                        setActiveVoiceChannel(null);
+                        setIsVoiceMinimized(false);
+                      },
+                      debug: process.env.NODE_ENV === "development",
+                      currentUser: { username: user.username },
+                      onVoiceMembersUpdate, // optional — if your VoiceChannel emits this, we'll accept it
+                      onVoiceStateUpdate, // optional
+                      onRemoteAdded: handleRemoteAdded,
+                      onRemoteRemoved: handleRemoteRemoved,
+                    })}
+                  </div>
+
+                  {/* Right column: member list */}
+                  <div className="w-72 border-l border-gray-800 bg-black p-4 flex flex-col">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-semibold">Voice Members</h3>
+                      <span className="text-xs text-gray-400">
+                        {voiceMembers.length}
+                      </span>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto space-y-3 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
+                      {/* ensure current user is shown first */}
+                      {voiceMembers.length === 0 ? (
+                        <div className="text-gray-400 text-sm">
+                          No one else is in the call
+                        </div>
+                      ) : (
+                        voiceMembers.map((m) => (
+                          <div
+                            key={m.id}
+                            className="flex items-center justify-between"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-xs overflow-hidden">
+                                {m.avatar_url ? (
+                                  <img
+                                    src={m.avatar_url}
+                                    alt={m.username}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <span className="text-gray-400">
+                                    {(m.username || "U")
+                                      .charAt(0)
+                                      .toUpperCase()}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-sm">{m.username}</span>
+                                <span className="text-xs text-gray-500">
+                                  {m.status === "online" ? "Online" : m.status}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {/* mic icon (muted/unmuted) */}
+                              {m.muted ? (
+                                <FaMicrophoneSlash className="w-4 h-4 text-red-500" />
+                              ) : (
+                                <FaMicrophone className="w-4 h-4 text-green-400" />
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Optional footer controls */}
+                    <div className="mt-3">
+                      <button
+                        onClick={() => {
+                          // example: open user list or invite modal
+                          alert(
+                            "Invite flow not implemented — hook up your invite modal here."
+                          );
+                        }}
+                        className="w-full py-2 rounded bg-[#2f3136] text-sm hover:bg-[#3a3c3f]"
+                      >
+                        Invite People
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : activeChannel ? (
               <>
@@ -424,14 +630,16 @@ const ServersPageContent: React.FC = () => {
 
 const ServersPage: React.FC = () => {
   return (
-    <Suspense fallback={
-      <div className="flex h-screen bg-black items-center justify-center">
-        <div className="text-white text-center">
-          <div className="mx-auto mb-4 w-10 h-10 border-4 border-gray-700 border-t-blue-500 rounded-full animate-spin" />
-          <p className="text-gray-400">Loading...</p>
+    <Suspense
+      fallback={
+        <div className="flex h-screen bg-black items-center justify-center">
+          <div className="text-white text-center">
+            <div className="mx-auto mb-4 w-10 h-10 border-4 border-gray-700 border-t-blue-500 rounded-full animate-spin" />
+            <p className="text-gray-400">Loading...</p>
+          </div>
         </div>
-      </div>
-    }>
+      }
+    >
       <ServersPageContent />
     </Suspense>
   );

@@ -53,7 +53,7 @@ export default function ChannelList() {
               height={32}
               className="rounded-full"
             />
-            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-850"></div>
+            <div className="relative  bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-850"></div>
           </div>
           <div className="text-sm font-medium">
             <div>Username</div>

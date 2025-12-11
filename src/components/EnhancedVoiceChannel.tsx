@@ -841,14 +841,18 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
   }));
 
   return (
-    <div className="flex flex-col h-full bg-gray-900">
+    <div className="flex flex-col h-full bg-black ">
       {/* Partial permissions warning */}
       {permissionError && hasAnyPermissions && (
         <div className="bg-yellow-900/50 border-l-4 border-yellow-400 p-4 text-yellow-100">
           <div className="flex items-center">
             <div className="text-yellow-400 mr-3">
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                <path
+                  fillRule="evenodd"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  clipRule="evenodd"
+                />
               </svg>
             </div>
             <div className="flex-1">
@@ -859,7 +863,7 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
               disabled={isInitializing}
               className="ml-4 bg-yellow-600 hover:bg-yellow-700 disabled:bg-yellow-800 px-3 py-1 rounded text-sm font-medium transition-colors"
             >
-              {isInitializing ? 'Retrying...' : 'Retry Permissions'}
+              {isInitializing ? "Retrying..." : "Retry Permissions"}
             </button>
           </div>
         </div>
@@ -884,23 +888,23 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
           onHangUp={onHangUp}
           isConnected={isConnected}
         />
-        
+
         {/* Additional Control Buttons */}
         <div className="flex items-center justify-center space-x-4 mt-3">
           {/* Connection status indicator and manual reconnection */}
           {hasAnyPermissions && !isConnected && (
-            <button 
+            <button
               onClick={handleManualReconnection}
-              className="p-3 rounded-full bg-red-600 hover:bg-red-500 transition-colors"
+              className="p-3 rounded-full  bg-red-600 hover:bg-red-500 transition-colors"
               title="Connection lost - Click to reconnect"
             >
               <FaRedo size={16} className="text-white" />
             </button>
           )}
-          
+
           {/* Permission retry button */}
           {!hasAnyPermissions && (
-            <button 
+            <button
               onClick={handleRetryPermissions}
               disabled={isInitializing}
               className="p-3 rounded-full bg-yellow-600 hover:bg-yellow-500 disabled:bg-yellow-800 transition-colors"
@@ -909,23 +913,34 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
               <FaRedo size={16} className="text-white" />
             </button>
           )}
-          
+
           {/* Voice channel connection status */}
           {isConnected && (
             <div className="flex items-center space-x-2 px-3 py-1 bg-gray-800 rounded-full">
-              <div className={`w-2 h-2 rounded-full ${isVoiceChannelConnected ? 'bg-green-400' : 'bg-yellow-400'}`}></div>
+              <div
+                className={`w-2 h-2 rounded-full ${
+                  isVoiceChannelConnected ? "bg-green-400" : "bg-yellow-400"
+                }`}
+              ></div>
               <span className="text-xs text-gray-300">
-                {isVoiceChannelConnected ? 'Voice Connected' : 'Voice Connecting...'}
+                {isVoiceChannelConnected
+                  ? "Voice Connected"
+                  : "Voice Connecting..."}
               </span>
             </div>
           )}
-          
+
           {/* Connection status */}
-          <div className="flex items-center space-x-2 px-3 py-1 bg-gray-700 rounded-full">
-            <div className={`w-2 h-2 rounded-full ${
-              isConnected ? 'bg-green-400' : 
-              connectionError ? 'bg-red-400' : 'bg-yellow-400'
-            }`}></div>
+          <div className="flex items-center space-x-2 px-3 py-1 bg-gray-700 border-white rounded-full">
+            <div
+              className={`w-2 h-2 rounded-full ${
+                isConnected
+                  ? "bg-green-400"
+                  : connectionError
+                  ? "bg-red-400"
+                  : "bg-yellow-400"
+              }`}
+            ></div>
             <span className="text-xs text-gray-300">{connectionStatus}</span>
           </div>
         </div>
@@ -933,30 +948,32 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
 
       {/* Debug Status Bar */}
       {debug && (
-        <div className="mx-4 mb-2 p-2 bg-gray-800 rounded border border-gray-600">
+        <div className="mx-4 mb-2 p-2 bg-black rounded border ">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <span className="text-xs font-mono text-blue-400">DEBUG:</span>
-              <span className="text-xs font-mono text-gray-300">{debugStatus}</span>
+              <span className="text-xs font-mono text-gray-300">
+                {debugStatus}
+              </span>
             </div>
           </div>
           <div className="flex items-center space-x-4 mt-1">
             <div className="flex items-center space-x-1">
               <span className="text-xs font-mono text-purple-400">STATE:</span>
               <span className="text-xs font-mono text-gray-300">
-                {isConnected ? 'Connected' : 'Disconnected'}
+                {isConnected ? "Connected" : "Disconnected"}
               </span>
             </div>
             <div className="flex items-center space-x-1">
               <span className="text-xs font-mono text-yellow-400">VOICE:</span>
               <span className="text-xs font-mono text-gray-300">
-                {isVoiceChannelConnected ? 'Connected' : 'Disconnected'}
+                {isVoiceChannelConnected ? "Connected" : "Disconnected"}
               </span>
             </div>
             <div className="flex items-center space-x-1">
               <span className="text-xs font-mono text-cyan-400">MEDIA:</span>
               <span className="text-xs font-mono text-gray-300">
-                {hasAnyPermissions ? 'Ready' : 'No Permissions'}
+                {hasAnyPermissions ? "Ready" : "No Permissions"}
               </span>
             </div>
           </div>
@@ -968,25 +985,33 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
 
       {/* Voice Members List */}
       {voiceMembers.length > 0 && (
-        <div className="mx-4 mb-4 p-3 bg-gray-800 rounded-lg">
+        <div className="mx-4 mb-4 p-3 bg-black rounded-lg">
           <h4 className="text-sm font-medium text-gray-300 mb-3">
             Voice Members ({voiceMembers.length})
           </h4>
           <div className="flex flex-wrap gap-2">
-            {voiceMembers.map(member => (
-              <div 
+            {voiceMembers.map((member) => (
+              <div
                 key={member.odattendeeId || member.id}
                 className="flex items-center space-x-2 bg-gray-700 rounded-full px-3 py-1"
               >
                 <span className="text-xs text-white truncate max-w-20">
-                  {member.username || member.odName || `User ${(member.oduserId || member.id || '').substring(0, 8)}`}
+                  {member.username ||
+                    member.odName ||
+                    `User ${(member.oduserId || member.id || "").substring(
+                      0,
+                      8
+                    )}`}
                 </span>
                 <div className="flex space-x-1">
                   {member.muted && (
                     <FaMicrophoneSlash size={10} className="text-red-400" />
                   )}
                   {member.speaking && !member.muted && (
-                    <FaMicrophone size={10} className="text-green-400 animate-pulse" />
+                    <FaMicrophone
+                      size={10}
+                      className="text-green-400 animate-pulse"
+                    />
                   )}
                   {!member.video && (
                     <FaVideoSlash size={10} className="text-gray-400" />

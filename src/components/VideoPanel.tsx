@@ -54,7 +54,7 @@ export default function VideoPanel({
         )} gap-2 w-full h-full p-2`} // Added p-2 for minor spacing
       >
         {/* Local video */}
-        <div className="relative aspect-video bg-gray-900 rounded-lg overflow-hidden border-2 border-blue-500">
+        <div className="relative  aspect-video  rounded-lg overflow-hidden border-2 border-blue-500">
           {localStream ? (
             <video
               ref={localRef}
@@ -64,7 +64,7 @@ export default function VideoPanel({
               className="w-full h-full object-cover"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gray-800">
+            <div className="w-full h-full flex items-center justify-center bg-black">
               <div className="text-center text-white">
                 <div className="w-16 h-16 mx-auto mb-2 bg-blue-500 rounded-full flex items-center justify-center">
                   <span className="text-2xl font-bold">You</span>
@@ -103,7 +103,7 @@ function RemoteVideo({
   }, [stream]);
 
   return (
-    <div className="relative aspect-video bg-gray-900 rounded-lg overflow-hidden border-2 border-gray-600">
+    <div className="relative aspect-video bg-black rounded-lg overflow-hidden border-2 border-gray-600">
       {stream ? (
         <video
           ref={ref}
@@ -112,7 +112,7 @@ function RemoteVideo({
           className="w-full h-full object-cover"
         />
       ) : (
-        <div className="w-full h-full flex items-center justify-center bg-gray-800">
+        <div className="w-full h-full flex items-center justify-center bg-black">
           <div className="text-center text-white">
             <div className="w-12 h-12 mx-auto mb-2 bg-gray-600 rounded-full flex items-center justify-center">
               <span className="text-lg font-bold">
@@ -123,7 +123,7 @@ function RemoteVideo({
           </div>
         </div>
       )}
-      <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+      <div className="absolute bottom-2 left-2 bg-black text-white text-xs px-2 py-1 rounded">
         {userId}
       </div>
     </div>

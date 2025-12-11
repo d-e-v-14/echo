@@ -21,7 +21,7 @@ export default function UserProfileModal({
   if (!isOpen || !user) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black backdrop-blur-sm">
       <div className="bg-[#1E1F22] rounded-2xl shadow-2xl w-80 p-6 text-white relative animate-fadeIn">
         <button
           className="absolute top-3 right-3 text-gray-400 hover:text-white"
