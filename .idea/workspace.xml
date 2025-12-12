@@ -4,11 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="2dee1387-15a0-4c2f-a8be-99b4fbe97d24" name="Changes" comment="Profile settings and google login">
-      <change afterPath="$PROJECT_DIR$/src/app/(auth)/change-password/page.tsx" afterDir="false" />
+    <list default="true" id="2dee1387-15a0-4c2f-a8be-99b4fbe97d24" name="Changes" comment="Google OAuth">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/(app)/profile-settings/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/(app)/profile-settings/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/(auth)/login/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/(auth)/login/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/(auth)/change-password/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/(auth)/change-password/page.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -136,7 +134,7 @@
       <workItem from="1761151321043" duration="6319000" />
       <workItem from="1761289962721" duration="2173000" />
       <workItem from="1765458766571" duration="995000" />
-      <workItem from="1765475003035" duration="3061000" />
+      <workItem from="1765475003035" duration="5265000" />
     </task>
     <task id="LOCAL-00001" summary="I have fixed the stuff. I saw VITE on the resource material that was sent to us so i thought we needed to use it. Please reveiw it once.">
       <option name="closed" value="true" />
@@ -338,7 +336,15 @@
       <option name="project" value="LOCAL" />
       <updated>1760366484882</updated>
     </task>
-    <option name="localTasksCounter" value="26" />
+    <task id="LOCAL-00026" summary="Google OAuth">
+      <option name="closed" value="true" />
+      <created>1765545889270</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1765545889270</updated>
+    </task>
+    <option name="localTasksCounter" value="27" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -380,6 +386,7 @@
     <MESSAGE value="Google signIn integrated" />
     <MESSAGE value="Profile settings and google login" />
     <MESSAGE value="final integration." />
-    <option name="LAST_COMMIT_MESSAGE" value="Profile settings and google login" />
+    <MESSAGE value="Google OAuth" />
+    <option name="LAST_COMMIT_MESSAGE" value="Google OAuth" />
   </component>
 </project>
