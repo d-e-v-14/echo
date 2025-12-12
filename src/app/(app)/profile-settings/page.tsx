@@ -54,15 +54,22 @@ export default function ProfilePage() {
   }, [displayName, username, about, avatarFile]);
 
   // Handle Avatar Upload
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setAvatarFile(file);
+const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-    // For preview as soon as selected
-    const tempUrl = URL.createObjectURL(file);
-    setAvatar(tempUrl);
-  };
+ 
+  if (file.size > 5 * 1024 * 1024) {
+    alert("File too large! Maximum allowed file size is 5MB.");
+    return;
+  }
+
+  setAvatarFile(file);
+
+
+  const tempUrl = URL.createObjectURL(file);
+  setAvatar(tempUrl);
+};
 
   // Trigger avatar input click
   const avatarInput = useRef<HTMLInputElement | null>(null);

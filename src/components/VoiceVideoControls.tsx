@@ -77,7 +77,7 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
   });
 
   const [networkStats, setNetworkStats] = useState<NetworkStats | null>(null);
-  const [showAdvanced, setShowAdvanced] = useState(false);
+   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showDeviceSelector, setShowDeviceSelector] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
@@ -256,7 +256,7 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
   };
 
   return (
-    <div className={`bg-gray-800 rounded-lg p-4 ${className}`}>
+    <div className={`bg-black rounded-lg p-4 ${className}`}>
       {/* Recording Indicator */}
       {isRecording && (
         <div className="mb-4 bg-red-600 bg-opacity-20 border border-red-500 rounded-lg p-3">
@@ -280,12 +280,18 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
           disabled={!isConnected || !hasAudioPerm}
           className={`p-3 rounded-full transition-all duration-200 ${
             mediaState.muted
-              ? 'bg-red-600 hover:bg-red-700 text-white'
-              : 'bg-gray-700 hover:bg-gray-600 text-white'
-          } ${(!isConnected || !hasAudioPerm) ? 'opacity-50 cursor-not-allowed' : ''}`}
-          title={mediaState.muted ? 'Unmute' : 'Mute'}
+              ? "bg-red-600 hover:bg-red-700 text-white"
+              : "bg-gray-700 hover:bg-gray-600 text-white"
+          } ${
+            !isConnected || !hasAudioPerm ? "opacity-50 cursor-not-allowed" : ""
+          }`}
+          title={mediaState.muted ? "Unmute" : "Mute"}
         >
-          {mediaState.muted ? <FaMicrophoneSlash size={20} /> : <FaMicrophone size={20} />}
+          {mediaState.muted ? (
+            <FaMicrophoneSlash size={20} />
+          ) : (
+            <FaMicrophone size={20} />
+          )}
         </button>
 
         {/* Video */}
@@ -294,12 +300,18 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
           disabled={!isConnected || !hasVideoPerm}
           className={`p-3 rounded-full transition-all duration-200 ${
             !mediaState.video
-              ? 'bg-red-600 hover:bg-red-700 text-white'
-              : 'bg-gray-700 hover:bg-gray-600 text-white'
-          } ${(!isConnected || !hasVideoPerm) ? 'opacity-50 cursor-not-allowed' : ''}`}
-          title={mediaState.video ? 'Turn off camera' : 'Turn on camera'}
+              ? "bg-red-600 hover:bg-red-700 text-white"
+              : "bg-gray-700 hover:bg-gray-600 text-white"
+          } ${
+            !isConnected || !hasVideoPerm ? "opacity-50 cursor-not-allowed" : ""
+          }`}
+          title={mediaState.video ? "Turn off camera" : "Turn on camera"}
         >
-          {mediaState.video ? <FaVideo size={20} /> : <FaVideoSlash size={20} />}
+          {mediaState.video ? (
+            <FaVideo size={20} />
+          ) : (
+            <FaVideoSlash size={20} />
+          )}
         </button>
 
         {/* Screen Share */}
@@ -308,12 +320,18 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
           disabled={!isConnected}
           className={`p-3 rounded-full transition-all duration-200 ${
             mediaState.screenSharing
-              ? 'bg-blue-600 hover:bg-blue-700 text-white'
-              : 'bg-gray-700 hover:bg-gray-600 text-white'
-          } ${!isConnected ? 'opacity-50 cursor-not-allowed' : ''}`}
-          title={mediaState.screenSharing ? 'Stop screen share' : 'Share screen'}
+              ? "bg-blue-600 hover:bg-blue-700 text-white"
+              : "bg-gray-700 hover:bg-gray-600 text-white"
+          } ${!isConnected ? "opacity-50 cursor-not-allowed" : ""}`}
+          title={
+            mediaState.screenSharing ? "Stop screen share" : "Share screen"
+          }
         >
-          {mediaState.screenSharing ? <FaStop size={20} /> : <FaDesktop size={20} />}
+          {mediaState.screenSharing ? (
+            <FaStop size={20} />
+          ) : (
+            <FaDesktop size={20} />
+          )}
         </button>
 
         {/* Recording */}
@@ -322,10 +340,10 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
           disabled={!isConnected}
           className={`p-3 rounded-full transition-all duration-200 ${
             mediaState.recording
-              ? 'bg-red-600 hover:bg-red-700 text-white animate-pulse'
-              : 'bg-gray-700 hover:bg-gray-600 text-white'
-          } ${!isConnected ? 'opacity-50 cursor-not-allowed' : ''}`}
-          title={mediaState.recording ? 'Stop recording' : 'Start recording'}
+              ? "bg-red-600 hover:bg-red-700 text-white animate-pulse"
+              : "bg-gray-700 hover:bg-gray-600 text-white"
+          } ${!isConnected ? "opacity-50 cursor-not-allowed" : ""}`}
+          title={mediaState.recording ? "Stop recording" : "Start recording"}
         >
           <FaRecordVinyl size={20} />
         </button>
@@ -357,13 +375,17 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
         >
           <FaCog size={14} />
           <span className="text-xs">Advanced</span>
-          {showAdvanced ? <FaChevronUp size={12} /> : <FaChevronDown size={12} />}
+          {showAdvanced ? (
+            <FaChevronUp size={12} />
+          ) : (
+            <FaChevronDown size={12} />
+          )}
         </button>
       </div>
 
       {/* Advanced Controls */}
       {showAdvanced && (
-        <div className="space-y-4 border-t border-gray-700 pt-4">
+        <div className="space-y-4 border-t bg-black  pt-4">
           {/* Device Selection */}
           <div>
             <button
@@ -371,23 +393,31 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
               className="flex items-center justify-between w-full text-left text-sm text-gray-300 hover:text-white transition-colors"
             >
               <span>Device Settings</span>
-              {showDeviceSelector ? <FaChevronUp size={12} /> : <FaChevronDown size={12} />}
+              {showDeviceSelector ? (
+                <FaChevronUp size={12} />
+              ) : (
+                <FaChevronDown size={12} />
+              )}
             </button>
 
             {showDeviceSelector && (
               <div className="mt-2 space-y-2">
                 {/* Microphone Selection */}
                 <div>
-                  <label className="block text-xs text-gray-400 mb-1">Microphone</label>
+                  <label className="block text-xs text-gray-400 mb-1">
+                    Microphone
+                  </label>
                   <select
-                    value={deviceInfo.activeAudioDevice || ''}
-                    onChange={(e) => handleDeviceChange(e.target.value, 'audio')}
+                    value={deviceInfo.activeAudioDevice || ""}
+                    onChange={(e) =>
+                      handleDeviceChange(e.target.value, "audio")
+                    }
                     className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white"
                   >
                     <option value="">Default</option>
                     {deviceInfo.audioInputs.map((d, i) => (
                       <option key={d.deviceId} value={d.deviceId}>
-                        {d.label || `Microphone ${i+1}`}
+                        {d.label || `Microphone ${i + 1}`}
                       </option>
                     ))}
                   </select>
@@ -395,50 +425,65 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
 
                 {/* Camera Selection */}
                 <div>
-                  <label className="block text-xs text-gray-400 mb-1">Camera</label>
+                  <label className="block text-xs text-gray-400 mb-1">
+                    Camera
+                  </label>
                   <select
-                    value={deviceInfo.activeVideoDevice || ''}
-                    onChange={(e) => handleDeviceChange(e.target.value, 'video')}
+                    value={deviceInfo.activeVideoDevice || ""}
+                    onChange={(e) =>
+                      handleDeviceChange(e.target.value, "video")
+                    }
                     className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white"
                   >
                     <option value="">Default</option>
                     {deviceInfo.videoInputs.map((device, i) => (
                       <option key={device.deviceId} value={device.deviceId}>
-                        {device.label || `Camera ${i+1}`}
+                        {device.label || `Camera ${i + 1}`}
                       </option>
                     ))}
                   </select>
                 </div>
 
                 {/* Speaker Selection (Chime supports this) */}
-                {deviceInfo.audioOutputs && deviceInfo.audioOutputs.length > 0 && (
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Speaker</label>
-                    <select
-                      value={deviceInfo.activeAudioOutputDevice || ''}
-                      onChange={(e) => handleDeviceChange(e.target.value, 'speaker')}
-                      className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white"
-                    >
-                      <option value="">Default</option>
-                      {deviceInfo.audioOutputs.map((device, i) => (
-                        <option key={device.deviceId} value={device.deviceId}>
-                          {device.label || `Speaker ${i+1}`}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+                {deviceInfo.audioOutputs &&
+                  deviceInfo.audioOutputs.length > 0 && (
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">
+                        Speaker
+                      </label>
+                      <select
+                        value={deviceInfo.activeAudioOutputDevice || ""}
+                        onChange={(e) =>
+                          handleDeviceChange(e.target.value, "speaker")
+                        }
+                        className="w-full bg-black border border-gray-600 rounded px-2 py-1 text-sm text-white"
+                      >
+                        <option value="">Default</option>
+                        {deviceInfo.audioOutputs.map((device, i) => (
+                          <option key={device.deviceId} value={device.deviceId}>
+                            {device.label || `Speaker ${i + 1}`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
               </div>
             )}
           </div>
 
           {/* Quality Control */}
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Media Quality</label>
+            <label className="block text-xs text-gray-400 mb-1">
+              Media Quality
+            </label>
             <select
               value={mediaState.mediaQuality}
-              onChange={(e) => handleQualityChange(e.target.value as 'low' | 'medium' | 'high' | 'auto')}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white"
+              onChange={(e) =>
+                handleQualityChange(
+                  e.target.value as "low" | "medium" | "high" | "auto"
+                )
+              }
+              className="w-full bg-black border border-gray-600 rounded px-2 py-1 text-sm text-white"
             >
               <option value="auto">Auto</option>
               <option value="high">High</option>
@@ -458,7 +503,13 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
               </div>
               <div className="flex justify-between">
                 <span>Packet Loss:</span>
-                <span className={networkStats.packetLoss > 0.05 ? 'text-red-400' : 'text-green-400'}>
+                <span
+                  className={
+                    networkStats.packetLoss > 0.05
+                      ? "text-red-400"
+                      : "text-green-400"
+                  }
+                >
                   {(networkStats.packetLoss * 100).toFixed(1)}%
                 </span>
               </div>
@@ -472,7 +523,7 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
           )}
 
           {/* Chime SDK Info */}
-          <div className="text-xs text-gray-500 text-center pt-2 border-t border-gray-700">
+          <div className="text-xs text-white text-center pt-2 border-t border-gray-700">
             Powered by Amazon Chime SDK
           </div>
         </div>

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import Sidebar from "../../../components/Sidebar";
+
 import Link from 'next/link';
 import { fetchProfile,profile, logout } from "../../api";
 import { useRouter } from "next/navigation";
@@ -51,7 +51,7 @@ export default function ProfilePage() {
 
     return (
         <div className="flex min-h-screen bg-black text-white relative font-poppins">
-            <Sidebar />
+            
             {/* Main Content */}
             <main className="flex-1 p-10 flex flex-col gap-6 relative">
                 {/* Banner */}
