@@ -394,12 +394,12 @@ const ServersPageContent: React.FC = () => {
         {/*  Add Server Button */}
         <div className="relative bottom-0">
           <div className="relative group">
-            <button
+            {/* <button
               className="w-12 h-12 px-1  flex items-center justify-center rounded-full bg-gray-800 text-yellow-300 hover:bg-yellow-500 hover:text-white transition-all text-3xl font-bold"
               onClick={() => setShowAddMenu((prev) => !prev)}
             >
               +
-            </button>
+            </button> */}
 
             {/* Popup Menu */}
             {showAddMenu && (
