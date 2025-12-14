@@ -50,7 +50,7 @@ export default function CreateServerPage() {
   return (
     <div className="flex min-h-screen bg-black text-white items-center justify-center">
       <div className="w-full max-w-md p-8 bg-[#111214] rounded-2xl shadow-lg border border-gray-800">
-        <h1 className="text-3xl font-bold mb-6 text-center text-green-400">
+        <h1 className="text-3xl font-bold mb-6 text-center text-yellow-300">
           Create a Server
         </h1>
 
@@ -74,7 +74,7 @@ export default function CreateServerPage() {
               {/* File Input */}
               <label
                 htmlFor="fileUpload"
-                className="cursor-pointer px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-medium transition-all"
+                className="cursor-pointer px-4 py-2 rounded-lg bg-gray-700 hover:bg-green-500 text-white text-sm font-medium transition-all"
               >
                 Choose File
               </label>
@@ -114,10 +114,10 @@ export default function CreateServerPage() {
           <button
             type="submit"
             disabled={loading}
-            className={`w-full px-4 py-3 rounded-lg font-semibold transition-all ${
+            className={`w-full px-4 py-3 text-black rounded-lg font-semibold transition-all ${
               loading
-                ? "bg-green-900 cursor-not-allowed"
-                : "bg-green-600 hover:bg-green-500"
+                ? "bg-yellow-300 cursor-not-allowed"
+                : "bg-yellow-400 hover:bg-yellow-500"
             }`}
           >
             {loading ? "Creating..." : "Create Server"}

@@ -48,15 +48,15 @@ const ServersPageContent: React.FC = () => {
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // View mode: 'voice' shows full voice UI, 'chat' shows text chat (with floating window if in voice)
-  const [viewMode, setViewMode] = useState<'voice' | 'chat'>('chat');
+  const [viewMode, setViewMode] = useState<"voice" | "chat">("chat");
 
   // Store viewMode in localStorage for FloatingVoiceWindow to read
   useEffect(() => {
-    localStorage.setItem('currentViewMode', viewMode);
+    localStorage.setItem("currentViewMode", viewMode);
     return () => {
-      localStorage.removeItem('currentViewMode');
+      localStorage.removeItem("currentViewMode");
     };
   }, [viewMode]);
 
@@ -77,11 +77,15 @@ const ServersPageContent: React.FC = () => {
   } = useVoiceCall();
 
   // Check if this server's voice channel is active
-  const isVoiceActiveForCurrentServer = activeCall?.serverId === selectedServerId;
-  const activeVoiceChannelName = isVoiceActiveForCurrentServer ? activeCall?.channelName : null;
-  
+  const isVoiceActiveForCurrentServer =
+    activeCall?.serverId === selectedServerId;
+  const activeVoiceChannelName = isVoiceActiveForCurrentServer
+    ? activeCall?.channelName
+    : null;
+
   // Should show voice UI: only when in voice view mode AND connected to this server's voice
-  const showVoiceUI = viewMode === 'voice' && isVoiceActiveForCurrentServer && activeCall;
+  const showVoiceUI =
+    viewMode === "voice" && isVoiceActiveForCurrentServer && activeCall;
 
   // Debug logging for voice UI visibility
   useEffect(() => {
@@ -90,8 +94,15 @@ const ServersPageContent: React.FC = () => {
       selectedServerId,
       activeCallServerId: activeCall?.serverId,
       isVoiceActiveForCurrentServer,
-      showVoiceUI: viewMode === 'voice' && isVoiceActiveForCurrentServer && !!activeCall,
-      activeCall: activeCall ? { channelId: activeCall.channelId, channelName: activeCall.channelName, serverId: activeCall.serverId } : null
+      showVoiceUI:
+        viewMode === "voice" && isVoiceActiveForCurrentServer && !!activeCall,
+      activeCall: activeCall
+        ? {
+            channelId: activeCall.channelId,
+            channelName: activeCall.channelName,
+            serverId: activeCall.serverId,
+          }
+        : null,
     });
   }, [viewMode, selectedServerId, activeCall, isVoiceActiveForCurrentServer]);
 
@@ -107,11 +118,22 @@ const ServersPageContent: React.FC = () => {
   }
 
   // Map context participants to VoiceMember format
-  const voiceMembers: VoiceMember[] = participants.map((p) => ({
+  const uniqueParticipantsMap = new Map<string, any>();
+
+  participants.forEach((p) => {
+    const id = p.attendeeId || p.oduserId;
+    if (!uniqueParticipantsMap.has(id)) {
+      uniqueParticipantsMap.set(id, p);
+    }
+  });
+
+  const voiceMembers: VoiceMember[] = Array.from(
+    uniqueParticipantsMap.values()
+  ).map((p) => ({
     id: p.attendeeId || p.oduserId,
     username: p.name || `User ${p.oduserId.slice(0, 8)}`,
     avatar_url: null,
-    status: "online" as const,
+    status: "online",
     muted: p.muted,
     video: p.video,
     speaking: p.speaking,
@@ -156,19 +178,28 @@ const ServersPageContent: React.FC = () => {
         if (data.length > 0) {
           // If serverId is in query params, select that server
           if (serverIdFromQuery) {
-            const targetServer = data.find((s: any) => s.id === serverIdFromQuery);
+            const targetServer = data.find(
+              (s: any) => s.id === serverIdFromQuery
+            );
             if (targetServer) {
-              console.log("[ServersPage] Selecting server from query:", targetServer.name);
+              console.log(
+                "[ServersPage] Selecting server from query:",
+                targetServer.name
+              );
               setSelectedServerId(targetServer.id);
               setSelectedServerName(targetServer.name);
             } else {
               // Fallback to first server if not found
-              console.log("[ServersPage] Server not found, selecting first server");
+              console.log(
+                "[ServersPage] Server not found, selecting first server"
+              );
               setSelectedServerId(data[0].id);
               setSelectedServerName(data[0].name);
             }
           } else {
-            console.log("[ServersPage] No serverId in query, selecting first server");
+            console.log(
+              "[ServersPage] No serverId in query, selecting first server"
+            );
             setSelectedServerId(data[0].id);
             setSelectedServerName(data[0].name);
           }
@@ -185,33 +216,44 @@ const ServersPageContent: React.FC = () => {
 
   // Handle view mode from query params (when navigating from expand button)
   useEffect(() => {
-    if (viewModeFromQuery === 'voice') {
+    if (viewModeFromQuery === "voice") {
       console.log("[ServersPage] Setting viewMode to voice from query param");
-      setViewMode('voice');
+      setViewMode("voice");
     }
   }, [viewModeFromQuery]);
 
   // Also set view mode to voice when activeCall server matches selected server and view=voice was requested
   useEffect(() => {
-    if (viewModeFromQuery === 'voice' && activeCall && selectedServerId === activeCall.serverId) {
-      console.log("[ServersPage] activeCall matches selected server, ensuring voice mode");
-      setViewMode('voice');
+    if (
+      viewModeFromQuery === "voice" &&
+      activeCall &&
+      selectedServerId === activeCall.serverId
+    ) {
+      console.log(
+        "[ServersPage] activeCall matches selected server, ensuring voice mode"
+      );
+      setViewMode("voice");
     }
   }, [viewModeFromQuery, activeCall, selectedServerId]);
 
   // Listen for expandVoiceView custom event from FloatingVoiceWindow
   useEffect(() => {
-    const handleExpandVoiceView = (event: CustomEvent<{ serverId: string }>) => {
-      console.log("[ServersPage] Received expandVoiceView event:", event.detail);
+    const handleExpandVoiceView = (
+      event: CustomEvent<{ serverId: string }>
+    ) => {
+      console.log(
+        "[ServersPage] Received expandVoiceView event:",
+        event.detail
+      );
       const { serverId } = event.detail;
-      
+
       // If the server matches current selection or the active call, switch to voice view
       if (serverId === selectedServerId || serverId === activeCall?.serverId) {
-        setViewMode('voice');
-        
+        setViewMode("voice");
+
         // Also ensure the correct server is selected
         if (serverId !== selectedServerId) {
-          const targetServer = servers.find(s => s.id === serverId);
+          const targetServer = servers.find((s) => s.id === serverId);
           if (targetServer) {
             setSelectedServerId(targetServer.id);
             setSelectedServerName(targetServer.name);
@@ -220,9 +262,15 @@ const ServersPageContent: React.FC = () => {
       }
     };
 
-    window.addEventListener('expandVoiceView', handleExpandVoiceView as EventListener);
+    window.addEventListener(
+      "expandVoiceView",
+      handleExpandVoiceView as EventListener
+    );
     return () => {
-      window.removeEventListener('expandVoiceView', handleExpandVoiceView as EventListener);
+      window.removeEventListener(
+        "expandVoiceView",
+        handleExpandVoiceView as EventListener
+      );
     };
   }, [selectedServerId, activeCall, servers]);
 
@@ -286,7 +334,7 @@ const ServersPageContent: React.FC = () => {
 
   // When joining a voice channel, use the context's joinCall
   const handleJoinVoiceChannel = async (channel: Channel) => {
-    setViewMode('voice'); // Switch to voice view when joining
+    setViewMode("voice"); // Switch to voice view when joining
     await joinCall(
       channel.id,
       channel.name,
@@ -298,7 +346,7 @@ const ServersPageContent: React.FC = () => {
   // Handle hang up
   const handleHangUp = () => {
     leaveCall();
-    setViewMode('chat'); // Switch back to chat view after hanging up
+    setViewMode("chat"); // Switch back to chat view after hanging up
   };
 
   // Build external state for EnhancedVoiceChannel
@@ -347,7 +395,7 @@ const ServersPageContent: React.FC = () => {
         <div className="relative bottom-0">
           <div className="relative group">
             <button
-              className="w-12 h-12 px-1  flex items-center justify-center rounded-full bg-gray-800 text-green-500 hover:bg-green-600 hover:text-white transition-all text-3xl font-bold"
+              className="w-12 h-12 px-1  flex items-center justify-center rounded-full bg-gray-800 text-yellow-300 hover:bg-yellow-500 hover:text-white transition-all text-3xl font-bold"
               onClick={() => setShowAddMenu((prev) => !prev)}
             >
               +
@@ -423,7 +471,7 @@ const ServersPageContent: React.FC = () => {
               </button>
               <button
                 onClick={() => router.push("/create-server")}
-                className="px-4 py-2 rounded bg-green-600 hover:bg-green-700"
+                className="px-4 py-2 rounded bg-yellow-300 hover:bg-green-700"
               >
                 Create Server
               </button>
@@ -462,20 +510,22 @@ const ServersPageContent: React.FC = () => {
                 <div
                   key={channel.id}
                   className={`flex items-center justify-between p-2 text-sm rounded-md cursor-pointer transition-all ${
-                    activeChannel?.id === channel.id && viewMode === 'chat'
+                    activeChannel?.id === channel.id && viewMode === "chat"
                       ? "bg-[#2f3136] text-white"
                       : "text-gray-400 hover:bg-[#2f3136] hover:text-white"
                   }`}
                   onClick={() => {
                     setActiveChannel(channel);
-                    setViewMode('chat'); // Switch to chat view when clicking text channel
+                    setViewMode("chat"); // Switch to chat view when clicking text channel
                   }}
                 >
                   <span className="flex items-center gap-2">
                     <FaHashtag size={12} />
                     {channel.name}
                   </span>
-                  {activeChannel?.id === channel.id && viewMode === 'chat' && <FaCog size={12} />}
+                  {activeChannel?.id === channel.id && viewMode === "chat" && (
+                    <FaCog size={12} />
+                  )}
                 </div>
               ))}
             </div>
@@ -488,7 +538,8 @@ const ServersPageContent: React.FC = () => {
                 <div
                   key={channel.id}
                   className={`flex items-center justify-between p-2 text-sm rounded-md cursor-pointer transition-all ${
-                    activeVoiceChannelName === channel.name && viewMode === 'voice'
+                    activeVoiceChannelName === channel.name &&
+                    viewMode === "voice"
                       ? "bg-[#2f3136] text-white"
                       : "text-gray-400 hover:bg-[#2f3136] hover:text-white"
                   }`}
@@ -499,10 +550,17 @@ const ServersPageContent: React.FC = () => {
                     {channel.name}
                     {/* Show indicator if connected to this channel */}
                     {activeVoiceChannelName === channel.name && (
-                      <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-yellow-500 animate-pulse"}`} />
+                      <div
+                        className={`w-2 h-2 rounded-full ${
+                          isConnected
+                            ? "bg-green-500"
+                            : "bg-yellow-500 animate-pulse"
+                        }`}
+                      />
                     )}
                   </span>
-                  {activeVoiceChannelName === channel.name && viewMode === 'voice' && <FaCog size={12} />}
+                  {activeVoiceChannelName === channel.name &&
+                    viewMode === "voice" && <FaCog size={12} />}
                 </div>
               ))}
             </div>
@@ -516,16 +574,18 @@ const ServersPageContent: React.FC = () => {
                     <div className="flex items-center gap-1">
                       <div
                         className={`w-2 h-2 rounded-full ${
-                          isConnected ? "bg-green-500" : "bg-yellow-500 animate-pulse"
+                          isConnected
+                            ? "bg-green-500"
+                            : "bg-yellow-500 animate-pulse"
                         }`}
                       />
                       <span>In voice: {activeCall.channelName}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    {viewMode === 'chat' && (
+                    {viewMode === "chat" && (
                       <button
-                        onClick={() => setViewMode('voice')}
+                        onClick={() => setViewMode("voice")}
                         className="px-2 py-1 text-xs rounded bg-gray-700 hover:bg-gray-600"
                       >
                         Open
@@ -578,7 +638,9 @@ const ServersPageContent: React.FC = () => {
                       {/* ensure current user is shown first */}
                       {voiceMembers.length === 0 ? (
                         <div className="text-gray-400 text-sm">
-                          {isConnecting ? "Connecting..." : "No one else is in the call"}
+                          {isConnecting
+                            ? "Connecting..."
+                            : "No one else is in the call"}
                         </div>
                       ) : (
                         voiceMembers.map((m) => (
@@ -587,7 +649,11 @@ const ServersPageContent: React.FC = () => {
                             className="flex items-center justify-between"
                           >
                             <div className="flex items-center gap-3">
-                              <div className={`w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-xs overflow-hidden ${m.speaking ? 'ring-2 ring-green-500' : ''}`}>
+                              <div
+                                className={`w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-xs overflow-hidden ${
+                                  m.speaking ? "ring-2 ring-green-500" : ""
+                                }`}
+                              >
                                 {m.avatar_url ? (
                                   <img
                                     src={m.avatar_url}
@@ -605,7 +671,11 @@ const ServersPageContent: React.FC = () => {
                               <div className="flex flex-col">
                                 <span className="text-sm">{m.username}</span>
                                 <span className="text-xs text-gray-500">
-                                  {m.speaking ? "Speaking" : m.status === "online" ? "Online" : m.status}
+                                  {m.speaking
+                                    ? "Speaking"
+                                    : m.status === "online"
+                                    ? "Online"
+                                    : m.status}
                                 </span>
                               </div>
                             </div>
@@ -614,7 +684,13 @@ const ServersPageContent: React.FC = () => {
                               {m.muted ? (
                                 <FaMicrophoneSlash className="w-4 h-4 text-red-500" />
                               ) : (
-                                <FaMicrophone className={`w-4 h-4 ${m.speaking ? 'text-green-400' : 'text-gray-400'}`} />
+                                <FaMicrophone
+                                  className={`w-4 h-4 ${
+                                    m.speaking
+                                      ? "text-green-400"
+                                      : "text-gray-400"
+                                  }`}
+                                />
                               )}
                               {/* video icon */}
                               {!m.video && (

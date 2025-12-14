@@ -35,6 +35,8 @@ interface ChatWindowProps {
 }
 
 export default function ChatWindow({ channelId, currentUserId, localStream = null, remoteStreams = [], serverId }: ChatWindowProps) {
+  const [loadingMessages, setLoadingMessages] = useState(true);
+
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -107,12 +109,15 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
 
   const loadMessages = useCallback(async () => {
     try {
+      setLoadingMessages(true);
+
       const res = await fetchMessages(channelId);
+
       const formattedMessages: Message[] = await Promise.all(
         res.data.map(async (msg: any) => {
           const senderId = msg.sender_id || msg.senderId;
           const avatarUrl = await getAvatarUrl(senderId);
-          
+
           return {
             id: msg.id,
             content: msg.content || msg.message,
@@ -120,34 +125,31 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
             timestamp: msg.timestamp || new Date().toISOString(),
             avatarUrl,
             username:
-              (senderId === currentUserId ? "You" :
-                (msg.username ||
-                 (msg.sender && (msg.sender.username || msg.sender.fullname || msg.sender.name)) ||
-                 msg.sender_name || msg.senderName || msg.username ||
-                 "Unknown")),
-            mediaUrl: msg.media_url || msg.mediaUrl // Handle backend's snake_case media_url
+              senderId === currentUserId
+                ? "You"
+                : msg.username ||
+                  msg.sender?.username ||
+                  msg.sender?.fullname ||
+                  msg.sender_name ||
+                  "Unknown",
+            mediaUrl: msg.media_url || msg.mediaUrl,
           };
         })
       );
-      
-      const sortedMessages = formattedMessages.sort((a: Message, b: Message) => 
-        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+
+      const sorted = formattedMessages.sort(
+        (a, b) =>
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
       );
-      
-      const map: Record<string, string> = { ...usernamesRef.current };
-      for (const m of sortedMessages) {
-        if (m.senderId && m.username && m.username !== 'Unknown') {
-          map[m.senderId] = m.username;
-        } else if (m.senderId === currentUserId) {
-          map[m.senderId] = 'You';
-        }
-      }
-      usernamesRef.current = map;
-      setMessages(sortedMessages);
+
+      setMessages(sorted);
     } catch (err) {
       console.error("Failed to fetch messages", err);
+    } finally {
+      setLoadingMessages(false);
     }
   }, [channelId, currentUserId]);
+
 
   useEffect(() => {
     if (channelId) loadMessages();
@@ -357,34 +359,50 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
         </div>
       )}
       <div className="flex-1 overflow-y-auto px-6 pb-6 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
-        {messages.map((msg) => (
-          <MessageBubble
-            key={msg.id}
-            name={msg.username}
-            message={msg.content}
-            avatarUrl={msg.avatarUrl}
-            isSender={msg.senderId === currentUserId}
-            timestamp={new Date(msg.timestamp).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-            onProfileClick={() => openProfile(msg)}
-            messageRenderer={(content: string) => (
-              <MessageContentWithMentions 
-                content={content}
-                currentUserId={currentUserId}
-              />
-            )}
-          >
-            {msg.mediaUrl && <MessageAttachment media_url={msg.mediaUrl} />}
-          </MessageBubble>
-        ))}
-        <div ref={messagesEndRef} />
+        {loadingMessages ? (
+          <div className="flex h-full items-center justify-center">
+            <div className="text-center">
+              <div className="mx-auto mb-4 w-8 h-8 border-4 border-gray-700 border-t-blue-500 rounded-full animate-spin" />
+              <p className="text-gray-400 text-sm">Loading messages…</p>
+            </div>
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex h-full items-center justify-center text-gray-500 text-sm">
+            No messages yet. Say hi 👋
+          </div>
+        ) : (
+          <>
+            {messages.map((msg) => (
+              <MessageBubble
+                key={msg.id}
+                name={msg.username}
+                message={msg.content}
+                avatarUrl={msg.avatarUrl}
+                isSender={msg.senderId === currentUserId}
+                timestamp={new Date(msg.timestamp).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+                onProfileClick={() => openProfile(msg)}
+                messageRenderer={(content: string) => (
+                  <MessageContentWithMentions
+                    content={content}
+                    currentUserId={currentUserId}
+                  />
+                )}
+              >
+                {msg.mediaUrl && <MessageAttachment media_url={msg.mediaUrl} />}
+              </MessageBubble>
+            ))}
+            <div ref={messagesEndRef} />
+          </>
+        )}
       </div>
+
       <div className="flex-shrink-0 px-6 pb-6">
         {serverId ? (
-          <MessageInputWithMentions 
-            sendMessage={handleSend} 
+          <MessageInputWithMentions
+            sendMessage={handleSend}
             isSending={isSending}
             serverId={serverId}
           />
