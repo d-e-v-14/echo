@@ -138,8 +138,18 @@ const FloatingVoiceWindow: React.FC<FloatingVoiceWindowProps> = ({ currentServer
   // Handle expand - navigate to servers page with voice view
   const handleExpand = () => {
     if (activeCall) {
+      // Set localStorage to signal voice view mode (this is more reliable than URL params)
+      localStorage.setItem('currentViewMode', 'voice');
+      localStorage.setItem('currentViewedServerId', activeCall.serverId);
+      
+      // Dispatch a custom event so the servers page can react immediately
+      window.dispatchEvent(new CustomEvent('expandVoiceView', { 
+        detail: { serverId: activeCall.serverId } 
+      }));
+      
       // Navigate to servers page with the server selected and voice view mode
-      router.push(`/servers?serverId=${activeCall.serverId}&view=voice`);
+      // Add timestamp to force navigation even if URL is similar
+      router.push(`/servers?serverId=${activeCall.serverId}&view=voice&t=${Date.now()}`);
     }
   };
 

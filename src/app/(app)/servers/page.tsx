@@ -83,6 +83,18 @@ const ServersPageContent: React.FC = () => {
   // Should show voice UI: only when in voice view mode AND connected to this server's voice
   const showVoiceUI = viewMode === 'voice' && isVoiceActiveForCurrentServer && activeCall;
 
+  // Debug logging for voice UI visibility
+  useEffect(() => {
+    console.log("[ServersPage] Voice UI Debug:", {
+      viewMode,
+      selectedServerId,
+      activeCallServerId: activeCall?.serverId,
+      isVoiceActiveForCurrentServer,
+      showVoiceUI: viewMode === 'voice' && isVoiceActiveForCurrentServer && !!activeCall,
+      activeCall: activeCall ? { channelId: activeCall.channelId, channelName: activeCall.channelName, serverId: activeCall.serverId } : null
+    });
+  }, [viewMode, selectedServerId, activeCall, isVoiceActiveForCurrentServer]);
+
   // Voice members derived from context participants
   interface VoiceMember {
     id: string;
@@ -132,27 +144,31 @@ const ServersPageContent: React.FC = () => {
           status: "offline",
         };
 
-  // Load servers - handles both initial load and query param changes
   useEffect(() => {
     const loadServers = async () => {
       try {
         setLoading(true);
         const data = await fetchServers();
-        console.log(data);
+        console.log("[ServersPage] Loaded servers:", data);
+        console.log("[ServersPage] serverIdFromQuery:", serverIdFromQuery);
+        console.log("[ServersPage] viewModeFromQuery:", viewModeFromQuery);
         setServers(data);
         if (data.length > 0) {
           // If serverId is in query params, select that server
           if (serverIdFromQuery) {
             const targetServer = data.find((s: any) => s.id === serverIdFromQuery);
             if (targetServer) {
+              console.log("[ServersPage] Selecting server from query:", targetServer.name);
               setSelectedServerId(targetServer.id);
               setSelectedServerName(targetServer.name);
             } else {
               // Fallback to first server if not found
+              console.log("[ServersPage] Server not found, selecting first server");
               setSelectedServerId(data[0].id);
               setSelectedServerName(data[0].name);
             }
           } else {
+            console.log("[ServersPage] No serverId in query, selecting first server");
             setSelectedServerId(data[0].id);
             setSelectedServerName(data[0].name);
           }
@@ -165,16 +181,51 @@ const ServersPageContent: React.FC = () => {
       }
     };
     loadServers();
-  }, [serverIdFromQuery, refresh]);
+  }, [serverIdFromQuery]);
 
   // Handle view mode from query params (when navigating from expand button)
   useEffect(() => {
     if (viewModeFromQuery === 'voice') {
+      console.log("[ServersPage] Setting viewMode to voice from query param");
       setViewMode('voice');
     }
   }, [viewModeFromQuery]);
 
-  // Load channels when server changes
+  // Also set view mode to voice when activeCall server matches selected server and view=voice was requested
+  useEffect(() => {
+    if (viewModeFromQuery === 'voice' && activeCall && selectedServerId === activeCall.serverId) {
+      console.log("[ServersPage] activeCall matches selected server, ensuring voice mode");
+      setViewMode('voice');
+    }
+  }, [viewModeFromQuery, activeCall, selectedServerId]);
+
+  // Listen for expandVoiceView custom event from FloatingVoiceWindow
+  useEffect(() => {
+    const handleExpandVoiceView = (event: CustomEvent<{ serverId: string }>) => {
+      console.log("[ServersPage] Received expandVoiceView event:", event.detail);
+      const { serverId } = event.detail;
+      
+      // If the server matches current selection or the active call, switch to voice view
+      if (serverId === selectedServerId || serverId === activeCall?.serverId) {
+        setViewMode('voice');
+        
+        // Also ensure the correct server is selected
+        if (serverId !== selectedServerId) {
+          const targetServer = servers.find(s => s.id === serverId);
+          if (targetServer) {
+            setSelectedServerId(targetServer.id);
+            setSelectedServerName(targetServer.name);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('expandVoiceView', handleExpandVoiceView as EventListener);
+    return () => {
+      window.removeEventListener('expandVoiceView', handleExpandVoiceView as EventListener);
+    };
+  }, [selectedServerId, activeCall, servers]);
+
   useEffect(() => {
     if (!selectedServerId) return;
     const loadChannels = async () => {
@@ -208,6 +259,26 @@ const ServersPageContent: React.FC = () => {
       localStorage.removeItem("currentViewedServerId");
     };
   }, [selectedServerId]);
+
+  // Reload servers when refresh param changes (e.g., after creating a new server)
+  useEffect(() => {
+    if (!refresh) return; // Only reload if refresh param is actually set
+    const reloadServers = async () => {
+      try {
+        setLoading(true);
+        const data = await fetchServers();
+        console.log("[ServersPage] Refreshing servers:", data);
+        setServers(data);
+        // Don't reset server selection on refresh - keep current or use query param
+      } catch (err) {
+        console.error("Error fetching servers", err);
+        setError("Failed to load servers.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    reloadServers();
+  }, [refresh]);
 
   // Derived channel lists
   const textChannels = channels.filter((c) => c.type === "text");
