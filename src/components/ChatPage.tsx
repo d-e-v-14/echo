@@ -72,7 +72,7 @@ const ChatList: React.FC<ChatListProps> = ({ conversations, activeDmId, onSelect
     }, [conversations, query]);
 
     return (
-        <aside className="hidden h-full w-80 flex-col border-r border-slate-800 bg-slate-900/70 p-4 backdrop-blur-lg lg:flex">
+        <aside className="hidden h-full w-80 flex-col border-r border-slate-800 bg-black p-4 backdrop-blur-lg lg:flex">
             <div className="mb-5">
                 <h2 className="text-lg font-semibold text-slate-100">Direct Messages</h2>
                 <p className="mt-1 text-xs text-slate-400">
@@ -246,7 +246,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ activeUser, messages, currentUs
 
     if (!activeUser) {
         return (
-            <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-slate-950/80 text-slate-400">
+            <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-black text-slate-400">
                 <div className="rounded-full border border-slate-800/70 bg-slate-900/50 p-6">
                     <Paperclip className="h-8 w-8 text-slate-500" />
                 </div>
@@ -263,7 +263,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ activeUser, messages, currentUs
     const recipientFirstName = activeUser.fullname.split(' ')[0] || activeUser.fullname;
 
     return (
-        <div className="flex h-full flex-1 flex-col bg-slate-950/80 backdrop-blur">
+        <div className="flex h-full flex-1 flex-col bg-black backdrop-blur">
             <header className="flex items-center justify-between border-b border-slate-800/80 px-6 py-5">
                 <div className="flex items-center gap-3">
                     <div className="h-11 w-11 overflow-hidden rounded-full border border-slate-800/70 bg-slate-900/70">
@@ -735,7 +735,7 @@ useEffect(() => {
                 error={error}
             />
             <div className="flex flex-1 flex-col">
-                <div className="border-b border-slate-800/70 bg-slate-900/60 px-4 py-3 lg:hidden">
+                <div className="border-b border-slate-800/70 bg-black px-4 py-3 lg:hidden">
                     <div className="flex items-center justify-between">
                         <div>
                             <h2 className="text-base font-semibold text-slate-100">Direct Messages</h2>
