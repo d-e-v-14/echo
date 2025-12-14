@@ -20,7 +20,7 @@ import { useEffect, useState } from "react";
 import { useNotifications } from '../hooks/useNotifications';
 
 const navItems = [
-  { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
+
   { label: "Servers", icon: Users, path: "/servers" },
   { label: "Messages", icon: MessageSquareText, path: "/messages" },
   { label: "Friends", icon: UserIcon, path: "/friends" },

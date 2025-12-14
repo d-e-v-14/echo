@@ -261,18 +261,15 @@ const ParticipantVideo = memo(function ParticipantVideo({
   const hasScreenTileId = participant.screenTileId !== undefined && participant.screenTileId !== null;
   
   const shouldShowScreenShare = hasScreenShareStream || hasScreenShareState;
-  // Show video if video state is ON - we need to render the <video> element
-  // so that Chime can bind the tile to it. Don't wait for tile ID.
-  const shouldShowVideo = hasVideoState && !shouldShowScreenShare;
+  // Show video element if:
+  // 1. Video state is ON (camera enabled), OR
+  // 2. We have a valid tileId (Chime needs the element to bind to even before state updates)
+  // This fixes black screen issue when minimizing/maximizing calls - the video element
+  // must exist for Chime SDK to bind the tile to it.
+  const shouldShowVideo = (hasVideoState || hasTileId) && !shouldShowScreenShare;
 
-  // Debug logging
-  console.log(`[ParticipantVideo ${participant.username}] Render state:`, {
-    hasVideoState,
-    shouldShowScreenShare,
-    shouldShowVideo,
-    mediaState: participant.mediaState,
-    tileId: participant.tileId
-  });
+
+  
 
   // Bind Chime video tile to video element
   // This effect handles binding the Chime SDK video tile to the HTML video element
@@ -705,10 +702,35 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
     [currentUser?.username, localStream, localScreenStream, localVideoTileId, localMediaState]
   );
 
-  const allParticipants = useMemo(
-    () => [localParticipant, ...participants],
-    [localParticipant, participants]
-  );
+  // Filter out any remote participants that might be the local user
+  // (this can happen when using external manager from VoiceCallContext)
+  // We identify the local user by checking multiple criteria
+  const allParticipants = useMemo(() => {
+    const localUsername = currentUser?.username || '';
+    
+    // Filter out participants that are actually the local user
+    // (they will be represented by localParticipant instead)
+    const remoteParticipants = participants.filter(p => {
+      // Keep participant if they are NOT the local user
+      // A participant is local if:
+      // 1. Their id is "local"
+      // 2. Their isLocal flag is true
+      // 3. Their username matches the currentUser's username
+      // 4. Their oduserId matches the currentUser's username (Chime uses username as externalUserId)
+      if (p.id === "local" || p.isLocal) {
+        return false; // Filter out - this is the local user
+      }
+      
+      // Also check if username matches (for cases where isLocal wasn't set correctly)
+      if (localUsername && (p.username === localUsername || p.oduserId === localUsername)) {
+        return false; // Filter out - this is the local user
+      }
+      
+      return true;
+    });
+    
+    return [localParticipant, ...remoteParticipants];
+  }, [localParticipant, participants, currentUser?.username]);
 
   const totalParticipants = allParticipants.length;
 

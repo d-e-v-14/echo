@@ -4,7 +4,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
-import { VoiceVideoManager, VideoTileInfo } from '@/lib/VoiceVideoManager';
+import { VoiceVideoManager, VideoTileInfo, VoiceRosterMember, MediaState as ManagerMediaState } from '@/lib/VoiceVideoManager';
 import VoiceVideoControls from './VoiceVideoControls';
 import EnhancedVideoPanel from './EnhancedVideoPanel';
 import { FaMicrophone, FaMicrophoneSlash, FaRedo, FaVideoSlash } from 'react-icons/fa';
@@ -39,6 +39,18 @@ interface MediaState {
   };
 }
 
+// External state from VoiceCallContext (when using external manager)
+interface ExternalVoiceState {
+  participants: VoiceRosterMember[];
+  localMediaState: ManagerMediaState;
+  localVideoTileId: number | null;
+  videoTiles: Map<number, VideoTileInfo>;
+  isConnected: boolean;
+  isConnecting?: boolean;
+  permissionError?: string | null;
+  connectionError?: string | null;
+}
+
 interface EnhancedVoiceChannelProps {
   channelId: string;
   userId: string;
@@ -50,6 +62,11 @@ interface EnhancedVoiceChannelProps {
   onVoiceRoster?: (members: any[]) => void;
   currentUser?: { username: string };
   debug?: boolean;
+  
+  // New props for external manager (from VoiceCallContext)
+  externalManager?: VoiceVideoManager | null;
+  externalState?: ExternalVoiceState;
+  useExternalManager?: boolean;
 }
 
 const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
@@ -62,7 +79,11 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
   onRemoteStreamRemoved,
   onVoiceRoster,
   currentUser,
-  debug = false
+  debug = false,
+  // External manager props (from VoiceCallContext)
+  externalManager = null,
+  externalState,
+  useExternalManager = false,
 }) => {
   // Debug logging utility
   const debugLog = (message: string, data?: any) => {
@@ -122,6 +143,18 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
 
   // Initialize manager
   useEffect(() => {
+    // If using external manager, skip internal manager creation and setup
+    if (useExternalManager) {
+      debugLog('Using external manager from VoiceCallContext');
+      managerRef.current = externalManager;
+      isManagerInitialized.current = true;
+      setHasAnyPermissions(true);
+      setIsConnected(externalState?.isConnected || false);
+      setIsVoiceChannelConnected(externalState?.isConnected || false);
+      setConnectionStatus(externalState?.isConnected ? 'Connected' : 'Connecting...');
+      return; // Skip all internal initialization
+    }
+
     let isMounted = true;
     
     if (!managerRef.current) {
@@ -578,14 +611,21 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
     
     return () => {
       isMounted = false;
-      if (managerRef.current) {
+      // Only disconnect if NOT using external manager (external manager persists)
+      if (managerRef.current && !useExternalManager) {
         managerRef.current.disconnect();
       }
     };
-  }, [userId]);
+  }, [userId, useExternalManager, externalManager, externalState]);
 
   // Handle channel changes - join the voice channel
   useEffect(() => {
+    // If using external manager, skip joining here (context handles it)
+    if (useExternalManager) {
+      debugLog('Using external manager - skipping channel join (handled by context)');
+      return;
+    }
+
     const manager = managerRef.current;
     
     if (!manager || !isManagerInitialized.current) return;
@@ -622,6 +662,7 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
     joinChannel();
 
     return () => {
+      // Only leave channel if NOT using external manager
       debugLog('Leaving voice channel:', channelId);
       setDebugStatus('Leaving voice channel...');
       if (manager) {
@@ -630,10 +671,13 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
       setIsVoiceChannelConnected(false);
       setDebugStatus('Disconnected from voice channel');
     };
-  }, [channelId, onLocalStreamChange, hasAnyPermissions]);
+  }, [channelId, onLocalStreamChange, hasAnyPermissions, useExternalManager]);
 
   // Update local media state periodically
   useEffect(() => {
+    // Skip periodic update if using external manager (state comes from context)
+    if (useExternalManager) return;
+
     const manager = managerRef.current;
     if (!manager) return;
 
@@ -644,7 +688,72 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [useExternalManager]);
+
+  // Sync state from externalState when using external manager
+  useEffect(() => {
+    if (!useExternalManager || !externalState) return;
+
+    debugLog('Syncing state from external context', externalState);
+
+    // Map external participants to our Participant format
+    // Properly identify local user by comparing with currentUser username
+    // Note: oduserId from Chime roster is actually the username (externalUserId sent to Chime)
+    const localUsername = currentUser?.username || '';
+    
+    const mappedParticipants: Participant[] = externalState.participants.map(member => {
+      const memberOduserId = String(member.oduserId || '');
+      const memberName = member.name || '';
+      
+      // Check if this participant is the local user
+      // Compare against both username and name since oduserId/name in Chime is the username
+      const isLocalUser = 
+        memberOduserId === localUsername || 
+        memberName === localUsername ||
+        memberOduserId === userId ||
+        memberName === userId;
+      
+      return {
+        id: String(member.attendeeId || member.oduserId || ''),
+        oduserId: memberOduserId,
+        username: memberName || `User ${memberOduserId.slice(0, 8)}`,
+        stream: null,
+        screenStream: undefined,
+        isLocal: isLocalUser,
+        mediaState: {
+          muted: !!member.muted,
+          speaking: !!member.speaking,
+          video: !!member.video,
+          screenSharing: !!member.screenSharing,
+        },
+      };
+    });
+
+    setParticipants(mappedParticipants);
+    setVideoTiles(externalState.videoTiles);
+    setLocalVideoTileId(externalState.localVideoTileId);
+    setIsConnected(externalState.isConnected);
+    setIsVoiceChannelConnected(externalState.isConnected);
+    setConnectionStatus(externalState.isConnected ? 'Connected' : 'Connecting...');
+    
+    if (externalState.permissionError) {
+      setPermissionError(externalState.permissionError);
+    }
+    if (externalState.connectionError) {
+      setConnectionError(externalState.connectionError);
+    }
+
+    // Map external media state to our format
+    setLocalMediaState({
+      muted: externalState.localMediaState.muted,
+      speaking: externalState.localMediaState.speaking,
+      video: externalState.localMediaState.video,
+      screenSharing: externalState.localMediaState.screenSharing,
+      recording: externalState.localMediaState.recording,
+      mediaQuality: externalState.localMediaState.mediaQuality,
+      availablePermissions: externalState.localMediaState.availablePermissions,
+    });
+  }, [useExternalManager, externalState]);
 
   const handleRetryPermissions = async () => {
     const manager = managerRef.current;
@@ -914,75 +1023,10 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
             </button>
           )}
 
-          {/* Voice channel connection status */}
-          {isConnected && (
-            <div className="flex items-center space-x-2 px-3 py-1 bg-gray-800 rounded-full">
-              <div
-                className={`w-2 h-2 rounded-full ${
-                  isVoiceChannelConnected ? "bg-green-400" : "bg-yellow-400"
-                }`}
-              ></div>
-              <span className="text-xs text-gray-300">
-                {isVoiceChannelConnected
-                  ? "Voice Connected"
-                  : "Voice Connecting..."}
-              </span>
-            </div>
-          )}
 
-          {/* Connection status */}
-          <div className="flex items-center space-x-2 px-3 py-1 bg-gray-700 border-white rounded-full">
-            <div
-              className={`w-2 h-2 rounded-full ${
-                isConnected
-                  ? "bg-green-400"
-                  : connectionError
-                  ? "bg-red-400"
-                  : "bg-yellow-400"
-              }`}
-            ></div>
-            <span className="text-xs text-gray-300">{connectionStatus}</span>
-          </div>
         </div>
       </div>
-
-      {/* Debug Status Bar */}
-      {debug && (
-        <div className="mx-4 mb-2 p-2 bg-black rounded border ">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <span className="text-xs font-mono text-blue-400">DEBUG:</span>
-              <span className="text-xs font-mono text-gray-300">
-                {debugStatus}
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center space-x-4 mt-1">
-            <div className="flex items-center space-x-1">
-              <span className="text-xs font-mono text-purple-400">STATE:</span>
-              <span className="text-xs font-mono text-gray-300">
-                {isConnected ? "Connected" : "Disconnected"}
-              </span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <span className="text-xs font-mono text-yellow-400">VOICE:</span>
-              <span className="text-xs font-mono text-gray-300">
-                {isVoiceChannelConnected ? "Connected" : "Disconnected"}
-              </span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <span className="text-xs font-mono text-cyan-400">MEDIA:</span>
-              <span className="text-xs font-mono text-gray-300">
-                {hasAnyPermissions ? "Ready" : "No Permissions"}
-              </span>
-            </div>
-          </div>
-          <div className="mt-1 text-xs font-mono text-gray-400">
-            Status: {connectionStatus}
-          </div>
-        </div>
-      )}
-
+      
       {/* Voice Members List */}
       {voiceMembers.length > 0 && (
         <div className="mx-4 mb-4 p-3 bg-black rounded-lg">
