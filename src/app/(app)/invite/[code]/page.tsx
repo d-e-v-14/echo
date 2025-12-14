@@ -23,8 +23,9 @@ export default function InvitePage() {
         await joinServer(code);
         router.replace("/servers");
       } catch (err: any) {
-        setError(err.message || "Failed to join server.");
-      } finally {
+router.replace("/servers");
+}
+finally {
         setLoading(false);
       }
     };

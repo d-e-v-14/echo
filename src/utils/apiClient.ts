@@ -13,14 +13,19 @@ export const apiClient = axios.create({
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (typeof window !== "undefined" && error.response?.status === 401) {
+    if (
+      typeof window !== "undefined" &&
+      error.response?.status === 401
+    ) {
       const currentUrl =
         window.location.pathname + window.location.search;
 
       localStorage.setItem("redirectAfterLogin", currentUrl);
-
       localStorage.removeItem("token");
-      window.location.href = "/login";
+
+      window.location.replace("/login");
+
+      return new Promise(() => {}); // ⬅️ IMPORTANT
     }
 
     return Promise.reject(error);
