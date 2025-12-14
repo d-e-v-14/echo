@@ -77,7 +77,7 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
   });
 
   const [networkStats, setNetworkStats] = useState<NetworkStats | null>(null);
-   const [showAdvanced, setShowAdvanced] = useState(false);
+
   const [showDeviceSelector, setShowDeviceSelector] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
@@ -357,177 +357,11 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
           <FaPhoneSlash size={20} />
         </button>
       </div>
-
-      {/* Connection Quality & Advanced Toggle */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-2">
-          {getConnectionQualityIcon(networkStats)}
-          {networkStats && (
-            <span className="text-xs text-gray-400">
-              {networkStats.latency.toFixed(0)}ms
-            </span>
-          )}
-        </div>
-
-        <button
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          className="flex items-center space-x-1 text-gray-400 hover:text-white transition-colors"
-        >
-          <FaCog size={14} />
-          <span className="text-xs">Advanced</span>
-          {showAdvanced ? (
-            <FaChevronUp size={12} />
-          ) : (
-            <FaChevronDown size={12} />
-          )}
-        </button>
-      </div>
-
-      {/* Advanced Controls */}
-      {showAdvanced && (
-        <div className="space-y-4 border-t bg-black  pt-4">
-          {/* Device Selection */}
-          <div>
-            <button
-              onClick={toggleDeviceSelector}
-              className="flex items-center justify-between w-full text-left text-sm text-gray-300 hover:text-white transition-colors"
-            >
-              <span>Device Settings</span>
-              {showDeviceSelector ? (
-                <FaChevronUp size={12} />
-              ) : (
-                <FaChevronDown size={12} />
-              )}
-            </button>
-
-            {showDeviceSelector && (
-              <div className="mt-2 space-y-2">
-                {/* Microphone Selection */}
-                <div>
-                  <label className="block text-xs text-gray-400 mb-1">
-                    Microphone
-                  </label>
-                  <select
-                    value={deviceInfo.activeAudioDevice || ""}
-                    onChange={(e) =>
-                      handleDeviceChange(e.target.value, "audio")
-                    }
-                    className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white"
-                  >
-                    <option value="">Default</option>
-                    {deviceInfo.audioInputs.map((d, i) => (
-                      <option key={d.deviceId} value={d.deviceId}>
-                        {d.label || `Microphone ${i + 1}`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Camera Selection */}
-                <div>
-                  <label className="block text-xs text-gray-400 mb-1">
-                    Camera
-                  </label>
-                  <select
-                    value={deviceInfo.activeVideoDevice || ""}
-                    onChange={(e) =>
-                      handleDeviceChange(e.target.value, "video")
-                    }
-                    className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white"
-                  >
-                    <option value="">Default</option>
-                    {deviceInfo.videoInputs.map((device, i) => (
-                      <option key={device.deviceId} value={device.deviceId}>
-                        {device.label || `Camera ${i + 1}`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Speaker Selection (Chime supports this) */}
-                {deviceInfo.audioOutputs &&
-                  deviceInfo.audioOutputs.length > 0 && (
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1">
-                        Speaker
-                      </label>
-                      <select
-                        value={deviceInfo.activeAudioOutputDevice || ""}
-                        onChange={(e) =>
-                          handleDeviceChange(e.target.value, "speaker")
-                        }
-                        className="w-full bg-black border border-gray-600 rounded px-2 py-1 text-sm text-white"
-                      >
-                        <option value="">Default</option>
-                        {deviceInfo.audioOutputs.map((device, i) => (
-                          <option key={device.deviceId} value={device.deviceId}>
-                            {device.label || `Speaker ${i + 1}`}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-              </div>
-            )}
-          </div>
-
-          {/* Quality Control */}
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">
-              Media Quality
-            </label>
-            <select
-              value={mediaState.mediaQuality}
-              onChange={(e) =>
-                handleQualityChange(
-                  e.target.value as "low" | "medium" | "high" | "auto"
-                )
-              }
-              className="w-full bg-black border border-gray-600 rounded px-2 py-1 text-sm text-white"
-            >
-              <option value="auto">Auto</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
-          </div>
-
-          {/* Network Stats */}
-          {networkStats && (
-            <div className="text-xs text-gray-400 space-y-1">
-              <div className="flex justify-between">
-                <span>Latency:</span>
-                <span className={getConnectionQualityColor(networkStats)}>
-                  {networkStats.latency.toFixed(0)}ms
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Packet Loss:</span>
-                <span
-                  className={
-                    networkStats.packetLoss > 0.05
-                      ? "text-red-400"
-                      : "text-green-400"
-                  }
-                >
-                  {(networkStats.packetLoss * 100).toFixed(1)}%
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Quality:</span>
-                <span className={getConnectionQualityColor(networkStats)}>
-                  {networkStats.connectionType}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Chime SDK Info */}
           <div className="text-xs text-white text-center pt-2 border-t border-gray-700">
             Powered by Amazon Chime SDK
           </div>
-        </div>
-      )}
+   
+      
     </div>
   );
 };

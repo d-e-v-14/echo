@@ -1023,75 +1023,10 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
             </button>
           )}
 
-          {/* Voice channel connection status */}
-          {isConnected && (
-            <div className="flex items-center space-x-2 px-3 py-1 bg-gray-800 rounded-full">
-              <div
-                className={`w-2 h-2 rounded-full ${
-                  isVoiceChannelConnected ? "bg-green-400" : "bg-yellow-400"
-                }`}
-              ></div>
-              <span className="text-xs text-gray-300">
-                {isVoiceChannelConnected
-                  ? "Voice Connected"
-                  : "Voice Connecting..."}
-              </span>
-            </div>
-          )}
 
-          {/* Connection status */}
-          <div className="flex items-center space-x-2 px-3 py-1 bg-gray-700 border-white rounded-full">
-            <div
-              className={`w-2 h-2 rounded-full ${
-                isConnected
-                  ? "bg-green-400"
-                  : connectionError
-                  ? "bg-red-400"
-                  : "bg-yellow-400"
-              }`}
-            ></div>
-            <span className="text-xs text-gray-300">{connectionStatus}</span>
-          </div>
         </div>
       </div>
-
-      {/* Debug Status Bar */}
-      {debug && (
-        <div className="mx-4 mb-2 p-2 bg-black rounded border ">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <span className="text-xs font-mono text-blue-400">DEBUG:</span>
-              <span className="text-xs font-mono text-gray-300">
-                {debugStatus}
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center space-x-4 mt-1">
-            <div className="flex items-center space-x-1">
-              <span className="text-xs font-mono text-purple-400">STATE:</span>
-              <span className="text-xs font-mono text-gray-300">
-                {isConnected ? "Connected" : "Disconnected"}
-              </span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <span className="text-xs font-mono text-yellow-400">VOICE:</span>
-              <span className="text-xs font-mono text-gray-300">
-                {isVoiceChannelConnected ? "Connected" : "Disconnected"}
-              </span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <span className="text-xs font-mono text-cyan-400">MEDIA:</span>
-              <span className="text-xs font-mono text-gray-300">
-                {hasAnyPermissions ? "Ready" : "No Permissions"}
-              </span>
-            </div>
-          </div>
-          <div className="mt-1 text-xs font-mono text-gray-400">
-            Status: {connectionStatus}
-          </div>
-        </div>
-      )}
-
+      
       {/* Voice Members List */}
       {voiceMembers.length > 0 && (
         <div className="mx-4 mb-4 p-3 bg-black rounded-lg">
