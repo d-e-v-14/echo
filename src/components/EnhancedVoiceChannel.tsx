@@ -696,12 +696,36 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
 
     debugLog('Syncing state from external context', externalState);
 
+    // Build a lookup map: attendeeId -> tileId (for video tiles)
+    // This allows us to find the tileId for each participant
+    const attendeeToTileId = new Map<string, number>();
+    const attendeeToScreenTileId = new Map<string, number>();
+    
+    externalState.videoTiles.forEach((tile, tileId) => {
+      if (tile.attendeeId) {
+        if (tile.isContent) {
+          // Screen share tile - extract base attendeeId (remove #content suffix)
+          const baseAttendeeId = tile.attendeeId.split('#')[0];
+          attendeeToScreenTileId.set(baseAttendeeId, tileId);
+        } else {
+          // Camera video tile
+          attendeeToTileId.set(tile.attendeeId, tileId);
+        }
+      }
+    });
+
+    debugLog('Tile lookup maps:', {
+      videoTiles: Array.from(attendeeToTileId.entries()),
+      screenTiles: Array.from(attendeeToScreenTileId.entries())
+    });
+
     // Map external participants to our Participant format
     // Properly identify local user by comparing with currentUser username
     // Note: oduserId from Chime roster is actually the username (externalUserId sent to Chime)
     const localUsername = currentUser?.username || '';
     
     const mappedParticipants: Participant[] = externalState.participants.map(member => {
+      const memberAttendeeId = String(member.attendeeId || '');
       const memberOduserId = String(member.oduserId || '');
       const memberName = member.name || '';
       
@@ -713,12 +737,26 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
         memberOduserId === userId ||
         memberName === userId;
       
+      // Look up tileId for this participant by their attendeeId
+      const tileId = attendeeToTileId.get(memberAttendeeId);
+      const screenTileId = attendeeToScreenTileId.get(memberAttendeeId);
+      
+      debugLog(`Mapping participant ${memberName || memberOduserId}:`, {
+        attendeeId: memberAttendeeId,
+        tileId,
+        screenTileId,
+        video: member.video,
+        isLocal: isLocalUser
+      });
+      
       return {
-        id: String(member.attendeeId || member.oduserId || ''),
+        id: memberAttendeeId || memberOduserId,
         oduserId: memberOduserId,
         username: memberName || `User ${memberOduserId.slice(0, 8)}`,
         stream: null,
         screenStream: undefined,
+        tileId: tileId,  // Map tileId from videoTiles
+        screenTileId: screenTileId,  // Map screenTileId from videoTiles
         isLocal: isLocalUser,
         mediaState: {
           muted: !!member.muted,
