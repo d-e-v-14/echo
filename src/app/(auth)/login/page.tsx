@@ -35,7 +35,11 @@ export default function Login() {
       }
 
       setMessage(data.message || "Login successful!");
-      router.push("/servers");
+      const redirect =
+    localStorage.getItem("redirectAfterLogin") || "/servers";
+
+  localStorage.removeItem("redirectAfterLogin");
+  router.replace(redirect);
     } catch (error: any) {
       setSuccess(false);
       setMessage(

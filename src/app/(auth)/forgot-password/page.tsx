@@ -54,10 +54,10 @@ export default function ForgotPassword() {
 
                     <form onSubmit={handleSubmit}>
                         <div className="mb-6">
-                            <label className="text-white text-sm font-light">Email or Username</label>
+                            <label className="text-white text-sm font-light">Email</label>
                             <input
                                 type="text"
-                                placeholder="Enter your email or username"
+                                placeholder="Enter your email"
                                 value={identifier}
                                 onChange={(e) => setIdentifier(e.target.value)}
                                 className="w-full px-4 py-2 mt-1 text-white bg-transparent border border-white rounded-md focus:outline-none"

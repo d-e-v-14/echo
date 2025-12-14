@@ -302,18 +302,17 @@ export const fetchAllFriends = async (
 };
 
 
-export const joinServer = async (inviteCode: string): Promise<any> => {
-  try {
-    const response = await apiClient.post('/api/newserver/joinwithinvite', {
-      inviteCode
-    });
+export const joinServer = async (inviteCode: string) => {
+  const res = await apiClient.post(
+    "/api/newserver/joinwithinvite",
+    { inviteCode }
+  );
 
-    return response.data;
-  } catch (error: any) {
-    console.error("Error joining server:", error.response?.data || error.message || error);
-    const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || "Failed to join server.";
-    throw new Error(errorMessage);
+  if (!res.data.success) {
+    throw new Error(res.data.message);
   }
+
+  return res.data;
 };
 
 // Function to fetch user profile by ID
