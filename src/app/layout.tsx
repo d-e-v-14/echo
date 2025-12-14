@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "../app/globals.css";
+import { MinimizedCallBar } from "@/components/MinimizedCallBar";
 
 // You can define metadata for your application here
 export const metadata: Metadata = {
@@ -19,6 +20,8 @@ export default function RootLayout({
       <body>
         {/* 'children' will be replaced by your page content */}
         {children}
+        {/* Minimized call bar - shows when user navigates away from active call */}
+        <MinimizedCallBar />
       </body>
     </html>
   );

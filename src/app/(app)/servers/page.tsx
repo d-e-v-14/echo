@@ -498,9 +498,9 @@ const ServersPageContent: React.FC = () => {
               </div>
             )}
 
-            {activeVoiceChannel && !isVoiceMinimized ? (
-              // Voice layout: main VoiceChannel area + right-side member list (Discord-like)
-              <div className="flex-1 w-full h-full">
+            {/* Voice Channel - kept mounted but hidden when minimized to preserve connection */}
+            {activeVoiceChannel && (
+              <div className={`flex-1 w-full h-full ${isVoiceMinimized ? 'hidden' : ''}`}>
                 <div className="flex h-full">
                   {/* Main voice area */}
                   <div className="flex-1 p-4">
@@ -598,28 +598,33 @@ const ServersPageContent: React.FC = () => {
                   </div>
                 </div>
               </div>
-            ) : activeChannel ? (
-              <>
-                <h1 className="text-2xl font-bold mb-4 text-center pt-6">
-                  Welcome to #{activeChannel.name}
-                </h1>
-                <div className="flex-1 overflow-y-auto px-6 pb-6 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900 rounded-lg">
-                  <Chatwindow
-                    channelId={activeChannel.id}
-                    isDM={false}
-                    currentUserId={user.id}
-                    localStream={localMediaStream}
-                    remoteStreams={remoteMediaStreams}
-                    serverId={selectedServerId}
-                  />
+            )}
+
+            {/* Chat view - shown when no voice channel or when voice is minimized */}
+            {(!activeVoiceChannel || isVoiceMinimized) && (
+              activeChannel ? (
+                <>
+                  <h1 className="text-2xl font-bold mb-4 text-center pt-6">
+                    Welcome to #{activeChannel.name}
+                  </h1>
+                  <div className="flex-1 overflow-y-auto px-6 pb-6 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900 rounded-lg">
+                    <Chatwindow
+                      channelId={activeChannel.id}
+                      isDM={false}
+                      currentUserId={user.id}
+                      localStream={localMediaStream}
+                      remoteStreams={remoteMediaStreams}
+                      serverId={selectedServerId}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full">
+                  <h2 className="text-2xl text-gray-400">
+                    Select a channel to start chatting
+                  </h2>
                 </div>
-              </>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full">
-                <h2 className="text-2xl text-gray-400">
-                  Select a channel to start chatting
-                </h2>
-              </div>
+              )
             )}
           </div>
         </>

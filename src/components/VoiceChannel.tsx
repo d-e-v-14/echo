@@ -5,12 +5,16 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { VoiceVideoManager } from '@/lib/VoiceVideoManager';
-import { FaMicrophone, FaMicrophoneSlash, FaPhoneSlash, FaVideo, FaVideoSlash, FaRedo } from 'react-icons/fa';
+import { callStateManager } from '@/lib/CallStateManager';
+import { FaMicrophone, FaMicrophoneSlash, FaPhoneSlash, FaVideo, FaVideoSlash, FaRedo, FaMinus } from 'react-icons/fa';
 
 interface VoiceChannelProps {
     channelId: string;
     userId: string;
+    serverId?: string;       // Added for minimize feature
+    channelName?: string;    // Added for minimize feature
     onHangUp: () => void;
+    onMinimize?: () => void; // Added callback for minimize
     headless?: boolean;
     onLocalStreamChange?: (stream: MediaStream | null) => void;
     onRemoteStreamAdded?: (id: string, stream: MediaStream) => void;
@@ -133,7 +137,7 @@ const VideoPlayer = ({
     );
 };
 
-const VoiceChannel = ({ channelId, userId, onHangUp, headless = false, onLocalStreamChange, onRemoteStreamAdded, onRemoteStreamRemoved, onVoiceRoster }: VoiceChannelProps) => {
+const VoiceChannel = ({ channelId, userId, serverId, channelName, onHangUp, onMinimize, headless = false, onLocalStreamChange, onRemoteStreamAdded, onRemoteStreamRemoved, onVoiceRoster }: VoiceChannelProps) => {
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
     const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
     const [isMuted, setIsMuted] = useState(false);
@@ -150,6 +154,25 @@ const VoiceChannel = ({ channelId, userId, onHangUp, headless = false, onLocalSt
 
     const managerRef = useRef<VoiceVideoManager | null>(null);
     const isManagerInitialized = useRef(false);
+
+    // Handle minimize - keeps call active in background
+    const handleMinimize = () => {
+        if (managerRef.current && serverId && channelName) {
+            // Register the manager with CallStateManager so it persists
+            callStateManager.setManager(managerRef.current);
+            callStateManager.startCall(
+                channelId,
+                serverId,
+                channelName,
+                isCameraOn ? 'video' : 'voice'
+            );
+            callStateManager.minimizeCall();
+            onMinimize?.();
+        } else if (onMinimize) {
+            // Fallback if serverId/channelName not provided
+            onMinimize();
+        }
+    };
 
     // Initialize manager
     useEffect(() => {
@@ -553,6 +576,17 @@ Find this site (${window.location.origin}) and set permissions to "Allow"`;
                 >
                     <FaPhoneSlash size={20} className="text-white" />
                 </button>
+                
+                {/* Minimize button - keep call active in background */}
+                {serverId && channelName && (
+                    <button 
+                        onClick={handleMinimize}
+                        className="p-3 rounded-full bg-blue-600 hover:bg-blue-500 transition"
+                        title="Minimize call - navigate while staying connected"
+                    >
+                        <FaMinus size={20} className="text-white" />
+                    </button>
+                )}
                 
                 {/* Permission status indicator */}
                 {!hasPermissions && (
