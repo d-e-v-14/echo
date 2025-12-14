@@ -1093,7 +1093,7 @@ export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserv
   /**
    * Bind a video tile to an HTML video element
    * 
-   * HOW TO USE:
+   *kl[] HOW TO USE:
    * 1. Subscribe to onVideoTileUpdated to get tile info
    * 2. When you get a tile, call bindVideoElement(tileId, yourVideoElement)
    * 3. The video will automatically play in that element
