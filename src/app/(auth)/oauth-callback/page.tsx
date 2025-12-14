@@ -48,7 +48,13 @@ export default function OAuthCallback() {
                 }
 
                 // Redirect to servers page
-                setTimeout(() => router.push('/servers'), 1000);
+                const redirect =
+  localStorage.getItem("redirectAfterLogin") || "/servers";
+
+localStorage.removeItem("redirectAfterLogin");
+
+setTimeout(() => router.replace(redirect), 1000);
+
 
             } catch (err: any) {
                 console.error('OAuth callback error:', err);
