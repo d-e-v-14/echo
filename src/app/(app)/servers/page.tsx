@@ -132,6 +132,7 @@ const ServersPageContent: React.FC = () => {
           status: "offline",
         };
 
+  // Load servers - handles both initial load and query param changes
   useEffect(() => {
     const loadServers = async () => {
       try {
@@ -164,7 +165,7 @@ const ServersPageContent: React.FC = () => {
       }
     };
     loadServers();
-  }, [serverIdFromQuery]);
+  }, [serverIdFromQuery, refresh]);
 
   // Handle view mode from query params (when navigating from expand button)
   useEffect(() => {
@@ -173,6 +174,7 @@ const ServersPageContent: React.FC = () => {
     }
   }, [viewModeFromQuery]);
 
+  // Load channels when server changes
   useEffect(() => {
     if (!selectedServerId) return;
     const loadChannels = async () => {
@@ -206,27 +208,6 @@ const ServersPageContent: React.FC = () => {
       localStorage.removeItem("currentViewedServerId");
     };
   }, [selectedServerId]);
-
-  useEffect(() => {
-    const loadServers = async () => {
-      try {
-        setLoading(true);
-        const data = await fetchServers();
-        console.log(data);
-        setServers(data);
-        if (data.length > 0) {
-          setSelectedServerId(data[0].id);
-          setSelectedServerName(data[0].name);
-        }
-      } catch (err) {
-        console.error("Error fetching servers", err);
-        setError("Failed to load servers.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadServers();
-  }, [refresh]);
 
   // Derived channel lists
   const textChannels = channels.filter((c) => c.type === "text");
