@@ -9,12 +9,12 @@ import {
   FaMicrophoneSlash,
   FaMicrophone,
   FaVideoSlash,
-  FaPhoneSlash,
 } from "react-icons/fa";
 import VoiceChannel from "@/components/EnhancedVoiceChannel";
 import { fetchServers, fetchChannelsByServer } from "@/app/api/API";
 import Chatwindow from "@/components/ChatWindow";
 import { useSearchParams } from "next/navigation";
+import { useVoiceCall } from "@/contexts/VoiceCallContext";
 
 const serverIcons: string[] = [
   "/hackbattle.png",
@@ -35,42 +35,75 @@ interface Channel {
 const ServersPageContent: React.FC = () => {
   const searchParams = useSearchParams();
   const refresh = searchParams.get("refresh");
+  const serverIdFromQuery = searchParams.get("serverId");
+  const viewModeFromQuery = searchParams.get("view");
 
   const [showAddMenu, setShowAddMenu] = useState(false);
 
   const router = useRouter();
   const [servers, setServers] = useState<any[]>([]);
   const [selectedServerId, setSelectedServerId] = useState<string>("");
-  const [noServer, setNoServer] = useState<boolean>(false);
   const [selectedServerName, setSelectedServerName] = useState<string>("");
   const [channels, setChannels] = useState<Channel[]>([]);
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
-  const [activeVoiceChannel, setActiveVoiceChannel] = useState<string | null>(
-    null
-  );
-
-  // New: whether the voice UI is minimized (compact bar) while still connected
-  const [isVoiceMinimized, setIsVoiceMinimized] = useState<boolean>(false);
-
-  // Lifted media streams to pass into ChatWindow
-  const [localMediaStream, setLocalMediaStream] = useState<MediaStream | null>(
-    null
-  );
-  const [remoteMediaStreams, setRemoteMediaStreams] = useState<
-    { id: string; stream: MediaStream }[]
-  >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // View mode: 'voice' shows full voice UI, 'chat' shows text chat (with floating window if in voice)
+  const [viewMode, setViewMode] = useState<'voice' | 'chat'>('chat');
 
-  // Voice members state (for the member list UI)
+  // Store viewMode in localStorage for FloatingVoiceWindow to read
+  useEffect(() => {
+    localStorage.setItem('currentViewMode', viewMode);
+    return () => {
+      localStorage.removeItem('currentViewMode');
+    };
+  }, [viewMode]);
+
+  // Use the global voice call context
+  const {
+    activeCall,
+    isConnected,
+    isConnecting,
+    participants,
+    localMediaState,
+    localVideoTileId,
+    videoTiles,
+    manager,
+    joinCall,
+    leaveCall,
+    permissionError,
+    connectionError,
+  } = useVoiceCall();
+
+  // Check if this server's voice channel is active
+  const isVoiceActiveForCurrentServer = activeCall?.serverId === selectedServerId;
+  const activeVoiceChannelName = isVoiceActiveForCurrentServer ? activeCall?.channelName : null;
+  
+  // Should show voice UI: only when in voice view mode AND connected to this server's voice
+  const showVoiceUI = viewMode === 'voice' && isVoiceActiveForCurrentServer && activeCall;
+
+  // Voice members derived from context participants
   interface VoiceMember {
     id: string;
     username: string;
     avatar_url?: string | null;
     status?: "online" | "offline" | "idle" | "dnd";
     muted?: boolean;
+    video?: boolean;
+    speaking?: boolean;
   }
-  const [voiceMembers, setVoiceMembers] = useState<VoiceMember[]>([]);
+
+  // Map context participants to VoiceMember format
+  const voiceMembers: VoiceMember[] = participants.map((p) => ({
+    id: p.attendeeId || p.oduserId,
+    username: p.name || `User ${p.oduserId.slice(0, 8)}`,
+    avatar_url: null,
+    status: "online" as const,
+    muted: p.muted,
+    video: p.video,
+    speaking: p.speaking,
+  }));
 
   interface User {
     id: string;
@@ -107,10 +140,21 @@ const ServersPageContent: React.FC = () => {
         console.log(data);
         setServers(data);
         if (data.length > 0) {
-          setSelectedServerId(data[0].id);
-          setSelectedServerName(data[0].name);
-        } else {
-          setNoServer(true);
+          // If serverId is in query params, select that server
+          if (serverIdFromQuery) {
+            const targetServer = data.find((s: any) => s.id === serverIdFromQuery);
+            if (targetServer) {
+              setSelectedServerId(targetServer.id);
+              setSelectedServerName(targetServer.name);
+            } else {
+              // Fallback to first server if not found
+              setSelectedServerId(data[0].id);
+              setSelectedServerName(data[0].name);
+            }
+          } else {
+            setSelectedServerId(data[0].id);
+            setSelectedServerName(data[0].name);
+          }
         }
       } catch (err) {
         console.error("Error fetching servers", err);
@@ -120,7 +164,14 @@ const ServersPageContent: React.FC = () => {
       }
     };
     loadServers();
-  }, []);
+  }, [serverIdFromQuery]);
+
+  // Handle view mode from query params (when navigating from expand button)
+  useEffect(() => {
+    if (viewModeFromQuery === 'voice') {
+      setViewMode('voice');
+    }
+  }, [viewModeFromQuery]);
 
   useEffect(() => {
     if (!selectedServerId) return;
@@ -145,6 +196,17 @@ const ServersPageContent: React.FC = () => {
     loadChannels();
   }, [selectedServerId]);
 
+  // Update localStorage with current viewed server ID (for FloatingVoiceWindow)
+  useEffect(() => {
+    if (selectedServerId) {
+      localStorage.setItem("currentViewedServerId", selectedServerId);
+    }
+    return () => {
+      // Clean up when leaving the page
+      localStorage.removeItem("currentViewedServerId");
+    };
+  }, [selectedServerId]);
+
   useEffect(() => {
     const loadServers = async () => {
       try {
@@ -155,8 +217,6 @@ const ServersPageContent: React.FC = () => {
         if (data.length > 0) {
           setSelectedServerId(data[0].id);
           setSelectedServerName(data[0].name);
-        } else {
-          setNoServer(true);
         }
       } catch (err) {
         console.error("Error fetching servers", err);
@@ -172,69 +232,33 @@ const ServersPageContent: React.FC = () => {
   const textChannels = channels.filter((c) => c.type === "text");
   const voiceChannels = channels.filter((c) => c.type === "voice");
 
-  // When joining a voice channel we should open the full voice UI (not minimized)
-  const handleJoinVoiceChannel = (channelName: string) => {
-    setActiveVoiceChannel(channelName);
-    setIsVoiceMinimized(false); // restore expanded view when joining
-    // reset/prepare voice member list on new join
-    setVoiceMembers((prev) => {
-      // Keep current user present
-      const you: VoiceMember = {
-        id: user.id || "guest",
-        username: user.username || "You",
-        avatar_url: user.avatar_url || null,
-        status: user.status || "online",
-        muted: false,
-      };
-      return [you, ...prev.filter((m) => m.id !== you.id)];
-    });
-  };
-
-  // When a remote media stream is added/removed we keep remoteMediaStreams and also update voiceMembers
-  const handleRemoteAdded = (
-    id: string,
-    stream: MediaStream,
-    username?: string
-  ) => {
-    setRemoteMediaStreams((prev) => {
-      const exists = prev.find((p) => p.id === id);
-      if (exists) {
-        return prev.map((p) => (p.id === id ? { id, stream } : p));
-      }
-      return [...prev, { id, stream }];
-    });
-
-    // Add to voice members if not present
-    setVoiceMembers((prev) => {
-      if (prev.find((m) => m.id === id)) return prev;
-      const newMember: VoiceMember = {
-        id,
-        username: username || `User-${id.slice(0, 6)}`,
-        avatar_url: null,
-        status: "online",
-        muted: false,
-      };
-      return [...prev, newMember];
-    });
-  };
-
-  const handleRemoteRemoved = (id: string) => {
-    setRemoteMediaStreams((prev) => prev.filter((p) => p.id !== id));
-    setVoiceMembers((prev) => prev.filter((m) => m.id !== id));
-  };
-
-  // Optional: callback that can be passed to VoiceChannel if it emits members updates
-  const onVoiceMembersUpdate = (members: VoiceMember[]) => {
-    setVoiceMembers(members);
-  };
-
-  const onVoiceStateUpdate = (
-    attendeeId: string,
-    state: Partial<VoiceMember>
-  ) => {
-    setVoiceMembers((prev) =>
-      prev.map((m) => (m.id === attendeeId ? { ...m, ...state } : m))
+  // When joining a voice channel, use the context's joinCall
+  const handleJoinVoiceChannel = async (channel: Channel) => {
+    setViewMode('voice'); // Switch to voice view when joining
+    await joinCall(
+      channel.id,
+      channel.name,
+      selectedServerId,
+      selectedServerName
     );
+  };
+
+  // Handle hang up
+  const handleHangUp = () => {
+    leaveCall();
+    setViewMode('chat'); // Switch back to chat view after hanging up
+  };
+
+  // Build external state for EnhancedVoiceChannel
+  const externalState = {
+    participants,
+    localMediaState,
+    localVideoTileId,
+    videoTiles,
+    isConnected,
+    isConnecting,
+    permissionError,
+    connectionError,
   };
 
   return (
@@ -386,23 +410,20 @@ const ServersPageContent: React.FC = () => {
                 <div
                   key={channel.id}
                   className={`flex items-center justify-between p-2 text-sm rounded-md cursor-pointer transition-all ${
-                    activeChannel?.id === channel.id
+                    activeChannel?.id === channel.id && viewMode === 'chat'
                       ? "bg-[#2f3136] text-white"
                       : "text-gray-400 hover:bg-[#2f3136] hover:text-white"
                   }`}
                   onClick={() => {
-                    // When clicking a text channel while connected to voice, minimize the voice UI
                     setActiveChannel(channel);
-                    if (activeVoiceChannel) {
-                      setIsVoiceMinimized(true);
-                    }
+                    setViewMode('chat'); // Switch to chat view when clicking text channel
                   }}
                 >
                   <span className="flex items-center gap-2">
                     <FaHashtag size={12} />
                     {channel.name}
                   </span>
-                  {activeChannel?.id === channel.id && <FaCog size={12} />}
+                  {activeChannel?.id === channel.id && viewMode === 'chat' && <FaCog size={12} />}
                 </div>
               ))}
             </div>
@@ -415,81 +436,52 @@ const ServersPageContent: React.FC = () => {
                 <div
                   key={channel.id}
                   className={`flex items-center justify-between p-2 text-sm rounded-md cursor-pointer transition-all ${
-                    activeVoiceChannel === channel.name
+                    activeVoiceChannelName === channel.name && viewMode === 'voice'
                       ? "bg-[#2f3136] text-white"
                       : "text-gray-400 hover:bg-[#2f3136] hover:text-white"
                   }`}
-                  onClick={() => handleJoinVoiceChannel(channel.name)}
+                  onClick={() => handleJoinVoiceChannel(channel)}
                 >
                   <span className="flex items-center gap-2">
                     <FaVolumeUp size={12} />
                     {channel.name}
+                    {/* Show indicator if connected to this channel */}
+                    {activeVoiceChannelName === channel.name && (
+                      <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-yellow-500 animate-pulse"}`} />
+                    )}
                   </span>
-                  {activeVoiceChannel === channel.name && <FaCog size={12} />}
+                  {activeVoiceChannelName === channel.name && viewMode === 'voice' && <FaCog size={12} />}
                 </div>
               ))}
             </div>
 
-            {activeVoiceChannel && (
+            {/* Show voice status in sidebar when connected to this server */}
+            {isVoiceActiveForCurrentServer && activeCall && (
               <div className="mt-auto p-2">
                 {/* Compact hangup bar so users can leave the call from sidebar */}
                 <div className="flex items-center justify-between bg-gray-900 rounded-md p-2 mt-2">
                   <div className="text-xs text-gray-300 truncate mr-2">
-                    In voice: {activeVoiceChannel}
+                    <div className="flex items-center gap-1">
+                      <div
+                        className={`w-2 h-2 rounded-full ${
+                          isConnected ? "bg-green-500" : "bg-yellow-500 animate-pulse"
+                        }`}
+                      />
+                      <span>In voice: {activeCall.channelName}</span>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => {
-                      setActiveVoiceChannel(null);
-                      setLocalMediaStream(null);
-                      setRemoteMediaStreams([]);
-                      setVoiceMembers([]);
-                      setIsVoiceMinimized(false);
-                    }}
-                    className="px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500"
-                  >
-                    Hang up
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Chat Window */}
-          {/* Main Content Area */}
-          <div className="flex-1 relative text-white bg-[radial-gradient(ellipse_at_bottom,rgba(37,99,235,0.15)_0%,rgba(0,0,0,1)_85%)] flex flex-col">
-            {/** If voice is minimized we still show chat content but render a small floating bar that can restore the voice UI or hang up. */}
-
-            {/* Minimized voice bar (floating) */}
-            {activeVoiceChannel && isVoiceMinimized && (
-              <div className="fixed right-6 bottom-6 z-50">
-                <div className="flex items-center gap-3 bg-gray-900 px-3 py-2 rounded-lg shadow-lg">
-                  <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-xs overflow-hidden">
-                    <span className="text-gray-400">
-                      {(user.username || "U").charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                  <div className="flex flex-col text-sm">
-                    <span className="font-semibold">{activeVoiceChannel}</span>
-                    <span className="text-xs text-gray-400">Connected</span>
-                  </div>
-                  <div className="flex items-center gap-2 pl-3">
+                  <div className="flex items-center gap-1">
+                    {viewMode === 'chat' && (
+                      <button
+                        onClick={() => setViewMode('voice')}
+                        className="px-2 py-1 text-xs rounded bg-gray-700 hover:bg-gray-600"
+                      >
+                        Open
+                      </button>
+                    )}
                     <button
-                      onClick={() => setIsVoiceMinimized(false)}
-                      className="px-3 py-1 text-sm rounded bg-[#2f3136] hover:bg-[#3a3c3f]"
-                      title="Restore voice panel"
-                    >
-                      Open
-                    </button>
-                    <button
-                      onClick={() => {
-                        setActiveVoiceChannel(null);
-                        setLocalMediaStream(null);
-                        setRemoteMediaStreams([]);
-                        setVoiceMembers([]);
-                        setIsVoiceMinimized(false);
-                      }}
-                      className="px-3 py-1 text-sm rounded bg-red-600 hover:bg-red-500"
-                      title="Hang up"
+                      onClick={handleHangUp}
+                      className="px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500"
                     >
                       Hang up
                     </button>
@@ -497,31 +489,28 @@ const ServersPageContent: React.FC = () => {
                 </div>
               </div>
             )}
+          </div>
 
-            {activeVoiceChannel && !isVoiceMinimized ? (
+          {/* Main Content Area */}
+          <div className="flex-1 relative text-white bg-[radial-gradient(ellipse_at_bottom,rgba(37,99,235,0.15)_0%,rgba(0,0,0,1)_85%)] flex flex-col">
+            {/* Show voice UI when in voice view mode AND connected to this server's voice channel */}
+            {showVoiceUI ? (
               // Voice layout: main VoiceChannel area + right-side member list (Discord-like)
               <div className="flex-1 w-full h-full">
                 <div className="flex h-full">
                   {/* Main voice area */}
                   <div className="flex-1 p-4">
-                    {/* Use a typed-cast to avoid potential prop type mismatch with your EnhancedVoiceChannel */}
-                    {/** If EnhancedVoiceChannel supports these callbacks, it can call them to keep
-                     * the serverside member state in sync. If not, we still update voiceMembers
-                     * from handleRemoteAdded/Removed above. */}
-                    {React.createElement(VoiceChannel as any, {
-                      channelId: activeVoiceChannel,
-                      userId: user.id,
-                      onHangUp: () => {
-                        setActiveVoiceChannel(null);
-                        setIsVoiceMinimized(false);
-                      },
-                      debug: process.env.NODE_ENV === "development",
-                      currentUser: { username: user.username },
-                      onVoiceMembersUpdate, // optional — if your VoiceChannel emits this, we'll accept it
-                      onVoiceStateUpdate, // optional
-                      onRemoteAdded: handleRemoteAdded,
-                      onRemoteRemoved: handleRemoteRemoved,
-                    })}
+                    <VoiceChannel
+                      channelId={activeCall.channelId}
+                      userId={user.id}
+                      onHangUp={handleHangUp}
+                      debug={process.env.NODE_ENV === "development"}
+                      currentUser={{ username: user.username }}
+                      // Pass external manager from context
+                      externalManager={manager}
+                      externalState={externalState}
+                      useExternalManager={true}
+                    />
                   </div>
 
                   {/* Right column: member list */}
@@ -537,7 +526,7 @@ const ServersPageContent: React.FC = () => {
                       {/* ensure current user is shown first */}
                       {voiceMembers.length === 0 ? (
                         <div className="text-gray-400 text-sm">
-                          No one else is in the call
+                          {isConnecting ? "Connecting..." : "No one else is in the call"}
                         </div>
                       ) : (
                         voiceMembers.map((m) => (
@@ -546,7 +535,7 @@ const ServersPageContent: React.FC = () => {
                             className="flex items-center justify-between"
                           >
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-xs overflow-hidden">
+                              <div className={`w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-xs overflow-hidden ${m.speaking ? 'ring-2 ring-green-500' : ''}`}>
                                 {m.avatar_url ? (
                                   <img
                                     src={m.avatar_url}
@@ -564,7 +553,7 @@ const ServersPageContent: React.FC = () => {
                               <div className="flex flex-col">
                                 <span className="text-sm">{m.username}</span>
                                 <span className="text-xs text-gray-500">
-                                  {m.status === "online" ? "Online" : m.status}
+                                  {m.speaking ? "Speaking" : m.status === "online" ? "Online" : m.status}
                                 </span>
                               </div>
                             </div>
@@ -573,7 +562,11 @@ const ServersPageContent: React.FC = () => {
                               {m.muted ? (
                                 <FaMicrophoneSlash className="w-4 h-4 text-red-500" />
                               ) : (
-                                <FaMicrophone className="w-4 h-4 text-green-400" />
+                                <FaMicrophone className={`w-4 h-4 ${m.speaking ? 'text-green-400' : 'text-gray-400'}`} />
+                              )}
+                              {/* video icon */}
+                              {!m.video && (
+                                <FaVideoSlash className="w-4 h-4 text-gray-500" />
                               )}
                             </div>
                           </div>
@@ -608,8 +601,8 @@ const ServersPageContent: React.FC = () => {
                     channelId={activeChannel.id}
                     isDM={false}
                     currentUserId={user.id}
-                    localStream={localMediaStream}
-                    remoteStreams={remoteMediaStreams}
+                    localStream={null}
+                    remoteStreams={[]}
                     serverId={selectedServerId}
                   />
                 </div>
