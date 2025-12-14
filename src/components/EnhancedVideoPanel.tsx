@@ -268,14 +268,8 @@ const ParticipantVideo = memo(function ParticipantVideo({
   // must exist for Chime SDK to bind the tile to it.
   const shouldShowVideo = (hasVideoState || hasTileId) && !shouldShowScreenShare;
 
-  // Debug logging
-  console.log(`[ParticipantVideo ${participant.username}] Render state:`, {
-    hasVideoState,
-    shouldShowScreenShare,
-    shouldShowVideo,
-    mediaState: participant.mediaState,
-    tileId: participant.tileId
-  });
+
+  
 
   // Bind Chime video tile to video element
   // This effect handles binding the Chime SDK video tile to the HTML video element

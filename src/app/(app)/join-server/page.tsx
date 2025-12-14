@@ -33,7 +33,7 @@ export default function JoinServerPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-gray-950 via-black to-gray-900 text-white px-6">
       <div className="w-full max-w-md bg-[#111214] rounded-2xl shadow-2xl p-8 border border-gray-800">
-        <h1 className="text-3xl font-bold mb-3 text-center bg-white bg-clip-text text-transparent">
+        <h1 className="text-3xl font-bold mb-3 text-center bg-white bg-clip-text text-yellow-300 text-transparent">
           Join a Server
         </h1>
         <p className="text-gray-400 text-center mb-8">
@@ -63,10 +63,10 @@ export default function JoinServerPage() {
           <button
             type="submit"
             disabled={loading}
-            className={`w-full py-3 rounded-lg font-semibold transition-all ${
+            className={`w-full py-3 rounded-lg text-black font-semibold transition-all ${
               loading
-                ? "bg-blue-900 cursor-not-allowed"
-                : "bg-blue-600 hover:opacity-90"
+                ? "bg-yellow-300 cursor-not-allowed"
+                : "bg-yellow-400 hover:opacity-90"
             }`}
           >
             {loading ? "Joining..." : "Join Server"}
