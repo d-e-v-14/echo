@@ -328,7 +328,7 @@ const showVoiceUI =
       }
     };
     loadChannels();
-  }, [selectedServerId]);
+  }, [selectedServerId, myRoles]);
 
   // Load self-assignable roles when server is selected
   useEffect(() => {
