@@ -576,7 +576,95 @@ const showVoiceUI =
                   <FaCog className="w-5 h-5 text-[#b5bac1] hover:text-white" />
                 </button>
               </div>
+{selfAssignableRoles.length > 0 && (
+              <div className="px-2 mt-4">
+                <div 
+                  className="flex items-center justify-between cursor-pointer hover:bg-[#2f3136] rounded-md p-2 transition-all"
+                  onClick={() => setShowRoles(!showRoles)}
+                >
+                  <h3 className="text-xs font-bold uppercase text-gray-400 flex items-center gap-2">
+                    <FaShieldAlt size={12} />
+                    Self-Assign Roles
+                  </h3>
+                  <span className="text-gray-400 text-xs">
+                    {showRoles ? "▼" : "▶"}
+                  </span>
+                </div>
+                
+                {showRoles && (
+                  <div className="mt-2 space-y-2">
+                    {rolesLoading ? (
+                      <div className="text-xs text-gray-400 text-center py-2">Loading...</div>
+                    ) : (
+                      <>
+                        {/* My Active Roles Section */}
+                        {myRoles.filter(r => selfAssignableRoles.some(sr => sr.id === r.id)).length > 0 && (
+                          <div className="mb-3">
+                            <div className="text-[10px] font-semibold uppercase text-gray-500 mb-1 px-1">
+                              Your Roles ({myRoles.filter(r => selfAssignableRoles.some(sr => sr.id === r.id)).length})
+                            </div>
+                            <div className="space-y-1">
+                              {selfAssignableRoles
+                                .filter(role => myRoles.some(r => r.id === role.id))
+                                .map((role) => (
+                                  <div
+                                    key={role.id}
+                                    className="flex items-center justify-between p-2 rounded-md cursor-pointer transition-all bg-[#2f3136] hover:bg-[#36393f] border border-green-500/20"
+                                    onClick={() => handleRoleToggle(role.id)}
+                                  >
+                                    <span className="flex items-center gap-2 flex-1 min-w-0">
+                                      <div
+                                        className="w-3 h-3 rounded-full flex-shrink-0"
+                                        style={{ backgroundColor: role.color || '#5865f2' }}
+                                      />
+                                      <span className="text-sm text-white truncate">{role.name}</span>
+                                    </span>
+                                    <span className="text-green-400 text-lg ml-2 flex-shrink-0">✓</span>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
 
+                        {/* Available Roles Section */}
+                        {selfAssignableRoles.filter(role => !myRoles.some(r => r.id === role.id)).length > 0 && (
+                          <div>
+                            <div className="text-[10px] font-semibold uppercase text-gray-500 mb-1 px-1">
+                              Available to Join ({selfAssignableRoles.filter(role => !myRoles.some(r => r.id === role.id)).length})
+                            </div>
+                            <div className="space-y-1 max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
+                              {selfAssignableRoles
+                                .filter(role => !myRoles.some(r => r.id === role.id))
+                                .map((role) => (
+                                  <div
+                                    key={role.id}
+                                    className="flex items-center justify-between p-2 rounded-md cursor-pointer transition-all text-gray-400 hover:bg-[#2f3136] hover:text-white border border-transparent hover:border-gray-600"
+                                    onClick={() => handleRoleToggle(role.id)}
+                                  >
+                                    <span className="flex items-center gap-2 flex-1 min-w-0">
+                                      <div
+                                        className="w-3 h-3 rounded-full flex-shrink-0 opacity-60"
+                                        style={{ backgroundColor: role.color || '#5865f2' }}
+                                      />
+                                      <span className="text-sm truncate">{role.name}</span>
+                                    </span>
+                                    <span className="text-gray-600 text-xs ml-2 flex-shrink-0">Click to join</span>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Help text */}
+                        <div className="text-[10px] text-gray-500 px-1 pt-2 border-t border-gray-700">
+                          Click any role to add or remove it
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
               <div className="px-2">
                 <h3 className="text-xs font-bold uppercase text-gray-400 mb-2">
                   Text Channels
@@ -658,58 +746,6 @@ const showVoiceUI =
                 </div>
               ))}
             </div>
-
-            {/* Self-Assignable Roles Section */}
-            {selfAssignableRoles.length > 0 && (
-              <div className="px-2 mt-4">
-                <div 
-                  className="flex items-center justify-between cursor-pointer hover:bg-[#2f3136] rounded-md p-2 transition-all"
-                  onClick={() => setShowRoles(!showRoles)}
-                >
-                  <h3 className="text-xs font-bold uppercase text-gray-400 flex items-center gap-2">
-                    <FaShieldAlt size={12} />
-                    Roles ({selfAssignableRoles.length})
-                  </h3>
-                  <span className="text-gray-400 text-xs">
-                    {showRoles ? "▼" : "▶"}
-                  </span>
-                </div>
-                
-                {showRoles && (
-                  <div className="mt-2 space-y-1 max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
-                    {rolesLoading ? (
-                      <div className="text-xs text-gray-400 text-center py-2">Loading...</div>
-                    ) : (
-                      selfAssignableRoles.map((role) => {
-                        const hasRole = myRoles.some(r => r.id === role.id);
-                        return (
-                          <div
-                            key={role.id}
-                            className={`flex items-center justify-between p-2 text-sm rounded-md cursor-pointer transition-all ${
-                              hasRole
-                                ? "bg-[#2f3136] text-white"
-                                : "text-gray-400 hover:bg-[#2f3136] hover:text-white"
-                            }`}
-                            onClick={() => handleRoleToggle(role.id)}
-                          >
-                            <span className="flex items-center gap-2 flex-1 min-w-0">
-                              <div
-                                className="w-3 h-3 rounded-full flex-shrink-0"
-                                style={{ backgroundColor: role.color || '#5865f2' }}
-                              />
-                              <span className="truncate">{role.name}</span>
-                            </span>
-                            {hasRole && (
-                              <span className="text-green-400 text-xs ml-2 flex-shrink-0">✓</span>
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
 
               {/* Show voice status in sidebar when connected to this server */}
               {isVoiceActiveForCurrentServer && activeCall && (
