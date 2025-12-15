@@ -63,9 +63,11 @@ export default function NotificationDropdown({
       if (!user?.id) return;
 
       const response = await apiClient.get(`/api/mentions?userId=${user.id}`);
-      setNotifications(response.data);
+      const data = response.data;
+      setNotifications(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to load notifications:', error);
+      setNotifications([]);
     } finally {
       setLoading(false);
     }
