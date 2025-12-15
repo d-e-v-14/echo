@@ -3,7 +3,7 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Bell, MoreVertical, Paperclip, Search, Send, Smile, X } from 'lucide-react';
-import { getUserDMs, uploaddm } from '@/app/api/API'; 
+import { getUserDMs, uploaddm, fetchUserProfile } from '@/app/api/API'; 
 import { Socket } from "socket.io-client";
 import { createAuthSocket } from '@/socket';
 import MessageBubble from './MessageBubble';
@@ -626,11 +626,50 @@ useEffect(() => {
 
 
     // Effect to set the active DM based on the URL parameter
+    // If user not in allUsers, fetch their profile and add them
     useEffect(() => {
-        if (selectedDM) {
+        if (!selectedDM || !currentUser) return;
+
+        const userExists = allUsers.some(u => u.id === selectedDM);
+        
+        if (userExists) {
             setActiveDmId(selectedDM);
+        } else {
+            // User not in existing conversations, fetch their profile
+            const fetchAndAddUser = async () => {
+                try {
+                    const profile = await fetchUserProfile(selectedDM);
+                    if (profile) {
+                        const newUser: User = {
+                            id: profile.id || selectedDM,
+                            fullname: profile.fullname || profile.username || profile.name || "Unknown User",
+                            avatar_url: profile.avatar_url,
+                        };
+                        
+                        // Add user to allUsers if not already present
+                        setAllUsers(prev => {
+                            if (prev.some(u => u.id === selectedDM)) return prev;
+                            return [...prev, newUser];
+                        });
+                        
+                        // Initialize empty messages for this user
+                        setMessages(prev => {
+                            if (prev.has(selectedDM)) return prev;
+                            const newMap = new Map(prev);
+                            newMap.set(selectedDM, []);
+                            return newMap;
+                        });
+                        
+                        setActiveDmId(selectedDM);
+                    }
+                } catch (error) {
+                    console.error("Failed to fetch user profile for DM:", error);
+                }
+            };
+            
+            fetchAndAddUser();
         }
-    }, [selectedDM]);
+    }, [selectedDM, currentUser, allUsers]);
 // Empty dependency array is okay here due to the functional updates.
     // Effect for handling incoming socket events
 
