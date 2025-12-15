@@ -162,17 +162,23 @@ export const uploaddm = async (payload: {
   }
 };
 
-export const fetchMessages = async (channel_id: string): Promise<ApiResponse<Message[]>> => {
+export const fetchMessages = async (channel_id: string, offset: number = 0): Promise<ApiResponse<Message[]> & { hasMore?: boolean; totalCount?: number }> => {
   try {
     const response = await apiClient.get<{
       messages?: Message[];
       data?: Message[];
+      hasMore?: boolean;
+      totalCount?: number;
     }>(
-      `/api/message/fetch?channel_id=${channel_id}`
+      `/api/message/fetch?channel_id=${channel_id}&offset=${offset}`
     );
 
     const messages = response.data.messages || response.data.data || [];
-    return { data: messages };
+    return { 
+      data: messages,
+      hasMore: response.data.hasMore,
+      totalCount: response.data.totalCount
+    };
   } catch (error) {
     console.error("Error fetching messages:", error);
     throw error;

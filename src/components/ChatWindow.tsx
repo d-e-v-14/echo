@@ -35,8 +35,12 @@ interface ChatWindowProps {
 
 export default function ChatWindow({ channelId, currentUserId, localStream = null, remoteStreams = [], serverId }: ChatWindowProps) {
   const [loadingMessages, setLoadingMessages] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [offset, setOffset] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
   const usernamesRef = useRef<Record<string, string>>({});
   const avatarCacheRef = useRef<Record<string, string>>({});
@@ -44,6 +48,7 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
   const [camOn, setCamOn] = useState<boolean>(true);
   const [isSending, setIsSending] = useState(false);
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string>("/User_profil.png");
+  const isLoadingMoreRef = useRef(false);
 
   // Load current user's avatar on mount
   useEffect(() => {
@@ -115,11 +120,19 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
     };
   }, [currentUserId]);
 
-  const loadMessages = useCallback(async () => {
+  const loadMessages = useCallback(async (loadMore: boolean = false) => {
     try {
-      setLoadingMessages(true);
+      if (loadMore) {
+        setLoadingMore(true);
+        isLoadingMoreRef.current = true;
+      } else {
+        setLoadingMessages(true);
+        setOffset(0);
+        isLoadingMoreRef.current = false;
+      }
 
-      const res = await fetchMessages(channelId);
+      const currentOffset = loadMore ? offset : 0;
+      const res = await fetchMessages(channelId, currentOffset);
 
       const formattedMessages: Message[] = await Promise.all(
         res.data.map(async (msg: any) => {
@@ -145,22 +158,50 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
         })
       );
 
-      const sorted = formattedMessages.sort(
-        (a, b) =>
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-      );
+      // Messages come in descending order (newest first), reverse to get ascending
+      const sorted = formattedMessages.reverse();
 
-      setMessages(sorted);
+      if (loadMore) {
+        // Prepend older messages to the beginning
+        setMessages(prev => [...sorted, ...prev]);
+        setOffset(prev => prev + res.data.length);
+      } else {
+        setMessages(sorted);
+        setOffset(res.data.length);
+      }
+
+      setHasMore(res.hasMore ?? false);
     } catch (err) {
       console.error("Failed to fetch messages", err);
     } finally {
       setLoadingMessages(false);
+      setLoadingMore(false);
     }
-  }, [channelId, currentUserId, currentUserAvatar]);
+  }, [channelId, currentUserId, currentUserAvatar, offset]);
 
   useEffect(() => {
-    if (channelId) loadMessages();
-  }, [channelId, loadMessages]);
+    if (channelId) loadMessages(false);
+  }, [channelId]);
+
+  // Handle scroll to load more messages when scrolling to top
+  const handleScroll = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container || loadingMore || !hasMore) return;
+
+    // Load more when scrolled near the top (within 100px)
+    if (container.scrollTop < 100) {
+      const previousScrollHeight = container.scrollHeight;
+      loadMessages(true).then(() => {
+        // Maintain scroll position after loading older messages
+        requestAnimationFrame(() => {
+          if (messagesContainerRef.current) {
+            const newScrollHeight = messagesContainerRef.current.scrollHeight;
+            messagesContainerRef.current.scrollTop = newScrollHeight - previousScrollHeight;
+          }
+        });
+      });
+    }
+  }, [loadingMore, hasMore, loadMessages]);
 
   useEffect(() => {
     if (!localStream) return;
@@ -173,7 +214,12 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
   }, [localStream, camOn]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Only scroll to bottom on initial load or new messages, not when loading older messages
+    if (!isLoadingMoreRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+    // Reset the ref after the effect runs
+    isLoadingMoreRef.current = false;
   }, [messages]);
 
   useEffect(() => {
@@ -362,7 +408,11 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
           </div>
         </div>
       )}
-      <div className="flex-1 overflow-y-auto px-6 pb-6 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
+      <div 
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto px-6 pb-6 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900"
+      >
         {loadingMessages ? (
           <div className="flex h-full items-center justify-center">
             <div className="text-center">
@@ -376,6 +426,21 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
           </div>
         ) : (
           <>
+            {/* Loading indicator at top when fetching older messages */}
+            {loadingMore && (
+              <div className="flex justify-center py-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 border-2 border-gray-600 border-t-blue-500 rounded-full animate-spin" />
+                  <span className="text-gray-400 text-sm">Loading older messages...</span>
+                </div>
+              </div>
+            )}
+            {/* Show message when no more messages to load */}
+            {!hasMore && messages.length > 0 && (
+              <div className="flex justify-center py-4">
+                <span className="text-gray-500 text-xs">Beginning of conversation</span>
+              </div>
+            )}
             {messages.map((msg) => (
               <MessageBubble
                 key={msg.id}
@@ -418,6 +483,7 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
         user={selectedUser}
+        currentUserId={currentUserId}
       />
     </div>
   );

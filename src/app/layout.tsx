@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "../app/globals.css";
 import { MinimizedCallBar } from "@/components/MinimizedCallBar";
-
+import { MobileBlocker } from "@/components/MobileBlocker";
 
 export const metadata: Metadata = {
   title: {
@@ -42,21 +42,18 @@ export const metadata: Metadata = {
     type: "website",
   },
 };
-
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    // The <html> tag is required here
     <html lang="en">
-      {/* The <body> tag is also required */}
       <body>
-        {/* 'children' will be replaced by your page content */}
-        {children}
-        {/* Minimized call bar - shows when user navigates away from active call */}
-        <MinimizedCallBar />
+        <MobileBlocker>
+          {children}
+          <MinimizedCallBar />
+        </MobileBlocker>
       </body>
     </html>
   );

@@ -2,17 +2,11 @@
 
 import { useEffect, useState } from "react";
 
-export default function MobileBlocker({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function MobileBlocker({ children }: { children: React.ReactNode }) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    console.log("mobile-block: effect running");
     const check = () => {
-      console.log("mobile-block: innerWidth", window.innerWidth);
       setIsMobile(window.innerWidth < 1024);
     };
 
@@ -21,14 +15,12 @@ export default function MobileBlocker({
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  console.log("mobile-block: isMobile =", isMobile);
-
   if (isMobile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white px-6 border-4 border-red-500">
+      <div className="min-h-screen flex items-center justify-center bg-[url('/bg0.svg')] bg-no-repeat bg-center bg-cover text-white px-6">
         <div className="max-w-md text-center space-y-4">
           <h1 className="text-3xl font-semibold">Mobile App Coming Soon</h1>
-          <p className="text-xl">We’re still building the mobile experience.</p>
+          <p className="text-xl">We're still building the mobile experience.</p>
           <p className="text-xl">For now, please use Echo on a laptop or desktop browser.</p>
           <p className="text-md">Stay tuned</p>
         </div>
