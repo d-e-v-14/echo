@@ -310,7 +310,9 @@ export const joinServer = async (inviteCode: string) => {
   );
 
   if (!res.data.success) {
-    throw new Error(res.data.message);
+    const error: any = new Error(res.data.message);
+    error.code = res.data.code; // Pass the error code (e.g., "USER_BANNED")
+    throw error;
   }
 
   return res.data;
