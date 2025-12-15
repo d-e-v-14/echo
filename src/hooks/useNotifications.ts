@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState, useCallback } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { Socket } from 'socket.io-client';
 import { getUser } from '../app/api';
+import { createAuthSocket } from '@/socket';
 
 interface MentionNotification {
   id: string;
@@ -25,14 +26,14 @@ export function useNotifications() {
 
   // Connect to socket
   useEffect(() => {
+    let socketInstance: Socket | null = null;
+
     const initializeSocket = async () => {
       const user = await getUser();
       if (!user?.id) return;
 
-      const socketInstance = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000', {
-        withCredentials: true,
-      });
-
+      // Use createAuthSocket to properly register userId with backend
+      socketInstance = createAuthSocket(user.id);
       setSocket(socketInstance);
 
       // Listen for mention notifications
@@ -61,13 +62,15 @@ export function useNotifications() {
         );
         setUnreadCount(prev => Math.max(0, prev - 1));
       });
-
-      return () => {
-        socketInstance.disconnect();
-      };
     };
 
     initializeSocket();
+
+    return () => {
+      if (socketInstance) {
+        socketInstance.disconnect();
+      }
+    };
   }, []);
 
   // Request notification permission on mount
@@ -75,6 +78,29 @@ export function useNotifications() {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
+  }, []);
+
+  // Fetch initial unread count on mount
+  useEffect(() => {
+    const fetchInitialUnreadCount = async () => {
+      try {
+        const user = await getUser();
+        if (!user?.id) return;
+
+        const response = await fetch(`/api/mentions?userId=${user.id}&unreadOnly=true`, {
+          credentials: 'include'
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setUnreadCount(Array.isArray(data) ? data.length : 0);
+        }
+      } catch (error) {
+        console.error('Failed to fetch initial unread count:', error);
+      }
+    };
+
+    fetchInitialUnreadCount();
   }, []);
 
   const markAsRead = useCallback(async (notificationId: string) => {
