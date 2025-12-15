@@ -542,7 +542,13 @@ const showVoiceUI =
                 >
                   <span className="flex items-center gap-2">
                     {channel.is_private ? (
-                      <FaLock size={12} className="text-gray-500" />
+                      <div className="relative w-4 h-4">
+    <FaHashtag size={12} className="absolute inset-0" />
+    <FaLock
+      size={12}
+      className="absolute -top-1 -right-1 text-gray-400 bg-[#111214] rounded-full"
+    />
+  </div>
                     ) : (
                       <FaHashtag size={12} />
                     )}
@@ -572,10 +578,13 @@ const showVoiceUI =
                 >
                   <span className="flex items-center gap-2">
                     {channel.is_private ? (
-                      <>
-                        <FaLock size={12} className="text-gray-500" />
-                        <FaVolumeUp size={12} />
-                      </>
+                     <div className="relative w-4 h-4">
+    <FaVolumeUp size={12} className="absolute inset-0" />
+    <FaLock
+      size={12}
+      className="absolute -top-1 -right-1 text-gray-400 bg-[#111214] rounded-full"
+    />
+  </div>
                     ) : (
                       <FaVolumeUp size={12} />
                     )}

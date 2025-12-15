@@ -357,9 +357,6 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
           <FaPhoneSlash size={20} />
         </button>
       </div>
-          <div className="text-xs text-white text-center pt-2 border-t border-gray-700">
-            Powered by Amazon Chime SDK
-          </div>
    
       
     </div>
