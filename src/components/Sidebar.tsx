@@ -62,15 +62,19 @@ export default function Sidebar() {
   if (!user) return <div className="text-white">Loading...</div>;
 
   const handleLogout = async () => {
-    try {
-      await logout();
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      window.location.href = "/login";
-    } catch (error) {
-      console.error("Logout failed:", error);
-    }
-  };
+        try {
+            await logout();
+
+            // clear user data
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+
+            // redirect
+            window.location.href = "/login";
+        } catch (error) {
+            console.error("Failed to logout:", error);
+        }
+    };
 
   return (
     <aside
@@ -161,9 +165,9 @@ export default function Sidebar() {
               </button>
 
               {collapsed && (
-                <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-20 px-3 py-1 text-sm text-white bg-black rounded shadow-lg opacity-0 group-hover:opacity-100 transition">
+                <button onClick={handleLogout} className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-20 px-3 py-1 text-sm text-white bg-black rounded shadow-lg opacity-0 group-hover:opacity-100 transition">
                   Logout
-                </div>
+                </button>
               )}
             </div>
           </div>
