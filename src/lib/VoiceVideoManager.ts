@@ -561,7 +561,13 @@ export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserv
         const deviceId = this.deviceInfo.activeVideoDevice || videoInputs[0].deviceId;
         
         // Start video input (this captures from camera)
-        await this.audioVideo.startVideoInput(deviceId);
+        await this.audioVideo.startVideoInput({
+  deviceId,
+  width: { max: 640 },
+  height: { max: 360 },
+  frameRate: { max: 15 }
+});
+
         this.deviceInfo.activeVideoDevice = deviceId;
 
         // Start local video tile (this sends to others)
@@ -700,7 +706,13 @@ export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserv
   /** Switch camera to a different device */
   async switchCamera(deviceId: string): Promise<void> {
     if (!this.audioVideo) return;
-    await this.audioVideo.startVideoInput(deviceId);
+    await this.audioVideo.startVideoInput({
+  deviceId,
+  width: { max: 640 },
+  height: { max: 360 },
+  frameRate: { max: 15 }
+});
+
     this.deviceInfo.activeVideoDevice = deviceId;
     console.log('[VoiceVideoManager] Switched camera to:', deviceId);
   }
