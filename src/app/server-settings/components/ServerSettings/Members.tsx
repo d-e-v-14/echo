@@ -26,6 +26,8 @@ export default function Members({ serverId, isOwner = false, isAdmin = false }: 
   const [showRolePopupFor, setShowRolePopupFor] = useState<string | null>(null);
   const [serverRoles, setServerRoles] = useState<Role[]>([]);
   const [roleActionLoading, setRoleActionLoading] = useState<string | null>(null);
+  const [addMemberError, setAddMemberError] = useState<string>("");
+  const [addMemberSuccess, setAddMemberSuccess] = useState<string>("");
 
   useEffect(() => {
     loadMembers();
@@ -151,14 +153,34 @@ export default function Members({ serverId, isOwner = false, isAdmin = false }: 
 
   const handleAddMemberToServer = async (user: SearchUser) => {
     try {
+      setAddMemberError("");
+      setAddMemberSuccess("");
       await addUserToServer(serverId, user.username);
       setShowAddMember(false);
       setSearchQuery("");
       setSearchResults([]);
+      setAddMemberSuccess(`Successfully added @${user.username} to the server!`);
       await loadMembers(); // Refresh the member list
-    } catch (error) {
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setAddMemberSuccess(""), 3000);
+    } catch (error: any) {
       console.error('Failed to add member:', error);
-      alert('Failed to add member. Please try again.');
+      
+      // Check for specific error messages from backend
+      const errorMessage = error?.response?.data?.error || error?.message || 'Failed to add member. Please try again.';
+      
+      // Customize message for banned user
+      if (errorMessage.includes('banned') || errorMessage.includes('ban')) {
+        setAddMemberError(`Cannot add @${user.username}: This user is banned from the server. You need to unban them first from the Bans section.`);
+      } else if (errorMessage.includes('already a member')) {
+        setAddMemberError(`@${user.username} is already a member of this server.`);
+      } else {
+        setAddMemberError(`Failed to add @${user.username}: ${errorMessage}`);
+      }
+      
+      // Clear error message after 5 seconds
+      setTimeout(() => setAddMemberError(""), 5000);
     }
   };
 
@@ -188,7 +210,11 @@ export default function Members({ serverId, isOwner = false, isAdmin = false }: 
           </button>
           {(isOwner || isAdmin) && (
             <button
-              onClick={() => setShowAddMember(!showAddMember)}
+              onClick={() => {
+                setShowAddMember(!showAddMember);
+                setAddMemberError("");
+                setAddMemberSuccess("");
+              }}
               className="bg-gradient-to-r from-[#ffb347] to-[#ffcc33] text-[#23272a] font-bold rounded px-4 py-2 shadow transition-all duration-200 hover:from-[#ffcc33] hover:to-[#ffb347] hover:-translate-y-1 hover:scale-105"
             >
               {showAddMember ? "Cancel" : "Add Member"}
@@ -196,6 +222,25 @@ export default function Members({ serverId, isOwner = false, isAdmin = false }: 
           )}
         </div>
       </div>
+
+      {/* Error and Success Messages */}
+      {addMemberError && (
+        <div className="mb-4 bg-red-500 border border-red-600 text-white px-4 py-3 rounded flex items-start">
+          <svg className="w-6 h-6 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div className="flex-1">{addMemberError}</div>
+        </div>
+      )}
+      
+      {addMemberSuccess && (
+        <div className="mb-4 bg-green-500 border border-green-600 text-white px-4 py-3 rounded flex items-start">
+          <svg className="w-6 h-6 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div className="flex-1">{addMemberSuccess}</div>
+        </div>
+      )}
 
       {showAddMember && (
         <div className="mb-6 p-4 border border-[#72767d] rounded">

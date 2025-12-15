@@ -240,6 +240,26 @@ export interface SearchUser {
     avatar_url: string;
 }
 
+export interface BannedUser {
+    server_id: string;
+    user_id: string;
+    banned_at: string;
+    banned_by: string;
+    reason: string | null;
+    users: {
+        id: string;
+        username: string;
+        fullname: string;
+        avatar_url: string;
+    } | null;
+    banned_by_user: {
+        id: string;
+        username: string;
+        fullname: string;
+        avatar_url: string;
+    } | null;
+}
+
 // Get server details
 export const getServerDetails = async (serverId: string): Promise<ServerDetails> => {
     const [serverResponse, user] = await Promise.all([
@@ -284,6 +304,17 @@ export const kickMember = async (serverId: string, userId: string): Promise<void
 // Ban member
 export const banMember = async (serverId: string, userId: string, reason?: string): Promise<void> => {
     await api.post(`/api/newserver/${serverId}/members/${userId}/ban`, { reason });
+};
+
+// Get banned users
+export const getBannedUsers = async (serverId: string): Promise<BannedUser[]> => {
+    const response = await api.get(`/api/newserver/${serverId}/bans`);
+    return response.data;
+};
+
+// Unban user
+export const unbanUser = async (serverId: string, userId: string): Promise<void> => {
+    await api.delete(`/api/newserver/${serverId}/members/${userId}/unban`);
 };
 
 // Add user to server
