@@ -31,9 +31,9 @@ export default function Leave({ serverId, serverDetails }: LeaveProps) {
       // Clear server from localStorage
       localStorage.removeItem('currentServerId');
       
-      // Show success message and redirect
+      // Show success message and redirect to servers page
       alert(`You have successfully left ${serverName}`);
-      router.push('/'); // Redirect to home page or dashboard
+      router.push('/servers'); // Redirect to servers page
       
     } catch (err) {
       console.error("Error leaving server:", err);
