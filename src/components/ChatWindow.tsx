@@ -418,6 +418,7 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
         user={selectedUser}
+        currentUserId={currentUserId}
       />
     </div>
   );
