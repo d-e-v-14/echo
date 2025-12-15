@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
+import { Send } from "lucide-react";
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -11,13 +13,23 @@ interface UserProfileModalProps {
     avatarUrl: string;
     about?: string;
   } | null;
+  currentUserId?: string;
 }
 
 export default function UserProfileModal({
   isOpen,
   onClose,
   user,
+  currentUserId,
 }: UserProfileModalProps) {
+  const router = useRouter();
+
+  const handleMessageClick = () => {
+    if (!user) return;
+    onClose();
+    router.push(`/messages?dm=${user.id}`);
+  };
+
   if (!isOpen || !user) return null;
 
   return (
@@ -35,7 +47,18 @@ export default function UserProfileModal({
             alt={user.username}
             className="w-20 h-20 rounded-full border-2 border-gray-500"
           />
-          <h2 className="text-xl font-semibold">{user.username}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-semibold">{user.username}</h2>
+            {currentUserId !== user.id && (
+              <button
+                onClick={handleMessageClick}
+                title="Send Message"
+                className="text-gray-400 hover:text-indigo-400 transition cursor-pointer"
+              >
+                <Send className="w-5 h-5" />
+              </button>
+            )}
+          </div>
           {user.about && (
             <p className="text-sm text-gray-300 text-center">{user.about}</p>
           )}
