@@ -3,12 +3,13 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Bell, MoreVertical, Paperclip, Search, Send, Smile, X } from 'lucide-react';
-import { getUserDMs, uploaddm, fetchUserProfile } from '@/app/api/API'; 
+import { getUserDMs, uploaddm, fetchUserProfile, markThreadAsRead } from '@/app/api/API'; 
 import { Socket } from "socket.io-client";
 import { createAuthSocket } from '@/socket';
 import MessageBubble from './MessageBubble';
 import MessageAttachment from './MessageAttachment';
 import Loader from "@/components/Loader";
+import { useMessageNotifications } from '@/contexts/MessageNotificationContext';
 
 interface User {
     id: string;
@@ -52,7 +53,7 @@ type GroupedSection = {
 // 1. ChatList Component (Updated to show errors)
 
 interface ChatListProps {
-    conversations: { user: User, lastMessage: string }[];
+    conversations: { user: User, lastMessage: string, unreadCount: number }[];
     activeDmId: string | null;
     onSelectDm: (userId: string) => void;
     isLoading: boolean;
@@ -118,7 +119,7 @@ const ChatList: React.FC<ChatListProps> = ({ conversations, activeDmId, onSelect
                     </div>
                 ) : (
                     <ul className="space-y-2">
-                        {filteredConversations.map(({ user, lastMessage }) => {
+                        {filteredConversations.map(({ user, lastMessage, unreadCount }) => {
                             const isActive = activeDmId === user.id;
                             return (
                                 <li
@@ -142,9 +143,16 @@ const ChatList: React.FC<ChatListProps> = ({ conversations, activeDmId, onSelect
                                         )}
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <p className={`truncate text-sm font-medium ${isActive ? 'text-slate-100' : 'text-slate-200'}`}>
-                                            {user.fullname}
-                                        </p>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <p className={`truncate text-sm font-medium ${isActive ? 'text-slate-100' : 'text-slate-200'}`}>
+                                                {user.fullname}
+                                            </p>
+                                            {unreadCount > 0 && !isActive && (
+                                                <span className="flex-shrink-0 bg-green-500 text-white text-xs rounded-full min-w-[20px] h-[20px] flex items-center justify-center px-1.5 font-bold">
+                                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                                </span>
+                                            )}
+                                        </div>
                                         <p className="truncate text-xs text-slate-400 group-hover:text-slate-300">
                                             {lastMessage || 'No messages yet.'}
                                         </p>
@@ -407,6 +415,7 @@ function MessagesPageContentInner() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const selectedDM = searchParams.get("dm");
+    const { refreshCount: refreshMessageNotifications, unreadPerThread } = useMessageNotifications();
 
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [allUsers, setAllUsers] = useState<User[]>([]);
@@ -695,8 +704,6 @@ useEffect(() => {
         if (!currentUser || !activeDmId) return;
         if (!content.trim() && !file) return; // allow media-only messages
 
-        console.log(activeDmId);
-
         // Optimistic update
         const tempId = `temp-${Date.now()}`;
         const tempMessage: DirectMessage = {
@@ -766,17 +773,68 @@ useEffect(() => {
         router.push(`/messages?dm=${userId}`);
     };
     
+    // Mark thread as read when user opens a DM
+    useEffect(() => {
+        if (!activeDmId || !currentUser?.id) return;
+        
+        const markAsRead = async () => {
+            try {
+                // Get messages for this DM to find the thread_id
+                const userMessages = messages.get(activeDmId);
+                if (!userMessages || userMessages.length === 0) {
+                    return;
+                }
+                
+                // Get thread_id from any message (they all share the same thread_id)
+                const threadId = userMessages[0]?.thread_id;
+                if (!threadId) {
+                    return;
+                }
+                
+                // Mark thread as read
+                await markThreadAsRead(threadId);
+                
+                // Immediately refresh unread counts to update badges
+                await refreshMessageNotifications();
+            } catch (error) {
+                console.error('Failed to mark thread as read:', error);
+            }
+        };
+        
+        // Small delay to ensure messages are loaded
+        const timeoutId = setTimeout(markAsRead, 100);
+        return () => clearTimeout(timeoutId);
+    }, [activeDmId, currentUser?.id]);
+    
     const conversations = allUsers.map(user => {
         const userMessages = messages.get(user.id) || [];
         const lastMessageObj = userMessages.length > 0 ? userMessages[userMessages.length - 1] : null;
         let lastMessage = "No messages yet.";
+        let timestamp = new Date(0).toISOString(); // Default to epoch
+        
         if (lastMessageObj) {
             const isSender = lastMessageObj.sender_id === currentUser?.id;
             const content = lastMessageObj.media_url ? "Sent an attachment" : (lastMessageObj.content || "");
             const prefix = isSender ? "You: " : `${user.fullname}: `;
             lastMessage = `${prefix}${content}`.trim();
+            timestamp = lastMessageObj.timestamp;
         }
-        return { user, lastMessage };
+        
+        // Get unread count from context
+        const threadId = lastMessageObj?.thread_id;
+        const unreadCount = threadId ? unreadPerThread[threadId] || 0 : 0;
+        
+        return { 
+            user, 
+            lastMessage, 
+            timestamp,
+            unreadCount 
+        };
+    }).sort((a, b) => {
+        // Sort by timestamp descending (newest first)
+        const timeA = new Date(a.timestamp).getTime();
+        const timeB = new Date(b.timestamp).getTime();
+        return timeB - timeA;
     });
 
     const activeUser = allUsers.find(u => u.id === activeDmId) || null;

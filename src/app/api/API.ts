@@ -194,7 +194,6 @@ export const getUserDMs = async (): Promise<any> => {
       throw new Error('User not authenticated');
     }
 
-    console.log("Fetching DMs for user:", user.id);
     const response = await apiClient.get(`/api/message/${user.id}/getDms`);
     
     return {
@@ -214,6 +213,38 @@ export const getUserDMs = async (): Promise<any> => {
 
     console.error("Error fetching DMs:", error.message || error);
     throw new Error("Failed to fetch messages. Please try again later.");
+  }
+};
+
+// Get unread message counts
+export const getUnreadMessageCounts = async (): Promise<{ unreadCounts: Record<string, number>; totalUnread: number }> => {
+  try {
+    const user = await getUser();
+    if (!user || !user.id) {
+      throw new Error('User not authenticated');
+    }
+
+    const response = await apiClient.get(`/api/message/${user.id}/unread-counts`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching unread counts:", error.message || error);
+    return { unreadCounts: {}, totalUnread: 0 };
+  }
+};
+
+// Mark thread as read
+export const markThreadAsRead = async (threadId: string): Promise<void> => {
+  try {
+    const user = await getUser();
+    if (!user || !user.id) {
+      throw new Error('User not authenticated');
+    }
+
+    await apiClient.post(`/api/message/thread/${threadId}/mark-read`, {
+      userId: user.id
+    });
+  } catch (error: any) {
+    console.error("Error marking thread as read:", error.message || error);
   }
 };
 

@@ -19,6 +19,8 @@ import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { useEffect, useState } from "react";
 import { useNotifications } from '../hooks/useNotifications';
+import { useFriendNotifications } from '../contexts/FriendNotificationContext';
+import { useMessageNotifications } from '../contexts/MessageNotificationContext';
 
 const navItems = [
 
@@ -34,6 +36,17 @@ export default function Sidebar() {
   const [user, setUser] = useState<profile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { unreadCount } = useNotifications();
+  const { friendRequestCount, refreshCount: refreshFriendCount } = useFriendNotifications();
+  const { unreadMessageCount, refreshCount: refreshMessageCount } = useMessageNotifications();
+
+  const handleNavClick = async (path: string) => {
+    // Refresh counts when navigating to specific pages
+    if (path === "/friends") {
+      await refreshFriendCount();
+    } else if (path === "/messages") {
+      await refreshMessageCount();
+    }
+  };
 
   useEffect(() => {
     const stored = localStorage.getItem("sidebarCollapsed");
@@ -115,10 +128,22 @@ export default function Sidebar() {
           <nav className="flex flex-col gap-1 px-2">
             {navItems.map((item) => {
               const isActive = pathname === item.path;
+              
+              // Determine notification count for each nav item
+              let notificationCount = 0;
+              if (item.label === "Notifications") {
+                notificationCount = unreadCount;
+              } else if (item.label === "Messages") {
+                notificationCount = unreadMessageCount;
+              } else if (item.label === "Friends") {
+                notificationCount = friendRequestCount;
+              }
+              
               return (
                 <div className="relative group" key={item.label}>
                   <Link
                     href={item.path}
+                    onClick={() => handleNavClick(item.path)}
                     className={clsx(
                       "flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all",
                      
@@ -129,10 +154,10 @@ export default function Sidebar() {
                   >
                     <div className="relative">
                       <item.icon className="w-5 h-5" />
-                      {/* Show unread count badge for notifications */}
-                      {item.label === "Notifications" && unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
-                          {unreadCount > 99 ? '99+' : unreadCount}
+                      {/* Show notification badge */}
+                      {notificationCount > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1 font-bold">
+                          {notificationCount > 99 ? '99+' : notificationCount}
                         </span>
                       )}
                     </div>
@@ -143,6 +168,7 @@ export default function Sidebar() {
                   {collapsed && (
                     <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-20 px-3 py-1 text-sm text-white bg-black rounded shadow-lg opacity-0 group-hover:opacity-100 transition">
                       {item.label}
+                      {notificationCount > 0 && ` (${notificationCount})`}
                     </div>
                   )}
                 </div>

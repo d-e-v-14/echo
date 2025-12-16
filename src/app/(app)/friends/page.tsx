@@ -12,6 +12,7 @@ import {
   SearchUserResult,
   getUserDMs,
 } from "../../../app/api/API";
+import { useFriendNotifications } from "@/contexts/FriendNotificationContext";
 
 interface FriendRequestData {
   friends_id: string;
@@ -34,6 +35,7 @@ interface FriendData {
 
 export default function FriendsPage() {
   const router = useRouter();
+  const { refreshCount: refreshFriendNotifications } = useFriendNotifications();
   const [friends, setFriends] = useState<FriendData[]>([]);
   const [requests, setRequests] = useState<FriendRequestData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -110,18 +112,8 @@ export default function FriendsPage() {
     }
   };
 
-  // Search as user types (debounced)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchQuery.trim()) {
-        handleSearch();
-      } else {
-        setSearchResults([]);
-      }
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  // Removed auto-search on typing to prevent spam
+  // User must press Enter or click search button
 
   const handleSendDM = async (friendId: string, friendUsername: string) => {
     // Navigate directly to messages with the friend's user ID
@@ -134,6 +126,8 @@ export default function FriendsPage() {
       await respondToFriendRequest(requestId, "accepted");
       loadFriends();
       loadRequests();
+      // Refresh the sidebar notification badge
+      await refreshFriendNotifications();
     } catch (err: any) {
       console.error("Error accepting request:", err);
       setError(err?.response?.data?.message || "Failed to accept friend request");
@@ -144,6 +138,8 @@ export default function FriendsPage() {
     try {
       await respondToFriendRequest(requestId, "rejected");
       loadRequests();
+      // Refresh the sidebar notification badge
+      await refreshFriendNotifications();
     } catch (err: any) {
       console.error("Error rejecting request:", err);
       setError(err?.response?.data?.message || "Failed to reject friend request");
@@ -156,6 +152,11 @@ export default function FriendsPage() {
       <div className="w-60 bg-black border-r border-gray-700 p-3">
         <h2 className="font-bold flex items-center gap-2 text-lg mb-4">
           <FaUserFriends /> Friends
+          {requests.length > 0 && (
+            <span className="ml-auto bg-red-500 text-white text-xs rounded-full min-w-[20px] h-[20px] flex items-center justify-center px-1 font-bold">
+              {requests.length}
+            </span>
+          )}
         </h2>
         
         {error && (
@@ -166,15 +167,29 @@ export default function FriendsPage() {
         
         <div className="mb-4">
           <label className="text-xs text-gray-400 mb-1 block">Search Users</label>
-          <div className="relative">
-            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
-            <input
-              type="text"
-              placeholder="Search by username..."
-              className="w-full text-sm p-2 pl-9 rounded bg-gray-800 text-gray-300 border border-gray-700 focus:border-green-600 outline-none"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
+              <input
+                type="text"
+                placeholder="Search by username..."
+                className="w-full text-sm p-2 pl-9 rounded bg-gray-800 text-gray-300 border border-gray-700 focus:border-green-600 outline-none"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSearch();
+                  }
+                }}
+              />
+            </div>
+            <button
+              onClick={handleSearch}
+              disabled={searching || !searchQuery.trim()}
+              className="bg-green-600 px-3 py-2 rounded hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              {searching ? "..." : "Search"}
+            </button>
           </div>
           
           {/* Search Results Dropdown */}
