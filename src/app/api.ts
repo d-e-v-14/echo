@@ -11,12 +11,12 @@ let failedQueue: Array<{
   reject: (reason?: unknown) => void;
 }> = [];
 
-const processQueue = (error: Error | null) => {
+const processQueue = (error: Error | null, token: string | null = null) => {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
     } else {
-      prom.resolve();
+      prom.resolve(token);
     }
   });
   failedQueue = [];
@@ -26,6 +26,20 @@ export const api = axios.create({
     baseURL: API_BASE_URL,
     withCredentials: true,
 });
+
+// Request interceptor - Add access token to all requests
+api.interceptors.request.use(
+  (config) => {
+    if (typeof window !== "undefined") {
+      const accessToken = localStorage.getItem("access_token");
+      if (accessToken && !config.headers.Authorization) {
+        config.headers.Authorization = `Bearer ${accessToken}`;
+      }
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 // Response interceptor for automatic token refresh
 api.interceptors.response.use(
@@ -40,9 +54,11 @@ api.interceptors.response.use(
 
     // Don't retry if this is already a retry attempt or if it's the refresh endpoint itself
     if (originalRequest._retry || originalRequest.url?.includes('/api/auth/refresh')) {
-      // Refresh failed or already retried, redirect to login
+      // Refresh failed or already retried, clear storage and redirect to login
       localStorage.removeItem("token");
       localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("tokenExpiry");
       localStorage.removeItem("user");
       window.location.href = "/login";
       return Promise.reject(error);
@@ -53,7 +69,12 @@ api.interceptors.response.use(
       return new Promise((resolve, reject) => {
         failedQueue.push({ resolve, reject });
       })
-        .then(() => api(originalRequest))
+        .then((token) => {
+          if (originalRequest.headers) {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+          }
+          return api(originalRequest);
+        })
         .catch((err) => Promise.reject(err));
     }
 
@@ -61,21 +82,52 @@ api.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      // Attempt to refresh the token
-      await api.post('/api/auth/refresh');
+      // Get refresh token from localStorage
+      const refreshToken = localStorage.getItem("refresh_token");
       
+      if (!refreshToken) {
+        throw new Error("No refresh token available");
+      }
+
+      // Attempt to refresh the token
+      const response = await axios.post(
+        `${API_BASE_URL}/api/auth/refresh`,
+        { refreshToken },
+        { withCredentials: true }
+      );
+      
+      const { accessToken, refreshToken: newRefreshToken, expiresIn } = response.data;
+
+      // Store new tokens
+      localStorage.setItem("access_token", accessToken);
+      localStorage.setItem("refresh_token", newRefreshToken);
+      
+      // Calculate and store expiry time
+      const expiryTime = Date.now() + expiresIn * 1000;
+      localStorage.setItem("tokenExpiry", expiryTime.toString());
+
+      // Update default authorization header
+      api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+      
+      // Update the failed request's authorization header
+      if (originalRequest.headers) {
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+      }
+
       // Token refreshed successfully, process queued requests
-      processQueue(null);
+      processQueue(null, accessToken);
       
       // Retry the original request
       return api(originalRequest);
     } catch (refreshError) {
       // Refresh failed, process queue with error
-      processQueue(refreshError as Error);
+      processQueue(refreshError as Error, null);
       
       // Clear local storage and redirect to login
       localStorage.removeItem("token");
       localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("tokenExpiry");
       localStorage.removeItem("user");
       window.location.href = "/login";
       
@@ -94,14 +146,41 @@ export function getToken(token?: string) {
     }
 }
 
-// Manual token refresh function (interceptor handles this automatically, but this can be used proactively)
-export const refreshToken = async (): Promise<{ accessToken: string; refreshToken: string; expiresIn: number } | null> => {
+// Manual token refresh function (can be used proactively)
+export const refreshToken = async (): Promise<{ 
+    accessToken: string; 
+    refreshToken: string; 
+    expiresIn: number 
+} | null> => {
     try {
-        const response = await api.post('/api/auth/refresh');
+        const refreshToken = localStorage.getItem("refresh_token");
+        
+        if (!refreshToken) {
+            throw new Error("No refresh token available");
+        }
+
+        const response = await axios.post(
+            `${API_BASE_URL}/api/auth/refresh`,
+            { refreshToken },
+            { withCredentials: true }
+        );
+
+        const { accessToken, refreshToken: newRefreshToken, expiresIn } = response.data;
+
+        // Update stored tokens
+        localStorage.setItem("access_token", accessToken);
+        localStorage.setItem("refresh_token", newRefreshToken);
+        
+        const expiryTime = Date.now() + expiresIn * 1000;
+        localStorage.setItem("tokenExpiry", expiryTime.toString());
+
+        // Update default header
+        api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+
         return {
-            accessToken: response.data.accessToken,
-            refreshToken: response.data.refreshToken,
-            expiresIn: response.data.expiresIn,
+            accessToken,
+            refreshToken: newRefreshToken,
+            expiresIn,
         };
     } catch (error) {
         console.error('Token refresh failed:', error);
@@ -109,12 +188,14 @@ export const refreshToken = async (): Promise<{ accessToken: string; refreshToke
     }
 };
 
+// Initialize token from localStorage on app load
 if (typeof window !== "undefined") {
     const storedToken = localStorage.getItem("access_token");
     if (storedToken) {
         getToken(storedToken);
     }
 }
+
 export const fetchProfile = async (): Promise<profile> => {
     if (typeof window === "undefined") throw new Error("Client only");
 
@@ -144,6 +225,25 @@ export const register = async (email: string, username: string, password: string
 
 export const login = async (identifier: string, password: string) => {
     const response = await api.post("/api/auth/login", { identifier, password });
+    
+    // Store tokens after successful login
+    if (response.data.accessToken) {
+        localStorage.setItem("access_token", response.data.accessToken);
+        localStorage.setItem("refresh_token", response.data.refreshToken);
+        
+        // Calculate and store expiry time
+        const expiryTime = Date.now() + response.data.expiresIn * 1000;
+        localStorage.setItem("tokenExpiry", expiryTime.toString());
+        
+        // Store user data
+        if (response.data.user) {
+            localStorage.setItem("user", JSON.stringify(response.data.user));
+        }
+        
+        // Set authorization header
+        getToken(response.data.accessToken);
+    }
+    
     return response.data;
 };
 
@@ -173,6 +273,17 @@ export const resetPassword = async (newPassword: string, accessToken: string) =>
 export const logout = async () => {
     try {
         const res = await api.get("/api/auth/logout");
+        
+        // Clear all stored tokens and user data
+        localStorage.removeItem("token");
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        localStorage.removeItem("tokenExpiry");
+        localStorage.removeItem("user");
+        
+        // Clear authorization header
+        delete api.defaults.headers.common["Authorization"];
+        
         return res.data;
     } catch (err) {
         console.error("Logout error:", err);
@@ -199,7 +310,7 @@ export interface ServerDetails {
     owner_id: string;
     region?: string;
     created_at: string;
-    isOwner?: boolean; // Add this computed property
+    isOwner?: boolean;
 }
 
 export interface ServerMember {
@@ -374,7 +485,7 @@ export interface Role {
     category_id: string | null;
     created_at: string;
     role_categories?: RoleCategory;
-    has_role?: boolean; // For self-assignable roles
+    has_role?: boolean;
 }
 
 export interface RoleCategory {
@@ -546,7 +657,6 @@ export interface ChannelData {
 
 export const createChannel = async (serverId: string, data: ChannelData) => {
   if (!serverId) throw new Error("Missing server ID");
-
 
   const response = await api.post(`/api/channel/${serverId}/NewChannel`, data, {
     headers: {

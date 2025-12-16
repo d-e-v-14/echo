@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "../app/globals.css";
 import { MinimizedCallBar } from "@/components/MinimizedCallBar";
 import { MobileBlocker } from "@/components/MobileBlocker";
+import { TokenRefreshProvider } from "@/components/TokenRefreshProvider";
 
 export const metadata: Metadata = {
   title: {
@@ -42,6 +43,7 @@ export const metadata: Metadata = {
     type: "website",
   },
 };
+
 export default function RootLayout({
   children,
 }: {
@@ -50,10 +52,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <MobileBlocker>
-          {children}
-          <MinimizedCallBar />
-        </MobileBlocker>
+        <TokenRefreshProvider>
+          <MobileBlocker>
+            {children}
+            <MinimizedCallBar />
+          </MobileBlocker>
+        </TokenRefreshProvider>
       </body>
     </html>
   );
