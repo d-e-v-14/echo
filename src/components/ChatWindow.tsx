@@ -51,45 +51,55 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
   const isLoadingMoreRef = useRef(false);
 
   // Load current user's avatar on mount
-  useEffect(() => {
-    const loadCurrentUserAvatar = async () => {
-      try {
-        const user = await getUser();
-        if (user?.avatar_url) {
-          setCurrentUserAvatar(user.avatar_url);
-          avatarCacheRef.current[currentUserId] = user.avatar_url;
-        }
-      } catch (error) {
-        console.error("Failed to load current user's avatar:", error);
-      }
-    };
-    
-    loadCurrentUserAvatar();
-  }, [currentUserId]);
-
-  // Function to get user avatar with caching
-  const getAvatarUrl = async (userId: string): Promise<string> => {
-    if (userId === currentUserId) {
-      // Return cached current user avatar
-      return currentUserAvatar;
-    }
-    
-    // Check cache first for other users
-    if (avatarCacheRef.current[userId]) {
-      return avatarCacheRef.current[userId];
-    }
-    
+useEffect(() => {
+  const loadCurrentUserAvatar = async () => {
     try {
-      const avatarUrl = await getUserAvatar(userId);
-      avatarCacheRef.current[userId] = avatarUrl;
-      return avatarUrl;
+      const user = await getUser();
+      if (user?.avatar_url) {
+        setCurrentUserAvatar(user.avatar_url);
+        // Important: Also cache it immediately
+        avatarCacheRef.current[currentUserId] = user.avatar_url;
+        
+        // Force update messages with the new avatar
+        setMessages(prevMessages => 
+          prevMessages.map(msg => 
+            msg.senderId === currentUserId 
+              ? { ...msg, avatarUrl: user.avatar_url || undefined }
+              : msg
+          )
+        );
+      }
     } catch (error) {
-      console.error(`Failed to get avatar for user ${userId}:`, error);
-      const fallbackAvatar = "https://avatars.dicebear.com/api/bottts/user.svg";
-      avatarCacheRef.current[userId] = fallbackAvatar;
-      return fallbackAvatar;
+      console.error("Failed to load current user's avatar:", error);
     }
   };
+  
+  loadCurrentUserAvatar();
+}, [currentUserId]);
+  // Function to get user avatar with caching
+  const getAvatarUrl = async (userId: string): Promise<string> => {
+  // Check cache first for all users (including current user)
+  if (avatarCacheRef.current[userId]) {
+    return avatarCacheRef.current[userId];
+  }
+  
+  try {
+    const avatarUrl = await getUserAvatar(userId);
+    if (avatarUrl) {
+      avatarCacheRef.current[userId] = avatarUrl;
+      return avatarUrl;
+    }
+    // If no avatar URL returned, use fallback
+    const fallbackAvatar = "/User_profil.png";
+    avatarCacheRef.current[userId] = fallbackAvatar;
+    return fallbackAvatar;
+  } catch (error) {
+    console.error(`Failed to get avatar for user ${userId}:`, error);
+    const fallbackAvatar = "/User_profil.png";
+    avatarCacheRef.current[userId] = fallbackAvatar;
+    return fallbackAvatar;
+  }
+};
 
   const [selectedUser, setSelectedUser] = useState<{
     id: string;
@@ -120,64 +130,65 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
     };
   }, [currentUserId]);
 
-  const loadMessages = useCallback(async (loadMore: boolean = false) => {
-    try {
-      if (loadMore) {
-        setLoadingMore(true);
-        isLoadingMoreRef.current = true;
-      } else {
-        setLoadingMessages(true);
-        setOffset(0);
-        isLoadingMoreRef.current = false;
-      }
-
-      const currentOffset = loadMore ? offset : 0;
-      const res = await fetchMessages(channelId, currentOffset);
-
-      const formattedMessages: Message[] = await Promise.all(
-        res.data.map(async (msg: any) => {
-          const senderId = msg.sender_id || msg.senderId;
-          const avatarUrl = await getAvatarUrl(senderId);
-
-          return {
-            id: msg.id,
-            content: msg.content || msg.message,
-            senderId,
-            timestamp: msg.timestamp || new Date().toISOString(),
-            avatarUrl,
-            username:
-              senderId === currentUserId
-                ? "You"
-                : msg.username ||
-                  msg.sender?.username ||
-                  msg.sender?.fullname ||
-                  msg.sender_name ||
-                  "Unknown",
-            mediaUrl: msg.media_url || msg.mediaUrl,
-          };
-        })
-      );
-
-      // Messages come in descending order (newest first), reverse to get ascending
-      const sorted = formattedMessages.reverse();
-
-      if (loadMore) {
-        // Prepend older messages to the beginning
-        setMessages(prev => [...sorted, ...prev]);
-        setOffset(prev => prev + res.data.length);
-      } else {
-        setMessages(sorted);
-        setOffset(res.data.length);
-      }
-
-      setHasMore(res.hasMore ?? false);
-    } catch (err) {
-      console.error("Failed to fetch messages", err);
-    } finally {
-      setLoadingMessages(false);
-      setLoadingMore(false);
+const loadMessages = useCallback(async (loadMore: boolean = false) => {
+  try {
+    if (loadMore) {
+      setLoadingMore(true);
+      isLoadingMoreRef.current = true;
+    } else {
+      setLoadingMessages(true);
+      setOffset(0);
+      isLoadingMoreRef.current = false;
     }
-  }, [channelId, currentUserId, currentUserAvatar, offset]);
+
+    const currentOffset = loadMore ? offset : 0;
+    const res = await fetchMessages(channelId, currentOffset);
+
+    const formattedMessages: Message[] = await Promise.all(
+      res.data.map(async (msg: any) => {
+        const senderId = msg.sender_id || msg.senderId;
+        const avatarUrl = await getAvatarUrl(senderId);
+        
+        // Add debugging
+        console.log('Message:', msg.id, 'SenderId:', senderId, 'AvatarUrl:', avatarUrl);
+        
+        return {
+          id: msg.id,
+          content: msg.content || msg.message,
+          senderId,
+          timestamp: msg.timestamp || new Date().toISOString(),
+          avatarUrl, // This should now have the correct value
+          username:
+            senderId === currentUserId
+              ? "You"
+              : msg.username ||
+                msg.sender?.username ||
+                msg.sender?.fullname ||
+                msg.sender_name ||
+                "Unknown",
+          mediaUrl: msg.media_url || msg.mediaUrl,
+        };
+      })
+    );
+
+    const sorted = formattedMessages.reverse();
+
+    if (loadMore) {
+      setMessages(prev => [...sorted, ...prev]);
+      setOffset(prev => prev + res.data.length);
+    } else {
+      setMessages(sorted);
+      setOffset(res.data.length);
+    }
+
+    setHasMore(res.hasMore ?? false);
+  } catch (err) {
+    console.error("Failed to fetch messages", err);
+  } finally {
+    setLoadingMessages(false);
+    setLoadingMore(false);
+  }
+}, [channelId, currentUserId, offset]); // Removed currentUserAvatar from dependencies
 
   useEffect(() => {
     if (channelId) loadMessages(false);
@@ -325,56 +336,48 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
     };
   }, [socket, currentUserId, loadMessages, channelId, currentUserAvatar]);
 
-  const handleSend = async (text: string, file: File | null) => {
-    if (text.trim() === "" && !file) return;
+const handleSend = async (text: string, file: File | null) => {
+  if (text.trim() === "" && !file) return;
 
-    setIsSending(true);
+  setIsSending(true);
 
-    // Show upload progress for files
-    if (file) {
-      console.log(`Uploading file: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
-    }
+  if (file) {
+    console.log(`Uploading file: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
+  }
 
-    // Use current user's actual avatar for optimistic message
-    const optimisticMessage: Message = {
-      id: `temp-${Date.now()}`,
-      content: file ? `${text} 📎 Uploading ${file.name}...` : text,
-      senderId: currentUserId,
-      timestamp: new Date().toISOString(),
-      avatarUrl: currentUserAvatar, // Use the cached current user avatar
-      username: "You"
-    };
-    setMessages(prev => [...prev, optimisticMessage]);
+  // Get avatar from cache or use fallback
+  const userAvatar = avatarCacheRef.current[currentUserId] || currentUserAvatar || "/User_profil.png";
 
-    try {
-      const response = await uploadMessage({
-        content: text.trim(),
-        channel_id: channelId,
-        sender_id: currentUserId,
-        file: file || undefined,
-      });
-      
-      console.log('[Upload Message] Response:', response);
-      if (response.media_url) {
-        console.log('[Upload Message] Response has media_url:', response.media_url);
-      }
-
-    } catch (err: any) {
-      console.error('💔 Failed to upload message:', err);
-      
-      let errorMessage = 'Upload failed';
-      if (err.message) {
-        errorMessage = err.message;
-      }
-      
-      alert(`Upload failed: ${errorMessage}`);
-      
-      // Remove optimistic message on failure
-      setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
-    } finally {
-      setIsSending(false);
-    }
+  const optimisticMessage: Message = {
+    id: `temp-${Date.now()}`,
+    content: file ? `${text} 📎 Uploading ${file.name}...` : text,
+    senderId: currentUserId,
+    timestamp: new Date().toISOString(),
+    avatarUrl: userAvatar,
+    username: "You"
   };
+  
+  console.log('Optimistic message avatar:', userAvatar); // Debug log
+  
+  setMessages(prev => [...prev, optimisticMessage]);
+
+  try {
+    const response = await uploadMessage({
+      content: text.trim(),
+      channel_id: channelId,
+      sender_id: currentUserId,
+      file: file || undefined,
+    });
+    
+    console.log('[Upload Message] Response:', response);
+  } catch (err: any) {
+    console.error('💔 Failed to upload message:', err);
+    alert(`Upload failed: ${err.message || 'Unknown error'}`);
+    setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
+  } finally {
+    setIsSending(false);
+  }
+};
 
   return (
     <div className="flex flex-col flex-1 h-full w-full overflow-hidden">
