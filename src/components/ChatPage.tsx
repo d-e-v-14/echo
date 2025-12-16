@@ -529,7 +529,7 @@ useEffect(() => {
             const loggedInUser = JSON.parse(userItem);
             setCurrentUser(loggedInUser);
         } else {
-            router.push('/login');
+            router.push('/');
         }
     }, [router]);
     
