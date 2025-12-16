@@ -150,7 +150,6 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
         const avatarUrl = await getAvatarUrl(senderId);
         
         // Add debugging
-        console.log('Message:', msg.id, 'SenderId:', senderId, 'AvatarUrl:', avatarUrl);
         
         return {
           id: msg.id,
@@ -266,17 +265,12 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
     const receivedMessageIds = new Set<string | number>();
 
     const handleIncomingMessage = async (saved: any) => {
-      console.log('[Socket new_message] Received:', saved);
       
       const messageId = saved?.id || saved?.messageId || Date.now();
       if (saved?.channel_id && saved.channel_id !== channelId) return;
 
       if (receivedMessageIds.has(messageId)) {
         return;
-      }
-
-      if (saved?.media_url) {
-        console.log('[Socket new_message] Message has media_url:', saved.media_url);
       }
 
       const senderId = saved?.sender_id || saved?.senderId || "";
@@ -340,11 +334,6 @@ const handleSend = async (text: string, file: File | null) => {
   if (text.trim() === "" && !file) return;
 
   setIsSending(true);
-
-  if (file) {
-    console.log(`Uploading file: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
-  }
-
   // Get avatar from cache or use fallback
   const userAvatar = avatarCacheRef.current[currentUserId] || currentUserAvatar || "/User_profil.png";
 
@@ -356,8 +345,6 @@ const handleSend = async (text: string, file: File | null) => {
     avatarUrl: userAvatar,
     username: "You"
   };
-  
-  console.log('Optimistic message avatar:', userAvatar); // Debug log
   
   setMessages(prev => [...prev, optimisticMessage]);
 

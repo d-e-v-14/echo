@@ -32,7 +32,6 @@ export default function ProfilePage() {
           withCredentials: true,
 
         });
-        console.log(res);
         const profile = res.data.user;
 
         setDisplayName(profile.fullname);

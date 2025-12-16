@@ -644,7 +644,6 @@ export const getChannelsWithAccess = async (serverId: string): Promise<Array<{
 
 // Test POST endpoint (for debugging)
 export const testDirectPost = async (): Promise<any> => {
-    console.log('Testing direct POST to backend...');
     const response = await api.post('/test-post-direct', { test: 'data' });
     return response.data;
 };

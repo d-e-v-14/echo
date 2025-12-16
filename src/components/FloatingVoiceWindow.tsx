@@ -121,7 +121,6 @@ const FloatingVoiceWindow: React.FC<FloatingVoiceWindowProps> = ({ currentServer
       return;
     }
 
-    console.log("[FloatingVoiceWindow] Binding local video tile:", localVideoTileId);
     bindVideoElement(localVideoTileId, videoEl);
 
     // Try to play
@@ -130,7 +129,6 @@ const FloatingVoiceWindow: React.FC<FloatingVoiceWindowProps> = ({ currentServer
     });
 
     return () => {
-      console.log("[FloatingVoiceWindow] Unbinding local video tile:", localVideoTileId);
       unbindVideoElement(localVideoTileId);
     };
   }, [localVideoTileId, localMediaState.video, bindVideoElement, unbindVideoElement]);

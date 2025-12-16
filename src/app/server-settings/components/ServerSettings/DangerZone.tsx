@@ -65,12 +65,8 @@ export default function DangerZone({ serverId, serverName, isOwner }: DangerZone
         getUser()
       ]);
       
-      console.log("Full response from getServerMembers:", response);
-      console.log("Current user:", currentUser);
-      
       // The backend returns the members array directly, not wrapped in an object
       const allMembers = Array.isArray(response) ? response : response.members || response.data || [];
-      console.log("All members:", allMembers);
       
       // Extract user data and filter out current owner
       const processedMembers = allMembers
@@ -82,7 +78,6 @@ export default function DangerZone({ serverId, serverName, isOwner }: DangerZone
         }))
         .filter((member: any) => member.id && member.id !== currentUser?.id);
       
-      console.log("Processed members:", processedMembers);
       setMembers(processedMembers);
     } catch (error) {
       console.error("Error loading members:", error);

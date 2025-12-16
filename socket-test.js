@@ -9,7 +9,6 @@ const testSocket = io('http://localhost:5000', {
 });
 
 testSocket.on('connect', () => {
-  console.log('✅ Test connection successful:', testSocket.id);
 });
 
 testSocket.on('connect_error', (error) => {

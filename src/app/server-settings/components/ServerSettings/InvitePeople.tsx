@@ -48,9 +48,7 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
 
   const testBackendConnection = async () => {
     try {
-      console.log('Testing backend connection...');
       const response = await testDirectPost();
-      console.log('Backend test response:', response);
       alert(`Backend test successful: ${JSON.stringify(response)}`);
     } catch (err: any) {
       console.error('Backend test failed:', err);
@@ -59,22 +57,17 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
   };
 
   const handleGenerateLink = async () => {
-    console.log('Generate link clicked with serverId:', serverId);
-    console.log('Expires after:', expiresAfter);
-    console.log('Max uses:', maxUses);
     
     try {
       const expiresAfterStr = expiresAfter === "Never" ? undefined : expiresAfter;
       const maxUsesStr = maxUses === "No limit" ? undefined : maxUses;
       
-      console.log('Processed options:', { expiresAfterStr, maxUsesStr });
       
       const response = await createServerInvite(serverId, {
         expiresAfter: expiresAfterStr,
         maxUses: maxUsesStr
       });
       
-      console.log('Create invite response:', response);
       
       const newLink = response.invite.inviteLink;
       setInviteLink(newLink);
@@ -83,9 +76,6 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
       
       setTimeout(() => setSuccess(""), 3000);
     } catch (err: any) {
-      console.error("Error generating invite:", err);
-      console.error("Error details:", err.response?.data);
-      console.error("Error status:", err.response?.status);
       setError(`Failed to generate invite link: ${err.response?.data?.error || err.message}`);
       setTimeout(() => setError(""), 5000);
     }

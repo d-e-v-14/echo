@@ -106,25 +106,6 @@ const showVoiceUI =
   isVoiceActiveForCurrentServer &&
   activeCall;
 
-  // Debug logging for voice UI visibility
-  useEffect(() => {
-    console.log("[ServersPage] Voice UI Debug:", {
-      viewMode,
-      selectedServerId,
-      activeCallServerId: activeCall?.serverId,
-      isVoiceActiveForCurrentServer,
-      showVoiceUI:
-        viewMode === "voice" && isVoiceActiveForCurrentServer && !!activeCall,
-      activeCall: activeCall
-        ? {
-            channelId: activeCall.channelId,
-            channelName: activeCall.channelName,
-            serverId: activeCall.serverId,
-          }
-        : null,
-    });
-  }, [viewMode, selectedServerId, activeCall, isVoiceActiveForCurrentServer]);
-
   // Voice members derived from context participants
   interface VoiceMember {
     id: string;
@@ -190,9 +171,6 @@ const showVoiceUI =
       try {
         setLoading(true);
         const data = await fetchServers();
-        console.log("[ServersPage] Loaded servers:", data);
-        console.log("[ServersPage] serverIdFromQuery:", serverIdFromQuery);
-        console.log("[ServersPage] viewModeFromQuery:", viewModeFromQuery);
         setServers(data);
         if (data.length > 0) {
           // If serverId is in query params, select that server
@@ -201,24 +179,13 @@ const showVoiceUI =
               (s: any) => s.id === serverIdFromQuery
             );
             if (targetServer) {
-              console.log(
-                "[ServersPage] Selecting server from query:",
-                targetServer.name
-              );
               setSelectedServerId(targetServer.id);
               setSelectedServerName(targetServer.name);
             } else {
-              // Fallback to first server if not found
-              console.log(
-                "[ServersPage] Server not found, selecting first server"
-              );
               setSelectedServerId(data[0].id);
               setSelectedServerName(data[0].name);
             }
           } else {
-            console.log(
-              "[ServersPage] No serverId in query, selecting first server"
-            );
             setSelectedServerId(data[0].id);
             setSelectedServerName(data[0].name);
           }
@@ -236,7 +203,6 @@ const showVoiceUI =
   // Handle view mode from query params (when navigating from expand button)
   useEffect(() => {
     if (viewModeFromQuery === "voice") {
-      console.log("[ServersPage] Setting viewMode to voice from query param");
       setViewMode("voice");
     }
   }, [viewModeFromQuery]);
@@ -248,9 +214,6 @@ const showVoiceUI =
       activeCall &&
       selectedServerId === activeCall.serverId
     ) {
-      console.log(
-        "[ServersPage] activeCall matches selected server, ensuring voice mode"
-      );
       setViewMode("voice");
     }
   }, [viewModeFromQuery, activeCall, selectedServerId]);
@@ -260,10 +223,6 @@ const showVoiceUI =
     const handleExpandVoiceView = (
       event: CustomEvent<{ serverId: string }>
     ) => {
-      console.log(
-        "[ServersPage] Received expandVoiceView event:",
-        event.detail
-      );
       const { serverId } = event.detail;
 
       // If the server matches current selection or the active call, switch to voice view
@@ -307,7 +266,6 @@ const showVoiceUI =
       setVoiceEnabled(isVoiceEnabled);
       
       const data: Channel[] = await fetchChannelsByServer(selectedServerId);
-      console.log(data);
       
       const normalized = (data || []).map((c) => ({
         ...c,
@@ -371,7 +329,6 @@ const showVoiceUI =
       try {
         setLoading(true);
         const data = await fetchServers();
-        console.log("[ServersPage] Refreshing servers:", data);
         setServers(data);
         // Don't reset server selection on refresh - keep current or use query param
       } catch (err) {
@@ -781,64 +738,6 @@ const showVoiceUI =
                   );
                 })}
               </div>
-
-              {/* Self-Assignable Roles Section */}
-              {selfAssignableRoles.length > 0 && (
-                <div className="px-2 mt-4">
-                  <div
-                    className="flex items-center justify-between cursor-pointer hover:bg-[#2f3136] rounded-md p-2 transition-all"
-                    onClick={() => setShowRoles(!showRoles)}
-                  >
-                    <h3 className="text-xs font-bold uppercase text-gray-400 flex items-center gap-2">
-                      <FaShieldAlt size={12} />
-                      Roles ({selfAssignableRoles.length})
-                    </h3>
-                    <span className="text-gray-400 text-xs">
-                      {showRoles ? "▼" : "▶"}
-                    </span>
-                  </div>
-
-                  {showRoles && (
-                    <div className="mt-2 space-y-1 max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
-                      {rolesLoading ? (
-                        <div className="text-xs text-gray-400 text-center py-2">
-                          Loading...
-                        </div>
-                      ) : (
-                        selfAssignableRoles.map((role) => {
-                          const hasRole = myRoles.some((r) => r.id === role.id);
-                          return (
-                            <div
-                              key={role.id}
-                              className={`flex items-center justify-between p-2 text-sm rounded-md cursor-pointer transition-all ${
-                                hasRole
-                                  ? "bg-[#2f3136] text-white"
-                                  : "text-gray-400 hover:bg-[#2f3136] hover:text-white"
-                              }`}
-                              onClick={() => handleRoleToggle(role.id)}
-                            >
-                              <span className="flex items-center gap-2 flex-1 min-w-0">
-                                <div
-                                  className="w-3 h-3 rounded-full flex-shrink-0"
-                                  style={{
-                                    backgroundColor: role.color || "#5865f2",
-                                  }}
-                                />
-                                <span className="truncate">{role.name}</span>
-                              </span>
-                              {hasRole && (
-                                <span className="text-green-400 text-xs ml-2 flex-shrink-0">
-                                  ✓
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* Show voice status in sidebar when connected to this server */}
               {isVoiceActiveForCurrentServer && activeCall && (

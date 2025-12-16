@@ -52,9 +52,6 @@ export default function Overview({ serverId, serverDetails, onServerUpdate, isOw
         updateData.name = serverName;
       }
       
-      console.log('Updating server with data:', updateData);
-      console.log('Icon file:', iconFile);
-      
       const updatedServer = await updateServer(serverId, updateData, iconFile || undefined);
       onServerUpdate(updatedServer);
       setSuccessMessage("Server updated successfully!");

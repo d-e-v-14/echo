@@ -27,7 +27,6 @@ const WorkingVoicePage = () => {
 
   const startCall = async () => {
     try {
-      console.log("Starting call with Chime SDK...");
       
       // Create manager (no socket needed for Chime)
       const manager = new VoiceVideoManager(userId);
@@ -35,7 +34,6 @@ const WorkingVoicePage = () => {
       
       // Set up event listeners
       manager.onStream((stream, peerId, type) => {
-        console.log("Received stream from", peerId, type);
         setParticipants(prev => {
           const existing = prev.findIndex(p => p.id === peerId);
           if (existing >= 0) {
@@ -49,11 +47,9 @@ const WorkingVoicePage = () => {
       });
       
       manager.onUserJoined((attendeeId, externalUserId) => {
-        console.log("User joined channel:", attendeeId, externalUserId);
       });
       
       manager.onUserLeft((peerId) => {
-        console.log("User left:", peerId);
         setParticipants(prev => prev.filter(p => p.id !== peerId));
       });
       

@@ -26,6 +26,9 @@ const MessageBubble: React.FC<Props> = ({
     : "bg-slate-800/80 text-slate-100 shadow-[0_12px_30px_rgba(15,23,42,0.35)]";
 
   const containerAlignment = isSender ? "items-end text-right" : "items-start";
+  
+  // Default avatar - use a fallback if avatarUrl is empty/undefined/null
+  const displayAvatar = avatarUrl || "/User_profil.png";
 
   return (
     <div
@@ -33,23 +36,27 @@ const MessageBubble: React.FC<Props> = ({
         isSender ? "justify-end" : "justify-start"
       } mb-3 w-full`}
     >
-     
+      {/* Left avatar (for non-sender) */}
       <div
         className={`w-8 h-8 mr-3 flex-shrink-0 ${
           !isSender ? "flex" : "hidden"
         }`}
       >
-        {!isSender && avatarUrl && (
+        {!isSender && (
           <img
-            src={avatarUrl}
+            src={displayAvatar}
             alt={name || "User"}
             onClick={onProfileClick} 
+            onError={(e) => {
+              // Fallback if image fails to load
+              e.currentTarget.src = "/User_profil.png";
+            }}
             className="w-8 h-8 rounded-full object-cover cursor-pointer hover:scale-105 hover:brightness-110 transition-all"
           />
         )}
       </div>
 
-     
+      {/* Message content */}
       <div
         className={`flex flex-col max-w-[min(32rem,65%)] ${containerAlignment} gap-1 ${
           isSender ? "ml-auto" : "mr-auto"
@@ -86,14 +93,18 @@ const MessageBubble: React.FC<Props> = ({
         )}
       </div>
 
-     
+      {/* Right avatar (for sender) */}
       <div
         className={`w-8 h-8 ml-3 flex-shrink-0 ${isSender ? "flex" : "hidden"}`}
       >
-        {isSender && avatarUrl && (
+        {isSender && (
           <img
-            src={avatarUrl}
+            src={displayAvatar}
             alt={name || "You"}
+            onError={(e) => {
+              // Fallback if image fails to load
+              e.currentTarget.src = "/User_profil.png";
+            }}
             className="w-8 h-8 rounded-full object-cover"
           />
         )}

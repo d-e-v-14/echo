@@ -179,7 +179,6 @@ const VoiceChannel = ({ channelId, userId, serverId, channelName, onHangUp, onMi
         let isMounted = true;
         
         if (!managerRef.current) {
-            console.log('Creating VoiceVideoManager (Chime) for user:', userId);
             const manager = new VoiceVideoManager(userId);
             managerRef.current = manager;
         }
@@ -266,7 +265,6 @@ const VoiceChannel = ({ channelId, userId, serverId, channelName, onHangUp, onMi
             });
 
             manager.onUserJoined((odattendeeId: string, oduserId: string) => {
-                console.log("User joined voice channel:", { odattendeeId, oduserId });
                 if (isMounted) {
                     setVoiceStates(prev => new Map(prev).set(odattendeeId, {
                         muted: false,
@@ -278,7 +276,6 @@ const VoiceChannel = ({ channelId, userId, serverId, channelName, onHangUp, onMi
 
             // onMediaState now has 2 params: (attendeeId, state)
             manager.onMediaState((attendeeId: string, state: any) => {
-                console.log("Media state update:", { attendeeId, state });
                 if (isMounted) {
                     setVoiceStates(prev => new Map(prev).set(attendeeId, {
                         muted: state.muted || false,
@@ -335,7 +332,6 @@ const VoiceChannel = ({ channelId, userId, serverId, channelName, onHangUp, onMi
 
         const joinChannel = async () => {
             try {
-                console.log('Joining voice channel:', channelId);
                 setIsVoiceChannelConnected(false);
                 await manager.joinVoiceChannel(channelId);
                 
@@ -351,7 +347,6 @@ const VoiceChannel = ({ channelId, userId, serverId, channelName, onHangUp, onMi
         joinChannel();
 
         return () => {
-            console.log('Leaving voice channel:', channelId);
             manager.leaveVoiceChannel();
             setIsVoiceChannelConnected(false);
         };

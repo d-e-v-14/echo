@@ -276,16 +276,6 @@ const ParticipantVideo = memo(function ParticipantVideo({
   useEffect(() => {
     const tileId = participant.tileId;
     const videoEl = videoRef.current;
-    
-    console.log(`[ParticipantVideo] Tile binding check for ${participant.username}:`, {
-      hasTileId: tileId !== undefined && tileId !== null,
-      tileId,
-      hasManager: !!manager,
-      hasVideoRef: !!videoEl,
-      isLocal,
-      shouldShowVideo,
-      hasVideoState
-    });
 
     // Early return if we don't have what we need
     if (!manager || tileId === undefined || tileId === null) {
@@ -299,7 +289,6 @@ const ParticipantVideo = memo(function ParticipantVideo({
       if (!currentVideoEl) {
         // Video element not ready yet, retry after a short delay
         if (retryCount < 5) {
-          console.log(`[ParticipantVideo] Video element not ready, retry ${retryCount + 1}/5 for tile ${tileId}`);
           setTimeout(() => bindTile(retryCount + 1), 100);
         } else {
           console.warn(`[ParticipantVideo] Video element never became available for tile ${tileId}`);
@@ -307,7 +296,6 @@ const ParticipantVideo = memo(function ParticipantVideo({
         return;
       }
 
-      console.log(`[ParticipantVideo] Binding tile ${tileId} for ${participant.username} (isLocal: ${isLocal})`);
       try {
         manager.bindVideoElement(tileId, currentVideoEl);
         setIsVideoBound(true);
@@ -318,7 +306,6 @@ const ParticipantVideo = memo(function ParticipantVideo({
           console.warn(`[ParticipantVideo] Video autoplay blocked:`, err.message);
         });
         
-        console.log(`[ParticipantVideo] Successfully bound tile ${tileId} for ${participant.username}`);
       } catch (err) {
         console.error(`[ParticipantVideo] Failed to bind video tile ${tileId}:`, err);
         // Retry on failure
@@ -335,7 +322,6 @@ const ParticipantVideo = memo(function ParticipantVideo({
       clearTimeout(bindTimeout);
       // Unbind when unmounting or tile changes
       if (manager && tileId !== undefined && tileId !== null) {
-        console.log(`[ParticipantVideo] Cleanup: Unbinding tile ${tileId} for ${participant.username}`);
         try {
           manager.unbindVideoElement(tileId);
         } catch (err) {
@@ -350,15 +336,6 @@ const ParticipantVideo = memo(function ParticipantVideo({
   // Similar to video tile binding but for screen share content
   useEffect(() => {
     const screenTileId = participant.screenTileId;
-    
-    console.log(`[ParticipantVideo] Screen tile binding check for ${participant.username}:`, {
-      hasScreenTileId: screenTileId !== undefined && screenTileId !== null,
-      screenTileId,
-      hasManager: !!manager,
-      hasScreenRef: !!screenRef.current,
-      shouldShowScreenShare,
-      hasScreenShareState
-    });
 
     // Early return if we don't have what we need
     if (!manager || screenTileId === undefined || screenTileId === null) {
@@ -372,7 +349,6 @@ const ParticipantVideo = memo(function ParticipantVideo({
       if (!currentScreenEl) {
         // Screen element not ready yet, retry after a short delay
         if (retryCount < 5) {
-          console.log(`[ParticipantVideo] Screen element not ready, retry ${retryCount + 1}/5 for screen tile ${screenTileId}`);
           setTimeout(() => bindScreenTile(retryCount + 1), 100);
         } else {
           console.warn(`[ParticipantVideo] Screen element never became available for tile ${screenTileId}`);
@@ -380,7 +356,6 @@ const ParticipantVideo = memo(function ParticipantVideo({
         return;
       }
 
-      console.log(`[ParticipantVideo] Binding screen tile ${screenTileId} for ${participant.username}`);
       try {
         manager.bindVideoElement(screenTileId, currentScreenEl);
         setIsScreenBound(true);
@@ -390,7 +365,6 @@ const ParticipantVideo = memo(function ParticipantVideo({
           console.warn(`[ParticipantVideo] Screen share autoplay blocked:`, err.message);
         });
         
-        console.log(`[ParticipantVideo] Successfully bound screen tile ${screenTileId} for ${participant.username}`);
       } catch (err) {
         console.error(`[ParticipantVideo] Failed to bind screen tile ${screenTileId}:`, err);
         // Retry on failure
@@ -407,7 +381,6 @@ const ParticipantVideo = memo(function ParticipantVideo({
       clearTimeout(bindTimeout);
       // Unbind when unmounting or tile changes
       if (manager && screenTileId !== undefined && screenTileId !== null) {
-        console.log(`[ParticipantVideo] Cleanup: Unbinding screen tile ${screenTileId} for ${participant.username}`);
         try {
           manager.unbindVideoElement(screenTileId);
         } catch (err) {

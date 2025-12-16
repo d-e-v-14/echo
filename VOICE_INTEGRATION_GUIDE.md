@@ -141,7 +141,6 @@ manager.toggleVideo(false); // Disable camera
 // Start screen sharing
 try {
   await manager.startScreenShare();
-  console.log('Screen sharing started');
 } catch (error) {
   console.error('Screen sharing failed:', error);
 }

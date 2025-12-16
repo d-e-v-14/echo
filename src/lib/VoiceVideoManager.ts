@@ -232,7 +232,6 @@ export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserv
     this.userId = userId;
     this.username = username || userId;
     this.logger = new ConsoleLogger('ChimeVoice', LogLevel.WARN);
-    console.log('[VoiceVideoManager] Initialized for user:', userId, 'username:', this.username);
   }
 
   // ==================== INITIALIZATION ====================
@@ -292,7 +291,6 @@ export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserv
         throw new Error('No media permissions granted');
       }
 
-      console.log('[VoiceVideoManager] Initialization complete:', this.mediaState.availablePermissions);
     } catch (error: any) {
       console.error('[VoiceVideoManager] Initialization failed:', error);
       this.callbacks.onError?.({ code: 'INIT_FAILED', message: error.message });
@@ -386,7 +384,6 @@ export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserv
       await this.startSession();
 
       this.callbacks.onConnectionStateChange?.(true);
-      console.log('[VoiceVideoManager] Successfully joined channel:', channelId);
 
     } catch (error: any) {
       console.error('[VoiceVideoManager] Failed to join channel:', error);
@@ -575,7 +572,6 @@ export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserv
         
         this.mediaState.video = true;
         this.mediaState.activeStreams.video = true;
-        console.log('[VoiceVideoManager] Video started');
 
       } else {
         // Stop video
@@ -646,16 +642,13 @@ export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserv
     this.mediaState.screenSharing = false;
     this.mediaState.activeStreams.screen = false;
     this.broadcastLocalState();
-    console.log('[VoiceVideoManager] Screen sharing stopped');
   }
 
   // ContentShareObserver implementation
   contentShareDidStart(): void {
-    console.log('[VoiceVideoManager] Content share did start');
   }
 
   contentShareDidStop(): void {
-    console.log('[VoiceVideoManager] Content share did stop');
     this.mediaState.screenSharing = false;
     this.mediaState.activeStreams.screen = false;
     this.broadcastLocalState();
@@ -700,7 +693,6 @@ export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserv
     if (!this.audioVideo) return;
     await this.audioVideo.startAudioInput(deviceId);
     this.deviceInfo.activeAudioDevice = deviceId;
-    console.log('[VoiceVideoManager] Switched microphone to:', deviceId);
   }
 
   /** Switch camera to a different device */
@@ -744,7 +736,6 @@ export class VoiceVideoManager implements AudioVideoObserver, ContentShareObserv
    * Called when the session starts
    */
   audioVideoDidStart(): void {
-    console.log('[VoiceVideoManager] Audio/video session started');
     this.callbacks.onConnectionStateChange?.(true);
   }
 

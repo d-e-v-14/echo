@@ -89,11 +89,9 @@ const AddChannel: React.FC = () => {
     setMessage("");
 
     try {
-      console.log("Submitting channel:", { serverId, ...formData });
 
       const response = await createChannel(serverId!, formData);
 
-      console.log("Server response:", response);
 
       // If private channel with selected roles, set the role access
       if (formData.is_private && selectedRoleIds.length > 0 && response?.id) {

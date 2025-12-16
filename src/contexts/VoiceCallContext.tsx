@@ -137,7 +137,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
   const getOrCreateManager = useCallback(() => {
     if (!isManagerCreated.current) {
       const user = getCurrentUser();
-      console.log("[VoiceCallContext] Creating VoiceVideoManager for user:", user);
       managerRef.current = new VoiceVideoManager(user.id, user.username);
       isManagerCreated.current = true;
     }
@@ -156,7 +155,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
 
     // Video tile updates
     manager.onVideoTileUpdated((tile) => {
-      console.log("[VoiceCallContext] Video tile updated:", tile);
       setVideoTiles((prev) => {
         const newMap = new Map(prev);
         newMap.set(tile.tileId, tile);
@@ -182,7 +180,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
 
     // Connection state changes
     manager.onConnectionStateChange((connected) => {
-      console.log("[VoiceCallContext] Connection state changed:", connected);
       setIsConnected(connected);
       if (!connected) {
         setIsConnecting(false);
