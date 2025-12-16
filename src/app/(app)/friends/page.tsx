@@ -1,21 +1,46 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { FaUserFriends, FaPlus, FaUserCircle } from "react-icons/fa";
+import { FaUserFriends, FaPlus, FaUserCircle, FaSearch, FaCommentAlt } from "react-icons/fa";
+import { useRouter } from "next/navigation";
 import {
   fetchAllFriends,
   fetchFriendRequests,
   addFriend,
   respondToFriendRequest,
+  searchUsers,
+  SearchUserResult,
+  getUserDMs,
 } from "../../../app/api/API";
 
-export default function FriendsPage() {
-  const [friends, setFriends] = useState<any[]>([]);
-  const [requests, setRequests] = useState<any[]>([]);
-  const [newFriendId, setNewFriendId] = useState("");
+interface FriendRequestData {
+  friends_id: string;
+  created_at: string;
+  user1_id: string;
+  user1: {
+    username: string;
+    fullname: string;
+    avatar_url: string;
+  };
+}
 
-  // Replace with actual current user's ID if needed
-  const currentUserId = "d8670038-9985-4693-add5-69c27d27b9fe";
+interface FriendData {
+  id: string;
+  username: string;
+  fullname: string;
+  avatar_url: string;
+  status: string;
+}
+
+export default function FriendsPage() {
+  const router = useRouter();
+  const [friends, setFriends] = useState<FriendData[]>([]);
+  const [requests, setRequests] = useState<FriendRequestData[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchUserResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     loadFriends();
@@ -24,32 +49,84 @@ export default function FriendsPage() {
 
   const loadFriends = async () => {
     try {
-      // For fetchAllFriends we need requestId + status
-      const data = await fetchAllFriends(currentUserId, "accepted");
-      setFriends(data);
-    } catch (err) {
-      console.error(err);
+      const data = await fetchAllFriends();
+      setFriends(data as any);
+    } catch (err: any) {
+      console.error("Error loading friends:", err);
+      setError(err?.response?.data?.message || "Failed to load friends");
     }
   };
 
   const loadRequests = async () => {
     try {
-      const data = await fetchFriendRequests(currentUserId);
-      setRequests(data);
-    } catch (err) {
-      console.error(err);
+      const data = await fetchFriendRequests();
+      setRequests(data as any);
+    } catch (err: any) {
+      console.error("Error loading requests:", err);
     }
   };
 
-  const handleAddFriend = async () => {
-    if (!newFriendId.trim()) return;
+  const handleAddFriend = async (userId: string) => {
+    setLoading(true);
+    setError("");
     try {
-      await addFriend(newFriendId);
-      setNewFriendId("");
-      loadRequests(); // refresh requests
-    } catch (err) {
-      console.error(err);
+      await addFriend(userId);
+      setSearchQuery("");
+      setSearchResults([]);
+      loadRequests();
+      // Update search results to reflect new status
+      setSearchResults(prev => 
+        prev.map(user => 
+          user.id === userId 
+            ? { ...user, relationshipStatus: 'pending' as const }
+            : user
+        )
+      );
+    } catch (err: any) {
+      console.error("Error adding friend:", err);
+      setError(err?.response?.data?.message || "Failed to send friend request");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    
+    setSearching(true);
+    setError("");
+    try {
+      const results = await searchUsers(searchQuery);
+      setSearchResults(results);
+    } catch (err: any) {
+      console.error("Error searching users:", err);
+      setError(err?.response?.data?.message || "Failed to search users");
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  // Search as user types (debounced)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery.trim()) {
+        handleSearch();
+      } else {
+        setSearchResults([]);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const handleSendDM = async (friendId: string, friendUsername: string) => {
+    // Navigate directly to messages with the friend's user ID
+    // The ChatPage component will handle finding/creating the DM thread
+    router.push(`/messages?dm=${friendId}`);
   };
 
   const handleAccept = async (requestId: string) => {
@@ -57,8 +134,19 @@ export default function FriendsPage() {
       await respondToFriendRequest(requestId, "accepted");
       loadFriends();
       loadRequests();
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error("Error accepting request:", err);
+      setError(err?.response?.data?.message || "Failed to accept friend request");
+    }
+  };
+
+  const handleReject = async (requestId: string) => {
+    try {
+      await respondToFriendRequest(requestId, "rejected");
+      loadRequests();
+    } catch (err: any) {
+      console.error("Error rejecting request:", err);
+      setError(err?.response?.data?.message || "Failed to reject friend request");
     }
   };
 
@@ -69,36 +157,124 @@ export default function FriendsPage() {
         <h2 className="font-bold flex items-center gap-2 text-lg mb-4">
           <FaUserFriends /> Friends
         </h2>
-        <input
-          type="text"
-          placeholder="Add by user ID"
-          className="w-full text-sm p-2 rounded bg-gray-800 text-gray-300 mb-2"
-          value={newFriendId}
-          onChange={(e) => setNewFriendId(e.target.value)}
-        />
-        <button
-          onClick={handleAddFriend}
-          className="w-full bg-green-600 py-1.5 rounded hover:bg-green-500"
-        >
-          <FaPlus className="inline mr-1" /> Add Friend
-        </button>
+        
+        {error && (
+          <div className="bg-red-500/20 border border-red-500 text-red-200 text-xs p-2 rounded mb-2">
+            {error}
+          </div>
+        )}
+        
+        <div className="mb-4">
+          <label className="text-xs text-gray-400 mb-1 block">Search Users</label>
+          <div className="relative">
+            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
+            <input
+              type="text"
+              placeholder="Search by username..."
+              className="w-full text-sm p-2 pl-9 rounded bg-gray-800 text-gray-300 border border-gray-700 focus:border-green-600 outline-none"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          
+          {/* Search Results Dropdown */}
+          {searchResults.length > 0 && (
+            <div className="mt-2 max-h-64 overflow-y-auto bg-gray-800 border border-gray-700 rounded">
+              {searchResults.map((user) => (
+                <div
+                  key={user.id}
+                  className="flex items-center justify-between p-2 hover:bg-gray-750 border-b border-gray-700 last:border-b-0"
+                >
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <img
+                      src={user.avatar_url || "/avatar.png"}
+                      alt={user.username}
+                      className="w-8 h-8 rounded-full object-cover bg-gray-700"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = "/avatar.png";
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{user.username}</div>
+                      <div className="text-xs text-gray-400 truncate">{user.fullname}</div>
+                    </div>
+                  </div>
+                  
+                  {user.relationshipStatus === 'none' && (
+                    <button
+                      onClick={() => handleAddFriend(user.id)}
+                      disabled={loading}
+                      className="bg-green-600 text-xs px-3 py-1 rounded hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <FaPlus className="inline mr-1" /> Add
+                    </button>
+                  )}
+                  {user.relationshipStatus === 'pending' && (
+                    <span className="text-xs text-yellow-400 px-3 py-1">Pending</span>
+                  )}
+                  {user.relationshipStatus === 'accepted' && (
+                    <span className="text-xs text-green-400 px-3 py-1">Friends</span>
+                  )}
+                  {user.relationshipStatus === 'rejected' && (
+                    <span className="text-xs text-red-400 px-3 py-1">Rejected</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {searching && (
+            <div className="mt-2 text-center text-xs text-gray-400">
+              Searching...
+            </div>
+          )}
+          
+          {searchQuery && !searching && searchResults.length === 0 && (
+            <div className="mt-2 text-center text-xs text-gray-500">
+              No users found
+            </div>
+          )}
+        </div>
 
-        <h3 className="mt-6 text-gray-400 text-xs uppercase">Pending</h3>
+        <h3 className="mt-6 text-gray-400 text-xs uppercase">Pending Requests</h3>
         {requests.length === 0 && (
-          <p className="text-gray-500 text-sm mt-1">No requests</p>
+          <p className="text-gray-500 text-sm mt-1">No pending requests</p>
         )}
         {requests.map((req) => (
           <div
-            key={req.requestId}
-            className="flex items-center justify-between bg-gray-800 rounded px-2 py-1 mt-2"
+            key={req.friends_id}
+            className="bg-gray-800 rounded px-2 py-2 mt-2"
           >
-            <span>{req.senderId}</span>
-            <button
-              onClick={() => handleAccept(req.requestId)}
-              className="text-green-400 text-xs hover:text-green-200"
-            >
-              Accept
-            </button>
+            <div className="flex items-center gap-2 mb-2">
+              <img
+                src={req.user1.avatar_url || "/avatar.png"}
+                alt={req.user1.username}
+                className="w-8 h-8 rounded-full object-cover bg-gray-700"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = "/avatar.png";
+                }}
+              />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium truncate">{req.user1.username}</div>
+                <div className="text-xs text-gray-400 truncate">{req.user1.fullname}</div>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleAccept(req.friends_id)}
+                className="flex-1 bg-green-600 text-xs py-1 rounded hover:bg-green-500"
+              >
+                Accept
+              </button>
+              <button
+                onClick={() => handleReject(req.friends_id)}
+                className="flex-1 bg-red-600 text-xs py-1 rounded hover:bg-red-500"
+              >
+                Reject
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -109,14 +285,38 @@ export default function FriendsPage() {
         {friends.length === 0 ? (
           <p className="text-gray-500">No friends yet.</p>
         ) : (
-          <div className="space-y-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {friends.map((f) => (
               <div
                 key={f.id}
-                className="flex items-center gap-3 bg-gray-800 p-2 rounded"
+                className="flex items-center gap-3 bg-gray-800 p-3 rounded hover:bg-gray-750 transition relative group"
               >
-                <FaUserCircle className="w-6 h-6 text-gray-500" />
-                <span>{f.username}</span>
+                <img
+                  src={f.avatar_url || "/avatar.png"}
+                  alt={f.username}
+                  className="w-12 h-12 rounded-full object-cover bg-gray-700"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = "/avatar.png";
+                  }}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">{f.username}</div>
+                  <div className="text-sm text-gray-400 truncate">{f.fullname}</div>
+                  <div className="flex items-center gap-1 mt-1">
+                    <div className={`w-2 h-2 rounded-full ${f.status === 'online' ? 'bg-green-500' : 'bg-gray-500'}`} />
+                    <span className="text-xs text-gray-400 capitalize">{f.status}</span>
+                  </div>
+                </div>
+                
+                {/* DM Button */}
+                <button
+                  onClick={() => handleSendDM(f.id, f.username)}
+                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-full shadow-lg"
+                  title="Send message"
+                >
+                  <FaCommentAlt className="w-3 h-3" />
+                </button>
               </div>
             ))}
           </div>

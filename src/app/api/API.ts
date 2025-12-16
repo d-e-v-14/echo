@@ -252,15 +252,10 @@ export const addFriend = async (user2_id: string): Promise<FriendRequest> => {
 };
 
 
-export const fetchFriendRequests = async (
-  user2_id: string
-): Promise<FriendRequest[]> => {
+export const fetchFriendRequests = async (): Promise<FriendRequest[]> => {
   try {
     const response = await apiClient.get<FriendRequest[]>(
-      `/api/friends/friend_requests`,
-      {
-        params: { user2_id }, 
-      }
+      `/api/friends/friend_requests`
     );
     return response.data;
   } catch (error: any) {
@@ -290,14 +285,9 @@ export const respondToFriendRequest = async (
 };
 
 
-export const fetchAllFriends = async (
-  requestId: string,
-  status: "accepted" | "rejected" = "accepted"
-): Promise<Friend[]> => {
+export const fetchAllFriends = async (): Promise<Friend[]> => {
   try {
-    const response = await apiClient.get<Friend[]>(`/api/friends/all`, {
-      params: { requestId, status }, 
-    });
+    const response = await apiClient.get<Friend[]>(`/api/friends/all`);
     return response.data;
   } catch (error: any) {
     console.error(
@@ -307,6 +297,31 @@ export const fetchAllFriends = async (
     throw error;
   }
 };
+
+export interface SearchUserResult {
+  id: string;
+  username: string;
+  fullname: string;
+  avatar_url: string;
+  status: string;
+  relationshipStatus: 'none' | 'pending' | 'accepted' | 'rejected';
+}
+
+export const searchUsers = async (query: string): Promise<SearchUserResult[]> => {
+  try {
+    const response = await apiClient.get<SearchUserResult[]>(`/api/friends/search`, {
+      params: { q: query }
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Error searching users:",
+      error?.response?.data || error.message
+    );
+    throw error;
+  }
+};
+
 
 
 export const joinServer = async (inviteCode: string) => {
