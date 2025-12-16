@@ -7,11 +7,13 @@ import "aos/dist/aos.css";
 import { useRouter } from "next/navigation";
 import Modal from 'react-modal';
 import Loader from "@/components/Loader";
+import { FaGoogle } from "react-icons/fa";
+import { supabase } from "@/lib/supabaseClient";
 Modal.setAppElement('body');
 
 export default function Home() {
   const router = useRouter();
-    const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [faq, setfaq] = useState<number | null>(null);
   const [showNavbar, setShowNavbar] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
@@ -21,6 +23,24 @@ export default function Home() {
   const [showPopup, setShowPopup] = useState(false);
   const[targetHref, setTargetHref] = useState<string | null>(null) ;
   const [isMobile, setIsMobile] = useState(false);
+
+  const handleGoogleSignIn = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/oauth-callback`,
+        queryParams: {
+          hd: 'vitstudent.ac.in',
+          prompt: 'select_account',
+        },
+      },
+    });
+
+    if (error) {
+      console.error('Error initiating Google sign-in:', error);
+    }
+  };
+
   useEffect(() => {
     document.body.style.overflow = loading ? "hidden" : "";
   }, [loading]);
@@ -140,28 +160,15 @@ export default function Home() {
                 louder, clearer, and together.
               </p>
 
-              {/* Buttons */}
+              {/* Sign in with Google Button */}
               <div className="hidden md:flex flex-col sm:flex-row items-center justify-center md:justify-start mt-8 gap-4 md:pl-10">
-                <div
-                  className="card-wrapper-1 h-[60px] w-[120px] cursor-pointer"
-                  onClick={() => router.push("/login")}
+                <button
+                  onClick={handleGoogleSignIn}
+                  className="flex items-center gap-3 bg-white text-gray-800 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
-                  <div className="card-content-1 flex items-center justify-center text-xs">
-                    <div className="max-w-[80%] text-center text-lg font-bold">
-                      Login
-                    </div>
-                  </div>
-                </div>
-                <div
-                  className="card-wrapper-2 h-[60px] w-[120px] cursor-pointer"
-                  onClick={() => router.push("/signup")}
-                >
-                  <div className="card-content-2 flex items-center justify-center text-xs">
-                    <div className="max-w-[80%] text-center text-lg font-bold">
-                      Signup
-                    </div>
-                  </div>
-                </div>
+                  <FaGoogle className="text-2xl text-[#4285F4]" />
+                  <span>Sign in with Google</span>
+                </button>
               </div>
             </div>
 

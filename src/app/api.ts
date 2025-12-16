@@ -54,13 +54,13 @@ api.interceptors.response.use(
 
     // Don't retry if this is already a retry attempt or if it's the refresh endpoint itself
     if (originalRequest._retry || originalRequest.url?.includes('/api/auth/refresh')) {
-      // Refresh failed or already retried, clear storage and redirect to login
+      // Refresh failed or already retried, clear storage and redirect to home
       localStorage.removeItem("token");
       localStorage.removeItem("access_token");
       localStorage.removeItem("refresh_token");
       localStorage.removeItem("tokenExpiry");
       localStorage.removeItem("user");
-      window.location.href = "/login";
+      window.location.href = "/";
       return Promise.reject(error);
     }
 
