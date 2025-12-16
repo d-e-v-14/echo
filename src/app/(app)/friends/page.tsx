@@ -92,16 +92,17 @@ export default function FriendsPage() {
     }
   };
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
+  const handleSearch = async (query: string) => {
+    if (!query.trim()) {
       setSearchResults([]);
+      setSearching(false);
       return;
     }
     
     setSearching(true);
     setError("");
     try {
-      const results = await searchUsers(searchQuery);
+      const results = await searchUsers(query);
       setSearchResults(results);
     } catch (err: any) {
       console.error("Error searching users:", err);
@@ -112,8 +113,14 @@ export default function FriendsPage() {
     }
   };
 
-  // Removed auto-search on typing to prevent spam
-  // User must press Enter or click search button
+  // Auto-search on typing with debounce
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      handleSearch(searchQuery);
+    }, 300);
+    
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
 
   const handleSendDM = async (friendId: string, friendUsername: string) => {
     // Navigate directly to messages with the friend's user ID
@@ -166,31 +173,16 @@ export default function FriendsPage() {
         )}
         
         <div className="mb-4">
-          <label className="text-xs text-gray-400 mb-1 block">Search Users</label>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
-              <input
-                type="text"
-                placeholder="Search by username..."
-                className="w-full text-sm p-2 pl-9 rounded bg-gray-800 text-gray-300 border border-gray-700 focus:border-green-600 outline-none"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleSearch();
-                  }
-                }}
-              />
-            </div>
-            <button
-              onClick={handleSearch}
-              disabled={searching || !searchQuery.trim()}
-              className="bg-green-600 px-3 py-2 rounded hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-            >
-              {searching ? "..." : "Search"}
-            </button>
-          </div>
+          <label className="group flex items-center gap-2 rounded-full border border-slate-800/70 bg-slate-900/70 px-3 py-2 text-sm text-slate-300 focus-within:border-indigo-500/60 focus-within:text-indigo-300">
+            <FaSearch className="h-4 w-4 flex-shrink-0" />
+            <input
+              type="text"
+              placeholder="Search by username..."
+              className="flex-1 bg-transparent outline-none placeholder:text-slate-500"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </label>
           
           {/* Search Results Dropdown */}
           {searchResults.length > 0 && (
@@ -236,18 +228,6 @@ export default function FriendsPage() {
                   )}
                 </div>
               ))}
-            </div>
-          )}
-          
-          {searching && (
-            <div className="mt-2 text-center text-xs text-gray-400">
-              Searching...
-            </div>
-          )}
-          
-          {searchQuery && !searching && searchResults.length === 0 && (
-            <div className="mt-2 text-center text-xs text-gray-500">
-              No users found
             </div>
           )}
         </div>
