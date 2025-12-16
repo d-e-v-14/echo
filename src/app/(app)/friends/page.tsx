@@ -156,7 +156,7 @@ export default function FriendsPage() {
   return (
     <div className="flex h-screen bg-black text-white">
       {/* Sidebar */}
-      <div className="w-60 bg-black border-r border-gray-700 p-3">
+      <div className="w-80 bg-black border-r border-gray-700 p-4">
         <h2 className="font-bold flex items-center gap-2 text-lg mb-4">
           <FaUserFriends /> Friends
           {requests.length > 0 && (
