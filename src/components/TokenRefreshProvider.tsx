@@ -7,7 +7,7 @@ export function TokenRefreshProvider({ children }: { children: React.ReactNode }
     const pathname = usePathname();
     
     // List of routes that don't require authentication
-    const publicRoutes = ['/login', '/register', '/reset-password', '/forgot-password'];
+    const publicRoutes = ['/', '/register', '/reset-password', '/forgot-password'];
     const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
     
     // Only run token refresh on authenticated routes

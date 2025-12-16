@@ -28,7 +28,7 @@ export default function Navbar() {
                     </Link>
                 </nav>
 
-                <div className="hidden md:flex items-center gap-2">
+                {/* <div className="hidden md:flex items-center gap-2">
                     <div className="border-white/20 text-white text-xl hover:cursor-pointer bg-transparent"
                          onClick={() => router.push("/login")}>
                         Login |
@@ -37,7 +37,7 @@ export default function Navbar() {
                          onClick={() => router.push("/signup")}>
                         Signup
                     </div>
-                </div>
+                </div> */}
             </div>
         </nav>
     )

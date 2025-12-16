@@ -83,7 +83,7 @@ export default function Sidebar() {
             localStorage.removeItem("user");
 
             // redirect
-            window.location.href = "/login";
+            window.location.href = "/";
         } catch (error) {
             console.error("Failed to logout:", error);
         }
