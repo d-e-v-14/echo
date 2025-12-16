@@ -669,7 +669,7 @@ useEffect(() => {
             
             fetchAndAddUser();
         }
-    }, [selectedDM, currentUser, allUsers]);
+    }, [selectedDM, currentUser]);
 // Empty dependency array is okay here due to the functional updates.
     // Effect for handling incoming socket events
 
