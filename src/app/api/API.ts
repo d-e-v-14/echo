@@ -194,7 +194,6 @@ export const getUserDMs = async (): Promise<any> => {
       throw new Error('User not authenticated');
     }
 
-    console.log("Fetching DMs for user:", user.id);
     const response = await apiClient.get(`/api/message/${user.id}/getDms`);
     
     return {
@@ -214,6 +213,38 @@ export const getUserDMs = async (): Promise<any> => {
 
     console.error("Error fetching DMs:", error.message || error);
     throw new Error("Failed to fetch messages. Please try again later.");
+  }
+};
+
+// Get unread message counts
+export const getUnreadMessageCounts = async (): Promise<{ unreadCounts: Record<string, number>; totalUnread: number }> => {
+  try {
+    const user = await getUser();
+    if (!user || !user.id) {
+      throw new Error('User not authenticated');
+    }
+
+    const response = await apiClient.get(`/api/message/${user.id}/unread-counts`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching unread counts:", error.message || error);
+    return { unreadCounts: {}, totalUnread: 0 };
+  }
+};
+
+// Mark thread as read
+export const markThreadAsRead = async (threadId: string): Promise<void> => {
+  try {
+    const user = await getUser();
+    if (!user || !user.id) {
+      throw new Error('User not authenticated');
+    }
+
+    await apiClient.post(`/api/message/thread/${threadId}/mark-read`, {
+      userId: user.id
+    });
+  } catch (error: any) {
+    console.error("Error marking thread as read:", error.message || error);
   }
 };
 
@@ -252,15 +283,10 @@ export const addFriend = async (user2_id: string): Promise<FriendRequest> => {
 };
 
 
-export const fetchFriendRequests = async (
-  user2_id: string
-): Promise<FriendRequest[]> => {
+export const fetchFriendRequests = async (): Promise<FriendRequest[]> => {
   try {
     const response = await apiClient.get<FriendRequest[]>(
-      `/api/friends/friend_requests`,
-      {
-        params: { user2_id }, 
-      }
+      `/api/friends/friend_requests`
     );
     return response.data;
   } catch (error: any) {
@@ -290,14 +316,9 @@ export const respondToFriendRequest = async (
 };
 
 
-export const fetchAllFriends = async (
-  requestId: string,
-  status: "accepted" | "rejected" = "accepted"
-): Promise<Friend[]> => {
+export const fetchAllFriends = async (): Promise<Friend[]> => {
   try {
-    const response = await apiClient.get<Friend[]>(`/api/friends/all`, {
-      params: { requestId, status }, 
-    });
+    const response = await apiClient.get<Friend[]>(`/api/friends/all`);
     return response.data;
   } catch (error: any) {
     console.error(
@@ -307,6 +328,31 @@ export const fetchAllFriends = async (
     throw error;
   }
 };
+
+export interface SearchUserResult {
+  id: string;
+  username: string;
+  fullname: string;
+  avatar_url: string;
+  status: string;
+  relationshipStatus: 'none' | 'pending' | 'accepted' | 'rejected';
+}
+
+export const searchUsers = async (query: string): Promise<SearchUserResult[]> => {
+  try {
+    const response = await apiClient.get<SearchUserResult[]>(`/api/friends/search`, {
+      params: { q: query }
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Error searching users:",
+      error?.response?.data || error.message
+    );
+    throw error;
+  }
+};
+
 
 
 export const joinServer = async (inviteCode: string) => {
