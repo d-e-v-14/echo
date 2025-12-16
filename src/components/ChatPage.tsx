@@ -627,49 +627,67 @@ useEffect(() => {
 
     // Effect to set the active DM based on the URL parameter
     // If user not in allUsers, fetch their profile and add them
+    // Effect to set the active DM based on the URL parameter
+    // If user not in allUsers, fetch their profile and add them
     useEffect(() => {
         if (!selectedDM || !currentUser) return;
 
+        // Check if user already exists
         const userExists = allUsers.some(u => u.id === selectedDM);
         
         if (userExists) {
+            // User exists, just set as active
             setActiveDmId(selectedDM);
-        } else {
-            // User not in existing conversations, fetch their profile
-            const fetchAndAddUser = async () => {
-                try {
-                    const profile = await fetchUserProfile(selectedDM);
-                    if (profile) {
-                        const newUser: User = {
-                            id: profile.id || selectedDM,
-                            fullname: profile.fullname || profile.username || profile.name || "Unknown User",
-                            avatar_url: profile.avatar_url,
-                        };
-                        
-                        // Add user to allUsers if not already present
-                        setAllUsers(prev => {
-                            if (prev.some(u => u.id === selectedDM)) return prev;
-                            return [...prev, newUser];
-                        });
-                        
-                        // Initialize empty messages for this user
-                        setMessages(prev => {
-                            if (prev.has(selectedDM)) return prev;
-                            const newMap = new Map(prev);
-                            newMap.set(selectedDM, []);
-                            return newMap;
-                        });
-                        
-                        setActiveDmId(selectedDM);
-                    }
-                } catch (error) {
+            return; // Exit early, no fetch needed
+        }
+
+        // User doesn't exist, fetch their profile
+        let isCancelled = false;
+        
+        const fetchAndAddUser = async () => {
+            try {
+                const profile = await fetchUserProfile(selectedDM);
+                
+                // Don't update if effect was cleaned up
+                if (isCancelled) return;
+                
+                if (profile) {
+                    const newUser: User = {
+                        id: profile.id || selectedDM,
+                        fullname: profile.fullname || profile.username || profile.name || "Unknown User",
+                        avatar_url: profile.avatar_url,
+                    };
+                    
+                    // Add user to allUsers if not already present
+                    setAllUsers(prev => {
+                        if (prev.some(u => u.id === selectedDM)) return prev;
+                        return [...prev, newUser];
+                    });
+                    
+                    // Initialize empty messages for this user
+                    setMessages(prev => {
+                        if (prev.has(selectedDM)) return prev;
+                        const newMap = new Map(prev);
+                        newMap.set(selectedDM, []);
+                        return newMap;
+                    });
+                    
+                    setActiveDmId(selectedDM);
+                }
+            } catch (error) {
+                if (!isCancelled) {
                     console.error("Failed to fetch user profile for DM:", error);
                 }
-            };
-            
-            fetchAndAddUser();
-        }
-    }, [selectedDM, currentUser]);
+            }
+        };
+        
+        fetchAndAddUser();
+        
+        // Cleanup function
+        return () => {
+            isCancelled = true;
+        };
+    }, [selectedDM, currentUser?.id, allUsers.length]); // Use allUsers.length instead of allUsers
 // Empty dependency array is okay here due to the functional updates.
     // Effect for handling incoming socket events
 
