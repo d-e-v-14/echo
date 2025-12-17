@@ -106,19 +106,91 @@ useEffect(() => {
     username: string;
     avatarUrl: string;
     about?: string;
+    roles?: string[];
   } | null>(null);
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
-  const openProfile = (msg: Message) => {
+  const handleUsernameClick = async (userId: string, username: string) => {
+    // console.log("handleUsernameClick called with:", { userId, username });
+    
+    // First, try to find the user in existing messages to get more info
+    const existingMessage = messages.find(msg => 
+      msg.senderId === userId || msg.username === username
+    );
+    
+    let mockMessage: Message;
+    if (existingMessage) {
+      // Use data from existing message if found
+      mockMessage = existingMessage;
+    } else {
+      // Create a mock message object for the openProfile function
+      mockMessage = {
+        id: `temp-${userId}`,
+        content: '',
+        senderId: userId,
+        timestamp: new Date().toISOString(),
+        username: username,
+        avatarUrl: avatarCacheRef.current[userId] || "/User_profil.png",
+      };
+    }
+    
+    // console.log("Opening profile for mock message:", mockMessage);
+    await openProfile(mockMessage);
+  };
+
+  const openProfile = async (msg: Message) => {
     if (!msg.senderId) return;
+
+    // console.log("Opening profile for user:", msg.senderId, "in server:", serverId);
+
+    // Set basic user info first
     setSelectedUser({
       id: msg.senderId,
       username: msg.username || "Unknown",
       avatarUrl: msg.avatarUrl || "/User_profil.png",
-      about: "No bio yet...",
+      about: "Loading bio...",
+      roles: [],
     });
     setIsProfileOpen(true);
+
+    // Fetch user details including roles
+    try {
+      const token = localStorage.getItem("access_token");
+      if (!token || !serverId) {
+        console.error("Missing token or serverId:", { token: !!token, serverId });
+        return;
+      }
+
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/api/newserver/${serverId}/members/${msg.senderId}`;
+      // console.log("Fetching member data from:", url);
+
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      // console.log("Response status:", response.status);
+
+      if (response.ok) {
+        const memberData = await response.json();
+        // console.log("Member data received:", memberData);
+
+        // Update with full user details including roles
+        setSelectedUser({
+          id: msg.senderId,
+          username: msg.username || "Unknown",
+          avatarUrl: msg.avatarUrl || "/User_profil.png",
+          about: memberData.user.bio || "No bio yet...",
+          roles: memberData.roles?.map((role: any) => role.name) || [],
+        });
+      } else {
+        console.error("Failed to fetch member data:", response.status, await response.text());
+      }
+    } catch (error) {
+      console.error("Error fetching user details:", error);
+    }
   };
 
   useEffect(() => {
@@ -447,6 +519,7 @@ const handleSend = async (text: string, file: File | null) => {
                   <MessageContentWithMentions
                     content={content}
                     currentUserId={currentUserId}
+                    onMentionClick={handleUsernameClick}
                   />
                 )}
               >
