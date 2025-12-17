@@ -490,7 +490,7 @@ const showVoiceUI =
             <h1 className="text-2xl font-semibold mb-2">
               You're not part of any servers.
             </h1>
-            <p className="text-gray-400 mb-4">
+            {/* <p className="text-gray-400 mb-4">
               Join a server with an invite link or create your own!
             </p>
             <div className="flex justify-center space-x-4">
@@ -506,7 +506,7 @@ const showVoiceUI =
               >
                 Create Server
               </button>
-            </div>
+            </div> */}
           </div>
         </div>
       ) : (
