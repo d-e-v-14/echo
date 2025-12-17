@@ -5,9 +5,10 @@ import React from 'react';
 interface MentionContentProps {
   content: string;
   currentUserId?: string;
+  onMentionClick?: (userId: string, username: string) => void;
 }
 
-export default function MessageContentWithMentions({ content, currentUserId }: MentionContentProps) {
+export default function MessageContentWithMentions({ content, currentUserId, onMentionClick }: MentionContentProps) {
   const renderContent = () => {
     if (!content) return null;
 
@@ -100,6 +101,7 @@ export default function MessageContentWithMentions({ content, currentUserId }: M
 
       // Add mention with styling
       const isCurrentUser = mention.type === 'user' && mention.match.substring(1) === currentUserId;
+      const username = mention.match.substring(1); // Remove @ symbol
       
       parts.push(
         <span
@@ -112,7 +114,9 @@ export default function MessageContentWithMentions({ content, currentUserId }: M
               : mention.type === 'role'
               ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
               : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
-          } hover:bg-opacity-30 transition-colors cursor-pointer`}
+          } hover:bg-opacity-30 transition-colors ${
+            mention.type === 'user' && onMentionClick ? 'cursor-pointer hover:scale-105' : 'cursor-default'
+          }`}
           title={
             mention.type === 'everyone' 
               ? 'Mentions everyone in the channel'
@@ -120,6 +124,7 @@ export default function MessageContentWithMentions({ content, currentUserId }: M
               ? `Mentions role: ${mention.match}`
               : `Mentions user: ${mention.match}`
           }
+          onClick={mention.type === 'user' && onMentionClick ? () => onMentionClick(username, username) : undefined}
         >
           {mention.match}
         </span>
