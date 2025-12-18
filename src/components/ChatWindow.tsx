@@ -49,7 +49,33 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
   const [isSending, setIsSending] = useState(false);
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string>("/User_profil.png");
   const isLoadingMoreRef = useRef(false);
+  const [serverRoles, setServerRoles] = useState<{ id: string; name: string; color?: string }[]>([]);
+  const [roleModal, setRoleModal] = useState<{
+  open: boolean;
+  role: string;
+  users: { id: string; username: string; avatarUrl: string }[];
+}>({
+  open: false,
+  role: "",
+  users: [],
+});
 
+useEffect(() => {
+  if (!serverId) return;
+  const fetchRoles = async () => {
+    try {
+      const token = localStorage.getItem("access_token");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/newserver/${serverId}/roles`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setServerRoles(data.roles || []);
+    } catch (err) {
+      setServerRoles([]);
+    }
+  };
+  fetchRoles();
+}, [serverId]);
   // Load current user's avatar on mount
 useEffect(() => {
   const loadCurrentUserAvatar = async () => {
@@ -138,6 +164,38 @@ useEffect(() => {
     // console.log("Opening profile for mock message:", mockMessage);
     await openProfile(mockMessage);
   };
+
+  const handleRoleMentionClick = async (roleName: string) => {
+  if (!serverId) return;
+
+  try {
+    // Fetch all users with this role from your backend
+    const token = localStorage.getItem("access_token");
+    const url = `${process.env.NEXT_PUBLIC_API_URL}/api/newserver/${serverId}/roles/${encodeURIComponent(roleName.trim())}/members`;
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch users for role: ${roleName}`);
+    }
+
+    const data = await response.json();
+    // Assume data.users is an array of { id, username, avatarUrl }
+    setRoleModal({
+      open: true,
+      role: roleName,
+      users: data.users || [],
+    });
+  } catch (err) {
+    console.error("Error fetching users for role:", err);
+    setRoleModal({
+      open: true,
+      role: roleName,
+      users: [],
+    });
+  }
+};
 
   const openProfile = async (msg: Message) => {
     if (!msg.senderId) return;
@@ -405,6 +463,26 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
 const handleSend = async (text: string, file: File | null) => {
   if (text.trim() === "" && !file) return;
 
+  const validateRoleMentions = (message: string) => {
+  // Use this regex if roles can have spaces:
+  const roleMentionRegex = /@&([a-zA-Z0-9_ ]+?)(?=\s|$)/g;
+  let match;
+  while ((match = roleMentionRegex.exec(message)) !== null) {
+    const roleName = match[1].trim();
+    if (!serverRoles.some(r => r.name.toLowerCase() === roleName.toLowerCase())) {
+      return { valid: false, invalidRole: roleName };
+    }
+  }
+  return { valid: true };
+};
+
+// In handleSend, before sending:
+const validation = validateRoleMentions(text);
+if (!validation.valid) {
+  alert(`Role "${validation.invalidRole}" does not exist in this server.`);
+  setIsSending(false);
+  return;
+}
   setIsSending(true);
   // Get avatar from cache or use fallback
   const userAvatar = avatarCacheRef.current[currentUserId] || currentUserAvatar || "/User_profil.png";
@@ -439,6 +517,7 @@ const handleSend = async (text: string, file: File | null) => {
 };
 
   return (
+    
     <div className="flex flex-col flex-1 h-full w-full overflow-hidden">
       {(localStream || (remoteStreams && remoteStreams.length > 0)) && (
         <div className="p-4 pb-0 h-96 flex-shrink-0">
@@ -520,6 +599,7 @@ const handleSend = async (text: string, file: File | null) => {
                     content={content}
                     currentUserId={currentUserId}
                     onMentionClick={handleUsernameClick}
+                    onRoleMentionClick={handleRoleMentionClick}
                   />
                 )}
               >
@@ -537,11 +617,43 @@ const handleSend = async (text: string, file: File | null) => {
             sendMessage={handleSend}
             isSending={isSending}
             serverId={serverId}
+            serverRoles={serverRoles}
           />
         ) : (
           <MessageInput sendMessage={handleSend} isSending={isSending} />
         )}
       </div>
+      
+      {roleModal.open && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+    <div className="bg-[#232428] rounded-2xl shadow-2xl w-96 p-6 text-white relative">
+      <button
+        className="absolute top-3 right-3 text-gray-400 hover:text-white"
+        onClick={() => setRoleModal({ ...roleModal, open: false })}
+      >
+        ✖
+      </button>
+      <h2 className="text-xl font-semibold mb-2">
+        Role: <span className="text-indigo-400">@{roleModal.role}</span>
+      </h2>
+      <div className="mb-2 text-sm text-gray-400">
+        {roleModal.users.length} member(s) with this role:
+      </div>
+      <div className="max-h-60 overflow-y-auto space-y-2">
+        {roleModal.users.length === 0 ? (
+          <div className="text-gray-500 text-center">No users found.</div>
+        ) : (
+          roleModal.users.map(user => (
+            <div key={user.id} className="flex items-center gap-3 p-2 rounded hover:bg-gray-800 transition">
+              <img src={user.avatarUrl || "/User_profil.png"} alt={user.username} className="w-8 h-8 rounded-full" />
+              <span>{user.username}</span>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  </div>
+)}
       <UserProfileModal
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}

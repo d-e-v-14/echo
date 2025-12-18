@@ -16,12 +16,14 @@ interface MessageInputWithMentionsProps {
   sendMessage: (text: string, file: File | null) => void;
   isSending: boolean;
   serverId?: string;
+  serverRoles: { id: string; name: string; color?: string }[];
 }
 
 export default function MessageInputWithMentions({ 
   sendMessage, 
   isSending, 
-  serverId 
+  serverId,
+  serverRoles
 }: MessageInputWithMentionsProps) {
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -49,11 +51,19 @@ export default function MessageInputWithMentions({
   };
 
   const handleSend = () => {
-    if (text.trim() === "" && !file) return;
-    sendMessage(text.trim(), file);
-    setText("");
-    setFile(null);
-  };
+  if (text.trim() === "" && !file) return;
+
+  // Validate role mentions
+  const validation = validateRoleMentions(text);
+  if (!validation.valid) {
+    alert(`Role "${validation.invalidRole}" does not exist in this server.`);
+    return;
+  }
+
+  sendMessage(text.trim(), file);
+  setText("");
+  setFile(null);
+};
 
   // Search for mentionable users
   const searchMentionable = async (query: string) => {
@@ -117,17 +127,33 @@ export default function MessageInputWithMentions({
     }
   };
 
+  const validateRoleMentions = (message: string) => {
+  const roleMentionRegex = /@&([a-zA-Z0-9_ ]+?)(?=\s|$)/g;
+  let match;
+  while ((match = roleMentionRegex.exec(message)) !== null) {
+    const roleName = match[1].trim();
+    if (!serverRoles.some(r => r.name.toLowerCase() === roleName.toLowerCase())) {
+      return { valid: false, invalidRole: roleName };
+    }
+  }
+  return { valid: true };
+};
+
   // Insert mention into text
-  const insertMention = (type: 'user' | 'everyone', name: string) => {
+  const insertMention = (type: 'user' | 'role' |'everyone', name: string) => {
     const beforeMention = text.substring(0, mentionPosition);
     const afterMention = text.substring(mentionPosition + mentionQuery.length + 1); // +1 for @
     
-    let mentionText = '';
-    if (type === 'user') {
-      mentionText = `@${name}`;
-    } else if (type === 'everyone') {
-      mentionText = `@everyone`;
-    }
+     let mentionText = '';
+  if (type === 'user') {
+    mentionText = `@${name}`;
+  } else if (type === 'role') {
+    mentionText = `@&${name}`;
+  } else if (type === 'everyone') {
+    mentionText = `@everyone`;
+  }
+
+
     
     const newText = beforeMention + mentionText + ' ' + afterMention;
     setText(newText);
@@ -173,10 +199,16 @@ export default function MessageInputWithMentions({
     }
   };
 
-  const allMentionItems = [
-    ...mentionableUsers.map(user => ({ type: 'user' as const, item: user })),
-    { type: 'everyone' as const, item: { id: 'everyone', name: 'everyone' } }
-  ];
+  const filteredRoles = serverRoles.filter(role =>
+  role.name.toLowerCase().includes(mentionQuery.toLowerCase())
+);
+
+  // Group roles and users separately
+const allMentionItems = [
+  ...filteredRoles.map(role => ({ type: 'role' as const, item: role })),
+  ...mentionableUsers.map(user => ({ type: 'user' as const, item: user })),
+  { type: 'everyone' as const, item: { id: 'everyone', name: 'everyone' } }
+];
 
   return (
     <div className="relative p-4">
@@ -196,68 +228,90 @@ export default function MessageInputWithMentions({
             </div>
           ) : allMentionItems.length > 0 ? (
             <>
-              <div className="px-3 py-2 border-b border-gray-600 text-gray-400 text-xs uppercase font-semibold">
-                {mentionQuery ? `Search results for "${mentionQuery}"` : 'Mention someone...'}
-              </div>
-              {allMentionItems.map((mentionItem, index) => (
-                <div
-                  key={`${mentionItem.type}-${mentionItem.item.id}`}
-                  className={`px-3 py-3 cursor-pointer flex items-center space-x-3 transition-colors ${
-                    index === selectedMentionIndex ? 'bg-blue-600' : 'hover:bg-gray-700'
-                  }`}
-                  onClick={() => {
-                    if (mentionItem.type === 'user') {
-                      insertMention('user', (mentionItem.item as MentionableUser).username);
-                    } else {
-                      insertMention('everyone', 'everyone');
-                    }
-                  }}
-                >
-                  {mentionItem.type === 'user' ? (
-                    <>
-                      {(mentionItem.item as MentionableUser).avatar_url ? (
-                        <img
-                          src={(mentionItem.item as MentionableUser).avatar_url}
-                          alt={(mentionItem.item as MentionableUser).username}
-                          className="w-8 h-8 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                          {(mentionItem.item as MentionableUser).username[0].toUpperCase()}
-                        </div>
-                      )}
-                      <div className="flex-1">
-                        <div className="text-white text-sm font-medium">
-                          {(mentionItem.item as MentionableUser).fullname || (mentionItem.item as MentionableUser).username}
-                        </div>
-                        <div className="text-gray-400 text-xs">
-                          @{(mentionItem.item as MentionableUser).username}
-                        </div>
-                      </div>
-                      <div className="text-blue-400 text-xs">
-                        user
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                        @
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-white text-sm font-medium">
-                          everyone
-                        </div>
-                        <div className="text-gray-400 text-xs">
-                          @everyone
-                        </div>
-                      </div>
-                      <div className="text-red-400 text-xs">
-                        everyone
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))}
+              {filteredRoles.length > 0 && (
+    <div className="px-3 py-1 text-xs text-purple-400">Roles</div>
+  )}
+  {filteredRoles.map((role, idx) => (
+    <div
+      key={`role-${role.id}`}
+      className={`px-3 py-3 cursor-pointer flex items-center space-x-3 transition-colors ${
+        idx === selectedMentionIndex ? 'bg-blue-600' : 'hover:bg-gray-700'
+      }`}
+      onClick={() => insertMention('role', role.name)}
+    >
+      <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
+        #
+      </div>
+      <div className="flex-1">
+        <div className="text-purple-300 text-sm font-medium">
+          {role.name}
+        </div>
+        <div className="text-gray-400 text-xs">
+          @{role.name}
+        </div>
+      </div>
+      <div className="text-purple-400 text-xs">
+        role
+      </div>
+    </div>
+  ))}
+  {mentionableUsers.length > 0 && (
+    <div className="px-3 py-1 text-xs text-blue-400">Users</div>
+  )}
+  {mentionableUsers.map((user, idx) => (
+    <div
+      key={`user-${user.id}`}
+      className={`px-3 py-3 cursor-pointer flex items-center space-x-3 transition-colors ${
+        idx === selectedMentionIndex ? 'bg-blue-600' : 'hover:bg-gray-700'
+      }`}
+      onClick={() => insertMention('user', user.username)}
+    >
+      {(user.avatar_url) ? (
+        <img
+          src={user.avatar_url}
+          alt={user.username}
+          className="w-8 h-8 rounded-full object-cover"
+        />
+      ) : (
+        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
+          {user.username[0].toUpperCase()}
+        </div>
+      )}
+      <div className="flex-1">
+        <div className="text-white text-sm font-medium">
+          {user.fullname || user.username}
+        </div>
+        <div className="text-gray-400 text-xs">
+          @{user.username}
+        </div>
+      </div>
+      <div className="text-blue-400 text-xs">
+        user
+      </div>
+    </div>
+  ))}
+  <div className="px-3 py-1 text-xs text-red-400">Special</div>
+  <div
+    className={`px-3 py-3 cursor-pointer flex items-center space-x-3 transition-colors ${
+      selectedMentionIndex === mentionableUsers.length ? 'bg-blue-600' : 'hover:bg-gray-700'
+    }`}
+    onClick={() => insertMention('everyone', 'everyone')}
+  >
+    <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
+      @
+    </div>
+    <div className="flex-1">
+      <div className="text-white text-sm font-medium">
+        everyone
+      </div>
+      <div className="text-gray-400 text-xs">
+        @everyone
+      </div>
+    </div>
+    <div className="text-red-400 text-xs">
+      everyone
+    </div>
+  </div>
             </>
           ) : (
             <div className="px-3 py-4 text-center text-gray-400 text-sm">
