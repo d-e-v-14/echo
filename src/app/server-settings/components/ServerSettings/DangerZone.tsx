@@ -2,8 +2,13 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { deleteServer, transferServerOwnership, getServerMembers } from "@/app/api/API";
+import {
+  deleteServer,
+  transferServerOwnership,
+  getServerMembers,
+} from "@/app/api/API";
 import { getUser } from "@/app/api";
+import Toast from "@/components/Toast";
 
 interface DangerZoneProps {
   serverId: string;
@@ -18,8 +23,13 @@ interface Member {
   avatar_url?: string;
 }
 
-export default function DangerZone({ serverId, serverName, isOwner }: DangerZoneProps) {
+export default function DangerZone({
+  serverId,
+  serverName,
+  isOwner,
+}: DangerZoneProps) {
   const router = useRouter();
+
   const [loading, setLoading] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -27,6 +37,11 @@ export default function DangerZone({ serverId, serverName, isOwner }: DangerZone
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedNewOwner, setSelectedNewOwner] = useState("");
   const [membersLoading, setMembersLoading] = useState(false);
+
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "info" | "success" | "error";
+  } | null>(null);
 
   if (!isOwner) {
     return (
@@ -39,63 +54,96 @@ export default function DangerZone({ serverId, serverName, isOwner }: DangerZone
     );
   }
 
+  /* ---------------- DELETE SERVER ---------------- */
+
   const handleDeleteServer = async () => {
-    if (deleteConfirmText !== serverName) {
-      return;
-    }
+    if (deleteConfirmText !== serverName) return;
 
     try {
       setLoading(true);
+      setToast({ message: "Deleting server…", type: "info" });
+
       await deleteServer(serverId);
-      router.push("/servers");
+
+      setToast({
+        message: "Server deleted successfully",
+        type: "success",
+      });
+
+      setTimeout(() => router.push("/servers"), 800);
     } catch (error: any) {
       console.error("Error deleting server:", error);
-      alert(error.message || "Failed to delete server");
+      setToast({
+        message: error?.message || "Failed to delete server",
+        type: "error",
+      });
     } finally {
       setLoading(false);
       setShowDeleteModal(false);
+      setDeleteConfirmText("");
     }
   };
+
+  /* ---------------- LOAD MEMBERS ---------------- */
 
   const loadMembers = async () => {
     try {
       setMembersLoading(true);
+
       const [response, currentUser] = await Promise.all([
         getServerMembers(serverId),
-        getUser()
+        getUser(),
       ]);
-      
-      // The backend returns the members array directly, not wrapped in an object
-      const allMembers = Array.isArray(response) ? response : response.members || response.data || [];
-      
-      // Extract user data and filter out current owner
+
+      const allMembers = Array.isArray(response)
+        ? response
+        : response?.members || response?.data || [];
+
       const processedMembers = allMembers
         .map((member: any) => ({
           id: member.users?.id || member.user_id,
           username: member.users?.username || member.username,
-          displayName: member.users?.fullname || member.fullname || member.displayName,
-          avatar_url: member.users?.avatar_url || member.avatar_url
+          displayName:
+            member.users?.fullname || member.fullname || member.displayName,
+          avatar_url: member.users?.avatar_url || member.avatar_url,
         }))
         .filter((member: any) => member.id && member.id !== currentUser?.id);
-      
+
       setMembers(processedMembers);
     } catch (error) {
       console.error("Error loading members:", error);
+      setToast({
+        message: "Failed to load server members",
+        type: "error",
+      });
     } finally {
       setMembersLoading(false);
     }
   };
+
+  /* ---------------- TRANSFER OWNERSHIP ---------------- */
 
   const handleTransferOwnership = async () => {
     if (!selectedNewOwner) return;
 
     try {
       setLoading(true);
+      setToast({ message: "Transferring ownership…", type: "info" });
+
       await transferServerOwnership(serverId, selectedNewOwner);
-      router.push("/servers");
+
+      setToast({
+        message: "Ownership transferred successfully",
+        type: "success",
+      });
+
+      setTimeout(() => router.push("/servers"), 800);
     } catch (error: any) {
       console.error("Error transferring ownership:", error);
-      alert(error.message || "Failed to transfer ownership");
+      setToast({
+        message: error?.message || "Failed to transfer ownership",
+        type: "error",
+      });
     } finally {
       setLoading(false);
       setShowTransferModal(false);
@@ -108,15 +156,31 @@ export default function DangerZone({ serverId, serverName, isOwner }: DangerZone
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-6 right-6 z-[9999]">
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            duration={3000}
+            onClose={() => setToast(null)}
+          />
+        </div>
+      )}
+
+      {/* Main Card */}
       <div className="bg-[#2f3136] rounded-lg p-6 border border-gray-700">
         <h3 className="text-lg font-semibold text-white mb-4">Danger Zone</h3>
-        
+
         {/* Transfer Ownership */}
         <div className="mb-6">
-          <h4 className="text-md font-medium text-white mb-2">Transfer Ownership</h4>
+          <h4 className="text-md font-medium text-white mb-2">
+            Transfer Ownership
+          </h4>
           <p className="text-gray-400 text-sm mb-4">
-            Transfer server ownership to another member. You will lose all administrative privileges.
+            Transfer server ownership to another member. You will lose all
+            administrative privileges.
           </p>
           <button
             onClick={openTransferModal}
@@ -130,7 +194,8 @@ export default function DangerZone({ serverId, serverName, isOwner }: DangerZone
         <div>
           <h4 className="text-md font-medium text-white mb-2">Delete Server</h4>
           <p className="text-gray-400 text-sm mb-4">
-            Permanently delete this server and all its data. This action cannot be undone.
+            Permanently delete this server and all its data. This action cannot
+            be undone.
           </p>
           <button
             onClick={() => setShowDeleteModal(true)}
@@ -141,51 +206,50 @@ export default function DangerZone({ serverId, serverName, isOwner }: DangerZone
         </div>
       </div>
 
-      {/* Transfer Ownership Modal */}
+      {/* ================= TRANSFER MODAL ================= */}
       {showTransferModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-[#36393f] rounded-lg p-6 w-full max-w-md mx-4">
-            <h3 className="text-xl font-semibold text-white mb-4">Transfer Ownership</h3>
-            <p className="text-gray-400 text-sm mb-6">
-              Select a member to transfer ownership to. You will lose all administrative privileges.
-            </p>
+            <h3 className="text-xl font-semibold text-white mb-4">
+              Transfer Ownership
+            </h3>
 
             {membersLoading ? (
-              <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-                <p className="text-gray-400 mt-2">Loading members...</p>
-              </div>
+              <p className="text-gray-400 text-center py-6">Loading members…</p>
             ) : (
               <div className="space-y-3 mb-6 max-h-60 overflow-y-auto">
                 {members.length === 0 ? (
-                  <p className="text-gray-400 text-center py-4">No other members available</p>
+                  <p className="text-gray-400 text-center">
+                    No other members available
+                  </p>
                 ) : (
                   members.map((member) => (
                     <div
                       key={member.id}
-                      className={`flex items-center p-3 rounded-md cursor-pointer transition-colors ${
+                      onClick={() => setSelectedNewOwner(member.id)}
+                      className={`flex items-center p-3 rounded-md cursor-pointer transition ${
                         selectedNewOwner === member.id
                           ? "bg-blue-600"
                           : "bg-[#2f3136] hover:bg-[#404249]"
                       }`}
-                      onClick={() => setSelectedNewOwner(member.id)}
                     >
                       <div className="w-8 h-8 rounded-full bg-gray-500 flex items-center justify-center mr-3">
                         {member.avatar_url ? (
                           <img
                             src={member.avatar_url}
-                            alt={member.username}
                             className="w-8 h-8 rounded-full"
                           />
                         ) : (
-                          <span className="text-white text-sm font-medium">
-                            {member.username.charAt(0).toUpperCase()}
-                          </span>
+                          member.username[0].toUpperCase()
                         )}
                       </div>
                       <div>
-                        <p className="text-white font-medium">{member.displayName || member.username}</p>
-                        <p className="text-gray-400 text-sm">@{member.username}</p>
+                        <p className="text-white font-medium">
+                          {member.displayName || member.username}
+                        </p>
+                        <p className="text-gray-400 text-sm">
+                          @{member.username}
+                        </p>
                       </div>
                     </div>
                   ))
@@ -193,68 +257,57 @@ export default function DangerZone({ serverId, serverName, isOwner }: DangerZone
               </div>
             )}
 
-            <div className="flex space-x-3">
+            <div className="flex gap-3">
               <button
                 onClick={() => setShowTransferModal(false)}
-                className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md transition-colors"
-                disabled={loading}
+                className="flex-1 bg-gray-600 hover:bg-gray-700 py-2 rounded"
               >
                 Cancel
               </button>
               <button
                 onClick={handleTransferOwnership}
-                disabled={!selectedNewOwner || loading || membersLoading}
-                className="flex-1 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-md transition-colors"
+                disabled={!selectedNewOwner || loading}
+                className="flex-1 bg-yellow-600 hover:bg-yellow-700 py-2 rounded disabled:bg-gray-600"
               >
-                {loading ? "Transferring..." : "Transfer"}
+                {loading ? "Transferring…" : "Transfer"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete Server Modal */}
+      {/* ================= DELETE MODAL ================= */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-[#36393f] rounded-lg p-6 w-full max-w-md mx-4">
-            <h3 className="text-xl font-semibold text-white mb-4">Delete Server</h3>
+            <h3 className="text-xl font-semibold text-white mb-4">
+              Delete Server
+            </h3>
+
             <p className="text-gray-400 text-sm mb-4">
-              Are you sure you want to delete <strong className="text-white">{serverName}</strong>?
-              This action cannot be undone and will permanently delete:
+              Type <strong className="text-white">{serverName}</strong> to
+              confirm.
             </p>
-            <ul className="text-gray-400 text-sm mb-6 list-disc list-inside space-y-1">
-              <li>All channels and messages</li>
-              <li>All member data</li>
-              <li>All server settings</li>
-              <li>All uploaded files</li>
-            </ul>
-            <p className="text-gray-400 text-sm mb-4">
-              To confirm, type the server name: <strong className="text-white">{serverName}</strong>
-            </p>
+
             <input
-              type="text"
               value={deleteConfirmText}
               onChange={(e) => setDeleteConfirmText(e.target.value)}
-              placeholder="Enter server name"
-              className="w-full px-3 py-2 bg-[#2f3136] border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 mb-6"
+              className="w-full mb-6 px-3 py-2 bg-[#2f3136] border border-gray-600 rounded"
             />
-            <div className="flex space-x-3">
+
+            <div className="flex gap-3">
               <button
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setDeleteConfirmText("");
-                }}
-                className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md transition-colors"
-                disabled={loading}
+                onClick={() => setShowDeleteModal(false)}
+                className="flex-1 bg-gray-600 hover:bg-gray-700 py-2 rounded"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteServer}
                 disabled={deleteConfirmText !== serverName || loading}
-                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-md transition-colors"
+                className="flex-1 bg-red-600 hover:bg-red-700 py-2 rounded disabled:bg-gray-600"
               >
-                {loading ? "Deleting..." : "Delete Server"}
+                {loading ? "Deleting…" : "Delete Server"}
               </button>
             </div>
           </div>

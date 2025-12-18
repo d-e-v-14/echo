@@ -5,6 +5,8 @@ import { getUser } from '../../api';
 import { useNotifications } from '../../../hooks/useNotifications';
 import { apiClient } from '@/utils/apiClient';
 import Loader from '@/components/Loader';
+import Toast from "@/components/Toast";
+
 
 interface Notification {
   id: string;
@@ -36,6 +38,11 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const { markAsRead, markAllAsRead } = useNotifications();
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "info" | "success" | "error";
+  } | null>(null);
+
 
   useEffect(() => {
     loadNotifications();
@@ -44,14 +51,25 @@ export default function NotificationsPage() {
   const loadNotifications = async () => {
     try {
       setLoading(true);
+
+      
+      setToast({ message: "Loading notifications…", type: "info" });
+
       const user = await getUser();
       if (!user?.id) return;
 
       const response = await apiClient.get(`/api/mentions?userId=${user.id}`);
       const data = response.data;
+
       setNotifications(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error('Failed to load notifications:', error);
+      console.error("Failed to load notifications:", error);
+
+      setToast({
+        message: "Failed to load notifications",
+        type: "error",
+      });
+
       setNotifications([]);
     } finally {
       setLoading(false);
@@ -61,11 +79,17 @@ export default function NotificationsPage() {
   const handleMarkAsRead = async (notificationId: string) => {
     try {
       await markAsRead(notificationId);
+
       setNotifications((prev) =>
         prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n))
       );
+
+      setToast({ message: "Marked as read", type: "success" });
     } catch (error) {
-      console.error("Failed to mark notification as read:", error);
+      setToast({
+        message: "Failed to mark notification as read",
+        type: "error",
+      });
     }
   };
 
@@ -73,10 +97,19 @@ export default function NotificationsPage() {
     try {
       await markAllAsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+
+      setToast({
+        message: "All notifications marked as read",
+        type: "success",
+      });
     } catch (error) {
-      console.error("Failed to mark all notifications as read:", error);
+      setToast({
+        message: "Failed to mark all as read",
+        type: "error",
+      });
     }
   };
+
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -108,10 +141,24 @@ export default function NotificationsPage() {
 
   
   if (loading) {
-    return <Loader fullscreen text="Loading notifications…" size="md" />;
+    return <Loader fullscreen  size="md" />;
   }
 
   return (
+    <> {toast && (() => {
+  const { message, type } = toast;
+  return (
+    <div className="fixed top-6 right-6 z-[9999]">
+      <Toast
+        message={message}
+        type={type}
+        duration={3000}
+        onClose={() => setToast(null)}
+      />
+    </div>
+  );
+})()}
+
     <div className="min-h-screen bg-black">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
@@ -276,5 +323,6 @@ export default function NotificationsPage() {
         )}
       </div>
     </div>
+    </>
   );
 }

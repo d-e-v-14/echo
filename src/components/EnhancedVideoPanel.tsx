@@ -658,9 +658,41 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
   localStream,
   localScreenStream
 }) => {
-  const [fullscreenParticipant, setFullscreenParticipant] = useState<string | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
-  // Create local participant object
+
+  const [isPanelFullscreen, setIsPanelFullscreen] = useState(false);
+
+
+  const [fullscreenParticipant, setFullscreenParticipant] = useState<
+    string | null
+  >(null);
+
+
+const togglePanelFullscreen = async () => {
+  if (!panelRef.current) return;
+
+  try {
+    if (!document.fullscreenElement) {
+      await panelRef.current.requestFullscreen();
+    } else {
+      await document.exitFullscreen();
+    }
+  } catch (err) {
+    console.error("Fullscreen failed:", err);
+  }
+};
+
+   useEffect(() => {
+     const onFullscreenChange = () => {
+       setIsPanelFullscreen(!!document.fullscreenElement);
+     };
+
+     document.addEventListener("fullscreenchange", onFullscreenChange);
+     return () =>
+       document.removeEventListener("fullscreenchange", onFullscreenChange);
+   }, []);
+
   const localParticipant: Participant = useMemo(
     () => ({
       id: "local",
@@ -735,8 +767,14 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
   const isFullscreenMode = !!fullscreenParticipant;
 
   return (
-    <div className="w-full h-full bg-black relative overflow-hidden">
-      <div className={`grid ${layout.cols} ${layout.rows} gap-2 w-full h-full p-2`}>
+    <div
+      ref={panelRef}
+ 
+     className="w-full h-full bg-black relative overflow-hidden"
+    >
+      <div
+        className={`grid ${layout.cols} ${layout.rows} gap-2 w-full h-full p-2`}
+      >
         {allParticipants
           .filter((p) => !isFullscreenMode || p.id === fullscreenParticipant)
           .map((participant) => (
@@ -747,10 +785,18 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
               isLocal={participant.id === "local" || participant.isLocal}
               isFullscreen={participant.id === fullscreenParticipant}
               onToggleFullscreen={() => toggleFullscreen(participant.id)}
-              onVolumeChange={(v) => handleParticipantVolumeChange(participant.id, v)}
+              onVolumeChange={(v) =>
+                handleParticipantVolumeChange(participant.id, v)
+              }
             />
           ))}
       </div>
+      <button
+        onClick={togglePanelFullscreen}
+        className="absolute bottom-4 right-4 bg-black/80 text-white px-4 py-2 rounded-lg text-sm hover:bg-black transition z-50"
+      >
+        {isPanelFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+      </button>
 
       {!isFullscreenMode && totalParticipants > 1 && (
         <div className="absolute top-4 left-4 bg-black bg-opacity-70 rounded px-3 py-1">
@@ -762,7 +808,9 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
 
       {!isFullscreenMode && totalParticipants > 12 && (
         <div className="absolute bottom-4 right-4 bg-black bg-opacity-70 rounded px-3 py-1">
-          <span className="text-white text-sm">+{totalParticipants - 12} more</span>
+          <span className="text-white text-sm">
+            +{totalParticipants - 12} more
+          </span>
         </div>
       )}
     </div>

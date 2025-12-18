@@ -1,13 +1,5 @@
-import { Suspense } from "react";
-import MessagesPageContent from "@/components/ChatPage";
-import Loader from "@/components/Loader";
+import MessagesClientWrapper from "@/components/MessagesClientWrapper";
 
 export default function MessagesPage() {
-  return (
-    <Suspense
-      fallback={<Loader fullscreen text="Loading messages…" size="md" />}
-    >
-      <MessagesPageContent />
-    </Suspense>
-  );
+  return <MessagesClientWrapper />;
 }

@@ -4,38 +4,75 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { joinServer } from "@/app/api/API";
 import Loader from "@/components/Loader";
+import Toast from "@/components/Toast";
+
 
 export default function JoinServerPage() {
   const router = useRouter();
   const [inviteCode, setInviteCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "info" | "success" | "error";
+  } | null>(null);
+
 
   const handleJoinServer = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
     if (!inviteCode.trim()) {
+      setToast({ message: "Please enter a valid invite code.", type: "error" });
       setError("Please enter a valid invite code or link.");
       return;
     }
 
     try {
       setLoading(true);
+
+ 
+      setToast({ message: "Joining server…", type: "info" });
+
       await joinServer(inviteCode);
-      router.push("/servers");
+
+  
+      setToast({ message: "Joined server successfully!", type: "success" });
+
+      setTimeout(() => {
+        router.push("/servers");
+      }, 800);
     } catch (err: any) {
-      setError(err?.message || "Failed to join server. Try again.");
+      const msg = err?.message || "Failed to join server. Try again.";
+
+  
+      setToast({ message: msg, type: "error" });
+      setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
   return (
+    <>
+    {toast && (() => {
+  const { message, type } = toast;
+  return (
+    <div className="fixed top-6 right-6 z-[9999]">
+      <Toast
+        message={message}
+        type={type}
+        duration={3000}
+        onClose={() => setToast(null)}
+      />
+    </div>
+  );
+})()}
+
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-gray-950 via-black to-gray-900 text-white px-6">
       <div className="w-full max-w-md bg-[#111214] rounded-2xl shadow-2xl p-8 border border-gray-800">
         {loading ? (
-          <Loader text="Joining server… please wait" size="md" />
+          <Loader  size="md" />
         ) : (
           <>
             <h1 className="text-3xl font-bold mb-3 text-center bg-white bg-clip-text text-yellow-300 text-transparent">
@@ -98,5 +135,6 @@ export default function JoinServerPage() {
         </p>
       )}
     </div>
+    </>
   );
 }
