@@ -694,38 +694,38 @@ const showVoiceUI =
                 <h3 className="text-xs font-bold uppercase text-gray-400 mt-4 mb-2">
                   Voice Channels
                 </h3>
-                {voiceChannels.map((channel) => {
-                  const isActive = activeVoiceChannelName === channel.name;
+{voiceChannels.map((channel) => {
+  const isActive = activeCall?.channelId === channel.id;
 
-                  return (
-                    <div key={channel.id} className="space-y-1">
-                      {/* Voice channel row */}
-                      <div
-                        className={`flex items-center justify-between p-2 text-sm rounded-md cursor-pointer transition-all ${
-                          isActive && viewMode === "voice"
-                            ? "bg-[#2f3136] text-white"
-                            : "text-gray-400 hover:bg-[#2f3136] hover:text-white"
-                        }`}
-                        onClick={() => handleJoinVoiceChannel(channel)}
-                      >
-                        <span className="flex items-center gap-2">
-                          <FaVolumeUp size={12} />
-                          {channel.name}
+  return (
+    <div key={channel.id} className="space-y-1">
+      <div
+        className={`flex items-center justify-between p-2 text-sm rounded-md transition-all ${
+          isActive && viewMode === "voice"
+            ? "bg-[#2f3136] text-white"
+            : "text-gray-400 hover:bg-[#2f3136] hover:text-white"
+        } ${isActive ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+        onClick={() => {
+          if (isActive) return;
+          handleJoinVoiceChannel(channel);
+        }}
+      >
+        <span className="flex items-center gap-2">
+          <FaVolumeUp size={12} />
+          {channel.name}
 
-                          {isActive && (
-                            <span
-                              className={`w-2 h-2 rounded-full ${
-                                isConnected
-                                  ? "bg-green-500"
-                                  : "bg-yellow-500 animate-pulse"
-                              }`}
-                            />
-                          )}
-                        </span>
-                      </div>
-
-                      {/*  Voice members  */}
-                      {isActive && (
+          {isActive && (
+            <span
+              className={`w-2 h-2 rounded-full ${
+                isConnected
+                  ? "bg-green-500"
+                  : "bg-yellow-500 animate-pulse"
+              }`}
+            />
+          )}
+        </span>
+      </div>
+      {isActive && (
                         <div className="ml-6 space-y-1">
                           {voiceMembers.length === 0 ? (
                             <div className="text-xs text-gray-500 px-2">
@@ -738,13 +738,7 @@ const showVoiceUI =
                                 className="flex items-center justify-between px-2 py-1 rounded hover:bg-[#2f3136]"
                               >
                                 <div className="flex items-center gap-2">
-                                  <div
-                                    className={`w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center text-xs ${
-                                      m.speaking ? "ring-2 ring-green-500" : ""
-                                    }`}
-                                  >
-                                    {m.username?.charAt(0).toUpperCase()}
-                                  </div>
+                                  
                                   <span className="text-xs text-gray-300 truncate">
                                     {m.username}
                                   </span>
@@ -765,9 +759,9 @@ const showVoiceUI =
                           )}
                         </div>
                       )}
-                    </div>
-                  );
-                })}
+    </div>
+  );
+})}
               </div>
 
               {/* Show voice status in sidebar when connected to this server */}
