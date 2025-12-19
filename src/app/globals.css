@@ -117,3 +117,6 @@ body {
 .animate-toast-in {
   animation: toast-in 0.25s ease-out forwards;
 }
+.message-text {
+  overflow-wrap: anywhere;
+}
