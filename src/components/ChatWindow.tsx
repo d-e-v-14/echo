@@ -12,7 +12,8 @@ import { createAuthSocket } from "@/socket";
 import VideoPanel from "./VideoPanel";
 import MessageBubble from "./MessageBubble";
 import UserProfileModal from "./UserProfileModal";
-import Toast  from "@/components/Toast";
+import Toast from "@/components/Toast";
+import { ChevronDown } from "lucide-react";
 interface Message {
   id: string | number;
   content: string;
@@ -34,7 +35,13 @@ interface ChatWindowProps {
   serverId?: string;
 }
 
-export default function ChatWindow({ channelId, currentUserId, localStream = null, remoteStreams = [], serverId }: ChatWindowProps) {
+export default function ChatWindow({
+  channelId,
+  currentUserId,
+  localStream = null,
+  remoteStreams = [],
+  serverId,
+}: ChatWindowProps) {
   const [loadingMessages, setLoadingMessages] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -48,66 +55,102 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
   const [micOn, setMicOn] = useState<boolean>(true);
   const [camOn, setCamOn] = useState<boolean>(true);
   const [isSending, setIsSending] = useState(false);
-  const [currentUserAvatar, setCurrentUserAvatar] = useState<string>("/User_profil.png");
+  const [currentUserAvatar, setCurrentUserAvatar] =
+    useState<string>("/User_profil.png");
   const isLoadingMoreRef = useRef(false);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
-   
+  const [currentUsername, setCurrentUsername] = useState<string>("");
+  const [currentUserRoles, setCurrentUserRoles] = useState<string[]>([]);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const isInitialLoadRef = useRef(true);
+  const lastProcessedMessageIdRef = useRef<string | number | null>(null);
+  const isScrollingToMentionRef = useRef(false);
+  const hasMountedRef = useRef(false);
 
   const handleReply = (message: Message) => {
     setReplyingTo(message);
   };
 
+  // Load current user's avatar, username, and roles on mount
+  useEffect(() => {
+    const loadCurrentUserData = async () => {
+      try {
+        const user = await getUser();
+        if (user) {
+          if (user.avatar_url) {
+            setCurrentUserAvatar(user.avatar_url);
+            // Important: Also cache it immediately
+            avatarCacheRef.current[currentUserId] = user.avatar_url;
 
-  // Load current user's avatar on mount
-useEffect(() => {
-  const loadCurrentUserAvatar = async () => {
-    try {
-      const user = await getUser();
-      if (user?.avatar_url) {
-        setCurrentUserAvatar(user.avatar_url);
-        // Important: Also cache it immediately
-        avatarCacheRef.current[currentUserId] = user.avatar_url;
-        
-        // Force update messages with the new avatar
-        setMessages(prevMessages => 
-          prevMessages.map(msg => 
-            msg.senderId === currentUserId 
-              ? { ...msg, avatarUrl: user.avatar_url || undefined }
-              : msg
-          )
-        );
+            // Force update messages with the new avatar
+            setMessages((prevMessages) =>
+              prevMessages.map((msg) =>
+                msg.senderId === currentUserId
+                  ? { ...msg, avatarUrl: user.avatar_url || undefined }
+                  : msg
+              )
+            );
+          }
+          // Set username
+          if (user.username) {
+            setCurrentUsername(user.username);
+          }
+        }
+
+        // Load user roles if serverId is available
+        if (serverId) {
+          try {
+            const token = localStorage.getItem("access_token");
+            if (token) {
+              const url = `${process.env.NEXT_PUBLIC_API_URL}/api/newserver/${serverId}/members/${currentUserId}`;
+              const response = await fetch(url, {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              });
+
+              if (response.ok) {
+                const memberData = await response.json();
+                const roles =
+                  memberData.roles?.map((role: any) => role.name) || [];
+                setCurrentUserRoles(roles);
+              }
+            }
+          } catch (error) {
+            console.error("Failed to load user roles:", error);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load current user's data:", error);
       }
-    } catch (error) {
-      console.error("Failed to load current user's avatar:", error);
-    }
-  };
-  
-  loadCurrentUserAvatar();
-}, [currentUserId]);
+    };
+
+    loadCurrentUserData();
+  }, [currentUserId, serverId]);
   // Function to get user avatar with caching
   const getAvatarUrl = async (userId: string): Promise<string> => {
-  // Check cache first for all users (including current user)
-  if (avatarCacheRef.current[userId]) {
-    return avatarCacheRef.current[userId];
-  }
-  
-  try {
-    const avatarUrl = await getUserAvatar(userId);
-    if (avatarUrl) {
-      avatarCacheRef.current[userId] = avatarUrl;
-      return avatarUrl;
+    // Check cache first for all users (including current user)
+    if (avatarCacheRef.current[userId]) {
+      return avatarCacheRef.current[userId];
     }
-    // If no avatar URL returned, use fallback
-    const fallbackAvatar = "/User_profil.png";
-    avatarCacheRef.current[userId] = fallbackAvatar;
-    return fallbackAvatar;
-  } catch (error) {
-    console.error(`Failed to get avatar for user ${userId}:`, error);
-    const fallbackAvatar = "/User_profil.png";
-    avatarCacheRef.current[userId] = fallbackAvatar;
-    return fallbackAvatar;
-  }
-};
+
+    try {
+      const avatarUrl = await getUserAvatar(userId);
+      if (avatarUrl) {
+        avatarCacheRef.current[userId] = avatarUrl;
+        return avatarUrl;
+      }
+      // If no avatar URL returned, use fallback
+      const fallbackAvatar = "/User_profil.png";
+      avatarCacheRef.current[userId] = fallbackAvatar;
+      return fallbackAvatar;
+    } catch (error) {
+      console.error(`Failed to get avatar for user ${userId}:`, error);
+      const fallbackAvatar = "/User_profil.png";
+      avatarCacheRef.current[userId] = fallbackAvatar;
+      return fallbackAvatar;
+    }
+  };
 
   const [selectedUser, setSelectedUser] = useState<{
     id: string;
@@ -121,12 +164,12 @@ useEffect(() => {
 
   const handleUsernameClick = async (userId: string, username: string) => {
     // console.log("handleUsernameClick called with:", { userId, username });
-    
+
     // First, try to find the user in existing messages to get more info
-    const existingMessage = messages.find(msg => 
-      msg.senderId === userId || msg.username === username
+    const existingMessage = messages.find(
+      (msg) => msg.senderId === userId || msg.username === username
     );
-    
+
     let mockMessage: Message;
     if (existingMessage) {
       // Use data from existing message if found
@@ -135,14 +178,14 @@ useEffect(() => {
       // Create a mock message object for the openProfile function
       mockMessage = {
         id: `temp-${userId}`,
-        content: '',
+        content: "",
         senderId: userId,
         timestamp: new Date().toISOString(),
         username: username,
         avatarUrl: avatarCacheRef.current[userId] || "/User_profil.png",
       };
     }
-    
+
     // console.log("Opening profile for mock message:", mockMessage);
     await openProfile(mockMessage);
   };
@@ -166,7 +209,10 @@ useEffect(() => {
     try {
       const token = localStorage.getItem("access_token");
       if (!token || !serverId) {
-        console.error("Missing token or serverId:", { token: !!token, serverId });
+        console.error("Missing token or serverId:", {
+          token: !!token,
+          serverId,
+        });
         return;
       }
 
@@ -194,7 +240,11 @@ useEffect(() => {
           roles: memberData.roles?.map((role: any) => role.name) || [],
         });
       } else {
-        console.error("Failed to fetch member data:", response.status, await response.text());
+        console.error(
+          "Failed to fetch member data:",
+          response.status,
+          await response.text()
+        );
       }
     } catch (error) {
       console.error("Error fetching user details:", error);
@@ -210,64 +260,67 @@ useEffect(() => {
     };
   }, [currentUserId]);
 
-const loadMessages = useCallback(async (loadMore: boolean = false) => {
-  try {
-    if (loadMore) {
-      setLoadingMore(true);
-      isLoadingMoreRef.current = true;
-    } else {
-      setLoadingMessages(true);
-      setOffset(0);
-      isLoadingMoreRef.current = false;
-    }
+  const loadMessages = useCallback(
+    async (loadMore: boolean = false) => {
+      try {
+        if (loadMore) {
+          setLoadingMore(true);
+          isLoadingMoreRef.current = true;
+        } else {
+          setLoadingMessages(true);
+          setOffset(0);
+          isLoadingMoreRef.current = false;
+        }
 
-    const currentOffset = loadMore ? offset : 0;
-    const res = await fetchMessages(channelId, currentOffset);
+        const currentOffset = loadMore ? offset : 0;
+        const res = await fetchMessages(channelId, currentOffset);
 
-    const formattedMessages: Message[] = await Promise.all(
-      res.data.map(async (msg: any) => {
-        const senderId = msg.sender_id || msg.senderId;
-        const avatarUrl = await getAvatarUrl(senderId);
-        
-        // Add debugging
-        
-        return {
-          id: msg.id,
-          content: msg.content || msg.message,
-          senderId,
-          timestamp: msg.timestamp || new Date().toISOString(),
-          avatarUrl, // This should now have the correct value
-          username:
-            senderId === currentUserId
-              ? "You"
-              : msg.username ||
-                msg.sender?.username ||
-                msg.sender?.fullname ||
-                msg.sender_name ||
-                "Unknown",
-          mediaUrl: msg.media_url || msg.mediaUrl,
-        };
-      })
-    );
+        const formattedMessages: Message[] = await Promise.all(
+          res.data.map(async (msg: any) => {
+            const senderId = msg.sender_id || msg.senderId;
+            const avatarUrl = await getAvatarUrl(senderId);
 
-    const sorted = formattedMessages.reverse();
+            // Add debugging
 
-    if (loadMore) {
-      setMessages(prev => [...sorted, ...prev]);
-      setOffset(prev => prev + res.data.length);
-    } else {
-      setMessages(sorted);
-      setOffset(res.data.length);
-    }
+            return {
+              id: msg.id,
+              content: msg.content || msg.message,
+              senderId,
+              timestamp: msg.timestamp || new Date().toISOString(),
+              avatarUrl, // This should now have the correct value
+              username:
+                senderId === currentUserId
+                  ? "You"
+                  : msg.username ||
+                    msg.sender?.username ||
+                    msg.sender?.fullname ||
+                    msg.sender_name ||
+                    "Unknown",
+              mediaUrl: msg.media_url || msg.mediaUrl,
+            };
+          })
+        );
 
-    setHasMore(res.hasMore ?? false);
-  } catch (err) {
-    console.error("Failed to fetch messages", err);
-  } finally {
-    setLoadingMessages(false);
-    setLoadingMore(false);
-  }
-}, [channelId, currentUserId, offset]); // Removed currentUserAvatar from dependencies
+        const sorted = formattedMessages.reverse();
+
+        if (loadMore) {
+          setMessages((prev) => [...sorted, ...prev]);
+          setOffset((prev) => prev + res.data.length);
+        } else {
+          setMessages(sorted);
+          setOffset(res.data.length);
+        }
+
+        setHasMore(res.hasMore ?? false);
+      } catch (err) {
+        console.error("Failed to fetch messages", err);
+      } finally {
+        setLoadingMessages(false);
+        setLoadingMore(false);
+      }
+    },
+    [channelId, currentUserId, offset]
+  ); // Removed currentUserAvatar from dependencies
 
   useEffect(() => {
     if (channelId) loadMessages(false);
@@ -278,6 +331,9 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
     const container = messagesContainerRef.current;
     if (!container || loadingMore || !hasMore) return;
 
+    // Don't load more if we're currently scrolling to a mention
+    if (isScrollingToMentionRef.current) return;
+
     // Load more when scrolled near the top (within 100px)
     if (container.scrollTop < 100) {
       const previousScrollHeight = container.scrollHeight;
@@ -286,7 +342,8 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
         requestAnimationFrame(() => {
           if (messagesContainerRef.current) {
             const newScrollHeight = messagesContainerRef.current.scrollHeight;
-            messagesContainerRef.current.scrollTop = newScrollHeight - previousScrollHeight;
+            messagesContainerRef.current.scrollTop =
+              newScrollHeight - previousScrollHeight;
           }
         });
       });
@@ -295,35 +352,170 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
 
   useEffect(() => {
     if (!localStream) return;
-    localStream.getAudioTracks().forEach(t => (t.enabled = micOn));
+    localStream.getAudioTracks().forEach((t) => (t.enabled = micOn));
   }, [localStream, micOn]);
 
   useEffect(() => {
     if (!localStream) return;
-    localStream.getVideoTracks().forEach(t => (t.enabled = camOn));
+    localStream.getVideoTracks().forEach((t) => (t.enabled = camOn));
   }, [localStream, camOn]);
 
+  // Helper function to check if message mentions current user
+  const checkIfMentioned = useCallback(
+    (content: string): boolean => {
+      if (!content || (!currentUsername && currentUserRoles.length === 0))
+        return false;
+
+      // Check for @everyone or @here mentions
+      const everyoneMentionRegex = /@(everyone|here)\b/g;
+      if (everyoneMentionRegex.test(content)) {
+        return true;
+      }
+
+      // Check for role mentions (@&rolename) - must start with letter/underscore
+      if (currentUserRoles.length > 0) {
+        const roleMentionRegex = /@&([a-zA-Z_][a-zA-Z0-9_\s]*)\b/g;
+        const roleMatches = Array.from(content.matchAll(roleMentionRegex));
+        for (const match of roleMatches) {
+          const mentionedRole = match[1].trim();
+          if (
+            currentUserRoles.some(
+              (role) => role.toLowerCase() === mentionedRole.toLowerCase()
+            )
+          ) {
+            return true;
+          }
+        }
+      }
+
+      // Check for user mentions (@username) - must match exact username
+      if (currentUsername) {
+        // Use word boundary to ensure exact match, not partial
+        const escapedUsername = currentUsername.replace(
+          /[.*+?^${}()|[\]\\]/g,
+          "\\$&"
+        );
+        const userMentionRegex = new RegExp(`@${escapedUsername}\\b`, "gi");
+        if (userMentionRegex.test(content)) {
+          return true;
+        }
+      }
+
+      return false;
+    },
+    [currentUsername, currentUserRoles]
+  );
+
+  // Handle scroll visibility
   useEffect(() => {
-    // Only scroll to bottom on initial load or new messages, not when loading older messages
-    if (!isLoadingMoreRef.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-    // Reset the ref after the effect runs
-    isLoadingMoreRef.current = false;
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+      setShowScrollButton(!isNearBottom);
+    };
+
+    container.addEventListener("scroll", handleScroll);
+    handleScroll(); // Check initial state
+
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+    };
   }, [messages]);
+
+  // Scroll to mention ONLY when a NEW message arrives (not on initial load or pagination)
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container || !messages.length) return;
+
+    // ❌ Skip initial load - don't scroll on history load
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      // Track the last message so we know what's "new" next time
+      lastProcessedMessageIdRef.current = messages[messages.length - 1].id;
+      return;
+    }
+
+    // ❌ Skip if already scrolling to a mention
+    if (isScrollingToMentionRef.current) {
+      return;
+    }
+
+    // ❌ Skip when loading older messages (pagination)
+    if (isLoadingMoreRef.current) {
+      isLoadingMoreRef.current = false;
+      return;
+    }
+
+    // ✅ Only check the LAST message (newest one) - this is the new message that just arrived
+    const lastMessage = messages[messages.length - 1];
+    if (!lastMessage) return;
+
+    // Check if this new message mentions the user
+    const isMentioned = checkIfMentioned(lastMessage.content);
+
+    if (isMentioned) {
+      // Prevent multiple scrolls
+      isScrollingToMentionRef.current = true;
+
+      // Scroll to the mentioned message
+      const scrollToMention = (attempts = 0) => {
+        const messageElement = document.querySelector(
+          `[data-message-id="${lastMessage.id}"]`
+        );
+
+        if (messageElement) {
+          // Smooth scroll directly to the mentioned message
+          messageElement.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+            inline: "nearest",
+          });
+
+          // Reset scroll flag after scroll completes
+          setTimeout(() => {
+            isScrollingToMentionRef.current = false;
+          }, 1200);
+        } else if (attempts < 3) {
+          // Retry if element not found yet (DOM might still be updating)
+          setTimeout(() => scrollToMention(attempts + 1), 200);
+        } else {
+          // Fallback: scroll to bottom if element not found after retries
+          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+          setTimeout(() => {
+            isScrollingToMentionRef.current = false;
+          }, 1000);
+        }
+      };
+
+      requestAnimationFrame(() => {
+        setTimeout(() => scrollToMention(), 150);
+      });
+    }
+
+    // Update last processed message ID
+    lastProcessedMessageIdRef.current = lastMessage.id;
+  }, [messages, checkIfMentioned]);
+
+  // Scroll to bottom function
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
 
   useEffect(() => {
     if (!socket) return;
-    socket.on('connect', () => {
+    socket.on("connect", () => {
       socket.emit("join_room", channelId);
     });
-    
-    socket.on('connect_error', (error: Error) => {
-      console.error('💔 Socket connection error:', error);
+
+    socket.on("connect_error", (error: Error) => {
+      console.error("💔 Socket connection error:", error);
     });
 
-    socket.on('disconnect', (reason) => {
-      console.log('Socket disconnected:', reason);
+    socket.on("disconnect", (reason) => {
+      console.log("Socket disconnected:", reason);
     });
 
     const pingInterval = setInterval(() => {
@@ -333,9 +525,9 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
     }, 5000);
 
     return () => {
-      socket.off('connect');
-      socket.off('connect_error');
-      socket.off('disconnect');
+      socket.off("connect");
+      socket.off("connect_error");
+      socket.off("disconnect");
       clearInterval(pingInterval);
     };
   }, [socket, channelId]);
@@ -345,7 +537,6 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
     const receivedMessageIds = new Set<string | number>();
 
     const handleIncomingMessage = async (saved: any) => {
-      
       const messageId = saved?.id || saved?.messageId || Date.now();
       if (saved?.channel_id && saved.channel_id !== channelId) return;
 
@@ -354,12 +545,19 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
       }
 
       const senderId = saved?.sender_id || saved?.senderId || "";
-      const resolvedUsername = (senderId === currentUserId) ? 'You' : (
-        saved?.username ||
-        (saved?.sender && (saved.sender.username || saved.sender.fullname || saved.sender.name)) ||
-        saved?.sender_name || saved?.senderName || saved?.name ||
-        usernamesRef.current[senderId] || 'Unknown'
-      );
+      const resolvedUsername =
+        senderId === currentUserId
+          ? "You"
+          : saved?.username ||
+            (saved?.sender &&
+              (saved.sender.username ||
+                saved.sender.fullname ||
+                saved.sender.name)) ||
+            saved?.sender_name ||
+            saved?.senderName ||
+            saved?.name ||
+            usernamesRef.current[senderId] ||
+            "Unknown";
 
       // Get actual avatar URL
       const avatarUrl = await getAvatarUrl(senderId);
@@ -371,22 +569,26 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
         timestamp: saved?.timestamp || new Date().toISOString(),
         avatarUrl,
         username: resolvedUsername,
-        mediaUrl: saved?.media_url || saved?.mediaUrl
+        mediaUrl: saved?.media_url || saved?.mediaUrl,
       };
 
-      if (senderId && resolvedUsername && resolvedUsername !== 'Unknown') {
+      if (senderId && resolvedUsername && resolvedUsername !== "Unknown") {
         usernamesRef.current[senderId] = resolvedUsername;
       }
 
-      setMessages(prev => {
-        const filtered = prev.filter(msg => 
-          !(msg.senderId === currentUserId && 
-            msg.content === (saved?.content || saved?.message || "") && 
-            Date.now() - new Date(msg.timestamp).getTime() < 30000)
+      setMessages((prev) => {
+        const filtered = prev.filter(
+          (msg) =>
+            !(
+              msg.senderId === currentUserId &&
+              msg.content === (saved?.content || saved?.message || "") &&
+              Date.now() - new Date(msg.timestamp).getTime() < 30000
+            )
         );
 
         const updated = [...filtered, newMessage].sort(
-          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          (a, b) =>
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
 
         return updated;
@@ -400,7 +602,7 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
     };
 
     socket.on("new_message", handleIncomingMessage);
-    socket.on('reconnect', async () => {
+    socket.on("reconnect", async () => {
       await loadMessages();
     });
 
@@ -410,42 +612,47 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
     };
   }, [socket, currentUserId, loadMessages, channelId, currentUserAvatar]);
 
-const handleSend = async (text: string, file: File | null) => {
-  if (text.trim() === "" && !file) return;
+  const handleSend = async (text: string, file: File | null) => {
+    if (text.trim() === "" && !file) return;
 
-  setIsSending(true);
-  // Get avatar from cache or use fallback
-  const userAvatar = avatarCacheRef.current[currentUserId] || currentUserAvatar || "/User_profil.png";
+    setIsSending(true);
+    // Get avatar from cache or use fallback
+    const userAvatar =
+      avatarCacheRef.current[currentUserId] ||
+      currentUserAvatar ||
+      "/User_profil.png";
 
-  const optimisticMessage: Message = {
-    id: `temp-${Date.now()}`,
-    content: file ? `${text} 📎 Uploading ${file.name}...` : text,
-    senderId: currentUserId,
-    timestamp: new Date().toISOString(),
-    avatarUrl: userAvatar,
-    username: "You"
+    const optimisticMessage: Message = {
+      id: `temp-${Date.now()}`,
+      content: file ? `${text} 📎 Uploading ${file.name}...` : text,
+      senderId: currentUserId,
+      timestamp: new Date().toISOString(),
+      avatarUrl: userAvatar,
+      username: "You",
+    };
+
+    setMessages((prev) => [...prev, optimisticMessage]);
+
+    try {
+      const response = await uploadMessage({
+        content: text.trim(),
+        channel_id: channelId,
+        sender_id: currentUserId,
+        reply_to: replyingTo?.id,
+        file: file || undefined,
+      });
+      setReplyingTo(null);
+      console.log("[Upload Message] Response:", response);
+    } catch (err: any) {
+      console.error("Failed to upload message:", err);
+      alert(`Upload failed: ${err.message || "Unknown error"}`);
+      setMessages((prev) =>
+        prev.filter((msg) => msg.id !== optimisticMessage.id)
+      );
+    } finally {
+      setIsSending(false);
+    }
   };
-  
-  setMessages(prev => [...prev, optimisticMessage]);
-
-  try {
-    const response = await uploadMessage({
-      content: text.trim(),
-      channel_id: channelId,
-      sender_id: currentUserId,
-      reply_to: replyingTo?.id,
-      file: file || undefined,
-    });
-    setReplyingTo(null);
-    console.log('[Upload Message] Response:', response);
-  } catch (err: any) {
-    console.error('Failed to upload message:', err);
-    alert(`Upload failed: ${err.message || 'Unknown error'}`);
-    setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
-  } finally {
-    setIsSending(false);
-  }
-};
 
   return (
     <div className="flex flex-col flex-1 h-full w-full overflow-hidden">
@@ -479,80 +686,98 @@ const handleSend = async (text: string, file: File | null) => {
           </div>
         </div>
       )}
-      <div
-        ref={messagesContainerRef}
-        onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-6 pb-6 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900"
-      >
-        {loadingMessages ? (
-          <div className="flex h-full items-center justify-center">
-            <div className="text-center">
-              <div className="mx-auto mb-4 w-8 h-8 border-4 border-gray-700 border-t-blue-500 rounded-full animate-spin" />
-              <p className="text-gray-400 text-sm">Loading messages…</p>
+      <div className="relative flex-1 overflow-hidden">
+        <div
+          ref={messagesContainerRef}
+          onScroll={handleScroll}
+          className="h-full overflow-y-auto px-6 pb-6 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900"
+        >
+          {loadingMessages ? (
+            <div className="flex h-full items-center justify-center">
+              <div className="text-center">
+                <div className="mx-auto mb-4 w-8 h-8 border-4 border-gray-700 border-t-blue-500 rounded-full animate-spin" />
+                <p className="text-gray-400 text-sm">Loading messages…</p>
+              </div>
             </div>
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-gray-500 text-sm">
-            No messages yet. Say hi 👋
-          </div>
-        ) : (
-          <>
-            {/* Loading indicator at top when fetching older messages */}
-            {loadingMore && (
-              <div className="flex justify-center py-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 border-2 border-gray-600 border-t-blue-500 rounded-full animate-spin" />
-                  <span className="text-gray-400 text-sm">
-                    Loading older messages...
+          ) : messages.length === 0 ? (
+            <div className="flex h-full items-center justify-center text-gray-500 text-sm">
+              No messages yet. Say hi 👋
+            </div>
+          ) : (
+            <>
+              {/* Loading indicator at top when fetching older messages */}
+              {loadingMore && (
+                <div className="flex justify-center py-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 border-2 border-gray-600 border-t-blue-500 rounded-full animate-spin" />
+                    <span className="text-gray-400 text-sm">
+                      Loading older messages...
+                    </span>
+                  </div>
+                </div>
+              )}
+              {/* Show message when no more messages to load */}
+              {!hasMore && messages.length > 0 && (
+                <div className="flex justify-center py-4">
+                  <span className="text-gray-500 text-xs">
+                    Beginning of conversation
                   </span>
                 </div>
-              </div>
-            )}
-            {/* Show message when no more messages to load */}
-            {!hasMore && messages.length > 0 && (
-              <div className="flex justify-center py-4">
-                <span className="text-gray-500 text-xs">
-                  Beginning of conversation
-                </span>
-              </div>
-            )}
-            {messages.map((msg) => (
-              <MessageBubble
-                key={msg.id}
-                name={msg.username}
-                message={{
-                  content: msg.content,
-                  replyTo: msg.replyTo
-                    ? {
-                        id: msg.replyTo,
-                        content:
-                          messages.find((m) => m.id === msg.replyTo)?.content ||
-                          "Message not found",
-                        author: messages.find((m) => m.id === msg.replyTo)
-                          ?.username,
-                      }
-                    : null,
-                }}
-                avatarUrl={msg.avatarUrl}
-                isSender={msg.senderId === currentUserId}
-                timestamp={new Date(msg.timestamp).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-                onReply={() => handleReply(msg)}
-                messageRenderer={(content: string) => (
-                  <MessageContentWithMentions
-                    content={content}
-                    currentUserId={currentUserId}
-                    onMentionClick={handleUsernameClick}
-                  />
-                )}
-              >
-                {msg.mediaUrl && <MessageAttachment media_url={msg.mediaUrl} />}
-              </MessageBubble>
-            ))}
-            <div ref={messagesEndRef} />
-          </>
+              )}
+              {messages.map((msg) => (
+                <div key={msg.id} data-message-id={msg.id}>
+                  <MessageBubble
+                    name={msg.username}
+                    message={{
+                      content: msg.content,
+                      replyTo: msg.replyTo
+                        ? {
+                            id: msg.replyTo,
+                            content:
+                              messages.find((m) => m.id === msg.replyTo)
+                                ?.content || "Message not found",
+                            author: messages.find((m) => m.id === msg.replyTo)
+                              ?.username,
+                          }
+                        : null,
+                    }}
+                    avatarUrl={msg.avatarUrl}
+                    isSender={msg.senderId === currentUserId}
+                    timestamp={new Date(msg.timestamp).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                    onReply={() => handleReply(msg)}
+                    messageRenderer={(content: string) => (
+                      <MessageContentWithMentions
+                        content={content}
+                        currentUserId={currentUserId}
+                        currentUsername={currentUsername}
+                        onMentionClick={handleUsernameClick}
+                      />
+                    )}
+                  >
+                    {msg.mediaUrl && (
+                      <MessageAttachment media_url={msg.mediaUrl} />
+                    )}
+                  </MessageBubble>
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </>
+          )}
+        </div>
+
+        {/* Scroll to bottom button */}
+        {showScrollButton && (
+          <button
+            onClick={scrollToBottom}
+            className="absolute bottom-24 right-6 z-20 p-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg transition-all hover:scale-110 active:scale-95 flex items-center justify-center"
+            aria-label="Scroll to bottom"
+            title="Scroll to bottom"
+          >
+            <ChevronDown className="w-6 h-6" />
+          </button>
         )}
       </div>
 
@@ -564,30 +789,27 @@ const handleSend = async (text: string, file: File | null) => {
             serverId={serverId}
           />
         ) : (
-          <> 
-          {replyingTo && (
-  <div className="mx-6 mb-2 px-4 py-2 bg-slate-800 rounded-lg flex items-center justify-between border-l-4 border-blue-500">
-    <div className="text-sm text-slate-300 truncate">
-      Replying to{" "}
-      <span className="font-semibold">
-        {replyingTo.username || "User"}
-      </span>
-      :{" "}
-      <span className="italic">
-        {replyingTo.content}
-      </span>
-    </div>
+          <>
+            {replyingTo && (
+              <div className="mx-6 mb-2 px-4 py-2 bg-slate-800 rounded-lg flex items-center justify-between border-l-4 border-blue-500">
+                <div className="text-sm text-slate-300 truncate">
+                  Replying to{" "}
+                  <span className="font-semibold">
+                    {replyingTo.username || "User"}
+                  </span>
+                  : <span className="italic">{replyingTo.content}</span>
+                </div>
 
-    <button
-      onClick={() => setReplyingTo(null)}
-      className="ml-3 text-slate-400 hover:text-white"
-    >
-      ✕
-    </button>
-  </div>
-)}
+                <button
+                  onClick={() => setReplyingTo(null)}
+                  className="ml-3 text-slate-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
-          <MessageInput sendMessage={handleSend} isSending={isSending} />
+            <MessageInput sendMessage={handleSend} isSending={isSending} />
           </>
         )}
       </div>

@@ -5,36 +5,42 @@ import React from "react";
 interface MentionContentProps {
   content: string;
   currentUserId?: string;
+  currentUsername?: string; // Add current username for proper comparison
   onMentionClick?: (userId: string, username: string) => void;
 }
 
 export default function MessageContentWithMentions({
   content,
   currentUserId,
+  currentUsername,
   onMentionClick,
 }: MentionContentProps) {
   const renderContent = () => {
     if (!content) return null;
 
-    // Regular expressions for different mention types
-    const roleMentionRegex = /@&([a-zA-Z0-9_\s]+)/g;
-    const everyoneMentionRegex = /@(everyone|here)/g;
-    const userMentionRegex = /@([a-zA-Z0-9_]+)/g;
+    // patterns:
+    // Role mentions: @& followed by role name (alphanumeric, underscore, spaces, but must start with letter/underscore)
+    const roleMentionRegex = /@&([a-zA-Z_][a-zA-Z0-9_\s]*)\b/g;
+    // Everyone/Here: exact matches only
+    const everyoneMentionRegex = /@(everyone|here)\b/g;
+    // User mentions: @ followed by username (alphanumeric, underscore, must start with letter/underscore, min 1 char)
+    const userMentionRegex = /@([a-zA-Z_][a-zA-Z0-9_]*)\b/g;
 
     let parts: (string | JSX.Element)[] = [];
     let lastIndex = 0;
     let keyIndex = 0;
 
-    // Find all mentions and their positions
     const mentions: Array<{
       start: number;
       end: number;
       type: "user" | "role" | "everyone";
       match: string;
     }> = [];
-    const usedPositions = new Set<number>(); // Track positions already used by mentions
 
-    // Everyone mentions (highest priority) - find @everyone and @here
+    const usedPositions = new Set<number>();
+
+    /* -------------------- EVERYONE -------------------- */
+
     const everyoneMatches = Array.from(content.matchAll(everyoneMentionRegex));
     everyoneMatches.forEach((match) => {
       mentions.push({
@@ -43,16 +49,16 @@ export default function MessageContentWithMentions({
         type: "everyone",
         match: match[0],
       });
-      // Mark all positions in this range as used
+
       for (let i = match.index!; i < match.index! + match[0].length; i++) {
         usedPositions.add(i);
       }
     });
 
-    // Role mentions (second priority)
+    /* -------------------- ROLE -------------------- */
+
     const roleMatches = Array.from(content.matchAll(roleMentionRegex));
     roleMatches.forEach((match) => {
-      // Check if this position is already used
       const isOverlapping = Array.from(
         { length: match[0].length },
         (_, i) => match.index! + i
@@ -65,24 +71,22 @@ export default function MessageContentWithMentions({
           type: "role",
           match: match[0],
         });
-        // Mark positions as used
+
         for (let i = match.index!; i < match.index! + match[0].length; i++) {
           usedPositions.add(i);
         }
       }
     });
 
-    // User mentions (lowest priority, excludes everyone/here)
+    /* -------------------- USER -------------------- */
+
     const userMatches = Array.from(content.matchAll(userMentionRegex));
     userMatches.forEach((match) => {
-      const mentionText = match[1];
+      const username = match[1];
 
-      // Skip @everyone and @here as they're handled above
-      if (mentionText === "everyone" || mentionText === "here") {
-        return;
-      }
+      // ignore everyone/here
+      if (username === "everyone" || username === "here") return;
 
-      // Check if this position is already used
       const isOverlapping = Array.from(
         { length: match[0].length },
         (_, i) => match.index! + i
@@ -95,27 +99,26 @@ export default function MessageContentWithMentions({
           type: "user",
           match: match[0],
         });
-        // Mark positions as used
+
         for (let i = match.index!; i < match.index! + match[0].length; i++) {
           usedPositions.add(i);
         }
       }
     });
 
-    // Sort mentions by position
     mentions.sort((a, b) => a.start - b.start);
 
-    // Process each mention
     mentions.forEach((mention) => {
-      // Add text before mention
       if (mention.start > lastIndex) {
         parts.push(content.substring(lastIndex, mention.start));
       }
 
-      // Add mention with styling
+      const username = mention.match.substring(1);
+      // Check if this mention is for the current user (compare username, not ID)
       const isCurrentUser =
-        mention.type === "user" && mention.match.substring(1) === currentUserId;
-      const username = mention.match.substring(1); // Remove @ symbol
+        mention.type === "user" &&
+        currentUsername &&
+        username.toLowerCase() === currentUsername.toLowerCase();
 
       parts.push(
         <span
@@ -123,23 +126,12 @@ export default function MessageContentWithMentions({
           className={`inline-flex items-center px-1 py-0.5 rounded text-sm font-medium ${
             mention.type === "user"
               ? isCurrentUser
-                ? "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"
-                : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                ? "bg-emerald-500/20 text-emerald-300"
+                : "bg-blue-500/20 text-blue-300"
               : mention.type === "role"
-              ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
-              : "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"
-          } hover:bg-opacity-30 transition-colors ${
-            mention.type === "user" && onMentionClick
-              ? "cursor-pointer hover:scale-105"
-              : "cursor-default"
+              ? "bg-purple-500/20 text-purple-300"
+              : "bg-yellow-500/20 text-yellow-300"
           }`}
-          title={
-            mention.type === "everyone"
-              ? "Mentions everyone in the channel"
-              : mention.type === "role"
-              ? `Mentions role: ${mention.match}`
-              : `Mentions user: ${mention.match}`
-          }
           onClick={
             mention.type === "user" && onMentionClick
               ? () => onMentionClick(username, username)
@@ -153,22 +145,12 @@ export default function MessageContentWithMentions({
       lastIndex = mention.end;
     });
 
-    // Add remaining text
     if (lastIndex < content.length) {
       parts.push(content.substring(lastIndex));
     }
 
-    // If no mentions found, return original content
-    if (parts.length === 0) {
-      return content;
-    }
-
     return parts.map((part, index) =>
-      typeof part === "string" ? (
-        <span key={`text-${index}`}>{part}</span>
-      ) : (
-        part
-      )
+      typeof part === "string" ? <span key={index}>{part}</span> : part
     );
   };
 
@@ -177,26 +159,4 @@ export default function MessageContentWithMentions({
       {renderContent()}
     </div>
   );
-}
-
-// Optional: Component for rendering mentions in message previews or notifications
-export function MentionPreview({
-  content,
-  maxLength = 100,
-}: {
-  content: string;
-  maxLength?: number;
-}) {
-  // Strip mention formatting for preview
-  const cleanContent = content
-    .replace(/@&([a-zA-Z0-9_\s]+)/g, "@$1") // Convert role mentions
-    .replace(/@(everyone|here)/g, "@$1") // Keep everyone mentions
-    .replace(/@([a-zA-Z0-9_]+)/g, "@$1"); // Keep user mentions
-
-  const truncated =
-    cleanContent.length > maxLength
-      ? cleanContent.substring(0, maxLength) + "..."
-      : cleanContent;
-
-  return <span className="text-gray-400 text-sm">{truncated}</span>;
 }
