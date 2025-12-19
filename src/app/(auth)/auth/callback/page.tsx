@@ -143,7 +143,7 @@ export default function AuthCallback() {
           <div className="mb-4">
             <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto"></div>
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Loading...</h2>
+          <h2 className="text-2xl font-bold text-white mb-2"></h2>
         </div>
       </div>
     }>

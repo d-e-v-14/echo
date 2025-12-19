@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import axios from "axios";
 import Link from "next/link";
 import Loader from "@/components/Loader";
+import Toast from "@/components/Toast";
+
 
 function ChangePasswordContent() {
   const router = useRouter();
@@ -18,56 +20,79 @@ function ChangePasswordContent() {
   const [submitted, setSubmitted] = useState(false);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "info" | "success" | "error";
+  } | null>(null);
+
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setMessage("");
+
     setSubmitted(false);
+    setMessage("");
 
     if (!email || !current) {
-      setMessage("Email and current password are required.");
+      setToast({
+        message: "Email and current password are required.",
+        type: "error",
+      });
       return;
     }
     if (password !== confirm) {
-      setMessage("Passwords do not match.");
+      setToast({ message: "Passwords do not match.", type: "error" });
       return;
     }
     if (password.length < 8) {
-      setMessage("New password must be at least 8 characters.");
+      setToast({
+        message: "New password must be at least 8 characters.",
+        type: "error",
+      });
       return;
     }
 
     setLoading(true);
+    setToast({ message: "Updating password…", type: "info" });
 
     try {
-      
       await axios.post("/api/login", {
         email,
         password: current,
       });
 
-  
       await axios.post("/api/change-password", {
         new_password: password,
       });
 
       setSubmitted(true);
-      setMessage("Password changed successfully! Redirecting…");
-      setLoading(false);
+      setToast({ message: "Password changed successfully!", type: "success" });
 
       setTimeout(() => router.push("/profile"), 1500);
     } catch (err: any) {
-      setMessage(err?.response?.data?.message || "Failed to change password");
+      setToast({
+        message: err?.response?.data?.message || "Failed to change password",
+        type: "error",
+      });
+    } finally {
       setLoading(false);
     }
   }
-
-  
-  if (loading) {
-    return <Loader fullscreen text="Updating password…" size="md" />;
-  }
-
   return (
+    <>
+    {toast && (() => {
+  const { message, type } = toast;
+  return (
+    <div className="fixed top-6 right-6 z-[9999]">
+      <Toast
+        message={message}
+        type={type}
+        duration={3000}
+        onClose={() => setToast(null)}
+      />
+    </div>
+  );
+})()}
+
     <div className="flex h-screen bg-black font-sans">
       {/* Left Image */}
       <div className="w-1/2 h-full">
@@ -160,17 +185,6 @@ function ChangePasswordContent() {
               Change Password
             </button>
           </form>
-
-          {message && (
-            <div
-              className={`mt-4 text-center text-sm ${
-                submitted ? "text-green-500" : "text-red-500"
-              }`}
-            >
-              {message}
-            </div>
-          )}
-
           <div className="mt-6 text-center">
             <Link
               href="/profile"
@@ -182,6 +196,7 @@ function ChangePasswordContent() {
         </div>
       </div>
     </div>
+    </>
   );
 }
 

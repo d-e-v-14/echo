@@ -22,6 +22,8 @@ import { useSearchParams } from "next/navigation";
 import { useVoiceCall } from "@/contexts/VoiceCallContext";
 import { supabase } from '@/lib/supabaseClient';
 import Loader from "@/components/Loader";
+import Toast from "@/components/Toast";
+
 
 const serverIcons: string[] = [
   "/hackbattle.png",
@@ -66,6 +68,11 @@ const ServersPageContent: React.FC = () => {
 
   // View mode: 'voice' shows full voice UI, 'chat' shows text chat (with floating window if in voice)
   const [viewMode, setViewMode] = useState<"voice" | "chat">("chat");
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "info" | "success" | "error";
+  } | null>(null);
+
 
   // Store viewMode in localStorage for FloatingVoiceWindow to read
   useEffect(() => {
@@ -166,39 +173,40 @@ const showVoiceUI =
           status: "offline",
         };
 
-  useEffect(() => {
-    const loadServers = async () => {
-      try {
-        setLoading(true);
-        const data = await fetchServers();
-        setServers(data);
-        if (data.length > 0) {
-          // If serverId is in query params, select that server
-          if (serverIdFromQuery) {
-            const targetServer = data.find(
-              (s: any) => s.id === serverIdFromQuery
-            );
-            if (targetServer) {
-              setSelectedServerId(targetServer.id);
-              setSelectedServerName(targetServer.name);
-            } else {
-              setSelectedServerId(data[0].id);
-              setSelectedServerName(data[0].name);
-            }
-          } else {
-            setSelectedServerId(data[0].id);
-            setSelectedServerName(data[0].name);
-          }
-        }
-      } catch (err) {
-        console.error("Error fetching servers", err);
-        setError("Failed to load servers.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadServers();
-  }, [serverIdFromQuery]);
+ useEffect(() => {
+   const loadServers = async () => {
+     try {
+       setLoading(true);
+       setToast({ message: "Loading servers…", type: "info" });
+
+       const data = await fetchServers();
+       setServers(data);
+
+       if (data.length > 0) {
+         if (serverIdFromQuery) {
+           const targetServer = data.find(
+             (s: any) => s.id === serverIdFromQuery
+           );
+           setSelectedServerId(targetServer?.id || data[0].id);
+           setSelectedServerName(targetServer?.name || data[0].name);
+         } else {
+           setSelectedServerId(data[0].id);
+           setSelectedServerName(data[0].name);
+         }
+       }
+
+       setToast(null);
+     } catch (err) {
+       console.error("Error fetching servers", err);
+       setError("Failed to load servers.");
+       setToast({ message: "Failed to load servers", type: "error" });
+     } finally {
+       setLoading(false);
+     }
+   };
+
+   loadServers();
+ }, [serverIdFromQuery]);
 
   // Handle view mode from query params (when navigating from expand button)
   useEffect(() => {
@@ -256,35 +264,38 @@ const showVoiceUI =
     if (!selectedServerId) return;
     const loadChannels = async () => {
       try {
-        
-      const { data: controls } = await supabase
-        .from('admin_controls')
-        .select('voice_enabled')
-        .single();
-      
-      const isVoiceEnabled = controls?.voice_enabled ?? true;
-      setVoiceEnabled(isVoiceEnabled);
-      
-      const data: Channel[] = await fetchChannelsByServer(selectedServerId);
-      
-      const normalized = (data || []).map((c) => ({
-        ...c,
-        type: (c.type || "").toLowerCase(),
-      }));
-      
-      const filteredChannels = isVoiceEnabled
-        ? normalized
-        : normalized.filter((c) => c.type === "text");
-      
-      setChannels(filteredChannels);
-      
-      const firstTextChannel = filteredChannels.find((c) => c.type === "text");
-      setActiveChannel(firstTextChannel || null);
-    } catch (err) {
+        const { data: controls } = await supabase
+          .from("admin_controls")
+          .select("voice_enabled")
+          .single();
+
+        const isVoiceEnabled = controls?.voice_enabled ?? true;
+        setVoiceEnabled(isVoiceEnabled);
+
+        const data: Channel[] = await fetchChannelsByServer(selectedServerId);
+
+        const normalized = (data || []).map((c) => ({
+          ...c,
+          type: (c.type || "").toLowerCase(),
+        }));
+
+        const filteredChannels = isVoiceEnabled
+          ? normalized
+          : normalized.filter((c) => c.type === "text");
+
+        setChannels(filteredChannels);
+
+        const firstTextChannel = filteredChannels.find(
+          (c) => c.type === "text"
+        );
+        setActiveChannel(firstTextChannel || null);
+      } catch (err) {
         console.error("Error fetching channels", err);
         setError("Failed to load channels");
         setChannels([]);
+        setToast({ message: "Failed to load channels", type: "error" });
       }
+
     };
     loadChannels();
   }, [selectedServerId, myRoles]);
@@ -380,7 +391,12 @@ const showVoiceUI =
       }
     } catch (err: any) {
       console.error("Error toggling role:", err);
-      alert(err?.response?.data?.error || "Failed to toggle role");
+      setToast({
+        message: err?.response?.data?.error || "Failed to toggle role",
+        type: "error",
+      });
+
+
     }
   };
 
@@ -397,6 +413,21 @@ const showVoiceUI =
   };
 
   return (
+    <>
+    {toast && (() => {
+  const { message, type } = toast;
+  return (
+    <div className="fixed top-6 right-6 z-[9999]">
+      <Toast
+        message={message}
+        type={type}
+        duration={3000}
+        onClose={() => setToast(null)}
+      />
+    </div>
+  );
+})()}
+
     <div className="relative flex h-screen bg-black select-none">
       {/* Server Sidebar */}
       <div className="w-16 p-2 flex flex-col items-center bg-black space-y-3 relative">
@@ -847,6 +878,7 @@ const showVoiceUI =
         </>
       )}
     </div>
+    </>
   );
 };
 
@@ -864,6 +896,7 @@ const ServersPage: React.FC = () => {
     >
       <ServersPageContent />
     </Suspense>
+    
   );
 };
 

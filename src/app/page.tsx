@@ -9,9 +9,12 @@ import Modal from 'react-modal';
 import Loader from "@/components/Loader";
 import { FaGoogle } from "react-icons/fa";
 import { supabase } from "@/lib/supabaseClient";
+import Toast from "@/components/Toast";
 Modal.setAppElement('body');
 
 export default function Home() {
+  const [showLoadingToast, setShowLoadingToast] = useState(false);
+
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [faq, setfaq] = useState<number | null>(null);
@@ -40,6 +43,16 @@ export default function Home() {
       console.error('Error initiating Google sign-in:', error);
     }
   };
+
+  useEffect(() => {
+    if (loading) {
+      setShowLoadingToast(true);
+    } else {
+      setShowLoadingToast(false);
+    }
+  }, [loading]);
+
+
 
   useEffect(() => {
     document.body.style.overflow = loading ? "hidden" : "";
@@ -127,9 +140,14 @@ export default function Home() {
 
   return (
     <>
-      {loading && (
-        <div className="fixed inset-0 z-[9999]">
-          <Loader fullscreen text="Loading Echo…" size="lg" />
+      {showLoadingToast && (
+        <div className="fixed top-6 right-6 z-[9999]">
+          <Toast
+            message="Loading Echo…"
+            type="info"
+            duration={3000}
+            onClose={() => setShowLoadingToast(false)}
+          />
         </div>
       )}
       {/* Landing page */}

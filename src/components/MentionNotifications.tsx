@@ -89,7 +89,7 @@ export default function MentionNotifications({
     }
   };
 
-  // Handle mention click
+ 
   const handleMentionClick = (mention: MentionNotification) => {
     markAsRead(mention.id);
     onNavigateToMessage?.(mention.messages.channel_id, mention.message_id);

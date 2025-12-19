@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { fetchProfile,profile, logout } from "../../api";
 import { useRouter } from "next/navigation";
 import Loader from "@/components/Loader";
+import Toast from "@/components/Toast";
+
 export default function ProfilePage() {
     const numPolygons = 10;
     const maxOpacity = 0.6;
@@ -12,26 +14,47 @@ export default function ProfilePage() {
     const [profile, setProfile] = useState<profile | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const router = useRouter();
-    useEffect(() => {
-        const getProfileData = async () => {
-            try {
-                const data = await fetchProfile();
-                setProfile(data);
-            } catch (err) {
-                console.error("Failed to fetch profile:", err);
-                setError("Could not load profile");
-            } finally {
-                setLoading(false);
-            }
-        };
+    const [toast, setToast] = useState<{
+      message: string;
+      type: "info" | "success" | "error";
+    } | null>(null);
 
-        getProfileData();
-    }, []);
+    const router = useRouter();
+   useEffect(() => {
+     const getProfileData = async () => {
+       try {
+         setToast({ message: "Loading profile…", type: "info" });
+
+         const data = await fetchProfile();
+         setProfile(data);
+
+         setToast(null); // hide loading toast
+       } catch (err) {
+         console.error("Failed to fetch profile:", err);
+
+         setToast({
+           message: "Could not load profile",
+           type: "error",
+         });
+
+         setError("Could not load profile");
+       } finally {
+         setLoading(false);
+       }
+     };
+
+     getProfileData();
+   }, []);
+
 
     if (loading) {
-      return <Loader fullscreen text="Loading profile…" size="md" />;
+      return (
+        <div className="min-h-screen bg-black flex items-center justify-center">
+          <Loader size="md" />
+        </div>
+      );
     }
+
      if (error) {
        return (
          <div className="min-h-screen bg-black flex items-center justify-center text-red-500">
@@ -41,26 +64,51 @@ export default function ProfilePage() {
      }
 
      if (!profile) {
-       return <Loader fullscreen text="Loading profile…" size="md" />;
+       return <Loader fullscreen size="md" />;
      }
 
 
-    const handleLogout = async () => {
-        try {
-            await logout();
+   const handleLogout = async () => {
+     try {
+       setToast({ message: "Logging out…", type: "info" });
 
-            // clear user data
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
+       await logout();
 
-            // redirect
-            window.location.href = "/login";
-        } catch (error) {
-            console.error("Failed to logout:", error);
-        }
-    };
+       localStorage.removeItem("token");
+       localStorage.removeItem("user");
+
+       setToast({ message: "Logged out successfully", type: "success" });
+
+       setTimeout(() => {
+         window.location.href = "/login";
+       }, 800);
+     } catch (error) {
+       console.error("Failed to logout:", error);
+
+       setToast({
+         message: "Failed to logout",
+         type: "error",
+       });
+     }
+   };
+
 
     return (
+        <>
+        {toast && (() => {
+  const { message, type } = toast;
+  return (
+    <div className="fixed top-6 right-6 z-[9999]">
+      <Toast
+        message={message}
+        type={type}
+        duration={3000}
+        onClose={() => setToast(null)}
+      />
+    </div>
+  );
+})()}
+
         <div className="flex min-h-screen bg-black text-white relative font-poppins">
             
             {/* Main Content */}
@@ -316,5 +364,6 @@ export default function ProfilePage() {
                 </section>
             </main>
         </div>
+        </>
     );
 }

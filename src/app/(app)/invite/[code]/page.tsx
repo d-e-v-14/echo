@@ -4,6 +4,8 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { joinServer } from "@/app/api/API";
 import Loader from "@/components/Loader";
+import Toast from "@/components/Toast";
+
 
 export default function InvitePage() {
   const { code } = useParams<{ code: string }>();
@@ -12,6 +14,46 @@ export default function InvitePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [errorCode, setErrorCode] = useState("");
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "info" | "success" | "error";
+  } | null>(null);
+useEffect(() => {
+  if (!code) {
+    setToast({ message: "Invalid invite link.", type: "error" });
+    setError("Invalid invite link.");
+    setLoading(false);
+    return;
+  }
+
+  const join = async () => {
+    try {
+      
+      setToast({ message: "Accepting invite…", type: "info" });
+
+      await joinServer(code);
+
+     
+      setToast({ message: "Joined server successfully!", type: "success" });
+
+      setTimeout(() => {
+        router.replace("/servers");
+      }, 800);
+    } catch (err: any) {
+      const msg = err?.message || "Failed to join the server.";
+
+
+      setToast({ message: msg, type: "error" });
+
+      setError(msg);
+      setErrorCode(err?.code || "");
+      setLoading(false);
+    }
+  };
+
+  join();
+}, [code, router]);
+
 
   useEffect(() => {
     if (!code) {
@@ -35,9 +77,24 @@ export default function InvitePage() {
   }, [code, router]);
 
   return (
+    <>
+    {toast && (() => {
+  const { message, type } = toast;
+  return (
+    <div className="fixed top-6 right-6 z-[9999]">
+      <Toast
+        message={message}
+        type={type}
+        duration={3000}
+        onClose={() => setToast(null)}
+      />
+    </div>
+  );
+})()}
+
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-950 via-black to-gray-900 text-white px-6">
       <div className="w-full max-w-md bg-[#111214] rounded-2xl shadow-2xl p-8 border border-gray-800 text-center">
-        {loading && <Loader text="Accepting invite… please wait" size="md" />}
+        {loading && <Loader size="md" />}
 
         {!loading && error && errorCode === "USER_BANNED" && (
           <>
@@ -112,5 +169,6 @@ export default function InvitePage() {
         )}
       </div>
     </div>
+    </>
   );
 }
