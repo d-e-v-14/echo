@@ -439,7 +439,7 @@ const handleSend = async (text: string, file: File | null) => {
     setReplyingTo(null);
     console.log('[Upload Message] Response:', response);
   } catch (err: any) {
-    console.error('💔 Failed to upload message:', err);
+    console.error('Failed to upload message:', err);
     alert(`Upload failed: ${err.message || 'Unknown error'}`);
     setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
   } finally {
