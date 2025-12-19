@@ -140,16 +140,6 @@ export default function Home() {
 
   return (
     <>
-      {showLoadingToast && (
-        <div className="fixed top-6 right-6 z-[9999]">
-          <Toast
-            message="Loading Echo…"
-            type="info"
-            duration={3000}
-            onClose={() => setShowLoadingToast(false)}
-          />
-        </div>
-      )}
       {/* Landing page */}
       <section>
         <div className="min-h-screen w-screen flex flex-col bg-[url('/bg0.svg')] bg-no-repeat bg-center bg-cover">

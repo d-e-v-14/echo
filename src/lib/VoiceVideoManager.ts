@@ -38,6 +38,7 @@ import {
 
 import axios from 'axios';
 
+
 // Chime API client - separate from main API
 const CHIME_API_URL = process.env.NEXT_PUBLIC_CHIME_API_URL;
 

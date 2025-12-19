@@ -513,18 +513,18 @@ export const getChimeMeetingAttendees = async (channelId: string): Promise<any[]
 /**
  * Start recording for a Chime meeting (server-side media capture)
  */
-export const startChimeRecording = async (channelId: string): Promise<{ recordingId: string }> => {
-  try {
-    const response = await apiClient.post('/api/chime/recording/start', {
-      channelId
-    });
-    return response.data;
-  } catch (error: any) {
-    console.error("Error starting Chime recording:", error.response?.data || error.message || error);
-    const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || "Failed to start recording.";
-    throw new Error(errorMessage);
-  }
-};
+// export const startChimeRecording = async (channelId: string): Promise<{ recordingId: string }> => {
+//   try {
+//     const response = await apiClient.post('/api/chime/recording/start', {
+//       channelId
+//     });
+//     return response.data;
+//   } catch (error: any) {
+//     console.error("Error starting Chime recording:", error.response?.data || error.message || error);
+//     const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || "Failed to start recording.";
+//     throw new Error(errorMessage);
+//   }
+// };
 
 /**
  * Stop recording for a Chime meeting

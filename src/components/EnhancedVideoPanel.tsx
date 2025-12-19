@@ -266,8 +266,7 @@ const ParticipantVideo = memo(function ParticipantVideo({
   // 2. We have a valid tileId (Chime needs the element to bind to even before state updates)
   // This fixes black screen issue when minimizing/maximizing calls - the video element
   // must exist for Chime SDK to bind the tile to it.
-  const shouldShowVideo = (hasVideoState || hasTileId) && !shouldShowScreenShare;
-
+  const shouldShowVideo = hasVideoState && !shouldShowScreenShare;
 
   
 
