@@ -1,48 +1,69 @@
-import { useEffect } from 'react';
+import { useEffect } from "react";
 
 interface ToastProps {
   message: string;
-  type?: 'info' | 'success' | 'error';
+  type?: "info" | "success" | "error";
   duration?: number;
   onClose: () => void;
 }
 
-export default function Toast({ message, type = 'info', duration = 3000, onClose }: ToastProps) {
+export default function Toast({
+  message,
+  type = "info",
+  duration = 3000,
+  onClose,
+}: ToastProps) {
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onClose();
-    }, duration);
-
+    const timer = setTimeout(onClose, duration);
     return () => clearTimeout(timer);
   }, [duration, onClose]);
 
-  const bgColor = type === 'error' ? 'bg-red-500' : type === 'success' ? 'bg-green-500' : 'bg-yellow-400';
-  const textColor = type === 'error' || type === 'success' ? 'text-white' : 'text-black';
+  const styles = {
+    info: {
+      bg: "from-yellow-400/90 to-yellow-300/90",
+      
+      text: "text-black",
+    },
+    success: {
+      bg: "from-green-500/90 to-emerald-500/90",
+      
+      text: "text-white",
+    },
+    error: {
+      bg: "from-red-500/90 to-rose-500/90",
+      
+      text: "text-white",
+    },
+  }[type];
 
   return (
-    <div className="animate-slide-in">
-      <div className={`${bgColor} ${textColor} px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 min-w-[300px]`}>
-        <div className="flex-1">
-          <p className="font-medium">{message}</p>
-        </div>
+    <div className="animate-toast-in pointer-events-auto">
+      <div
+        className={`
+          relative overflow-hidden
+          bg-gradient-to-r ${styles.bg}
+          ${styles.text}
+          backdrop-blur-md
+          px-5 py-4
+          rounded-xl
+          shadow-2xl
+          min-w-[320px]
+          flex items-start gap-3
+          border border-white/20
+        `}
+      >
+        {/* Glow */}
+        <div className="absolute inset-0 opacity-30 blur-xl bg-white" />
+        {/* Message */}
+        <p className="relative flex-1 font-medium leading-snug">{message}</p>
+
+        {/* Close */}
         <button
           onClick={onClose}
-          className={`${textColor} hover:opacity-80 transition-opacity`}
+          className="relative ml-2 opacity-70 hover:opacity-100 transition"
           aria-label="Close"
         >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
+          ✕
         </button>
       </div>
     </div>

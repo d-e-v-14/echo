@@ -111,19 +111,20 @@ export const uploadMessage = async (payload: {
   content?: string;
   sender_id?: string; // Optional, server can get from session
   channel_id: string;
+  reply_to?: string | number;
 }): Promise<Message> => {
   try {
     const formData = new FormData();
-    
+
     // Use exact field names as specified by backend
     formData.append("sender_id", payload.sender_id || "");
     formData.append("channel_id", payload.channel_id);
     formData.append("content", payload.content || "");
     if (payload.file) formData.append("file", payload.file);
 
-    const response = await apiClient.post('/api/message/upload', formData, {
+    const response = await apiClient.post("/api/message/upload", formData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        "Content-Type": "multipart/form-data",
       },
     });
 
@@ -475,7 +476,7 @@ export const joinChimeMeeting = async (channelId: string, userId: string): Promi
     });
     return response.data;
   } catch (error: any) {
-    console.error("Error joining Chime meeting:", error.response?.data || error.message || error);
+   
     const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || "Failed to join voice channel.";
     throw new Error(errorMessage);
   }
@@ -512,18 +513,18 @@ export const getChimeMeetingAttendees = async (channelId: string): Promise<any[]
 /**
  * Start recording for a Chime meeting (server-side media capture)
  */
-export const startChimeRecording = async (channelId: string): Promise<{ recordingId: string }> => {
-  try {
-    const response = await apiClient.post('/api/chime/recording/start', {
-      channelId
-    });
-    return response.data;
-  } catch (error: any) {
-    console.error("Error starting Chime recording:", error.response?.data || error.message || error);
-    const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || "Failed to start recording.";
-    throw new Error(errorMessage);
-  }
-};
+// export const startChimeRecording = async (channelId: string): Promise<{ recordingId: string }> => {
+//   try {
+//     const response = await apiClient.post('/api/chime/recording/start', {
+//       channelId
+//     });
+//     return response.data;
+//   } catch (error: any) {
+//     console.error("Error starting Chime recording:", error.response?.data || error.message || error);
+//     const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || "Failed to start recording.";
+//     throw new Error(errorMessage);
+//   }
+// };
 
 /**
  * Stop recording for a Chime meeting

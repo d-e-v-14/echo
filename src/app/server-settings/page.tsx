@@ -13,24 +13,29 @@ import InvitePeople from "./components/ServerSettings/InvitePeople";
 import Leave from "./components/ServerSettings/Leave";
 import DangerZone from "./components/ServerSettings/DangerZone";
 import AddChannel from "./components/ServerSettings/AddChannel";
-import { getServerDetails, ServerDetails, getMyRoles } from "../api";
+
+import { getServerDetails, type ServerDetails, getMyRoles } from "../api";
 
 export default function ServerSettingsPage() {
   const router = useRouter();
+
   const [selected, setSelected] = useState<string>("Overview");
+
   const [serverId, setServerId] = useState<string | null>(null);
   const [serverIdReady, setServerIdReady] = useState(false);
+
   const [serverDetails, setServerDetails] = useState<ServerDetails | null>(
     null
   );
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   const [isAdmin, setIsAdmin] = useState(false);
 
-  /**
-   * STEP 1: Resolve serverId safely on client
-   */
+  /* -----------------------------------------------------
+   STEP 1: Resolve serverId safely on CLIENT
+  ----------------------------------------------------- */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const fromUrl = params.get("serverId");
@@ -45,9 +50,7 @@ export default function ServerSettingsPage() {
     setServerIdReady(true);
   }, []);
 
-  /**
-   * STEP 2: Fetch server details ONLY when serverId exists
-   */
+
   useEffect(() => {
     if (!serverIdReady) return;
 
@@ -58,14 +61,16 @@ export default function ServerSettingsPage() {
 
     const loadServerDetails = async () => {
       try {
+        setLoading(true);
+
         const details = await getServerDetails(serverId);
         setServerDetails(details);
-        
-        // Check if user is admin
+
+        // Check admin role
         const myRoles = await getMyRoles(serverId);
-        const hasAdminRole = myRoles.some(role => role.role_type === 'admin');
+        const hasAdminRole = myRoles.some((role) => role.role_type === "admin");
         setIsAdmin(hasAdminRole);
-        
+
         setError(null);
       } catch (err) {
         console.error("Failed to load server details:", err);
@@ -78,20 +83,16 @@ export default function ServerSettingsPage() {
     loadServerDetails();
   }, [serverIdReady, serverId]);
 
-  /**
-   * LOADING STATE
-   */
+
   if (!serverIdReady || loading) {
     return (
       <div className="flex min-h-screen bg-black items-center justify-center">
-        <div className="text-white text-lg">Loading server settings...</div>
+        <div className="text-white text-lg">Loading server settings…</div>
       </div>
     );
   }
 
-  /**
-   * ERROR STATE (only real failures)
-   */
+
   if (error || !serverDetails) {
     return (
       <div className="flex min-h-screen bg-black items-center justify-center">
@@ -113,17 +114,13 @@ export default function ServerSettingsPage() {
     );
   }
 
-  /**
-   * NORMALIZE STRICT TYPES
-   * From this point, values are guaranteed
-   */
+
   const resolvedServerId: string = serverId!;
   const isOwner: boolean = Boolean(serverDetails.isOwner);
 
-  /**
-   * MAIN CONTENT SWITCH
-   */
-  let Content;
+
+  let Content: JSX.Element;
+
   switch (selected) {
     case "Overview":
       Content = (
@@ -131,7 +128,7 @@ export default function ServerSettingsPage() {
           serverId={resolvedServerId}
           serverDetails={serverDetails}
           onServerUpdate={setServerDetails}
-          isOwner={serverDetails?.isOwner || false}
+          isOwner={isOwner}
           isAdmin={isAdmin}
         />
       );
@@ -139,11 +136,7 @@ export default function ServerSettingsPage() {
 
     case "Role":
       Content = (
-        <Role
-          serverId={resolvedServerId}
-          isOwner={serverDetails?.isOwner || false}
-          isAdmin={isAdmin}
-        />
+        <Role serverId={resolvedServerId} isOwner={isOwner} isAdmin={isAdmin} />
       );
       break;
 
@@ -151,7 +144,7 @@ export default function ServerSettingsPage() {
       Content = (
         <Members
           serverId={resolvedServerId}
-          isOwner={serverDetails?.isOwner || false}
+          isOwner={isOwner}
           isAdmin={isAdmin}
         />
       );
@@ -161,7 +154,7 @@ export default function ServerSettingsPage() {
       Content = (
         <BannedUsers
           serverId={resolvedServerId}
-          isOwner={serverDetails?.isOwner || false}
+          isOwner={isOwner}
           isAdmin={isAdmin}
         />
       );
@@ -197,21 +190,22 @@ export default function ServerSettingsPage() {
           serverId={resolvedServerId}
           serverDetails={serverDetails}
           onServerUpdate={setServerDetails}
+          isOwner={isOwner}
+          isAdmin={isAdmin}
         />
       );
   }
 
-  /**
-   * PAGE LAYOUT
-   */
+
   return (
     <div className="flex min-h-screen bg-black text-white">
-      <Sidebar 
-        selected={selected} 
-        onSelect={setSelected} 
-        isOwner={serverDetails?.isOwner || false}
+      <Sidebar
+        selected={selected}
+        onSelect={setSelected}
+        isOwner={isOwner}
         isAdmin={isAdmin}
       />
+
       <main className="flex-1 p-8 bg-black relative">
         {/* Back Button */}
         <button

@@ -1,23 +1,39 @@
-import React from "react";
+import React, { memo } from "react";
 
-interface Props {
-  name?: string;
-  isSender?: boolean;
-  message: string;
-  avatarUrl?: string;
-  timestamp: string;
-  onProfileClick?: () => void;
-  children?: React.ReactNode; // Allow children to be passed
-  messageRenderer?: (content: string) => React.ReactNode; // Custom message renderer
+/* -------------------- TYPES -------------------- */
+
+export interface ChatMessage {
+  id?: string | number;
+  content: string;
+  replyTo?: {
+    id: string | number;
+    content: string;
+    author?: string;
+  } | null;
 }
 
-const MessageBubble: React.FC<Props> = ({
+interface MessageBubbleProps {
+  message: ChatMessage;
+  name?: string;
+  isSender?: boolean;
+  avatarUrl?: string;
+  timestamp?: string;
+  onProfileClick?: () => void;
+  onReply?: () => void;
+  children?: React.ReactNode;
+  messageRenderer?: (content: string) => React.ReactNode;
+}
+
+/* -------------------- COMPONENT -------------------- */
+
+const MessageBubble: React.FC<MessageBubbleProps> = ({
+  message,
   name,
   isSender = false,
-  message,
   avatarUrl,
   timestamp,
   onProfileClick,
+  onReply,
   children,
   messageRenderer,
 }) => {
@@ -25,43 +41,35 @@ const MessageBubble: React.FC<Props> = ({
     ? "bg-gradient-to-br from-indigo-500/90 via-sky-500/80 to-cyan-400/70 text-white shadow-[0_12px_30px_rgba(14,165,233,0.25)]"
     : "bg-slate-800/80 text-slate-100 shadow-[0_12px_30px_rgba(15,23,42,0.35)]";
 
-  const containerAlignment = isSender ? "items-end text-right" : "items-start";
-  
-  // Default avatar - use a fallback if avatarUrl is empty/undefined/null
+  const alignment = isSender ? "items-end text-right" : "items-start";
   const displayAvatar = avatarUrl || "/User_profil.png";
 
   return (
     <div
-      className={`flex ${
+      className={`flex w-full mb-3 ${
         isSender ? "justify-end" : "justify-start"
-      } mb-3 w-full`}
+      }`}
     >
-      {/* Left avatar (for non-sender) */}
-      <div
-        className={`w-8 h-8 mr-3 flex-shrink-0 ${
-          !isSender ? "flex" : "hidden"
-        }`}
-      >
-        {!isSender && (
+      {/* Left Avatar (Receiver) */}
+      {!isSender && (
+        <div className="w-8 h-8 mr-3 flex-shrink-0">
           <img
             src={displayAvatar}
             alt={name || "User"}
-            onClick={onProfileClick} 
-            onError={(e) => {
-              // Fallback if image fails to load
-              e.currentTarget.src = "/User_profil.png";
-            }}
-            className="w-8 h-8 rounded-full object-cover cursor-pointer hover:scale-105 hover:brightness-110 transition-all"
+            onClick={onProfileClick}
+            onError={(e) => (e.currentTarget.src = "/User_profil.png")}
+            className="w-8 h-8 rounded-full object-cover cursor-pointer hover:scale-105 hover:brightness-110 transition"
           />
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Message content */}
+      {/* Message Body */}
       <div
-        className={`flex flex-col max-w-[min(32rem,65%)] ${containerAlignment} gap-1 ${
+        className={`flex flex-col max-w-[min(32rem,65%)] gap-1 ${
           isSender ? "ml-auto" : "mr-auto"
-        }`}
+        } ${alignment}`}
       >
+        {/* Username */}
         {name && !isSender && (
           <span
             className="text-xs font-medium uppercase tracking-wide text-slate-400 px-1 cursor-pointer hover:text-slate-200 transition"
@@ -70,18 +78,45 @@ const MessageBubble: React.FC<Props> = ({
             {name}
           </span>
         )}
-        <div className={`message-bubble px-4 py-3 ${bubbleStyles} ${
-          isSender 
-            ? "rounded-2xl rounded-br-md" 
-            : "rounded-2xl rounded-bl-md"
-        }`}>
-          {message && (
-            <div className="text-sm leading-relaxed break-words">
-              {messageRenderer ? messageRenderer(message) : <p>{message}</p>}
-            </div>
+
+        {/* Reply Preview */}
+        {message.replyTo && (
+          <div className="px-3 py-2 text-xs text-slate-300 bg-black/30 rounded-lg border-l-4 border-blue-400">
+            <span className="font-semibold">
+              {message.replyTo.author || "User"}
+            </span>
+            : {message.replyTo.content}
+          </div>
+        )}
+
+        {/* Message Bubble */}
+        <div
+          className={`px-4 py-3 ${bubbleStyles} ${
+            isSender ? "rounded-2xl rounded-br-md" : "rounded-2xl rounded-bl-md"
+          }`}
+        >
+          {/* Message text */}
+          <div className="text-sm leading-relaxed break-words">
+            {messageRenderer
+              ? messageRenderer(message.content)
+              : message.content}
+          </div>
+
+          {/* Attachments / children */}
+          {children && <div className="mt-3">{children}</div>}
+
+          {/* ✅ Reply button — ADD HERE */}
+          {onReply && (
+            <button
+              onClick={onReply}
+              className="mt-2 text-xs text-slate-400 hover:text-white transition"
+            >
+              Reply
+            </button>
           )}
-          {children && <div className={message ? "mt-3" : ""}>{children}</div>}
         </div>
+
+        {/* Timestamp */}
         {timestamp && (
           <span
             className={`text-[10px] font-medium uppercase tracking-wide text-slate-500 px-1 ${
@@ -93,24 +128,21 @@ const MessageBubble: React.FC<Props> = ({
         )}
       </div>
 
-      {/* Right avatar (for sender) */}
-      <div
-        className={`w-8 h-8 ml-3 flex-shrink-0 ${isSender ? "flex" : "hidden"}`}
-      >
-        {isSender && (
+      {/* Right Avatar (Sender) */}
+      {isSender && (
+        <div className="w-8 h-8 ml-3 flex-shrink-0">
           <img
             src={displayAvatar}
-            alt={name || "You"}
-            onError={(e) => {
-              // Fallback if image fails to load
-              e.currentTarget.src = "/User_profil.png";
-            }}
+            alt="You"
+            onError={(e) => (e.currentTarget.src = "/User_profil.png")}
             className="w-8 h-8 rounded-full object-cover"
           />
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default MessageBubble;
+/* -------------------- EXPORT -------------------- */
+
+export default memo(MessageBubble);

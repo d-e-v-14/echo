@@ -12,7 +12,7 @@ import { createAuthSocket } from "@/socket";
 import VideoPanel from "./VideoPanel";
 import MessageBubble from "./MessageBubble";
 import UserProfileModal from "./UserProfileModal";
-
+import Toast  from "@/components/Toast";
 interface Message {
   id: string | number;
   content: string;
@@ -22,6 +22,7 @@ interface Message {
   username?: string;
   file?: string;
   mediaUrl?: string;
+  replyTo?: string | number;
 }
 
 interface ChatWindowProps {
@@ -51,16 +52,21 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
   const isLoadingMoreRef = useRef(false);
   const [serverRoles, setServerRoles] = useState<{ id: string; name: string; color?: string }[]>([]);
   const [roleModal, setRoleModal] = useState<{
-  open: boolean;
-  role: string;
-  users: { id: string; username: string; avatarUrl: string }[];
-}>({
-  open: false,
-  role: "",
-  users: [],
-});
+    open: boolean;
+    role: string;
+    users: { id: string; username: string; avatarUrl: string }[];
+  }>({
+    open: false,
+    role: "",
+    users: [],
+  });
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
 
-useEffect(() => {
+  const handleReply = (message: Message) => {
+    setReplyingTo(message);
+  };
+
+  useEffect(() => {
   if (!serverId) return;
   const fetchRoles = async () => {
     try {
@@ -460,30 +466,29 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
     };
   }, [socket, currentUserId, loadMessages, channelId, currentUserAvatar]);
 
-const handleSend = async (text: string, file: File | null) => {
-  if (text.trim() === "" && !file) return;
-
   const validateRoleMentions = (message: string) => {
-  // Use this regex if roles can have spaces:
-  const roleMentionRegex = /@&([a-zA-Z0-9_ ]+?)(?=\s|$)/g;
-  let match;
-  while ((match = roleMentionRegex.exec(message)) !== null) {
-    const roleName = match[1].trim();
-    if (!serverRoles.some(r => r.name.toLowerCase() === roleName.toLowerCase())) {
-      return { valid: false, invalidRole: roleName };
+    const roleMentionRegex = /@&([a-zA-Z0-9_ ]+?)(?=\s|$)/g;
+    let match;
+    while ((match = roleMentionRegex.exec(message)) !== null) {
+      const roleName = match[1].trim();
+      if (!serverRoles.some(r => r.name.toLowerCase() === roleName.toLowerCase())) {
+        return { valid: false, invalidRole: roleName };
+      }
     }
-  }
-  return { valid: true };
-};
+    return { valid: true };
+  };
 
-// In handleSend, before sending:
-const validation = validateRoleMentions(text);
-if (!validation.valid) {
-  alert(`Role "${validation.invalidRole}" does not exist in this server.`);
-  setIsSending(false);
-  return;
-}
-  setIsSending(true);
+  const handleSend = async (text: string, file: File | null) => {
+    if (text.trim() === "" && !file) return;
+
+    const validation = validateRoleMentions(text);
+    if (!validation.valid) {
+      alert(`Role "${validation.invalidRole}" does not exist in this server.`);
+      setIsSending(false);
+      return;
+    }
+
+    setIsSending(true);
   // Get avatar from cache or use fallback
   const userAvatar = avatarCacheRef.current[currentUserId] || currentUserAvatar || "/User_profil.png";
 
@@ -503,9 +508,10 @@ if (!validation.valid) {
       content: text.trim(),
       channel_id: channelId,
       sender_id: currentUserId,
+      reply_to: replyingTo?.id,
       file: file || undefined,
     });
-    
+    setReplyingTo(null);
     console.log('[Upload Message] Response:', response);
   } catch (err: any) {
     console.error('💔 Failed to upload message:', err);
@@ -549,7 +555,7 @@ if (!validation.valid) {
           </div>
         </div>
       )}
-      <div 
+      <div
         ref={messagesContainerRef}
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto px-6 pb-6 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900"
@@ -572,28 +578,44 @@ if (!validation.valid) {
               <div className="flex justify-center py-4">
                 <div className="flex items-center gap-2">
                   <div className="w-5 h-5 border-2 border-gray-600 border-t-blue-500 rounded-full animate-spin" />
-                  <span className="text-gray-400 text-sm">Loading older messages...</span>
+                  <span className="text-gray-400 text-sm">
+                    Loading older messages...
+                  </span>
                 </div>
               </div>
             )}
             {/* Show message when no more messages to load */}
             {!hasMore && messages.length > 0 && (
               <div className="flex justify-center py-4">
-                <span className="text-gray-500 text-xs">Beginning of conversation</span>
+                <span className="text-gray-500 text-xs">
+                  Beginning of conversation
+                </span>
               </div>
             )}
             {messages.map((msg) => (
               <MessageBubble
                 key={msg.id}
                 name={msg.username}
-                message={msg.content}
+                message={{
+                  content: msg.content,
+                  replyTo: msg.replyTo
+                    ? {
+                        id: msg.replyTo,
+                        content:
+                          messages.find((m) => m.id === msg.replyTo)?.content ||
+                          "Message not found",
+                        author: messages.find((m) => m.id === msg.replyTo)
+                          ?.username,
+                      }
+                    : null,
+                }}
                 avatarUrl={msg.avatarUrl}
                 isSender={msg.senderId === currentUserId}
                 timestamp={new Date(msg.timestamp).toLocaleTimeString([], {
                   hour: "2-digit",
                   minute: "2-digit",
                 })}
-                onProfileClick={() => openProfile(msg)}
+                onReply={() => handleReply(msg)}
                 messageRenderer={(content: string) => (
                   <MessageContentWithMentions
                     content={content}
@@ -620,7 +642,31 @@ if (!validation.valid) {
             serverRoles={serverRoles}
           />
         ) : (
+          <> 
+          {replyingTo && (
+  <div className="mx-6 mb-2 px-4 py-2 bg-slate-800 rounded-lg flex items-center justify-between border-l-4 border-blue-500">
+    <div className="text-sm text-slate-300 truncate">
+      Replying to{" "}
+      <span className="font-semibold">
+        {replyingTo.username || "User"}
+      </span>
+      :{" "}
+      <span className="italic">
+        {replyingTo.content}
+      </span>
+    </div>
+
+    <button
+      onClick={() => setReplyingTo(null)}
+      className="ml-3 text-slate-400 hover:text-white"
+    >
+      ✕
+    </button>
+  </div>
+)}
+
           <MessageInput sendMessage={handleSend} isSending={isSending} />
+          </>
         )}
       </div>
       

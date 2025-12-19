@@ -22,6 +22,8 @@ import { useSearchParams } from "next/navigation";
 import { useVoiceCall } from "@/contexts/VoiceCallContext";
 import { supabase } from '@/lib/supabaseClient';
 import Loader from "@/components/Loader";
+import Toast from "@/components/Toast";
+
 
 const serverIcons: string[] = [
   "/hackbattle.png",
@@ -66,6 +68,11 @@ const ServersPageContent: React.FC = () => {
 
   // View mode: 'voice' shows full voice UI, 'chat' shows text chat (with floating window if in voice)
   const [viewMode, setViewMode] = useState<"voice" | "chat">("chat");
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "info" | "success" | "error";
+  } | null>(null);
+
 
   // Store viewMode in localStorage for FloatingVoiceWindow to read
   useEffect(() => {
@@ -166,39 +173,40 @@ const showVoiceUI =
           status: "offline",
         };
 
-  useEffect(() => {
-    const loadServers = async () => {
-      try {
-        setLoading(true);
-        const data = await fetchServers();
-        setServers(data);
-        if (data.length > 0) {
-          // If serverId is in query params, select that server
-          if (serverIdFromQuery) {
-            const targetServer = data.find(
-              (s: any) => s.id === serverIdFromQuery
-            );
-            if (targetServer) {
-              setSelectedServerId(targetServer.id);
-              setSelectedServerName(targetServer.name);
-            } else {
-              setSelectedServerId(data[0].id);
-              setSelectedServerName(data[0].name);
-            }
-          } else {
-            setSelectedServerId(data[0].id);
-            setSelectedServerName(data[0].name);
-          }
-        }
-      } catch (err) {
-        console.error("Error fetching servers", err);
-        setError("Failed to load servers.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadServers();
-  }, [serverIdFromQuery]);
+ useEffect(() => {
+   const loadServers = async () => {
+     try {
+       setLoading(true);
+       setToast({ message: "Loading servers…", type: "info" });
+
+       const data = await fetchServers();
+       setServers(data);
+
+       if (data.length > 0) {
+         if (serverIdFromQuery) {
+           const targetServer = data.find(
+             (s: any) => s.id === serverIdFromQuery
+           );
+           setSelectedServerId(targetServer?.id || data[0].id);
+           setSelectedServerName(targetServer?.name || data[0].name);
+         } else {
+           setSelectedServerId(data[0].id);
+           setSelectedServerName(data[0].name);
+         }
+       }
+
+       setToast(null);
+     } catch (err) {
+       console.error("Error fetching servers", err);
+       setError("Failed to load servers.");
+       setToast({ message: "Failed to load servers", type: "error" });
+     } finally {
+       setLoading(false);
+     }
+   };
+
+   loadServers();
+ }, [serverIdFromQuery]);
 
   // Handle view mode from query params (when navigating from expand button)
   useEffect(() => {
@@ -256,35 +264,38 @@ const showVoiceUI =
     if (!selectedServerId) return;
     const loadChannels = async () => {
       try {
-        
-      const { data: controls } = await supabase
-        .from('admin_controls')
-        .select('voice_enabled')
-        .single();
-      
-      const isVoiceEnabled = controls?.voice_enabled ?? true;
-      setVoiceEnabled(isVoiceEnabled);
-      
-      const data: Channel[] = await fetchChannelsByServer(selectedServerId);
-      
-      const normalized = (data || []).map((c) => ({
-        ...c,
-        type: (c.type || "").toLowerCase(),
-      }));
-      
-      const filteredChannels = isVoiceEnabled
-        ? normalized
-        : normalized.filter((c) => c.type === "text");
-      
-      setChannels(filteredChannels);
-      
-      const firstTextChannel = filteredChannels.find((c) => c.type === "text");
-      setActiveChannel(firstTextChannel || null);
-    } catch (err) {
+        const { data: controls } = await supabase
+          .from("admin_controls")
+          .select("voice_enabled")
+          .single();
+
+        const isVoiceEnabled = controls?.voice_enabled ?? true;
+        setVoiceEnabled(isVoiceEnabled);
+
+        const data: Channel[] = await fetchChannelsByServer(selectedServerId);
+
+        const normalized = (data || []).map((c) => ({
+          ...c,
+          type: (c.type || "").toLowerCase(),
+        }));
+
+        const filteredChannels = isVoiceEnabled
+          ? normalized
+          : normalized.filter((c) => c.type === "text");
+
+        setChannels(filteredChannels);
+
+        const firstTextChannel = filteredChannels.find(
+          (c) => c.type === "text"
+        );
+        setActiveChannel(firstTextChannel || null);
+      } catch (err) {
         console.error("Error fetching channels", err);
         setError("Failed to load channels");
         setChannels([]);
+        setToast({ message: "Failed to load channels", type: "error" });
       }
+
     };
     loadChannels();
   }, [selectedServerId, myRoles]);
@@ -380,7 +391,12 @@ const showVoiceUI =
       }
     } catch (err: any) {
       console.error("Error toggling role:", err);
-      alert(err?.response?.data?.error || "Failed to toggle role");
+      setToast({
+        message: err?.response?.data?.error || "Failed to toggle role",
+        type: "error",
+      });
+
+
     }
   };
 
@@ -397,6 +413,21 @@ const showVoiceUI =
   };
 
   return (
+    <>
+    {toast && (() => {
+  const { message, type } = toast;
+  return (
+    <div className="fixed top-6 right-6 z-[9999]">
+      <Toast
+        message={message}
+        type={type}
+        duration={3000}
+        onClose={() => setToast(null)}
+      />
+    </div>
+  );
+})()}
+
     <div className="relative flex h-screen bg-black select-none">
       {/* Server Sidebar */}
       <div className="w-16 p-2 flex flex-col items-center bg-black space-y-3 relative">
@@ -663,38 +694,38 @@ const showVoiceUI =
                 <h3 className="text-xs font-bold uppercase text-gray-400 mt-4 mb-2">
                   Voice Channels
                 </h3>
-                {voiceChannels.map((channel) => {
-                  const isActive = activeVoiceChannelName === channel.name;
+{voiceChannels.map((channel) => {
+  const isActive = activeCall?.channelId === channel.id;
 
-                  return (
-                    <div key={channel.id} className="space-y-1">
-                      {/* Voice channel row */}
-                      <div
-                        className={`flex items-center justify-between p-2 text-sm rounded-md cursor-pointer transition-all ${
-                          isActive && viewMode === "voice"
-                            ? "bg-[#2f3136] text-white"
-                            : "text-gray-400 hover:bg-[#2f3136] hover:text-white"
-                        }`}
-                        onClick={() => handleJoinVoiceChannel(channel)}
-                      >
-                        <span className="flex items-center gap-2">
-                          <FaVolumeUp size={12} />
-                          {channel.name}
+  return (
+    <div key={channel.id} className="space-y-1">
+      <div
+        className={`flex items-center justify-between p-2 text-sm rounded-md transition-all ${
+          isActive && viewMode === "voice"
+            ? "bg-[#2f3136] text-white"
+            : "text-gray-400 hover:bg-[#2f3136] hover:text-white"
+        } ${isActive ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+        onClick={() => {
+          if (isActive) return;
+          handleJoinVoiceChannel(channel);
+        }}
+      >
+        <span className="flex items-center gap-2">
+          <FaVolumeUp size={12} />
+          {channel.name}
 
-                          {isActive && (
-                            <span
-                              className={`w-2 h-2 rounded-full ${
-                                isConnected
-                                  ? "bg-green-500"
-                                  : "bg-yellow-500 animate-pulse"
-                              }`}
-                            />
-                          )}
-                        </span>
-                      </div>
-
-                      {/*  Voice members  */}
-                      {isActive && (
+          {isActive && (
+            <span
+              className={`w-2 h-2 rounded-full ${
+                isConnected
+                  ? "bg-green-500"
+                  : "bg-yellow-500 animate-pulse"
+              }`}
+            />
+          )}
+        </span>
+      </div>
+      {isActive && (
                         <div className="ml-6 space-y-1">
                           {voiceMembers.length === 0 ? (
                             <div className="text-xs text-gray-500 px-2">
@@ -707,13 +738,7 @@ const showVoiceUI =
                                 className="flex items-center justify-between px-2 py-1 rounded hover:bg-[#2f3136]"
                               >
                                 <div className="flex items-center gap-2">
-                                  <div
-                                    className={`w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center text-xs ${
-                                      m.speaking ? "ring-2 ring-green-500" : ""
-                                    }`}
-                                  >
-                                    {m.username?.charAt(0).toUpperCase()}
-                                  </div>
+                                  
                                   <span className="text-xs text-gray-300 truncate">
                                     {m.username}
                                   </span>
@@ -734,9 +759,9 @@ const showVoiceUI =
                           )}
                         </div>
                       )}
-                    </div>
-                  );
-                })}
+    </div>
+  );
+})}
               </div>
 
               {/* Show voice status in sidebar when connected to this server */}
@@ -847,6 +872,7 @@ const showVoiceUI =
         </>
       )}
     </div>
+    </>
   );
 };
 
@@ -864,6 +890,7 @@ const ServersPage: React.FC = () => {
     >
       <ServersPageContent />
     </Suspense>
+    
   );
 };
 

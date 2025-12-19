@@ -10,10 +10,12 @@ import MessageBubble from './MessageBubble';
 import MessageAttachment from './MessageAttachment';
 import Loader from "@/components/Loader";
 import { useMessageNotifications } from '@/contexts/MessageNotificationContext';
+import Toast from "@/components/Toast";
+
 
 interface User {
     id: string;
-    fullname: string; // Frontend uses 'fullname'
+    fullname: string; 
     avatar_url?: string;
 }
 
@@ -324,7 +326,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ activeUser, messages, currentUs
                                             <MessageBubble
                                                 key={msg.id}
                                                 isSender={group.isSender}
-                                                message={msg.content}
+                                                message={msg}
                                                 timestamp={msg.timeLabel}
                                                 name={!group.isSender && index === 0 ? group.name : undefined}
                                                 avatarUrl={!group.isSender && index === 0 ? group.avatarUrl : undefined}
@@ -899,9 +901,34 @@ useEffect(() => {
 }
 
 export default function MessagesPageContent() {
-    return (
-        <Suspense fallback={<div className="flex h-screen items-center justify-center text-white">Loading messages…</div>}>
-            <MessagesPageContentInner />
-        </Suspense>
-    );
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "info" | "success" | "error";
+  } | null>(null);
+
+  useEffect(() => {
+    setToast({
+      message: "Loading messages…",
+      type: "info",
+    });
+  }, []);
+
+  return (
+    <>
+   
+      {toast && (
+        <div className="fixed top-6 right-6 z-[9999]">
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            duration={3000}
+            onClose={() => setToast(null)}
+          />
+        </div>
+      )}
+      <Suspense fallback={<div className="h-screen bg-black" />}>
+        <MessagesPageContentInner />
+      </Suspense>
+    </>
+  );
 }

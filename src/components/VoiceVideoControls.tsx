@@ -335,7 +335,7 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
         </button>
 
         {/* Recording */}
-        <button
+        {/* <button
           onClick={handleToggleRecording}
           disabled={!isConnected}
           className={`p-3 rounded-full transition-all duration-200 ${
@@ -346,7 +346,7 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
           title={mediaState.recording ? "Stop recording" : "Start recording"}
         >
           <FaRecordVinyl size={20} />
-        </button>
+        </button> */}
 
         {/* Hang Up */}
         <button

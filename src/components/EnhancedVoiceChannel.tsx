@@ -123,6 +123,8 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
     }
   });
 
+  const [activeSpeakerId, setActiveSpeakerId] = useState<string | null>(null);
+const [lastSpeakerId, setLastSpeakerId] = useState<string | null>(null);
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
   const [hasAnyPermissions, setHasAnyPermissions] = useState(false);
@@ -618,6 +620,18 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
     };
   }, [userId, useExternalManager, externalManager, externalState]);
 
+useEffect(() => {
+  if (activeSpeakerId) setLastSpeakerId(activeSpeakerId);
+}, [activeSpeakerId]);
+
+const localAttendeeId = managerRef.current?.getLocalAttendeeId?.();
+
+const focusedAttendeeId =
+  participants.find(p => p.id === activeSpeakerId && p.tileId)?.id ||
+  participants.find(p => p.id === lastSpeakerId && p.tileId)?.id ||
+  participants.find(p => p.isLocal && p.tileId)?.id ||
+  localAttendeeId;
+
   // Handle channel changes - join the voice channel
   useEffect(() => {
     // If using external manager, skip joining here (context handles it)
@@ -972,6 +986,9 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
       />
     );
   }
+  const focusedParticipant = participants.find(
+  p => p.id === focusedAttendeeId
+);
 
   // Convert Participant[] to expected format for EnhancedVideoPanel
   // Include tile IDs for proper Chime video binding
