@@ -22,7 +22,12 @@ interface Message {
   username?: string;
   file?: string;
   mediaUrl?: string;
-  replyTo?: string | number;
+  replyTo?: {
+    id: string | number;
+    content: string;
+    author: string;
+    avatarUrl?: string;
+  } | null;
 }
 
 interface ChatWindowProps {
@@ -63,6 +68,7 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
 
   const handleReply = (message: Message) => {
+    console.log("Reply clicked for:", message);
     setReplyingTo(message);
   };
 
@@ -284,15 +290,24 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
       res.data.map(async (msg: any) => {
         const senderId = msg.sender_id || msg.senderId;
         const avatarUrl = await getAvatarUrl(senderId);
-        
-        // Add debugging
-        
+
+        // Add replyTo using backend-provided reply_to_message
+        let replyTo = null;
+        if (msg.reply_to_message) {
+          replyTo = {
+            id: msg.reply_to_message.id,
+            content: msg.reply_to_message.content,
+            author: msg.reply_to_message.users?.username || "Unknown",
+            avatarUrl: msg.reply_to_message.users?.avatar_url || "/User_profil.png",
+          };
+        }
+
         return {
           id: msg.id,
           content: msg.content || msg.message,
           senderId,
           timestamp: msg.timestamp || new Date().toISOString(),
-          avatarUrl, // This should now have the correct value
+          avatarUrl,
           username:
             senderId === currentUserId
               ? "You"
@@ -302,6 +317,7 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
                 msg.sender_name ||
                 "Unknown",
           mediaUrl: msg.media_url || msg.mediaUrl,
+          replyTo, // <-- add this
         };
       })
     );
@@ -420,6 +436,17 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
       // Get actual avatar URL
       const avatarUrl = await getAvatarUrl(senderId);
 
+      // Add replyTo using backend-provided reply_to_message (for replies)
+      let replyTo = null;
+      if (saved.reply_to_message) {
+        replyTo = {
+          id: saved.reply_to_message.id,
+          content: saved.reply_to_message.content,
+          author: saved.reply_to_message.users?.username || "Unknown",
+          avatarUrl: saved.reply_to_message.users?.avatar_url || "/User_profil.png",
+        };
+      }
+
       const newMessage: Message = {
         id: messageId,
         content: saved?.content || saved?.message || "",
@@ -427,7 +454,8 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
         timestamp: saved?.timestamp || new Date().toISOString(),
         avatarUrl,
         username: resolvedUsername,
-        mediaUrl: saved?.media_url || saved?.mediaUrl
+        mediaUrl: saved?.media_url || saved?.mediaUrl,
+        replyTo // <-- add this
       };
 
       if (senderId && resolvedUsername && resolvedUsername !== 'Unknown') {
@@ -498,7 +526,15 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
     senderId: currentUserId,
     timestamp: new Date().toISOString(),
     avatarUrl: userAvatar,
-    username: "You"
+    username: "You",
+    replyTo: replyingTo
+      ? {
+          id: replyingTo.id,
+          content: replyingTo.content,
+          author: (replyingTo as any).username || "User",
+          avatarUrl: replyingTo.avatarUrl || "/User_profil.png"
+        }
+      : null
   };
   
   setMessages(prev => [...prev, optimisticMessage]);
@@ -516,7 +552,7 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
   } catch (err: any) {
     console.error('💔 Failed to upload message:', err);
     alert(`Upload failed: ${err.message || 'Unknown error'}`);
-    setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
+    setMessages(prev => prev.filter((msg) => msg.id !== optimisticMessage.id));
   } finally {
     setIsSending(false);
   }
@@ -598,16 +634,7 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
                 name={msg.username}
                 message={{
                   content: msg.content,
-                  replyTo: msg.replyTo
-                    ? {
-                        id: msg.replyTo,
-                        content:
-                          messages.find((m) => m.id === msg.replyTo)?.content ||
-                          "Message not found",
-                        author: messages.find((m) => m.id === msg.replyTo)
-                          ?.username,
-                      }
-                    : null,
+                  replyTo: msg.replyTo || null,
                 }}
                 avatarUrl={msg.avatarUrl}
                 isSender={msg.senderId === currentUserId}
@@ -616,6 +643,7 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
                   minute: "2-digit",
                 })}
                 onReply={() => handleReply(msg)}
+                onProfileClick={() => openProfile(msg)}
                 messageRenderer={(content: string) => (
                   <MessageContentWithMentions
                     content={content}
@@ -633,42 +661,38 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
         )}
       </div>
 
-      <div className="flex-shrink-0 px-6 pb-6">
-        {serverId ? (
-          <MessageInputWithMentions
-            sendMessage={handleSend}
-            isSending={isSending}
-            serverId={serverId}
-            serverRoles={serverRoles}
-          />
-        ) : (
-          <> 
-          {replyingTo && (
-  <div className="mx-6 mb-2 px-4 py-2 bg-slate-800 rounded-lg flex items-center justify-between border-l-4 border-blue-500">
-    <div className="text-sm text-slate-300 truncate">
-      Replying to{" "}
-      <span className="font-semibold">
-        {replyingTo.username || "User"}
-      </span>
-      :{" "}
-      <span className="italic">
-        {replyingTo.content}
-      </span>
-    </div>
-
-    <button
-      onClick={() => setReplyingTo(null)}
-      className="ml-3 text-slate-400 hover:text-white"
-    >
-      ✕
-    </button>
-  </div>
-)}
-
-          <MessageInput sendMessage={handleSend} isSending={isSending} />
-          </>
-        )}
+<div className="flex-shrink-0 px-6 pb-6">
+  {replyingTo && (
+    <div className="mx-6 mb-2 px-4 py-2 bg-slate-800 rounded-lg flex items-center justify-between border-l-4 border-blue-500">
+      <div className="text-sm text-slate-300 truncate">
+        Replying to{" "}
+        <span className="font-semibold">
+          {replyingTo.username || "User"}
+        </span>
+        :{" "}
+        <span className="italic">
+          {replyingTo.content}
+        </span>
       </div>
+      <button
+        onClick={() => setReplyingTo(null)}
+        className="ml-3 text-slate-400 hover:text-white"
+      >
+        ✕
+      </button>
+    </div>
+  )}
+  {serverId ? (
+    <MessageInputWithMentions
+      sendMessage={handleSend}
+      isSending={isSending}
+      serverId={serverId}
+      serverRoles={serverRoles}
+    />
+  ) : (
+    <MessageInput sendMessage={handleSend} isSending={isSending} />
+  )}
+</div>
       
       {roleModal.open && (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
