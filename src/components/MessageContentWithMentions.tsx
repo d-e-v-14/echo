@@ -21,19 +21,6 @@ interface MentionContentProps {
   onRoleMentionClick?: (roleName: string) => void;
 }
 
-/* -------------------- HELPERS -------------------- */
-
-const hexToRgba = (hex: string, alpha = 0.25) => {
-  const cleanHex = hex.replace("#", "");
-  const bigint = parseInt(cleanHex, 16);
-
-  const r = (bigint >> 16) & 255;
-  const g = (bigint >> 8) & 255;
-  const b = bigint & 255;
-
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-};
-
 /* -------------------- COMPONENT -------------------- */
 
 export default function MessageContentWithMentions({
@@ -88,7 +75,7 @@ export default function MessageContentWithMentions({
         (r) => r.name.toLowerCase() === roleName.toLowerCase()
       );
 
-      if (!role) return;
+      if (!role || !role.color) return;
 
       const isOverlapping = Array.from(
         { length: match[0].length },
@@ -101,8 +88,8 @@ export default function MessageContentWithMentions({
         start: match.index!,
         end: match.index! + match[0].length,
         type: "role",
-        match: match[0], // stored as @&Admin
-        displayText: `@${role.name}`, // displayed as @Admin
+        match: match[0], // stored as @&Role
+        displayText: `@${role.name}`, // shown as @Role
       });
 
       for (let i = match.index!; i < match.index! + match[0].length; i++) {
@@ -113,7 +100,6 @@ export default function MessageContentWithMentions({
     /* -------------------- USER -------------------- */
     Array.from(content.matchAll(userMentionRegex)).forEach((match) => {
       const username = match[1];
-
       if (username === "everyone" || username === "here") return;
 
       const isOverlapping = Array.from(
@@ -160,6 +146,9 @@ export default function MessageContentWithMentions({
         currentUsername &&
         username.toLowerCase() === currentUsername.toLowerCase();
 
+      const isUserInRole =
+        mention.type === "role" && role && currentUserRoleIds.includes(role.id);
+
       parts.push(
         <span
           key={keyIndex++}
@@ -167,17 +156,22 @@ export default function MessageContentWithMentions({
           style={
             mention.type === "role" && role?.color
               ? {
-                  backgroundColor: role.color,
-                  color: "#000",
+                  backgroundColor: isUserInRole
+                    ? "rgba(250, 204, 21, 0.45)" 
+                    : "transparent",
+                  color: role.color,
                   borderRadius: "6px",
-                  padding: "2px 6px",
+                  padding: "2px 8px",
+                  border: isUserInRole
+                    ? "1px solid rgba(250, 204, 21, 0.9)" 
+                    : "none",
                 }
               : mention.type === "user"
               ? {
                   backgroundColor: isCurrentUserMention
                     ? "rgba(88,101,242,0.35)"
                     : "rgba(88,101,242,0.18)",
-                  color: "#fff",
+                  color: "#ffffff",
                   borderRadius: "6px",
                   padding: "2px 6px",
                 }
@@ -188,20 +182,6 @@ export default function MessageContentWithMentions({
                   padding: "2px 6px",
                 }
           }
-          onMouseEnter={(e) => {
-            if (mention.type === "role" && role?.color) {
-              e.currentTarget.style.boxShadow = `0 0 12px ${hexToRgba(
-                role.color,
-                0.8
-              )}`;
-            }
-            if (mention.type === "user") {
-              e.currentTarget.style.boxShadow = "0 0 10px rgba(88,101,242,0.6)";
-            }
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.boxShadow = "none";
-          }}
           onClick={
             mention.type === "user" && onMentionClick
               ? () => onMentionClick(username, username)
