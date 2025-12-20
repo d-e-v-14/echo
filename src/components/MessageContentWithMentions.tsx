@@ -60,6 +60,7 @@ export default function MessageContentWithMentions({
       end: number;
       type: "user" | "role" | "everyone";
       match: string;
+      displayText: string;
     }> = [];
 
     const usedPositions = new Set<number>();
@@ -71,6 +72,7 @@ export default function MessageContentWithMentions({
         end: match.index! + match[0].length,
         type: "everyone",
         match: match[0],
+        displayText: match[0],
       });
 
       for (let i = match.index!; i < match.index! + match[0].length; i++) {
@@ -99,7 +101,8 @@ export default function MessageContentWithMentions({
         start: match.index!,
         end: match.index! + match[0].length,
         type: "role",
-        match: match[0],
+        match: match[0], // stored as @&Admin
+        displayText: `@${role.name}`, // displayed as @Admin
       });
 
       for (let i = match.index!; i < match.index! + match[0].length; i++) {
@@ -125,6 +128,7 @@ export default function MessageContentWithMentions({
         end: match.index! + match[0].length,
         type: "user",
         match: match[0],
+        displayText: match[0],
       });
 
       for (let i = match.index!; i < match.index! + match[0].length; i++) {
@@ -164,7 +168,7 @@ export default function MessageContentWithMentions({
             mention.type === "role" && role?.color
               ? {
                   backgroundColor: role.color,
-                  color: "#000000",
+                  color: "#000",
                   borderRadius: "6px",
                   padding: "2px 6px",
                 }
@@ -173,7 +177,7 @@ export default function MessageContentWithMentions({
                   backgroundColor: isCurrentUserMention
                     ? "rgba(88,101,242,0.35)"
                     : "rgba(88,101,242,0.18)",
-                  color: "#ffffff",
+                  color: "#fff",
                   borderRadius: "6px",
                   padding: "2px 6px",
                 }
@@ -191,7 +195,6 @@ export default function MessageContentWithMentions({
                 0.8
               )}`;
             }
-
             if (mention.type === "user") {
               e.currentTarget.style.boxShadow = "0 0 10px rgba(88,101,242,0.6)";
             }
@@ -207,7 +210,7 @@ export default function MessageContentWithMentions({
               : undefined
           }
         >
-          {mention.match}
+          {mention.displayText}
         </span>
       );
 
