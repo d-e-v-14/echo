@@ -7,7 +7,7 @@ import React from "react";
 interface Role {
   id: string;
   name: string;
-  color?: string; // hex color like #ff0000
+  color?: string;
 }
 
 interface MentionContentProps {
@@ -15,22 +15,13 @@ interface MentionContentProps {
   currentUserId?: string;
   currentUsername?: string;
   serverRoles: Role[];
+  currentUserRoleIds: string[];
 
   onMentionClick?: (userId: string, username: string) => void;
   onRoleMentionClick?: (roleName: string) => void;
 }
 
 /* -------------------- HELPERS -------------------- */
-
-
-const isDarkColor = (hex: string) => {
-  const c = hex.replace("#", "");
-  const rgb = parseInt(c, 16);
-  const r = (rgb >> 16) & 255;
-  const g = (rgb >> 8) & 255;
-  const b = rgb & 255;
-  return (r * 299 + g * 587 + b * 114) / 1000 < 140;
-};
 
 const hexToRgba = (hex: string, alpha = 0.25) => {
   const cleanHex = hex.replace("#", "");
@@ -42,13 +33,14 @@ const hexToRgba = (hex: string, alpha = 0.25) => {
 
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
+
 /* -------------------- COMPONENT -------------------- */
 
 export default function MessageContentWithMentions({
   content,
-  currentUserId,
   currentUsername,
   serverRoles,
+  currentUserRoleIds,
   onMentionClick,
   onRoleMentionClick,
 }: MentionContentProps) {
@@ -72,7 +64,7 @@ export default function MessageContentWithMentions({
 
     const usedPositions = new Set<number>();
 
-    /* -------------------- EVERYONE -------------------- */
+    /* -------------------- EVERYONE / HERE -------------------- */
     Array.from(content.matchAll(everyoneMentionRegex)).forEach((match) => {
       mentions.push({
         start: match.index!,
@@ -86,7 +78,7 @@ export default function MessageContentWithMentions({
       }
     });
 
-    /* -------------------- ROLE (VALIDATED) -------------------- */
+    /* -------------------- ROLE -------------------- */
     Array.from(content.matchAll(roleMentionRegex)).forEach((match) => {
       const roleName = match[1].trim();
 
@@ -94,24 +86,24 @@ export default function MessageContentWithMentions({
         (r) => r.name.toLowerCase() === roleName.toLowerCase()
       );
 
-      if (!role) return; // ❌ invalid role → ignore
+      if (!role) return;
 
       const isOverlapping = Array.from(
         { length: match[0].length },
         (_, i) => match.index! + i
       ).some((pos) => usedPositions.has(pos));
 
-      if (!isOverlapping) {
-        mentions.push({
-          start: match.index!,
-          end: match.index! + match[0].length,
-          type: "role",
-          match: match[0],
-        });
+      if (isOverlapping) return;
 
-        for (let i = match.index!; i < match.index! + match[0].length; i++) {
-          usedPositions.add(i);
-        }
+      mentions.push({
+        start: match.index!,
+        end: match.index! + match[0].length,
+        type: "role",
+        match: match[0],
+      });
+
+      for (let i = match.index!; i < match.index! + match[0].length; i++) {
+        usedPositions.add(i);
       }
     });
 
@@ -126,17 +118,17 @@ export default function MessageContentWithMentions({
         (_, i) => match.index! + i
       ).some((pos) => usedPositions.has(pos));
 
-      if (!isOverlapping) {
-        mentions.push({
-          start: match.index!,
-          end: match.index! + match[0].length,
-          type: "user",
-          match: match[0],
-        });
+      if (isOverlapping) return;
 
-        for (let i = match.index!; i < match.index! + match[0].length; i++) {
-          usedPositions.add(i);
-        }
+      mentions.push({
+        start: match.index!,
+        end: match.index! + match[0].length,
+        type: "user",
+        match: match[0],
+      });
+
+      for (let i = match.index!; i < match.index! + match[0].length; i++) {
+        usedPositions.add(i);
       }
     });
 
@@ -159,51 +151,53 @@ export default function MessageContentWithMentions({
             )
           : null;
 
-      const isCurrentUser =
+      const isCurrentUserMention =
         mention.type === "user" &&
-        (username === currentUsername || username === currentUserId);
+        currentUsername &&
+        username.toLowerCase() === currentUsername.toLowerCase();
 
       parts.push(
         <span
           key={keyIndex++}
-          className="inline-flex items-center text-xs font-bold tracking-wide"
+          className="inline-flex items-center text-xs font-bold tracking-wide cursor-pointer"
           style={
             mention.type === "role" && role?.color
               ? {
-                  /* 🔥 SOLID ROLE PILL — NO TRANSPARENCY */
                   backgroundColor: role.color,
                   color: "#000000",
-
-                  /* force visual separation */
-                  opacity: 1,
-                  isolation: "isolate",
-                  mixBlendMode: "normal",
-
-                  /* shape */
                   borderRadius: "6px",
                   padding: "2px 6px",
-
-                  /* prevent parent effects */
-                  filter: "none",
-                  backdropFilter: "none",
                 }
-              : undefined
+              : mention.type === "user"
+              ? {
+                  backgroundColor: isCurrentUserMention
+                    ? "rgba(88,101,242,0.35)"
+                    : "rgba(88,101,242,0.18)",
+                  color: "#ffffff",
+                  borderRadius: "6px",
+                  padding: "2px 6px",
+                }
+              : {
+                  backgroundColor: "rgba(250,204,21,0.25)",
+                  color: "#facc15",
+                  borderRadius: "6px",
+                  padding: "2px 6px",
+                }
           }
           onMouseEnter={(e) => {
             if (mention.type === "role" && role?.color) {
-              e.currentTarget.style.boxShadow = `0 0 14px ${hexToRgba(
+              e.currentTarget.style.boxShadow = `0 0 12px ${hexToRgba(
                 role.color,
-                0.9
+                0.8
               )}`;
+            }
+
+            if (mention.type === "user") {
+              e.currentTarget.style.boxShadow = "0 0 10px rgba(88,101,242,0.6)";
             }
           }}
           onMouseLeave={(e) => {
-            if (mention.type === "role" && role?.color) {
-              e.currentTarget.style.boxShadow = `0 0 8px ${hexToRgba(
-                role.color,
-                0.6
-              )}`;
-            }
+            e.currentTarget.style.boxShadow = "none";
           }}
           onClick={
             mention.type === "user" && onMentionClick

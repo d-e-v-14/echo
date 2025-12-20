@@ -65,6 +65,10 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
   const handleReply = (message: Message) => {
     setReplyingTo(message);
   };
+ const [currentUsername, setCurrentUsername] = useState<string>("");
+const [currentUserRoleIds, setCurrentUserRoleIds] = useState<string[]>([]);
+
+
 
   useEffect(() => {
   if (!serverId) return;
@@ -619,7 +623,9 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
                   <MessageContentWithMentions
                     content={content}
                     currentUserId={currentUserId}
+                    currentUsername={currentUsername}
                     serverRoles={serverRoles}
+                    currentUserRoleIds={currentUserRoleIds}
                     onMentionClick={handleUsernameClick}
                     onRoleMentionClick={handleRoleMentionClick}
                   />

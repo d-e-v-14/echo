@@ -18,10 +18,12 @@ interface MessageBubbleProps {
   isSender?: boolean;
   avatarUrl?: string;
   timestamp?: string;
+
   onProfileClick?: () => void;
   onReply?: () => void;
   children?: React.ReactNode;
   messageRenderer?: (content: string) => React.ReactNode;
+  isMentioned?: boolean;
 }
 
 /* -------------------- COMPONENT -------------------- */
@@ -36,6 +38,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   onReply,
   children,
   messageRenderer,
+   isMentioned = false,
 }) => {
   const bubbleStyles = isSender
     ? "bg-gradient-to-br from-indigo-500 via-sky-500 to-cyan-400 text-white shadow-[0_12px_30px_rgba(14,165,233,0.35)]"
@@ -88,11 +91,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         {/* Message Bubble */}
         <div
           className={`
-    px-4 py-3 w-fit
-    max-w-full
-    relative
+    px-4 py-3 w-fit max-w-full relative
     ${bubbleStyles}
     ${isSender ? "rounded-2xl rounded-br-md" : "rounded-2xl rounded-bl-md"}
+    ${
+      isMentioned
+        ? "ring-2 ring-yellow-400 shadow-[0_0_20px_rgba(234,179,8,0.6)]"
+        : ""
+    }
   `}
         >
           {/* Message text */}
