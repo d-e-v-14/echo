@@ -13,9 +13,16 @@ import {
   FaExpand,
   FaUsers,
 } from "react-icons/fa";
+import { VoiceRosterMember } from "@/lib/VoiceVideoManager";
 
 const POSITION_STORAGE_KEY = "floating-voice-window-position";
 const DEFAULT_POSITION = { x: -20, y: -20 };
+
+interface UIParticipant extends VoiceRosterMember {
+  username: string;
+  tileId?: number;
+}
+
 
 interface Position {
   x: number;
@@ -106,43 +113,42 @@ const FloatingVoiceWindow: React.FC<FloatingVoiceWindowProps> = ({
 
   /* ---------------- SAFE ACTIVE SPEAKER ---------------- */
 
-  const focusedParticipant = useMemo(() => {
-    const safeParticipants = participants.map(p => ({
-      ...p,
-      mediaState: {
-        muted: p.mediaState?.muted ?? false,
-        speaking: p.mediaState?.speaking ?? false,
-        video: p.mediaState?.video ?? false,
-        screenSharing: p.mediaState?.screenSharing ?? false,
-      },
-    }));
+const focusedParticipant = useMemo<UIParticipant | null>(() => {
+  const safeParticipants: UIParticipant[] = participants.map(p => ({
+    ...p,
+    muted: p.muted ?? false,
+    speaking: p.speaking ?? false,
+    video: p.video ?? false,
+    screenSharing: p.screenSharing ?? false,
+    tileId: (p as any).tileId, // temporary until you wire tiles properly
+    username: p.attendeeId
+  }));
 
-    const activeSpeaker = safeParticipants.find(p => p.mediaState.video && p.tileId) || null;
-    if (activeSpeaker) return activeSpeaker;
+  // Prefer participant with video
+  const withVideo = safeParticipants.find(p => p.video && p.tileId);
+  if (withVideo) return withVideo;
 
-    const lastSpeaker = [...safeParticipants]
-      .reverse()
-      .find(p => p.mediaState.speaking && p.tileId);
-    if (lastSpeaker) return lastSpeaker;
+  // Otherwise last speaker
+  const lastSpeaker = [...safeParticipants]
+    .reverse()
+    .find(p => p.speaking && p.tileId);
 
-    return (
-  safeParticipants.find(p => p.mediaState.video && p.tileId) || null
-);
-  }, [participants]);
+  return lastSpeaker || null;
+}, [participants]);
+
 
   /* ---------------- VIDEO BINDING ---------------- */
 
-  useEffect(() => {
+useEffect(() => {
   const videoEl = videoRef.current;
   if (!videoEl) return;
   if (!isVisible) return;
   if (!focusedParticipant?.tileId) return;
-  if (!focusedParticipant.mediaState.video) return;
+  if (!focusedParticipant.video) return;
 
   const tileId = focusedParticipant.tileId;
 
   bindVideoElement(tileId, videoEl);
-
   videoEl.play().catch(() => {});
 
   return () => {
@@ -150,7 +156,7 @@ const FloatingVoiceWindow: React.FC<FloatingVoiceWindowProps> = ({
   };
 }, [
   focusedParticipant?.tileId,
-  focusedParticipant?.mediaState.video,
+  focusedParticipant?.video,
   isVisible,
 ]);
 
@@ -200,7 +206,7 @@ const FloatingVoiceWindow: React.FC<FloatingVoiceWindowProps> = ({
           </div>
 
           <div className="relative bg-black aspect-video">
-            {focusedParticipant?.tileId && focusedParticipant.mediaState.video ? (
+            {focusedParticipant?.tileId && focusedParticipant.video ? (
               <video
                 ref={videoRef}
                 autoPlay
