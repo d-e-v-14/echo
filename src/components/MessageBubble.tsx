@@ -45,12 +45,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const displayAvatar = avatarUrl || "/User_profil.png";
 
   return (
-    <div
-      className={`flex w-full mb-3 ${
-        isSender ? "justify-end" : "justify-start"
-      }`}
-    >
-      {/* Left Avatar (Receiver) */}
+    <div className={`flex mb-3 ${isSender ? "justify-end" : "justify-start"}`}>
+      {/* Left Avatar */}
       {!isSender && (
         <div className="w-8 h-8 mr-3 flex-shrink-0">
           <img
@@ -58,16 +54,16 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             alt={name || "User"}
             onClick={onProfileClick}
             onError={(e) => (e.currentTarget.src = "/User_profil.png")}
-            className="w-8 h-8 rounded-full object-cover cursor-pointer hover:scale-105 hover:brightness-110 transition"
+            className="w-8 h-8 rounded-full object-cover cursor-pointer hover:scale-105 transition"
           />
         </div>
       )}
 
       {/* Message Body */}
       <div
-        className={`flex flex-col max-w-[min(32rem,65%)] gap-1 ${
-          isSender ? "ml-auto" : "mr-auto"
-        } ${alignment}`}
+        className={`flex flex-col gap-1 max-w-[75%] ${
+          isSender ? "items-end" : "items-start"
+        }`}
       >
         {/* Username */}
         {name && !isSender && (
@@ -91,21 +87,32 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
         {/* Message Bubble */}
         <div
-          className={`px-4 py-3 ${bubbleStyles} ${
-            isSender ? "rounded-2xl rounded-br-md" : "rounded-2xl rounded-bl-md"
-          }`}
+          className={`
+            px-4 py-3 w-fit
+            max-w-full
+            ${bubbleStyles}
+            ${
+              isSender
+                ? "rounded-2xl rounded-br-md"
+                : "rounded-2xl rounded-bl-md"
+            }
+          `}
         >
           {/* Message text */}
-          <div className="text-sm leading-relaxed break-words">
+          <div
+            className="
+              text-sm leading-relaxed
+              whitespace-pre-wrap
+              break-all
+            "
+          >
             {messageRenderer
               ? messageRenderer(message.content)
               : message.content}
           </div>
 
-          {/* Attachments / children */}
           {children && <div className="mt-3">{children}</div>}
 
-          {/* ✅ Reply button — ADD HERE */}
           {onReply && (
             <button
               onClick={onReply}
@@ -118,17 +125,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
         {/* Timestamp */}
         {timestamp && (
-          <span
-            className={`text-[10px] font-medium uppercase tracking-wide text-slate-500 px-1 ${
-              isSender ? "text-right" : "text-left"
-            }`}
-          >
+          <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500 px-1">
             {timestamp}
           </span>
         )}
       </div>
 
-      {/* Right Avatar (Sender) */}
+      {/* Right Avatar */}
       {isSender && (
         <div className="w-8 h-8 ml-3 flex-shrink-0">
           <img
@@ -142,7 +145,5 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     </div>
   );
 };
-
-/* -------------------- EXPORT -------------------- */
 
 export default memo(MessageBubble);
