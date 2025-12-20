@@ -2,33 +2,64 @@
 
 import React from "react";
 
+/* -------------------- TYPES -------------------- */
+
+interface Role {
+  id: string;
+  name: string;
+  color?: string; // hex color like #ff0000
+}
+
 interface MentionContentProps {
   content: string;
   currentUserId?: string;
-  currentUsername?: string; // Add current username for proper comparison
+  currentUsername?: string;
+  serverRoles: Role[];
+
   onMentionClick?: (userId: string, username: string) => void;
-  onRoleMentionClick?: (roleName: string) => void; // new prop
+  onRoleMentionClick?: (roleName: string) => void;
 }
+
+/* -------------------- HELPERS -------------------- */
+
+
+const isDarkColor = (hex: string) => {
+  const c = hex.replace("#", "");
+  const rgb = parseInt(c, 16);
+  const r = (rgb >> 16) & 255;
+  const g = (rgb >> 8) & 255;
+  const b = rgb & 255;
+  return (r * 299 + g * 587 + b * 114) / 1000 < 140;
+};
+
+const hexToRgba = (hex: string, alpha = 0.25) => {
+  const cleanHex = hex.replace("#", "");
+  const bigint = parseInt(cleanHex, 16);
+
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+/* -------------------- COMPONENT -------------------- */
 
 export default function MessageContentWithMentions({
   content,
   currentUserId,
   currentUsername,
+  serverRoles,
   onMentionClick,
-  onRoleMentionClick, // NEW PROP
+  onRoleMentionClick,
 }: MentionContentProps) {
   const renderContent = () => {
     if (!content) return null;
 
-    // patterns:
-    // Role mentions: @& followed by role name (alphanumeric, underscore, spaces, but must start with letter/underscore)
-    const roleMentionRegex = /@&([a-zA-Z_][a-zA-Z0-9_\s]*)\b/g;
-    // Everyone/Here: exact matches only
     const everyoneMentionRegex = /@(everyone|here)\b/g;
-    // User mentions: @ followed by username (alphanumeric, underscore, must start with letter/underscore, min 1 char)
+    const roleMentionRegex = /@&([a-zA-Z_][a-zA-Z0-9_\s]*)\b/g;
     const userMentionRegex = /@([a-zA-Z_][a-zA-Z0-9_]*)\b/g;
 
-    let parts: (string | JSX.Element)[] = [];
+    const parts: (string | JSX.Element)[] = [];
     let lastIndex = 0;
     let keyIndex = 0;
 
@@ -42,9 +73,7 @@ export default function MessageContentWithMentions({
     const usedPositions = new Set<number>();
 
     /* -------------------- EVERYONE -------------------- */
-
-    const everyoneMatches = Array.from(content.matchAll(everyoneMentionRegex));
-    everyoneMatches.forEach((match) => {
+    Array.from(content.matchAll(everyoneMentionRegex)).forEach((match) => {
       mentions.push({
         start: match.index!,
         end: match.index! + match[0].length,
@@ -57,10 +86,16 @@ export default function MessageContentWithMentions({
       }
     });
 
-    /* -------------------- ROLE -------------------- */
+    /* -------------------- ROLE (VALIDATED) -------------------- */
+    Array.from(content.matchAll(roleMentionRegex)).forEach((match) => {
+      const roleName = match[1].trim();
 
-    const roleMatches = Array.from(content.matchAll(roleMentionRegex));
-    roleMatches.forEach((match) => {
+      const role = serverRoles.find(
+        (r) => r.name.toLowerCase() === roleName.toLowerCase()
+      );
+
+      if (!role) return; // ❌ invalid role → ignore
+
       const isOverlapping = Array.from(
         { length: match[0].length },
         (_, i) => match.index! + i
@@ -81,12 +116,9 @@ export default function MessageContentWithMentions({
     });
 
     /* -------------------- USER -------------------- */
-
-    const userMatches = Array.from(content.matchAll(userMentionRegex));
-    userMatches.forEach((match) => {
+    Array.from(content.matchAll(userMentionRegex)).forEach((match) => {
       const username = match[1];
 
-      // ignore everyone/here
       if (username === "everyone" || username === "here") return;
 
       const isOverlapping = Array.from(
@@ -110,42 +142,69 @@ export default function MessageContentWithMentions({
 
     mentions.sort((a, b) => a.start - b.start);
 
+    /* -------------------- RENDER -------------------- */
     mentions.forEach((mention) => {
       if (mention.start > lastIndex) {
         parts.push(content.substring(lastIndex, mention.start));
       }
 
       const username = mention.match.substring(1);
-      // Check if this mention is for the current user (compare username, not ID)
-      const isCurrentUser =
-        mention.type === "user" && mention.match.substring(1) === currentUserId;
       const roleName =
-        mention.type === "role" ? mention.match.substring(2) : ""; // Remove @&
+        mention.type === "role" ? mention.match.substring(2) : "";
+
+      const role =
+        mention.type === "role"
+          ? serverRoles.find(
+              (r) => r.name.toLowerCase() === roleName.toLowerCase()
+            )
+          : null;
+
+      const isCurrentUser =
+        mention.type === "user" &&
+        (username === currentUsername || username === currentUserId);
 
       parts.push(
         <span
           key={keyIndex++}
-          className={`inline-flex items-center px-1 py-0.5 rounded text-sm font-medium ${
-            mention.type === "user"
-              ? isCurrentUser
-                ? "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"
-                : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-              : mention.type === "role"
-              ? "bg-purple-500/20 text-purple-300 border border-purple-500/30 cursor-pointer hover:scale-105"
-              : "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"
-          } hover:bg-opacity-30 transition-colors ${
-            (mention.type === "user" && onMentionClick) ||
-            (mention.type === "role" && onRoleMentionClick)
-              ? "cursor-pointer hover:scale-105"
-              : "cursor-default"
-          }`}
-          title={
-            mention.type === "everyone"
-              ? "Mentions everyone in the channel"
-              : mention.type === "role"
-              ? `Mentions role: ${roleName}`
-              : `Mentions user: ${mention.match}`
+          className="inline-flex items-center text-xs font-bold tracking-wide"
+          style={
+            mention.type === "role" && role?.color
+              ? {
+                  /* 🔥 SOLID ROLE PILL — NO TRANSPARENCY */
+                  backgroundColor: role.color,
+                  color: "#000000",
+
+                  /* force visual separation */
+                  opacity: 1,
+                  isolation: "isolate",
+                  mixBlendMode: "normal",
+
+                  /* shape */
+                  borderRadius: "6px",
+                  padding: "2px 6px",
+
+                  /* prevent parent effects */
+                  filter: "none",
+                  backdropFilter: "none",
+                }
+              : undefined
           }
+          onMouseEnter={(e) => {
+            if (mention.type === "role" && role?.color) {
+              e.currentTarget.style.boxShadow = `0 0 14px ${hexToRgba(
+                role.color,
+                0.9
+              )}`;
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (mention.type === "role" && role?.color) {
+              e.currentTarget.style.boxShadow = `0 0 8px ${hexToRgba(
+                role.color,
+                0.6
+              )}`;
+            }
+          }}
           onClick={
             mention.type === "user" && onMentionClick
               ? () => onMentionClick(username, username)
@@ -154,7 +213,7 @@ export default function MessageContentWithMentions({
               : undefined
           }
         >
-          {mention.type === "role" ? `@${roleName.trim()}` : mention.match}
+          {mention.match}
         </span>
       );
 
@@ -165,9 +224,7 @@ export default function MessageContentWithMentions({
       parts.push(content.substring(lastIndex));
     }
 
-    return parts.map((part, index) =>
-      typeof part === "string" ? <span key={index}>{part}</span> : part
-    );
+    return parts;
   };
 
   return (

@@ -619,7 +619,7 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
                   <MessageContentWithMentions
                     content={content}
                     currentUserId={currentUserId}
-                   
+                    serverRoles={serverRoles}
                     onMentionClick={handleUsernameClick}
                     onRoleMentionClick={handleRoleMentionClick}
                   />

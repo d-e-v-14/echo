@@ -38,8 +38,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   messageRenderer,
 }) => {
   const bubbleStyles = isSender
-    ? "bg-gradient-to-br from-indigo-500/90 via-sky-500/80 to-cyan-400/70 text-white shadow-[0_12px_30px_rgba(14,165,233,0.25)]"
-    : "bg-slate-800/80 text-slate-100 shadow-[0_12px_30px_rgba(15,23,42,0.35)]";
+    ? "bg-gradient-to-br from-indigo-500 via-sky-500 to-cyan-400 text-white shadow-[0_12px_30px_rgba(14,165,233,0.35)]"
+    : "bg-slate-800 text-slate-100 shadow-[0_12px_30px_rgba(15,23,42,0.45)]";
 
   const alignment = isSender ? "items-end text-right" : "items-start";
   const displayAvatar = avatarUrl || "/User_profil.png";
@@ -88,23 +88,20 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         {/* Message Bubble */}
         <div
           className={`
-            px-4 py-3 w-fit
-            max-w-full
-            ${bubbleStyles}
-            ${
-              isSender
-                ? "rounded-2xl rounded-br-md"
-                : "rounded-2xl rounded-bl-md"
-            }
-          `}
+    px-4 py-3 w-fit
+    max-w-full
+    relative
+    ${bubbleStyles}
+    ${isSender ? "rounded-2xl rounded-br-md" : "rounded-2xl rounded-bl-md"}
+  `}
         >
           {/* Message text */}
           <div
             className="
-              text-sm leading-relaxed
-              whitespace-pre-wrap
-              break-all
-            "
+    text-sm leading-relaxed
+    whitespace-pre-wrap
+    break-words
+  "
           >
             {messageRenderer
               ? messageRenderer(message.content)
