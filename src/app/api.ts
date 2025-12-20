@@ -472,6 +472,16 @@ export const getAvailablePermissions = async (): Promise<string[]> => {
     return response.data;
 };
 
+// CHANNEL CATEGORIES
+
+export const getChannelCategories = async(serverId: string): Promise<string[]> =>{
+    const response = await api.get(`/${serverId}/categories`);
+    return response.data;
+}
+
+
+
+
 // ==================== ROLE API FUNCTIONS ====================
 
 export interface Role {
