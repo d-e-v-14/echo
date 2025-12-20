@@ -82,7 +82,7 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
   };
   fetchRoles();
 }, [serverId]);
-  // Load current user's avatar on mount
+ 
 useEffect(() => {
   const loadCurrentUserAvatar = async () => {
     try {
@@ -523,7 +523,6 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
 };
 
   return (
-    
     <div className="flex flex-col flex-1 h-full w-full overflow-hidden">
       {(localStream || (remoteStreams && remoteStreams.length > 0)) && (
         <div className="p-4 pb-0 h-96 flex-shrink-0">
@@ -620,6 +619,7 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
                   <MessageContentWithMentions
                     content={content}
                     currentUserId={currentUserId}
+                   
                     onMentionClick={handleUsernameClick}
                     onRoleMentionClick={handleRoleMentionClick}
                   />
@@ -642,64 +642,68 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
             serverRoles={serverRoles}
           />
         ) : (
-          <> 
-          {replyingTo && (
-  <div className="mx-6 mb-2 px-4 py-2 bg-slate-800 rounded-lg flex items-center justify-between border-l-4 border-blue-500">
-    <div className="text-sm text-slate-300 truncate">
-      Replying to{" "}
-      <span className="font-semibold">
-        {replyingTo.username || "User"}
-      </span>
-      :{" "}
-      <span className="italic">
-        {replyingTo.content}
-      </span>
-    </div>
+          <>
+            {replyingTo && (
+              <div className="mx-6 mb-2 px-4 py-2 bg-slate-800 rounded-lg flex items-center justify-between border-l-4 border-blue-500">
+                <div className="text-sm text-slate-300 truncate">
+                  Replying to{" "}
+                  <span className="font-semibold">
+                    {replyingTo.username || "User"}
+                  </span>
+                  : <span className="italic">{replyingTo.content}</span>
+                </div>
 
-    <button
-      onClick={() => setReplyingTo(null)}
-      className="ml-3 text-slate-400 hover:text-white"
-    >
-      ✕
-    </button>
-  </div>
-)}
+                <button
+                  onClick={() => setReplyingTo(null)}
+                  className="ml-3 text-slate-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
-          <MessageInput sendMessage={handleSend} isSending={isSending} />
+            <MessageInput sendMessage={handleSend} isSending={isSending} />
           </>
         )}
       </div>
-      
+
       {roleModal.open && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-    <div className="bg-[#232428] rounded-2xl shadow-2xl w-96 p-6 text-white relative">
-      <button
-        className="absolute top-3 right-3 text-gray-400 hover:text-white"
-        onClick={() => setRoleModal({ ...roleModal, open: false })}
-      >
-        ✖
-      </button>
-      <h2 className="text-xl font-semibold mb-2">
-        Role: <span className="text-indigo-400">@{roleModal.role}</span>
-      </h2>
-      <div className="mb-2 text-sm text-gray-400">
-        {roleModal.users.length} member(s) with this role:
-      </div>
-      <div className="max-h-60 overflow-y-auto space-y-2">
-        {roleModal.users.length === 0 ? (
-          <div className="text-gray-500 text-center">No users found.</div>
-        ) : (
-          roleModal.users.map(user => (
-            <div key={user.id} className="flex items-center gap-3 p-2 rounded hover:bg-gray-800 transition">
-              <img src={user.avatarUrl || "/User_profil.png"} alt={user.username} className="w-8 h-8 rounded-full" />
-              <span>{user.username}</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-[#232428] rounded-2xl shadow-2xl w-96 p-6 text-white relative">
+            <button
+              className="absolute top-3 right-3 text-gray-400 hover:text-white"
+              onClick={() => setRoleModal({ ...roleModal, open: false })}
+            >
+              ✖
+            </button>
+            <h2 className="text-xl font-semibold mb-2">
+              Role: <span className="text-indigo-400">@{roleModal.role}</span>
+            </h2>
+            <div className="mb-2 text-sm text-gray-400">
+              {roleModal.users.length} member(s) with this role:
             </div>
-          ))
-        )}
-      </div>
-    </div>
-  </div>
-)}
+            <div className="max-h-60 overflow-y-auto space-y-2">
+              {roleModal.users.length === 0 ? (
+                <div className="text-gray-500 text-center">No users found.</div>
+              ) : (
+                roleModal.users.map((user) => (
+                  <div
+                    key={user.id}
+                    className="flex items-center gap-3 p-2 rounded hover:bg-gray-800 transition"
+                  >
+                    <img
+                      src={user.avatarUrl || "/User_profil.png"}
+                      alt={user.username}
+                      className="w-8 h-8 rounded-full"
+                    />
+                    <span>{user.username}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       <UserProfileModal
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
