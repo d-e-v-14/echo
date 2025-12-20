@@ -7,6 +7,7 @@ interface MentionContentProps {
   currentUserId?: string;
   currentUsername?: string; // Add current username for proper comparison
   onMentionClick?: (userId: string, username: string) => void;
+  onRoleMentionClick?: (roleName: string) => void; // new prop
 }
 
 export default function MessageContentWithMentions({
@@ -14,6 +15,7 @@ export default function MessageContentWithMentions({
   currentUserId,
   currentUsername,
   onMentionClick,
+  onRoleMentionClick, // NEW PROP
 }: MentionContentProps) {
   const renderContent = () => {
     if (!content) return null;
@@ -116,9 +118,8 @@ export default function MessageContentWithMentions({
       const username = mention.match.substring(1);
       // Check if this mention is for the current user (compare username, not ID)
       const isCurrentUser =
-        mention.type === "user" &&
-        currentUsername &&
-        username.toLowerCase() === currentUsername.toLowerCase();
+        mention.type === "user" && mention.match.substring(1) === currentUserId;
+      const roleName = mention.type === 'role' ? mention.match.substring(2) : ""; // Remove @&
 
       parts.push(
         <span
@@ -126,19 +127,34 @@ export default function MessageContentWithMentions({
           className={`inline-flex items-center px-1 py-0.5 rounded text-sm font-medium ${
             mention.type === "user"
               ? isCurrentUser
-                ? "bg-emerald-500/20 text-emerald-300"
-                : "bg-blue-500/20 text-blue-300"
-              : mention.type === "role"
-              ? "bg-purple-500/20 text-purple-300"
-              : "bg-yellow-500/20 text-yellow-300"
+                ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+                : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+              : mention.type === 'role'
+              ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30 cursor-pointer hover:scale-105'
+              : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+          } hover:bg-opacity-30 transition-colors ${
+            (mention.type === 'user' && onMentionClick) || (mention.type === 'role' && onRoleMentionClick)
+              ? 'cursor-pointer hover:scale-105'
+              : 'cursor-default'
           }`}
+          title={
+            mention.type === 'everyone' 
+              ? 'Mentions everyone in the channel'
+              : mention.type === 'role'
+              ? `Mentions role: ${roleName}`
+              : `Mentions user: ${mention.match}`
+          }
           onClick={
-            mention.type === "user" && onMentionClick
+            mention.type === 'user' && onMentionClick
               ? () => onMentionClick(username, username)
+              : mention.type === 'role' && onRoleMentionClick
+              ? () => onRoleMentionClick(roleName)
               : undefined
           }
         >
-          {mention.match}
+          {mention.type === 'role'
+  ? `@${roleName.trim()}`
+  : mention.match}
         </span>
       );
 
