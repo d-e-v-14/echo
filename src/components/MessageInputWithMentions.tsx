@@ -58,24 +58,33 @@ export default function MessageInputWithMentions({
     if (selected) setFile(selected);
   };
 
-  /* -------------------- SEND -------------------- */
 
-  const validateRoleMentions = (message: string) => {
-    const roleMentionRegex = /@&([a-zA-Z0-9_ ]+?)(?=\s|$)/g;
-    let match;
-    while ((match = roleMentionRegex.exec(message)) !== null) {
-      const roleName = match[1].trim();
-      if (!serverRoles.some(r => r.name.toLowerCase() === roleName.toLowerCase())) {
-        return { valid: false, invalidRole: roleName };
-      }
+
+  
+   const validateRoleMentions = (message: string) => {
+  const roleMentionRegex = /@&([a-zA-Z0-9_ ]+?)(?=\s|$)/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = roleMentionRegex.exec(message)) !== null) {
+    const roleName = match[1].trim();
+
+    const roleExists = serverRoles.some(
+      (r) => r.name.toLowerCase() === roleName.toLowerCase()
+    );
+
+    if (!roleExists) {
+      return { valid: false, invalidRole: roleName };
     }
-    return { valid: true };
-  };
+  }
+
+  return { valid: true };
+};
+
 
   const handleSend = () => {
     if (text.trim() === "" && !file) return;
 
-    // Validate role mentions
+   
     const validation = validateRoleMentions(text);
     if (!validation.valid) {
       alert(`Role "${validation.invalidRole}" does not exist in this server.`);
@@ -83,10 +92,15 @@ export default function MessageInputWithMentions({
     }
 
     sendMessage(text.trim(), file);
+
+ 
+    setShowEmojiPicker(false);
+    setShowMentionDropdown(false);
+
     setText("");
     setFile(null);
-    setShowMentionDropdown(false);
   };
+
 
   /* -------------------- MENTION SEARCH -------------------- */
 

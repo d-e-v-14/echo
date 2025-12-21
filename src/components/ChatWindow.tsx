@@ -71,6 +71,10 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
     console.log("Reply clicked for:", message);
     setReplyingTo(message);
   };
+ const [currentUsername, setCurrentUsername] = useState<string>("");
+const [currentUserRoleIds, setCurrentUserRoleIds] = useState<string[]>([]);
+
+
 
   useEffect(() => {
   if (!serverId) return;
@@ -88,7 +92,7 @@ export default function ChatWindow({ channelId, currentUserId, localStream = nul
   };
   fetchRoles();
 }, [serverId]);
-  // Load current user's avatar on mount
+ 
 useEffect(() => {
   const loadCurrentUserAvatar = async () => {
     try {
@@ -559,7 +563,6 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
 };
 
   return (
-    
     <div className="flex flex-col flex-1 h-full w-full overflow-hidden">
       {(localStream || (remoteStreams && remoteStreams.length > 0)) && (
         <div className="p-4 pb-0 h-96 flex-shrink-0">
@@ -648,6 +651,9 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
                   <MessageContentWithMentions
                     content={content}
                     currentUserId={currentUserId}
+                    currentUsername={currentUsername}
+                    serverRoles={serverRoles}
+                    currentUserRoleIds={currentUserRoleIds}
                     onMentionClick={handleUsernameClick}
                     onRoleMentionClick={handleRoleMentionClick}
                   />
@@ -695,35 +701,42 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
 </div>
       
       {roleModal.open && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-    <div className="bg-[#232428] rounded-2xl shadow-2xl w-96 p-6 text-white relative">
-      <button
-        className="absolute top-3 right-3 text-gray-400 hover:text-white"
-        onClick={() => setRoleModal({ ...roleModal, open: false })}
-      >
-        ✖
-      </button>
-      <h2 className="text-xl font-semibold mb-2">
-        Role: <span className="text-indigo-400">@{roleModal.role}</span>
-      </h2>
-      <div className="mb-2 text-sm text-gray-400">
-        {roleModal.users.length} member(s) with this role:
-      </div>
-      <div className="max-h-60 overflow-y-auto space-y-2">
-        {roleModal.users.length === 0 ? (
-          <div className="text-gray-500 text-center">No users found.</div>
-        ) : (
-          roleModal.users.map(user => (
-            <div key={user.id} className="flex items-center gap-3 p-2 rounded hover:bg-gray-800 transition">
-              <img src={user.avatarUrl || "/User_profil.png"} alt={user.username} className="w-8 h-8 rounded-full" />
-              <span>{user.username}</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-[#232428] rounded-2xl shadow-2xl w-96 p-6 text-white relative">
+            <button
+              className="absolute top-3 right-3 text-gray-400 hover:text-white"
+              onClick={() => setRoleModal({ ...roleModal, open: false })}
+            >
+              ✖
+            </button>
+            <h2 className="text-xl font-semibold mb-2">
+              Role: <span className="text-indigo-400">@{roleModal.role}</span>
+            </h2>
+            <div className="mb-2 text-sm text-gray-400">
+              {roleModal.users.length} member(s) with this role:
             </div>
-          ))
-        )}
-      </div>
-    </div>
-  </div>
-)}
+            <div className="max-h-60 overflow-y-auto space-y-2">
+              {roleModal.users.length === 0 ? (
+                <div className="text-gray-500 text-center">No users found.</div>
+              ) : (
+                roleModal.users.map((user) => (
+                  <div
+                    key={user.id}
+                    className="flex items-center gap-3 p-2 rounded hover:bg-gray-800 transition"
+                  >
+                    <img
+                      src={user.avatarUrl || "/User_profil.png"}
+                      alt={user.username}
+                      className="w-8 h-8 rounded-full"
+                    />
+                    <span>{user.username}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       <UserProfileModal
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
