@@ -1,6 +1,6 @@
 "use client";
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
-import { getUnreadMessageCounts } from '@/app/api/API';
+import { getUnreadMessageCounts } from '@/api/API';
 
 interface MessageNotificationContextType {
   unreadMessageCount: number;

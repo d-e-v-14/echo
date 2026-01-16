@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createServer } from "@/app/api/API";
+import { createServer } from "@/api/API";
 
 export default function CreateServerPage() {
   const router = useRouter();

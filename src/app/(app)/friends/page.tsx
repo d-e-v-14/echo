@@ -11,7 +11,7 @@ import {
   searchUsers,
   SearchUserResult,
   getUserDMs,
-} from "../../../app/api/API";
+} from "@/api/API";
 import { useFriendNotifications } from "@/contexts/FriendNotificationContext";
 
 interface FriendRequestData {

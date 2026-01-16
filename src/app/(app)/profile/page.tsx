@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 
 import Link from 'next/link';
-import { fetchProfile,profile, logout } from "../../api";
+import { fetchProfile,logout } from "@/api";
+import {profile} from "@/api/types/profile.types";
 import { useRouter } from "next/navigation";
 import Loader from "@/components/Loader";
 import Toast from "@/components/Toast";

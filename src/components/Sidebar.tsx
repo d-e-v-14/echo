@@ -1,6 +1,6 @@
 "use client";
-import { getUser, logout } from "../app/api";
-import type { profile } from "../app/api";
+import { getUser, logout } from "@/api";
+import type { profile } from "@/api/types/profile.types";
 import {
   LayoutDashboard,
   Users,

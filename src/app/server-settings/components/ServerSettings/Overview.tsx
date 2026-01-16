@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { updateServer, ServerDetails } from "../../../api";
+import { updateServer } from "@/api";
+import {ServerDetails} from "@/api/types/server.types";
 
 interface OverviewProps {
   serverId: string;

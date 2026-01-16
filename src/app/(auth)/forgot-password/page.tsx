@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { forgotPassword } from '../../api';
+import { forgotPassword } from '@/api';
 
 export default function ForgotPassword() {
     const [identifier, setIdentifier] = useState('');

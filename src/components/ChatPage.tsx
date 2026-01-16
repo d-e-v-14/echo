@@ -3,7 +3,7 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Bell, MoreVertical, Paperclip, Search, Send, Smile, X } from 'lucide-react';
-import { getUserDMs, uploaddm, fetchUserProfile, markThreadAsRead } from '@/app/api/API'; 
+import { getUserDMs, uploaddm, fetchUserProfile, markThreadAsRead } from '@/api/API'; 
 import { Socket } from "socket.io-client";
 import { createAuthSocket } from '@/socket';
 import MessageBubble from './MessageBubble';

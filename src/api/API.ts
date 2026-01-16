@@ -1,5 +1,5 @@
 import { apiClient } from "@/utils/apiClient";
-import { getUser } from "../api";
+import { getUser } from "./index";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 

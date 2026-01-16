@@ -15,7 +15,7 @@ import {
   FaAngleRight,
 } from "react-icons/fa";
 import VoiceChannel from "@/components/EnhancedVoiceChannel";
-import { fetchServers, fetchChannelsByServer } from "@/app/api/API";
+import { fetchServers, fetchChannelsByServer } from "@/api/API";
 import { getSelfAssignableRoles, getMyRoles, selfAssignRole, selfUnassignRole, type Role } from "@/app/api";
 import Chatwindow from "@/components/ChatWindow";
 import { useSearchParams } from "next/navigation";

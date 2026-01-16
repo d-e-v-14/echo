@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getBannedUsers, unbanUser, BannedUser } from "../../../api";
+import { getBannedUsers, unbanUser} from "@/api";
+import { BannedUser } from "@/api/types/user.types";
 import Toast from "@/components/Toast";
 
 interface BannedUsersProps {

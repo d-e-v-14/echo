@@ -2,8 +2,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../../lib/supabaseClient';
-import { handleOAuthLogin} from '@/app/api/auth.api';
-import {getToken} from "@/app/api/axios"
+import { handleOAuthLogin} from '@/api';
+import {getToken} from "@/api"
 //@/app/api/auth.api
 import Toast from "@/components/Toast";
 

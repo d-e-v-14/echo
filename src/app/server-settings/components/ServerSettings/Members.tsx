@@ -1,5 +1,17 @@
 import { useState, useEffect } from "react";
-import { getServerMembers, kickMember, banMember, addUserToServer, searchUsers, ServerMember, SearchUser, getAllRoles, assignRoleToUser, removeRoleFromUser, Role } from "../../../api";
+import {   getServerMembers, 
+           kickMember,
+           banMember, 
+           addUserToServer, 
+           searchUsers, 
+           getAllRoles, 
+           assignRoleToUser, 
+           removeRoleFromUser} from "@/api";
+import {ServerMember} from "@/api/types/server.types";
+import {SearchUser} from "@/api/types/user.types";
+import {Role} from "@/api/types/roles.types";
+
+
 
 interface Member {
   id: string;
