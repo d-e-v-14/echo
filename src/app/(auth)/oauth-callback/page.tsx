@@ -2,7 +2,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../../lib/supabaseClient';
-import { handleOAuthLogin, getToken } from '../../api';
+import { handleOAuthLogin} from '@/api';
+import {getToken} from "@/api"
+//@/app/api/auth.api
 import Toast from "@/components/Toast";
 
 export default function OAuthCallback() {

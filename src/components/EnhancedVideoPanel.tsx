@@ -3,7 +3,6 @@
 import React, { useEffect, useRef, useState, useMemo, memo } from "react";
 import { VoiceVideoManager } from "@/lib/VoiceVideoManager";
 
-/* ---------------------- INLINE SVG ICONS (a11y-safe) ---------------------- */
 
 const IconMicrophone = ({ size = 16, className = "" }) => (
   <svg

@@ -2,7 +2,7 @@
 import { Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { resetPassword } from '../../api';
+import { resetPassword } from '@/api';
 import { supabase } from '../../../lib/supabaseClient';
 import Link from 'next/link';
 

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { leaveServer, ServerDetails } from "@/app/api";
+import { leaveServer } from "@/api";
+import {ServerDetails} from "@/api/types/server.types";
 
 interface LeaveProps {
   serverId: string;

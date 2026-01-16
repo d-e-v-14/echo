@@ -1,14 +1,17 @@
 "use client";
 import { useState, useEffect } from "react";
 import {
-  Role,
-  RoleCategory,
+
   getSelfAssignableRoles,
   selfAssignRole,
   selfUnassignRole,
   getMyRoles,
   getRoleCategories,
-} from "../app/api";
+} from "@/api";
+import {
+    Role,
+  RoleCategory,
+} from "@/api/types/roles.types";
 
 interface SelfAssignRolesProps {
   serverId: string;

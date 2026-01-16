@@ -6,8 +6,8 @@ import {
   deleteServer,
   transferServerOwnership,
   getServerMembers,
-} from "@/app/api/API";
-import { getUser } from "@/app/api";
+} from "@/api";
+import { getUser } from "@/api";
 import Toast from "@/components/Toast";
 
 interface DangerZoneProps {

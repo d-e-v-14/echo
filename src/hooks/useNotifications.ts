@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from 'react';
 import { Socket } from 'socket.io-client';
-import { getUser } from '../app/api';
+import { getUser } from '@/api';
 import { createAuthSocket } from '@/socket';
 import { apiClient } from '@/utils/apiClient';
 

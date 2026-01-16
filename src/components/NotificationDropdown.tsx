@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
 import { X, Check, CheckCheck, Bell } from 'lucide-react';
-import { getUser } from '../app/api';
+import { getUser } from '@/api';
 import { useNotifications } from '../hooks/useNotifications';
 import { apiClient } from '@/utils/apiClient';
 

@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useVoiceCall } from '@/contexts/VoiceCallContext';
 import { useVoiceInviteNotifications, VoiceInvite } from '@/hooks/useVoiceInviteNotifications';
 import VoiceInviteToast from './VoiceInviteToast';
-import { getUser } from '@/app/api';
+import { getUser } from '@/api';
 
 interface VoiceInviteProviderProps {
   children: ReactNode;

@@ -1,8 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import {
-  Role as RoleType,
-  RoleCategory,
+  
   getAllRoles,
   createRole,
   updateRole,
@@ -14,7 +13,8 @@ import {
   getMyRoles,
   selfAssignRole,
   selfUnassignRole,
-} from "../../../api";
+} from "@/api";
+import {Role as RoleType,RoleCategory} from "@/api/types/roles.types";
 
 interface RoleProps {
   serverId: string;
