@@ -1,7 +1,7 @@
 // hooks/useTokenRefresh.ts
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { refreshToken } from '@/app/api';
+import { refreshToken } from '@/api';
 
 // Type definition for token refresh response
 interface TokenRefreshResponse {

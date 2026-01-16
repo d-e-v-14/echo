@@ -16,7 +16,8 @@ import {
 } from "react-icons/fa";
 import VoiceChannel from "@/components/EnhancedVoiceChannel";
 import { fetchServers, fetchChannelsByServer } from "@/api/API";
-import { getSelfAssignableRoles, getMyRoles, selfAssignRole, selfUnassignRole, type Role } from "@/app/api";
+import { getSelfAssignableRoles, getMyRoles, selfAssignRole, selfUnassignRole} from "@/api";
+import {type Role } from "@/api/types/roles.types";
 import Chatwindow from "@/components/ChatWindow";
 import { useSearchParams } from "next/navigation";
 import { useVoiceCall } from "@/contexts/VoiceCallContext";

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { getUnreadMessageCounts } from '@/app/api/API';
+import { getUnreadMessageCounts } from '@/api/API';
 
 export function useMessageNotifications() {
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
