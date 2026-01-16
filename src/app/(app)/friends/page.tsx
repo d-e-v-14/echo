@@ -8,11 +8,10 @@ import {
   fetchFriendRequests,
   addFriend,
   respondToFriendRequest,
-  searchUsers,
-  SearchUserResult,
-  getUserDMs,
-} from "@/api/API";
+  searchUsers
+} from "@/api";
 import { useFriendNotifications } from "@/contexts/FriendNotificationContext";
+import {SearchUserResult} from "@/api/types/user.types";
 
 interface FriendRequestData {
   friends_id: string;

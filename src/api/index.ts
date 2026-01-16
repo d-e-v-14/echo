@@ -6,6 +6,9 @@ export * from "./server.api";
 export * from "./roles.api";
 export * from "./channel.api";
 export * from "./axios";
+export * from "./chime.api";
+export * from "./friend.api";
+export * from "./message.api";
 
 
 // Test POST endpoint (for debugging)

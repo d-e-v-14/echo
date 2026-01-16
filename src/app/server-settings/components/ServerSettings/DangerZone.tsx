@@ -6,7 +6,7 @@ import {
   deleteServer,
   transferServerOwnership,
   getServerMembers,
-} from "@/api/API";
+} from "@/api";
 import { getUser } from "@/api";
 import Toast from "@/components/Toast";
 

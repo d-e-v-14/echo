@@ -9,7 +9,11 @@ export interface ServerDetails {
     created_at: string;
     isOwner?: boolean;
 }
-
+export interface Server {
+  id: string;
+  name: string;
+  iconUrl?: string;
+}
 
 export interface ServerMember {
     user_id: string;

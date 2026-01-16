@@ -14,7 +14,8 @@ import Leave from "./components/ServerSettings/Leave";
 import DangerZone from "./components/ServerSettings/DangerZone";
 import AddChannel from "./components/ServerSettings/AddChannel";
 
-import { getServerDetails, type ServerDetails, getMyRoles } from "../api";
+import { getServerDetails, getMyRoles } from "@/api";
+import { type ServerDetails} from "@/api/types/server.types";
 
 export default function ServerSettingsPage() {
   const router = useRouter();

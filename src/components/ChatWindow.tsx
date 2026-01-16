@@ -6,7 +6,7 @@ import MessageInput from "./MessageInput";
 import MessageInputWithMentions from "./MessageInputWithMentions";
 import MessageContentWithMentions from "./MessageContentWithMentions";
 import MessageAttachment from "./MessageAttachment";
-import { fetchMessages, uploadMessage, getUserAvatar } from "@/api/API";
+import { fetchMessages, uploadMessage, getUserAvatar } from "@/api";
 import { getUser } from "@/api";
 import { createAuthSocket } from "@/socket";
 import VideoPanel from "./VideoPanel";

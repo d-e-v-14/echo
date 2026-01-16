@@ -25,3 +25,11 @@ export interface BannedUser {
         avatar_url: string;
     } | null;
 }
+export interface SearchUserResult {
+  id: string;
+  username: string;
+  fullname: string;
+  avatar_url: string;
+  status: string;
+  relationshipStatus: 'none' | 'pending' | 'accepted' | 'rejected';
+}

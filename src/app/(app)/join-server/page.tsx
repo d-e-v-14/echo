@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { joinServer } from "@/api/API";
+import { joinServer } from "@/api";
 import Loader from "@/components/Loader";
 import Toast from "@/components/Toast";
 

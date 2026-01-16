@@ -1,4 +1,4 @@
-import {api} from "./axios";
+import {api,apiClient} from "./axios";
 import {ChannelRoleAccess,ChannelData} from "./types/channel.types";
 
 // Get channel role access
@@ -39,4 +39,14 @@ export const createChannel = async (serverId: string, data: ChannelData) => {
   });
 
   return response.data;
+};
+
+export const fetchChannelsByServer = async (serverId: string): Promise<any> => {
+  try {
+    const response = await apiClient.get(`/api/channel/${serverId}/channels-with-access`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching channels:", error);
+    return null;
+  }
 };

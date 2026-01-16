@@ -1,6 +1,6 @@
 "use client";
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { fetchFriendRequests } from '@/api/API';
+import { fetchFriendRequests } from '@/api';
 
 interface FriendNotificationContextType {
   friendRequestCount: number;

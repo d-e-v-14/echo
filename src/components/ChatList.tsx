@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getUserDMs } from "@/api/API";
+import { getUserDMs } from "@/api";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";
 
