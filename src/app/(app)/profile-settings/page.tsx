@@ -1,333 +1,286 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
-import axios from "axios";
-import { useRouter } from "next/navigation";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+import { use, useEffect, useRef, useState } from "react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { Pencil } from "lucide-react";
+import { apiClient } from "@/api/axios";
+import { useUser } from "@/components/UserContext";
 
 export default function ProfilePage() {
-  const [displayName, setDisplayName] = useState("");
   const router = useRouter();
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const { setUser } = useUser();
+
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
   const [about, setAbout] = useState("");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+
   const [avatar, setAvatar] = useState("/User_profil.png");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [editing, setEditing] = useState({
-    name: false,
-    username: false,
-    about: false,
-  });
+
+  const [editing, setEditing] = useState({ name: false, about: false });
+  const [prevName, setPrevName] = useState("");
+  const [prevAbout, setPrevAbout] = useState("");
+
   const [changed, setChanged] = useState(false);
-
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-
-        const res=await axios.get(`${API_BASE_URL}/api/profile/getProfile`, {
-
-          withCredentials: true,
-
-        });
-        const profile = res.data.user;
-
-        setDisplayName(profile.fullname);
-        setUsername(profile.username);
-        setAbout(profile.bio);
-        setEmail(profile.email);
-        setPhone(profile.phone);
-        setAvatar(profile.avatar_url || "/User_profil.png");
-      } catch (err) {
-        console.error("Failed to fetch profile", err);
-      }
-    };
-    fetchProfile();
-  }, []);
-
-  // Track if something changes for enabling save button
-  useEffect(() => {
-    setChanged(true);
-  }, [displayName, username, about, avatarFile]);
-
-  // Handle Avatar Upload
-const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-
- 
-  if (file.size > 5 * 1024 * 1024) {
-    alert("File too large! Maximum allowed file size is 5MB.");
-    return;
-  }
-
-  setAvatarFile(file);
+  const [toast, setToast] = useState<string | null>(null);
 
 
-  const tempUrl = URL.createObjectURL(file);
-  setAvatar(tempUrl);
-};
-
-  // Trigger avatar input click
   const avatarInput = useRef<HTMLInputElement | null>(null);
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const aboutTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const triggerAvatarInput = () => {
-    avatarInput.current?.click();
+
+  const showToast = (message: string) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 2500);
   };
-  // Save profile changes
+
+
+ useEffect(() => {
+   const fetchProfile = async () => {
+     try {
+       const res = await apiClient.get("/api/profile/getProfile");
+       console.log("PROFILE RESPONSE:", res.data);
+
+       const profile = res.data.user; 
+
+       setDisplayName(profile.fullname || "");
+       setUsername(profile.username || "");
+       setAbout(profile.bio || "");
+       setEmail(profile.email || "");
+       setAvatar(profile.avatar_url || "/User_profil.png");
+
+
+       setUser(profile);
+     } catch (err) {
+       console.error("Failed to fetch profile", err);
+     } finally {
+       setLoading(false);
+     }
+   };
+
+   fetchProfile();
+ }, [setUser]);
+
+
+  /* ================= TRACK CHANGES ================= */
+  useEffect(() => {
+    if (!loading) setChanged(true);
+  }, [displayName, about, avatarFile, loading]);
+
+
+  useEffect(() => {
+    if (editing.name) nameInputRef.current?.focus();
+  }, [editing.name]);
+
+  useEffect(() => {
+    if (editing.about) aboutTextareaRef.current?.focus();
+  }, [editing.about]);
+
+  
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Maximum avatar size is 5MB");
+      return;
+    }
+
+    setAvatarFile(file);
+    setAvatar(URL.createObjectURL(file));
+  };
+
+
   const handleSave = async () => {
+    if (!changed) return;
+
+    setIsSaving(true);
+
     try {
       const formData = new FormData();
       formData.append("fullname", displayName);
-      formData.append("username", username);
       formData.append("bio", about);
       if (avatarFile) formData.append("avatar", avatarFile);
 
-      const response = await axios.patch(`${API_BASE_URL}/api/profile/updateProfile`, formData, {
-        withCredentials: true,
-        headers: {
-          "Content-Type": "multipart/form-data", // make sure backend parses FormData
-        },
-      });
+      const res = await apiClient.patch("/api/profile/updateProfile", formData);
 
-      const updatedUser = response.data.user;
-      if (!updatedUser) throw new Error("No user data returned");
+      const updatedUser = res.data.user;
 
-      setDisplayName(updatedUser.fullname);
-      setUsername(updatedUser.username);
-      setAbout(updatedUser.bio);
-      setAvatar(updatedUser.avatar_url || "/User_profil.png");
+      // 🔥 single source of truth
+      setUser(updatedUser);
 
       setChanged(false);
-      setSuccessMessage("Profile updated!");
+      showToast("Profile updated");
     } catch (err) {
-      console.error("Failed to update profile", err);
-      setSuccessMessage("Failed to update profile");
+      console.error(err);
+      showToast("Failed to update profile");
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const handleDelete = async () => {
-    try {
-      await axios.delete(`${API_BASE_URL}/api/profile/deleteProfile`, {
-        withCredentials: true,
-      });
-      alert("Account deleted.");
-    } catch (err) {
-      console.error("Failed to delete profile", err);
-    }
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center text-gray-400">
+        Loading profile…
+      </div>
+    );
+  }
+
 
   return (
-      <div className="min-h-screen bg-black text-white flex justify-center items-center p-10 select-none">
-        <div className="flex flex-col md:flex-row gap-10 w-full max-w-6xl">
-          {/* Left: Profile Card & About */}
-          <div className="flex-1">
-            <div className="relative rounded-3xl text-center text-white shadow-xl p-12 overflow-hidden">
-              <div className="absolute inset-0 z-0 bg-black bg-opacity-95"
-                   style={{
-                     backgroundImage: "url('/profile-bg.png')",
-                     backgroundSize: "cover",
-                     backgroundPosition: "center",
-                   }}
-              />
-              <div className="relative z-10 flex flex-col items-center">
-                <div className="relative">
-                  <Image
-                      src={avatar}
-                      alt="Profile"
-                      width={120}
-                      height={120}
-                      className="rounded-full border-4 border-blue-400 object-cover"
-                  />
-                  <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-green-500 border-2 border-black" />
-                </div>
-                <h2 className="text-xl font-semibold mt-4">{displayName}</h2>
-                <p className="text-sm text-gray-300">{username}</p>
-                <input
-                    ref={avatarInput}
-                    type="file"
-                    accept="image/*"
-                    style={{ display: "none" }}
-                    onChange={handleAvatarChange}
-                />
-                <div className="mt-4 flex gap-3 justify-center">
-                  <button
-                      className="bg-blue-700 text-white px-4 py-1 rounded-md text-sm font-semibold hover:bg-blue-800"
-                      onClick={triggerAvatarInput}
-                  >
-                    Change Avatar
-                  </button>
-                  <button
-                      className="bg-gray-700 text-white px-4 py-1 rounded-md text-sm"
-                      onClick={() => {
-                        setAvatar("/User_profil.png");
-                        setAvatarFile(null);
-                      }}
-                      disabled={!avatarFile}
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-            </div>
+    <div className="min-h-screen bg-black text-white px-6 py-16 flex justify-center">
+      {toast && (
+        <div className="fixed top-6 right-6 bg-green-600 px-6 py-3 rounded-xl shadow-lg z-50">
+          {toast}
+        </div>
+      )}
 
-            {/* About Section */}
-            <div className="mt-6 max-w-[480px]">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="text-sm">About</h3>
-                <button onClick={() =>
-                    setEditing((prev) => ({ ...prev, about: !prev.about }))
-                }
-                >
-                  ✏️
-                </button>
+      <div className="w-full max-w-6xl grid md:grid-cols-2 gap-14">
+        {/* LEFT */}
+        <div className="space-y-10">
+          <div className="relative rounded-3xl overflow-hidden shadow-xl">
+            <div
+              className="absolute inset-0 bg-cover bg-center"
+              style={{ backgroundImage: "url('/profile-bg.png')" }}
+            />
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+
+            <div className="relative p-10 flex flex-col items-center gap-4">
+              <div
+                className="relative cursor-pointer"
+                onClick={() => avatarInput.current?.click()}
+              >
+                <Image
+                  src={avatar}
+                  alt="Avatar"
+                  width={120}
+                  height={120}
+                  className="rounded-full border-4 border-blue-400 object-cover"
+                />
               </div>
-              {editing.about ? (
-                  <textarea
-                      value={about}
-                      autoFocus
-                      onChange={(e) => setAbout(e.target.value)}
-                      onBlur={() => setEditing((prev) => ({ ...prev, about: false }))}
-                      className="bg-[#444] border border-gray-300 text-sm text-white p-4 rounded-xl w-full h-40 resize-none focus:outline-none"
-                  />
-              ) : (
-                  <div
-                      className="bg-[#444] border border-gray-300 text-sm text-white p-4 rounded-xl w-full h-40 cursor-pointer"
-                      onClick={() =>
-                          setEditing((prev) => ({ ...prev, about: true }))
-                      }
-                      title="Click to edit bio"
-                  >
-                    {about || "Click to add a bio..."}
-                  </div>
-              )}
+
+              <input
+                ref={avatarInput}
+                type="file"
+                hidden
+                accept="image/*"
+                onChange={handleAvatarChange}
+              />
+
+              <h2 className="text-xl font-semibold">{displayName}</h2>
+              <p className="text-sm text-gray-400">@{username}</p>
             </div>
           </div>
 
-          {/* Right Side: Info Fields + Buttons */}
-          <div className="flex flex-col justify-between w-full md:w-1/2">
-            <div className="space-y-4">
-              {/* Display Name */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-sm">Display Name</label>
-                  <span
-                      className="text-sm cursor-pointer"
-                      onClick={() =>
-                          setEditing((prev) => ({ ...prev, name: !prev.name }))
-                      }
-                  >
-                  ✏️
-                </span>
-                </div>
-                <input
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    readOnly={!editing.name}
-                    autoFocus={editing.name}
-                    onBlur={() => setEditing((prev) => ({ ...prev, name: false }))}
-                    className="w-full p-2 rounded-md bg-[#222] border border-white/30 text-white"
-                />
-                {editing.name && (
-                    <div className="mt-2 flex gap-2">
-                      <button onClick={() => setEditing(p => ({...p, name:false}))} className="px-3 py-1 rounded bg-white/10">
-                        Save
-                      </button>
-                      <button onClick={() => setEditing(p => ({...p, name:false}))} className="px-3 py-1 rounded bg-white/10">
-                        Cancel
-                      </button>
-                    </div>
-                )}
-              </div>
-
-              {/* Username */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-sm">Username</label>
-                  <span
-                      className="text-sm cursor-pointer"
-                      onClick={() =>
-                          setEditing((prev) => ({ ...prev, username: !prev.username }))
-                      }
-                  >
-                </span>
-                </div>
-                <input
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    readOnly={!editing.username}
-                    autoFocus={editing.username}
-                    onBlur={() =>
-                        setEditing((prev) => ({ ...prev, username: false }))
-                    }
-                    className="w-full p-2 rounded-md bg-[#222] border border-white/30 text-white"
-                />
-              </div>
-
-              {/* Email */}
-              <div>
-                <label className="block text-sm mb-1">Email</label>
-                <input
-                    value={email}
-                    readOnly
-                    className="w-full p-2 rounded-md bg-[#222] border border-white/30 text-white"
-                />
-              </div>
-              {/* Phone */}
-              <div>
-                <label className="block text-sm mb-1">Phone Number</label>
-                <input
-                    value={phone}
-                    readOnly
-                    className="w-full p-2 rounded-md bg-[#222] border border-white/30 text-white"
-                />
-              </div>
-            </div>
-            {/* Save Changes Button */}
-            {successMessage && (
-                <div className={`rounded-md p-2 text-sm font-semibold
-                  ${successMessage === "Profile updated!" ? "bg-green-700 text-green-100" : "bg-red-700 text-red-100"}
-                `}>
-                  {successMessage}
-                </div>
-            )}
-
-            <button
-                onClick={handleSave}
-                disabled={!changed}
-                className={`w-fit self-start text-sm px-8 py-1 rounded-md font-semibold -mt-28 ml-auto
-                  ${changed ? "bg-green-600 hover:bg-green-700 text-white" : "bg-gray-700 text-gray-300 opacity-60 cursor-not-allowed"}
-                `}
-                style={{ marginRight: "6px" }}
-            >
-              Save Changes
-            </button>
-            {/* Buttons in One Row */}
-            <div className="flex flex-row flex-nowrap gap-6 mt-10 overflow-x-auto">
-              <button className="bg-yellow-400 text-black px-6 py-2 rounded-md font-semibold hover:brightness-110 whitespace-nowrap"
-                      onClick={() => router.push("/change-password")}
-              >
-                Change Password
-              </button>
+          {/* About */}
+          <div>
+            <div className="flex justify-between mb-2">
+              <span className="text-sm text-gray-400">About</span>
               <button
-                  className="bg-blue-800 text-white px-6 py-2 rounded-md font-semibold hover:bg-blue-900 whitespace-nowrap"
-                  onClick={() => router.push("/delete-account")}
+                onClick={() => {
+                  setPrevAbout(about);
+                  setEditing((p) => ({ ...p, about: true }));
+                }}
+                className="text-xs flex items-center gap-1 text-gray-400 hover:text-white"
+              >
+                <Pencil size={14} /> Edit
+              </button>
+            </div>
+
+            <textarea
+              ref={aboutTextareaRef}
+              value={about}
+              readOnly={!editing.about}
+              onChange={(e) => setAbout(e.target.value)}
+              onBlur={() => setEditing((p) => ({ ...p, about: false }))}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setAbout(prevAbout);
+                  setEditing((p) => ({ ...p, about: false }));
+                }
+              }}
+              className="w-full h-36 p-4 rounded-xl bg-[#1f2937] border border-white/20"
+            />
+          </div>
+        </div>
+
+        {/* RIGHT */}
+        <div className="space-y-10">
+          {/* Name */}
+          <div>
+            <div className="flex justify-between">
+              <label className="text-sm text-gray-400">Display Name</label>
+              <button
+                onClick={() => {
+                  setPrevName(displayName);
+                  setEditing((p) => ({ ...p, name: true }));
+                }}
+                className="text-xs flex items-center gap-1 text-gray-400 hover:text-white"
+              >
+                <Pencil size={14} /> Edit
+              </button>
+            </div>
+
+            <input
+              ref={nameInputRef}
+              value={displayName}
+              readOnly={!editing.name}
+              onChange={(e) => setDisplayName(e.target.value)}
+              onBlur={() => setEditing((p) => ({ ...p, name: false }))}
+              className="w-full mt-2 p-3 rounded-lg bg-[#1f2937] border border-white/20"
+            />
+          </div>
+          <div>
+            <label className="text-sm text-gray-400">Username</label>
+            <input
+              value={username}
+              readOnly
+              className="w-full mt-2 p-3 rounded-lg bg-[#1f2937] border border-white/20"
+            />
+          </div>
+
+          {/* Email */}
+          <div>
+            <label className="text-sm text-gray-400">Email</label>
+            <input
+              value={email}
+              readOnly
+              className="w-full mt-2 p-3 rounded-lg bg-[#1f2937] border border-white/20"
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="pt-6 border-t border-red-500/30">
+            <div className="flex gap-4">
+              <button
+                onClick={handleSave}
+                disabled={!changed || isSaving}
+                className={`px-6 py-2 rounded-lg font-semibold ${
+                  changed
+                    ? "bg-green-600 hover:bg-green-700"
+                    : "bg-gray-700 opacity-50"
+                }`}
+              >
+                {isSaving ? "Saving…" : "Save Changes"}
+              </button>
+
+              <button
+                onClick={() => router.push("/delete-account")}
+                className="px-6 py-2 rounded-lg bg-red-700 hover:bg-red-800 font-semibold"
               >
                 Delete Account
               </button>
-              <button
-                  type="button"
-                  onClick={() => router.push("/profile")}
-                  className="bg-blue-800 text-white px-12 py-2 rounded-md font-semibold hover:bg-blue-900 whitespace-nowrap"
-              >
-                Profile
-              </button>
             </div>
-
           </div>
         </div>
       </div>
+    </div>
   );
 }

@@ -1,6 +1,8 @@
 "use client";
 import { getUser, logout } from "@/api";
 import type { profile } from "@/api/types/profile.types";
+import { useUser } from "@/components/UserContext";
+
 import {
   LayoutDashboard,
   Users,
@@ -18,12 +20,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { useEffect, useState } from "react";
-import { useNotifications } from '../hooks/useNotifications';
-import { useFriendNotifications } from '../contexts/FriendNotificationContext';
-import { useMessageNotifications } from '../contexts/MessageNotificationContext';
+import { useNotifications } from "../hooks/useNotifications";
+import { useFriendNotifications } from "../contexts/FriendNotificationContext";
+import { useMessageNotifications } from "../contexts/MessageNotificationContext";
 
 const navItems = [
-
   { label: "Servers", icon: Users, path: "/servers" },
   { label: "Messages", icon: MessageSquareText, path: "/messages" },
   { label: "Friends", icon: UserIcon, path: "/friends" },
@@ -31,16 +32,20 @@ const navItems = [
 ];
 
 export default function Sidebar() {
+  const { user } = useUser();
+
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const [user, setUser] = useState<profile | null>(null);
+
   const [error, setError] = useState<string | null>(null);
   const { unreadCount } = useNotifications();
-  const { friendRequestCount, refreshCount: refreshFriendCount } = useFriendNotifications();
-  const { unreadMessageCount, refreshCount: refreshMessageCount } = useMessageNotifications();
+  const { friendRequestCount, refreshCount: refreshFriendCount } =
+    useFriendNotifications();
+  const { unreadMessageCount, refreshCount: refreshMessageCount } =
+    useMessageNotifications();
 
   const handleNavClick = async (path: string) => {
-    // Refresh counts when navigating to specific pages
+    
     if (path === "/friends") {
       await refreshFriendCount();
     } else if (path === "/messages") {
@@ -59,35 +64,29 @@ export default function Sidebar() {
     localStorage.setItem("sidebarCollapsed", JSON.stringify(collapsed));
   }, [collapsed]);
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const userData = await getUser();
-        setUser(userData);
-      } catch (err) {
-        setError("Failed to load user profile. Please try again.");
-      }
-    };
-    fetchUser();
-  }, []);
-
   if (error) return <div className="text-red-500">{error}</div>;
-  if (!user) return <div className="text-white">Loading...</div>;
+  if (!user) {
+    return (
+      <aside className="w-64 h-screen bg-black flex items-center justify-center text-white">
+        Loading...
+      </aside>
+    );
+  }
 
   const handleLogout = async () => {
-        try {
-            await logout();
+    try {
+      await logout();
 
-            // clear user data
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
 
-            // redirect
-            window.location.href = "/";
-        } catch (error) {
-            console.error("Failed to logout:", error);
-        }
-    };
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+
+      
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Failed to logout:", error);
+    }
+  };
 
   return (
     <aside
@@ -96,15 +95,15 @@ export default function Sidebar() {
         collapsed ? "w-20" : "w-64"
       )}
     >
-      {/* Background */}
+   
       <div
         className="absolute inset-0 z-0 bg-no-repeat bg-cover opacity-9"
         style={{ backgroundImage: "url('/sidebar-bg.png')" }}
       />
 
-      {/* Sidebar Content */}
+
       <div className="relative z-10 flex flex-col h-full justify-between">
-        {/* Top Section */}
+
         <div>
           <div className="flex items-center justify-between p-4">
             <Image
@@ -121,15 +120,17 @@ export default function Sidebar() {
               onClick={() => setCollapsed((prev) => !prev)}
               className="text-white hover:text-gray-400 transition"
             >
-              {collapsed ? <ChevronsRight size={20} /> : <ChevronsLeft size={20} />}
+              {collapsed ? (
+                <ChevronsRight size={20} />
+              ) : (
+                <ChevronsLeft size={20} />
+              )}
             </button>
           </div>
 
           <nav className="flex flex-col gap-1 px-2">
             {navItems.map((item) => {
               const isActive = pathname === item.path;
-              
-              // Determine notification count for each nav item
               let notificationCount = 0;
               if (item.label === "Notifications") {
                 notificationCount = unreadCount;
@@ -138,7 +139,7 @@ export default function Sidebar() {
               } else if (item.label === "Friends") {
                 notificationCount = friendRequestCount;
               }
-              
+
               return (
                 <div className="relative group" key={item.label}>
                   <Link
@@ -146,7 +147,7 @@ export default function Sidebar() {
                     onClick={() => handleNavClick(item.path)}
                     className={clsx(
                       "flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all",
-                     
+
                       isActive
                         ? "bg-white/20 text-white shadow-md"
                         : "text-gray-300 hover:bg-white/10 hover:text-white"
@@ -157,11 +158,11 @@ export default function Sidebar() {
                       {/* Show notification badge */}
                       {notificationCount > 0 && (
                         <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1 font-bold">
-                          {notificationCount > 99 ? '99+' : notificationCount}
+                          {notificationCount > 99 ? "99+" : notificationCount}
                         </span>
                       )}
                     </div>
-                    
+
                     {!collapsed && <span>{item.label}</span>}
                   </Link>
 
@@ -177,7 +178,7 @@ export default function Sidebar() {
           </nav>
         </div>
 
-        {/* Bottom Section: Logout and Profile */}
+
         <div>
           {/* Logout Button */}
           <div className="px-2 mb-2">
@@ -191,7 +192,10 @@ export default function Sidebar() {
               </button>
 
               {collapsed && (
-                <button onClick={handleLogout} className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-20 px-3 py-1 text-sm text-white bg-black rounded shadow-lg opacity-0 group-hover:opacity-100 transition">
+                <button
+                  onClick={handleLogout}
+                  className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-20 px-3 py-1 text-sm text-white bg-black rounded shadow-lg opacity-0 group-hover:opacity-100 transition"
+                >
                   Logout
                 </button>
               )}
@@ -200,30 +204,35 @@ export default function Sidebar() {
 
           {/* Profile */}
           <Link href="/profile-settings">
-          <div className="p-4 flex items-center gap-3 mt-auto cursor-pointer group hover:bg-white/10 transition rounded-lg">
-            <div className="relative shrink-0">
-              <div className="p-[2px] rounded-full bg-gradient-to-tr from-purple-500 via-pink-500 to-indigo-500">
-                <Image
-                  src={user?.avatar_url || "/avatar.png"}
-                  alt="User"
-                  width={40}
-                  height={40}
-                  className="rounded-full bg-white"
-                />
-              </div>
-              <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-[#1a1a1a] rounded-full" />
-            </div>
-
-            {!collapsed && (
-              <div className="flex justify-between items-center flex-1">
-                <div className="flex flex-col">
-                  <span className="font-semibold text-white">{user.fullname}</span>
-                  <span className="text-xs text-gray-400">{user.username}</span>
+            <div className="p-4 flex items-center gap-3 mt-auto cursor-pointer group hover:bg-white/10 transition rounded-lg">
+              <div className="relative shrink-0">
+                <div className="p-[2px] rounded-full bg-gradient-to-tr from-purple-500 via-pink-500 to-indigo-500">
+                  <Image
+                    src={user?.avatar_url || "/avatar.png"}
+                    alt="User"
+                    width={40}
+                    height={40}
+                    className="rounded-full bg-white"
+                  />
                 </div>
-                <Settings className="text-gray-400 w-5 h-5 group-hover:text-white" />
+                <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-[#1a1a1a] rounded-full" />
               </div>
-            )}
-          </div>
+
+              {!collapsed && (
+                <div className="flex justify-between items-center flex-1">
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-white truncate max-w-[140px]">
+                      {user.fullname}
+                    </span>
+
+                    <span className="text-xs text-gray-400 truncate max-w-[140px]">
+                      {user.username}
+                    </span>
+                  </div>
+                  <Settings className="text-gray-400 w-5 h-5 group-hover:text-white" />
+                </div>
+              )}
+            </div>
           </Link>
         </div>
       </div>
