@@ -12,6 +12,7 @@ interface Role {
 
 interface MentionContentProps {
   content: string;
+  isValidUsernameMention: (mention: string) => boolean;
   currentUserId?: string;
   currentUsername?: string;
   serverRoles: Role[];
@@ -28,6 +29,7 @@ export default function MessageContentWithMentions({
   currentUsername,
   serverRoles,
   currentUserRoleIds,
+  isValidUsernameMention,
   onMentionClick,
   onRoleMentionClick,
 }: MentionContentProps) {
@@ -108,7 +110,11 @@ export default function MessageContentWithMentions({
       ).some((pos) => usedPositions.has(pos));
 
       if (isOverlapping) return;
+      const mentionText = match[0]; // e.g. "@gmail"
 
+if (!isValidUsernameMention(mentionText)) {
+  return; 
+}
       mentions.push({
         start: match.index!,
         end: match.index! + match[0].length,

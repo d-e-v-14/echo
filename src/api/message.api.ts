@@ -3,30 +3,44 @@ import {Message} from "./types/message.types";
 import {ApiResponse} from "./types/common.types";
 import {getUser} from "./profile.api"
 
+//Uploads messages in the channel
 export const uploadMessage = async (payload: {
   file?: File;
   content?: string;
-  sender_id?: string; // Optional, server can get from session
+  sender_id?: string;
   channel_id: string;
   reply_to?: string | number;
 }): Promise<Message> => {
   try {
     const formData = new FormData();
 
-    // Use exact field names as specified by backend
-    formData.append("sender_id", payload.sender_id || "");
+    if (payload.sender_id) {
+      formData.append("sender_id", payload.sender_id);
+    }
+
     formData.append("channel_id", payload.channel_id);
-    formData.append("content", payload.content || "");
+
+    if (payload.content?.trim()) {
+      formData.append("content", payload.content);
+    }
+
     if (payload.reply_to !== undefined && payload.reply_to !== null) {
       formData.append("reply_to", String(payload.reply_to));
     }
-    if (payload.file) formData.append("file", payload.file);
 
-    const response = await apiClient.post("/api/message/upload", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
+    if (payload.file) {
+      formData.append("file", payload.file);
+    }
+
+    const response = await apiClient.post(
+      "/api/message/upload",
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
 
     return response.data;
   } catch (error) {
@@ -35,26 +49,39 @@ export const uploadMessage = async (payload: {
   }
 };
 
+//Used to upload messages in DM of the user
 export const uploaddm = async (payload: {
   mediaurl?: File;
-  message: string;
-  sender_id: string;
+  message?: string;
+  sender_id?: string;
   receiver_id: string;
 }) => {
   try {
     const formData = new FormData();
-    
-    // Use exact field names as specified by backend
-    formData.append("receiver_id", payload.receiver_id);
-    formData.append("sender_id", payload.sender_id);
-    formData.append("content", payload.message || "");
-    if (payload.mediaurl) formData.append("file", payload.mediaurl);
 
-    const response = await apiClient.post('/api/message/upload_dm', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    formData.append("receiver_id", payload.receiver_id);
+
+    if (payload.sender_id) {
+      formData.append("sender_id", payload.sender_id);
+    }
+
+    if (payload.message?.trim()) {
+      formData.append("content", payload.message);
+    }
+
+    if (payload.mediaurl) {
+      formData.append("file", payload.mediaurl);
+    }
+
+    const response = await apiClient.post(
+      "/api/message/upload_dm",
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
 
     return response.data;
   } catch (error) {
@@ -63,22 +90,33 @@ export const uploaddm = async (payload: {
   }
 };
 
-export const fetchMessages = async (channel_id: string, offset: number = 0): Promise<ApiResponse<Message[]> & { hasMore?: boolean; totalCount?: number }> => {
+//Used to fetch the messages in the channel of a server
+export const fetchMessages = async (
+  channel_id: string,
+  offset: number = 0
+): Promise<
+  ApiResponse<Message[]> & {
+    hasMore?: boolean;
+    totalCount?: number;
+  }
+> => {
   try {
     const response = await apiClient.get<{
       messages?: Message[];
       data?: Message[];
       hasMore?: boolean;
       totalCount?: number;
-    }>(
-      `/api/message/fetch?channel_id=${channel_id}&offset=${offset}`
-    );
+    }>("/api/message/fetch", {
+      params: {
+        channel_id,
+        offset,
+      },
+    });
 
-    const messages = response.data.messages || response.data.data || [];
-    return { 
-      data: messages,
-      hasMore: response.data.hasMore,
-      totalCount: response.data.totalCount
+    return {
+      data: response.data.messages ?? response.data.data ?? [],
+      hasMore: response.data.hasMore ?? false,
+      totalCount: response.data.totalCount ?? 0,
     };
   } catch (error) {
     console.error("Error fetching messages:", error);
@@ -87,6 +125,7 @@ export const fetchMessages = async (channel_id: string, offset: number = 0): Pro
 };
 
 
+//Fetches the DM of the users
 export const getUserDMs = async (): Promise<any> => {
   try {
     const user = await getUser();
