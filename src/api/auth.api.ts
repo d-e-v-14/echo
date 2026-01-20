@@ -31,10 +31,10 @@ export const login = async (identifier: string, password: string) => {
 };
 
 
-export const handleOAuthLogin = async (accessToken: string) => {
+export const handleOAuthLogin = async (accessToken: string, refreshToken?: string) => {
     const response = await api.post(
         "/api/auth/oauth-user",
-        {},
+        { refreshToken }, // Send refresh token in body for backend to set cookie
         { headers: { Authorization: `Bearer ${accessToken}` } }
     );
     return response.data;

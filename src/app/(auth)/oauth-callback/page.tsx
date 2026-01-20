@@ -37,11 +37,15 @@ export default function OAuthCallback() {
 
          setMessage("Verifying account…");
 
-         const response = await handleOAuthLogin(session.access_token);
+         const response = await handleOAuthLogin(session.access_token, session.refresh_token);
 
          localStorage.setItem("access_token", session.access_token);
          localStorage.setItem("refresh_token", session.refresh_token);
          localStorage.setItem("user", JSON.stringify(response.user));
+         // Set token expiry - Supabase tokens expire in 1 hour (3600 seconds) by default
+         const expiresIn = session.expires_in || 3600;
+         const expiryTime = Date.now() + expiresIn * 1000;
+         localStorage.setItem("tokenExpiry", expiryTime.toString());
          getToken(session.access_token);
 
          setToast({ message: "Login successful!", type: "success" });
