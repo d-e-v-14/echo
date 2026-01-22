@@ -29,6 +29,20 @@ export const apiClient = axios.create({
   withCredentials: true, // This is crucial for cookie-based authentication
 });
 
+// Request interceptor - Add access token to all requests
+apiClient.interceptors.request.use(
+  (config) => {
+    if (typeof window !== "undefined") {
+      const accessToken = localStorage.getItem("access_token");
+      if (accessToken && !config.headers.Authorization) {
+        config.headers.Authorization = `Bearer ${accessToken}`;
+      }
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 // Response interceptor for automatic token refresh
 apiClient.interceptors.response.use(
   (response) => response,
