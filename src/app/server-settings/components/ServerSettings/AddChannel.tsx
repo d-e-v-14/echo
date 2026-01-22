@@ -13,12 +13,14 @@ const AddChannel: React.FC = () => {
   const [formData, setFormData] = useState<ChannelData>({
     name: "",
     type: "text",
-    is_private: false,
+    channel_type: "normal",
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState<"success" | "error">("success");
   const [roles, setRoles] = useState<Role[]>([]);
   const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
+  const [selectedModeratorIds, setSelectedModeratorIds] = useState<string[]>([]);
   const [loadingRoles, setLoadingRoles] = useState(false);
 
   // Load roles when server ID is available
@@ -43,7 +45,7 @@ const AddChannel: React.FC = () => {
   }, [serverId]);
 
  const handleChange = (
-   e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
+   e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
  ) => {
    const target = e.target;
    const { name, value, type } = target;
@@ -53,14 +55,23 @@ const AddChannel: React.FC = () => {
      [name]: type === "checkbox" ? (target as HTMLInputElement).checked : value,
    }));
 
-   // Clear selected roles if unchecking private
-   if (name === 'is_private' && !(target as HTMLInputElement).checked) {
+   // Clear selected roles when switching channel types
+   if (name === 'channel_type') {
      setSelectedRoleIds([]);
+     setSelectedModeratorIds([]);
    }
  };
 
   const handleRoleToggle = (roleId: string) => {
     setSelectedRoleIds((prev) =>
+      prev.includes(roleId)
+        ? prev.filter((id) => id !== roleId)
+        : [...prev, roleId]
+    );
+  };
+
+  const handleModeratorToggle = (roleId: string) => {
+    setSelectedModeratorIds((prev) =>
       prev.includes(roleId)
         ? prev.filter((id) => id !== roleId)
         : [...prev, roleId]
@@ -74,6 +85,8 @@ const AddChannel: React.FC = () => {
       return "Channel name cannot be empty.";
     if (!["text", "voice"].includes(formData.type))
       return "Invalid channel type.";
+    if (!["normal", "read_only", "role_restricted"].includes(formData.channel_type || "normal"))
+      return "Invalid permission type.";
     return null;
   };
 
@@ -84,6 +97,7 @@ const AddChannel: React.FC = () => {
     const error = validatePayload();
     if (error) {
       setMessage(error);
+      setMessageType("error");
       return;
     }
 
@@ -91,149 +105,234 @@ const AddChannel: React.FC = () => {
     setMessage("");
 
     try {
+      // Prepare channel data with new permission system
+      const channelPayload: ChannelData = {
+        name: formData.name,
+        type: formData.type,
+        channel_type: formData.channel_type || "normal",
+        allowed_role_ids: formData.channel_type === "role_restricted" ? selectedRoleIds : [],
+        moderator_role_ids: (formData.channel_type === "read_only" || formData.channel_type === "role_restricted") 
+          ? selectedModeratorIds 
+          : [],
+      };
 
-      const response = await createChannel(serverId!, formData);
+      const response = await createChannel(serverId!, channelPayload);
 
-
-      // If private channel with selected roles, set the role access
-      if (formData.is_private && selectedRoleIds.length > 0 && response?.id) {
-        await setChannelRoleAccess(response.id, {
-          isPrivate: true,
-          roleIds: selectedRoleIds,
-        });
-      }
-
-      setMessage(" Channel created successfully!");
-      setFormData({ name: "", type: "text", is_private: false });
+      setMessage("✓ Channel created successfully!");
+      setMessageType("success");
+      setFormData({ name: "", type: "text", channel_type: "normal" });
       setSelectedRoleIds([]);
+      setSelectedModeratorIds([]);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setMessage(""), 3000);
     } catch (err: any) {
       console.error("Error creating channel:", err);
-
-    
       const errMsg =
+        err?.response?.data?.error ||
         err?.response?.data?.message ||
         err?.message ||
-        " Failed to create channel.";
+        "Failed to create channel.";
       setMessage(errMsg);
+      setMessageType("error");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-black flex justify-center items-center px-6 py-10">
-      <div className="bg-white shadow-2xl rounded-2xl p-8 w-full max-w-md">
-        <h1 className="text-3xl font-bold mb-6 text-center text-gray-800">
-          Create Channel
-        </h1>
+    <div className="max-w-xl mx-auto p-8 text-white">
+      <h1 className="text-2xl font-bold mb-8">Create Channel</h1>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-gray-700 font-semibold mb-1">
-              Channel Name
-            </label>
-            <input
-              type="text"
-              name="name"
-              placeholder="Enter channel name"
-              value={formData.name}
-              onChange={handleChange}
-              required
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-400 outline-none"
-            />
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Channel Name */}
+        <div>
+          <label className="block font-semibold mb-2 text-[#b5bac1]">
+            Channel Name
+          </label>
+          <input
+            type="text"
+            name="name"
+            placeholder="Enter channel name"
+            value={formData.name}
+            onChange={handleChange}
+            required
+            className="w-full bg-black text-white border-2 border-[#72767d] rounded px-4 py-3 focus:border-[#FFC341] focus:outline-none transition-all duration-200 transform hover:-translate-y-1 focus:-translate-y-1"
+          />
+        </div>
 
-         
-          <div className="mt-4">
-            <label className="block text-gray-700 font-semibold mb-1">
-              Channel Type
-            </label>
-            <select
-              name="type"
-              value={formData.type}
-              onChange={handleChange}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-400 outline-none"
-            >
-              <option value="text">Text</option>
-              <option value="voice">Voice</option>
-            </select>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              name="is_private"
-              checked={formData.is_private}
-              onChange={handleChange}
-              className="h-5 w-5 text-indigo-600 focus:ring-indigo-400 border-gray-300 rounded"
-            />
-            <label className="text-gray-700 font-medium">Private Channel</label>
-          </div>
-
-          {/* Role selection for private channels */}
-          {formData.is_private && (
-            <div className="mt-4 p-4 border border-gray-300 rounded-lg bg-gray-50">
-              <label className="block text-gray-700 font-semibold mb-2">
-                Select roles that can access this channel
-              </label>
-              <p className="text-sm text-gray-500 mb-3">
-                Owners and Admins can always see private channels. Select additional roles below.
-              </p>
-              {loadingRoles ? (
-                <div className="text-gray-500">Loading roles...</div>
-              ) : roles.length === 0 ? (
-                <div className="text-gray-500 text-sm">
-                  No custom roles available. Create roles first in the Roles settings.
-                </div>
-              ) : (
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {roles.map((role) => (
-                    <label
-                      key={role.id}
-                      className="flex items-center gap-3 p-2 rounded hover:bg-gray-100 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedRoleIds.includes(role.id)}
-                        onChange={() => handleRoleToggle(role.id)}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-400 border-gray-300 rounded"
-                      />
-                      <span
-                        className="px-2 py-1 rounded text-sm font-medium text-white"
-                        style={{ backgroundColor: role.color || '#5865f2' }}
-                      >
-                        {role.name}
-                      </span>
-                      {role.is_self_assignable && (
-                        <span className="text-xs text-gray-400">(Self-assignable)</span>
-                      )}
-                    </label>
-                  ))}
-                </div>
-              )}
-              {selectedRoleIds.length > 0 && (
-                <div className="mt-2 text-sm text-gray-600">
-                  {selectedRoleIds.length} role(s) selected
-                </div>
-              )}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-lg transition-colors"
+        {/* Channel Type */}
+        <div>
+          <label className="block font-semibold mb-2 text-[#b5bac1]">
+            Channel Type
+          </label>
+          <select
+            name="type"
+            value={formData.type}
+            onChange={handleChange}
+            className="w-full bg-black text-white border-2 border-[#72767d] rounded px-4 py-3 focus:border-[#FFC341] focus:outline-none transition-all duration-200 cursor-pointer"
           >
-            {loading ? "Creating..." : "Create Channel"}
-          </button>
+            <option value="text">Text</option>
+            <option value="voice">Voice</option>
+          </select>
+        </div>
 
-          {message && (
-            <p className="text-center text-sm font-medium mt-3 text-gray-800">
-              {message}
+        {/* Permission Type */}
+        <div>
+          <label className="block font-semibold mb-2 text-[#b5bac1]">
+            Permission Type
+          </label>
+          <select
+            name="channel_type"
+            value={formData.channel_type}
+            onChange={handleChange}
+            className="w-full bg-black text-white border-2 border-[#72767d] rounded px-4 py-3 focus:border-[#FFC341] focus:outline-none transition-all duration-200 cursor-pointer"
+          >
+            <option value="normal">Normal - Everyone can view and send</option>
+            <option value="read_only">Read Only - Everyone views, only admins/mods send</option>
+            <option value="role_restricted">Role Restricted - Specific roles only</option>
+          </select>
+          
+          {/* Info text based on selection */}
+          <div className="mt-3 p-3 bg-[#2f3136] rounded-lg border-l-4 border-[#FFC341]">
+            {formData.channel_type === "normal" && (
+              <p className="text-sm text-[#b5bac1]">
+                📝 All members can view and send messages
+              </p>
+            )}
+            {formData.channel_type === "read_only" && (
+              <p className="text-sm text-[#b5bac1]">
+                🔒 Perfect for announcements - all members can see messages, but only admins and selected moderators can send
+              </p>
+            )}
+            {formData.channel_type === "role_restricted" && (
+              <p className="text-sm text-[#b5bac1]">
+                👥 Only members with selected roles can view this channel. Admins and moderators can send messages
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Role selection for role_restricted channels */}
+        {formData.channel_type === "role_restricted" && (
+          <div className="p-4 bg-[#2f3136] rounded-lg border-2 border-[#72767d]">
+            <label className="block font-semibold mb-2 text-[#b5bac1]">
+              Who can view this channel?
+            </label>
+            <p className="text-sm text-[#72767d] mb-3">
+              Select roles that can access this channel. Owners and Admins can always see all channels.
             </p>
-          )}
-        </form>
-      </div>
+            {loadingRoles ? (
+              <div className="text-[#72767d]">Loading roles...</div>
+            ) : roles.length === 0 ? (
+              <div className="text-[#72767d] text-sm">
+                No custom roles available. Create roles first in the Roles settings.
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-[#72767d] scrollbar-track-[#2f3136]">
+                {roles.map((role) => (
+                  <label
+                    key={role.id}
+                    className="flex items-center gap-3 p-2 rounded hover:bg-[#36393f] cursor-pointer transition"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedRoleIds.includes(role.id)}
+                      onChange={() => handleRoleToggle(role.id)}
+                      className="h-4 w-4 accent-[#FFC341] border-[#72767d] rounded"
+                    />
+                    <span
+                      className="px-2 py-1 rounded text-sm font-medium text-white"
+                      style={{ backgroundColor: role.color || '#5865f2' }}
+                    >
+                      {role.name}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+            {selectedRoleIds.length > 0 && (
+              <div className="mt-3 text-sm text-[#FFC341] font-medium">
+                ✓ {selectedRoleIds.length} role(s) can view this channel
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Moderator selection for read_only and role_restricted channels */}
+        {(formData.channel_type === "read_only" || formData.channel_type === "role_restricted") && (
+          <div className="p-4 bg-[#2f3136] rounded-lg border-2 border-[#FFC341]">
+            <label className="block font-semibold mb-2 text-[#b5bac1]">
+              Who can send messages? (Optional)
+            </label>
+            <p className="text-sm text-[#72767d] mb-3">
+              Admins and owners can always send. Select additional moderator roles below.
+            </p>
+            {loadingRoles ? (
+              <div className="text-[#72767d]">Loading roles...</div>
+            ) : roles.length === 0 ? (
+              <div className="text-[#72767d] text-sm">
+                No custom roles available.
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-[#72767d] scrollbar-track-[#2f3136]">
+                {roles.map((role) => (
+                  <label
+                    key={role.id}
+                    className="flex items-center gap-3 p-2 rounded hover:bg-[#36393f] cursor-pointer transition"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedModeratorIds.includes(role.id)}
+                      onChange={() => handleModeratorToggle(role.id)}
+                      className="h-4 w-4 accent-[#FFC341] border-[#72767d] rounded"
+                    />
+                    <span
+                      className="px-2 py-1 rounded text-sm font-medium text-white"
+                      style={{ backgroundColor: role.color || '#5865f2' }}
+                    >
+                      {role.name}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+            {selectedModeratorIds.length > 0 && (
+              <div className="mt-3 text-sm text-[#FFC341] font-medium">
+                ✓ {selectedModeratorIds.length} moderator role(s) can send messages
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Submit Button */}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold rounded px-6 py-3 shadow transition-all duration-200
+            hover:from-[#FFD700] hover:to-[#FFC341] hover:-translate-y-1 hover:scale-105 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+          style={{
+            backgroundSize: "200% 200%",
+            backgroundPosition: "left center",
+            transition: "background-position 0.5s, transform 0.2s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundPosition = "right center")}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundPosition = "left center")}
+        >
+          {loading ? "Creating..." : "Create Channel"}
+        </button>
+
+        {/* Message */}
+        {message && (
+          <div className={`p-3 rounded-lg text-center font-medium ${
+            messageType === "success" 
+              ? "bg-green-600 text-white" 
+              : "bg-red-600 text-white"
+          }`}>
+            {message}
+          </div>
+        )}
+      </form>
     </div>
   );
 };

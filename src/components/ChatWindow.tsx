@@ -8,7 +8,8 @@ import MessageInputWithMentions from "./MessageInputWithMentions";
 import MessageContentWithMentions from "./MessageContentWithMentions";
 import MessageAttachment from "./MessageAttachment";
 import { fetchMessages, uploadMessage } from "@/api/message.api";
-import { getUser, getUserAvatar } from "@/api/profile.api";
+import { getUserAvatar, getUser } from "@/api/profile.api";
+import { getChannelPermissions } from "@/api/channel.api";
 import { createAuthSocket } from "@/socket";
 import MessageBubble from "./MessageBubble";
 import Toast from "@/components/Toast";
@@ -55,6 +56,14 @@ interface ChatWindowProps {
   serverId?: string;
 }
 
+interface ChannelPermissions {
+  channelType: string;
+  canView: boolean;
+  canSend: boolean;
+  isAdmin: boolean;
+  isModerator: boolean;
+}
+
 export default forwardRef(function ChatWindow(
   {
     channelId,
@@ -81,7 +90,12 @@ export default forwardRef(function ChatWindow(
   const [isSending, setIsSending] = useState(false);
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string>("/User_profil.png");
   const isLoadingMoreRef = useRef(false);
+  const channelIdRef = useRef(channelId); // Add ref to track current channel
+  const receivedMessageIdsRef = useRef<Set<string | number>>(new Set()); // Persistent message ID tracking
+  const offsetRef = useRef(0); // Track offset in ref to prevent unnecessary callback recreation
   const [serverRoles, setServerRoles] = useState<{ id: string; name: string; color?: string }[]>([]);
+  const [channelPermissions, setChannelPermissions] = useState<ChannelPermissions | null>(null);
+  const [permissionError, setPermissionError] = useState<string | null>(null);
   const [roleModal, setRoleModal] = useState<{
     open: boolean;
     role: string;
@@ -162,6 +176,11 @@ export default forwardRef(function ChatWindow(
     }
   }));
 
+  // Update ref whenever channelId changes
+  useEffect(() => {
+    channelIdRef.current = channelId;
+  }, [channelId]);
+
   const handleReply = (message: Message) => {
     console.log("Reply clicked for:", message);
     setReplyingTo(message);
@@ -241,6 +260,31 @@ useEffect(() => {
 }, [messages, currentUserId, isMessageMentioningMe]);
 
 
+
+  // Fetch channel permissions
+  useEffect(() => {
+    const fetchPermissions = async () => {
+      if (!channelId || !serverId) return;
+      
+      try {
+        const permissions = await getChannelPermissions(channelId);
+        setChannelPermissions(permissions);
+        setPermissionError(null);
+      } catch (err: any) {
+        console.error("Error fetching channel permissions:", err);
+        // If error, assume normal permissions
+        setChannelPermissions({
+          channelType: "normal",
+          canView: true,
+          canSend: true,
+          isAdmin: false,
+          isModerator: false,
+        });
+      }
+    };
+    
+    fetchPermissions();
+  }, [channelId, serverId]);
 
   useEffect(() => {
   if (!serverId) return;
@@ -489,19 +533,36 @@ useEffect(() => {
     };
   }, [currentUserId]);
 
-const loadMessages = useCallback(async (loadMore: boolean = false) => {
+const loadMessages = useCallback(async (loadMore: boolean = false, abortSignal?: AbortSignal) => {
   try {
     if (loadMore) {
       setLoadingMore(true);
       isLoadingMoreRef.current = true;
     } else {
       setLoadingMessages(true);
+      offsetRef.current = 0; // Reset offset ref
       setOffset(0);
       isLoadingMoreRef.current = false;
     }
 
-    const currentOffset = loadMore ? offset : 0;
-    const res = await fetchMessages(channelId, currentOffset);
+    const currentOffset = loadMore ? offsetRef.current : 0;
+    
+    // Check if request was cancelled
+    if (abortSignal?.aborted) {
+      return;
+    }
+    
+    // Use channelIdRef.current to always get the latest channel ID
+    const currentChannelId = channelIdRef.current;
+    
+    // Fetch messages for the CURRENT channel
+    const res = await fetchMessages(currentChannelId, currentOffset);
+
+    // Check again after async operation - verify we're still on the same channel
+    if (abortSignal?.aborted || channelIdRef.current !== currentChannelId) {
+      console.log(`Fetch completed for ${currentChannelId} but current channel is ${channelIdRef.current}, ignoring`);
+      return;
+    }
 
     const formattedMessages: Message[] = await Promise.all(
       res.data.map(async (msg: any) => {
@@ -539,14 +600,36 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
       })
     );
 
+    // Final check before updating state - CRITICAL: verify channel hasn't changed
+    if (abortSignal?.aborted || channelIdRef.current !== currentChannelId) {
+      console.log(`Message processing completed for ${currentChannelId} but current channel is ${channelIdRef.current}, ignoring`);
+      return;
+    }
+
     const sorted = formattedMessages.reverse();
 
     if (loadMore) {
-      setMessages(prev => [...sorted, ...prev]);
-      setOffset(prev => prev + res.data.length);
+      // When loading more, deduplicate by message ID
+      setMessages(prev => {
+        const existingIds = new Set(prev.map(msg => msg.id));
+        const newMessages = sorted.filter(msg => !existingIds.has(msg.id));
+        return [...newMessages, ...prev];
+      });
+      const newOffset = offsetRef.current + res.data.length;
+      offsetRef.current = newOffset;
+      setOffset(newOffset);
     } else {
+      // Initial load - just set the messages
       setMessages(sorted);
+      offsetRef.current = res.data.length;
       setOffset(res.data.length);
+      
+      // Mark all loaded message IDs as received to prevent socket duplicates
+      sorted.forEach(msg => {
+        if (msg.id) {
+          receivedMessageIdsRef.current.add(msg.id);
+        }
+      });
     }
 
     setHasMore(res.hasMore ?? false);
@@ -556,14 +639,31 @@ const loadMessages = useCallback(async (loadMore: boolean = false) => {
     setLoadingMessages(false);
     setLoadingMore(false);
   }
-}, [channelId, currentUserId, offset]); // Removed currentUserAvatar from dependencies
+}, [currentUserId]); // REMOVED both channelId and offset - using refs instead!
 
   useEffect(() => {
+    // Reset scroll tracking on channel change
+    hasScrolledForChannelRef.current = null;
+    
+    // Immediately clear messages when channel changes to prevent showing old messages
+    setMessages([]);
+    setOffset(0);
+    offsetRef.current = 0; // Reset offset ref
+    setHasMore(true);
+    receivedMessageIdsRef.current.clear(); // Clear received IDs for new channel
+    
+    // Create abort controller for this channel's fetch
+    const abortController = new AbortController();
+    
     if (channelId) {
-      hasScrolledForChannelRef.current = null; // Reset on channel change
-      loadMessages(false);
+      loadMessages(false, abortController.signal);
     }
-  }, [channelId]);
+    
+    // Cleanup: abort fetch if channel changes before completion
+    return () => {
+      abortController.abort();
+    };
+  }, [channelId, loadMessages]);
 
   // Auto-scroll to first unread mention when channel loads
   useEffect(() => {
@@ -742,9 +842,27 @@ hasScrolledToMentionRef.current = false;
 userHasScrolledRef.current = false;
 
   useEffect(() => {
+    if (!socket || !channelId) return;
+    
+    // Join the new room
+    socket.emit("join_room", channelId);
+    console.log(`Joined room: ${channelId}`);
+    
+    // Cleanup: leave the room when channelId changes or component unmounts
+    return () => {
+      socket.emit("leave_room", channelId);
+      console.log(`Left room: ${channelId}`);
+    };
+  }, [socket, channelId]);
+
+  useEffect(() => {
     if (!socket) return;
     socket.on('connect', () => {
-      socket.emit("join_room", channelId);
+      // Re-join current room on reconnect
+      if (channelId) {
+        socket.emit("join_room", channelId);
+        console.log(`Reconnected and joined room: ${channelId}`);
+      }
     });
     
     socket.on('connect_error', (error: Error) => {
@@ -771,14 +889,26 @@ userHasScrolledRef.current = false;
 
   useEffect(() => {
     if (!socket) return;
-    const receivedMessageIds = new Set<string | number>();
 
     const handleIncomingMessage = async (saved: any) => {
       
-      const messageId = saved?.id || saved?.messageId || Date.now();
-      if (saved?.channel_id && saved.channel_id !== channelId) return;
+      const messageId = saved?.id || saved?.messageId;
+      
+      // Reject messages without proper ID (don't use Date.now() as fallback)
+      if (!messageId) {
+        console.warn("Received message without ID, ignoring:", saved);
+        return;
+      }
+      
+      // Use ref to check current channel, not the stale closure value
+      if (saved?.channel_id && saved.channel_id !== channelIdRef.current) {
+        console.log(`Ignoring message from channel ${saved.channel_id}, current channel is ${channelIdRef.current}`);
+        return;
+      }
 
-      if (receivedMessageIds.has(messageId)) {
+      // Check if we already processed this message ID
+      if (receivedMessageIdsRef.current.has(messageId)) {
+        console.log(`Duplicate message detected (ID: ${messageId}), ignoring`);
         return;
       }
 
@@ -836,10 +966,18 @@ userHasScrolledRef.current = false;
       }
 
       setMessages(prev => {
+        // Check if message already exists in state (by ID)
+        const existsById = prev.some(msg => msg.id === messageId);
+        if (existsById) {
+          console.log(`Message ${messageId} already in state, skipping`);
+          return prev;
+        }
+
+        // Additional check: remove optimistic duplicates from current user
         const filtered = prev.filter(msg => 
           !(msg.senderId === currentUserId && 
-            msg.content === (saved?.content || saved?.message || "") && 
-            Date.now() - new Date(msg.timestamp).getTime() < 30000)
+            msg.content === newMessage.content && 
+            Math.abs(new Date(msg.timestamp).getTime() - new Date(newMessage.timestamp).getTime()) < 5000)
         );
 
         const updated = [...filtered, newMessage].sort(
@@ -849,11 +987,13 @@ userHasScrolledRef.current = false;
         return updated;
       });
 
-      receivedMessageIds.add(messageId);
+      // Mark this message ID as received
+      receivedMessageIdsRef.current.add(messageId);
 
+      // Clean up old message IDs after 10 minutes to prevent memory leak
       setTimeout(() => {
-        receivedMessageIds.delete(messageId);
-      }, 5 * 60 * 1000);
+        receivedMessageIdsRef.current.delete(messageId);
+      }, 10 * 60 * 1000);
     };
 
     socket.on("new_message", handleIncomingMessage);
@@ -865,24 +1005,25 @@ userHasScrolledRef.current = false;
       socket.off("new_message");
       socket.off("reconnect");
     };
-  }, [socket, currentUserId, loadMessages, channelId, currentUserAvatar]);
-const validateUserMentions = (message: string) => {
-  const userMentionRegex = /@([a-zA-Z0-9_]+)/g;
-  let match;
+  }, [socket, currentUserId, loadMessages, currentUserAvatar]);
 
-  while ((match = userMentionRegex.exec(message)) !== null) {
-    const mention = `@${match[1]}`;
+  const validateUserMentions = (message: string) => {
+    const userMentionRegex = /@([a-zA-Z0-9_]+)/g;
+    let match;
 
-    // Skip role mentions (@&role)
-    if (message.includes(`@&${match[1]}`)) continue;
+    while ((match = userMentionRegex.exec(message)) !== null) {
+      const mention = `@${match[1]}`;
 
-    if (!isValidUsernameMention(mention)) {
-      return { valid: false, invalidUser: mention };
+      // Skip role mentions (@&role)
+      if (message.includes(`@&${match[1]}`)) continue;
+
+      if (!isValidUsernameMention(mention)) {
+        return { valid: false, invalidUser: mention };
+      }
     }
-  }
 
-  return { valid: true };
-};
+    return { valid: true };
+  };
 
   const validateRoleMentions = (message: string) => {
     const roleMentionRegex = /@&([a-zA-Z0-9_ ]+?)(?=\s|$)/g;
@@ -898,6 +1039,19 @@ const validateUserMentions = (message: string) => {
 
   const handleSend = async (text: string, file: File | null) => {
     if (text.trim() === "" && !file) return;
+
+    // Check channel permissions before sending
+    if (channelPermissions && !channelPermissions.canSend) {
+      let errorMsg = "You don't have permission to send messages in this channel.";
+      if (channelPermissions.channelType === "read_only") {
+        errorMsg = "This is a read-only channel. Only admins and moderators can send messages.";
+      } else if (channelPermissions.channelType === "role_restricted") {
+        errorMsg = "You need specific roles to send messages in this channel.";
+      }
+      setPermissionError(errorMsg);
+      setTimeout(() => setPermissionError(null), 5000);
+      return;
+    }
 
     const validation = validateRoleMentions(text);
     if (!validation.valid) {
@@ -915,8 +1069,11 @@ if (!userValidation.valid) {
   // Get avatar from cache or use fallback
   const userAvatar = avatarCacheRef.current[currentUserId] || currentUserAvatar || "/User_profil.png";
 
+  // Create unique temp ID
+  const tempId = `temp-${currentUserId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
   const optimisticMessage: Message = {
-    id: `temp-${Date.now()}`,
+    id: tempId,
     content: file ? `${text} 📎 Uploading ${file.name}...` : text,
     senderId: currentUserId,
     timestamp: new Date().toISOString(),
@@ -932,7 +1089,21 @@ if (!userValidation.valid) {
       : null
   };
   
-  setMessages(prev => [...prev, optimisticMessage]);
+  // Add optimistic message only if it doesn't already exist
+  setMessages(prev => {
+    const hasSimilarRecent = prev.some(msg => 
+      msg.senderId === currentUserId &&
+      msg.content === optimisticMessage.content &&
+      Math.abs(new Date(msg.timestamp).getTime() - new Date(optimisticMessage.timestamp).getTime()) < 2000
+    );
+    
+    if (hasSimilarRecent) {
+      console.log("Similar message already exists, not adding optimistic duplicate");
+      return prev;
+    }
+    
+    return [...prev, optimisticMessage];
+  });
 
   try {
     const response = await uploadMessage({
@@ -944,10 +1115,24 @@ if (!userValidation.valid) {
     });
     setReplyingTo(null);
     console.log('[Upload Message] Response:', response);
+    
+    // Remove optimistic message after successful send
+    // (the real message will come via socket)
+    setMessages(prev => prev.filter((msg) => msg.id !== tempId));
   } catch (err: any) {
     console.error('💔 Failed to upload message:', err);
-    alert(`Upload failed: ${err.message || 'Unknown error'}`);
-    setMessages(prev => prev.filter((msg) => msg.id !== optimisticMessage.id));
+    const errorMessage = err?.response?.data?.error || err.message || 'Unknown error';
+    
+    // Check if it's a permission error
+    if (err?.response?.status === 403) {
+      setPermissionError(errorMessage);
+      setTimeout(() => setPermissionError(null), 5000);
+    } else {
+      alert(`Upload failed: ${errorMessage}`);
+    }
+    
+    // Remove optimistic message on error
+    setMessages(prev => prev.filter((msg) => msg.id !== tempId));
   } finally {
     setIsSending(false);
   }
@@ -1069,6 +1254,15 @@ if (!userValidation.valid) {
       </div>
 
       <div className="flex-shrink-0 px-6 pb-6">
+        {permissionError && (
+          <div className="mx-6 mb-2 px-4 py-3 bg-red-900/50 border border-red-500 rounded-lg flex items-center gap-3">
+            <span className="text-red-400 text-xl">🔒</span>
+            <div className="text-sm text-red-200 flex-1">
+              {permissionError}
+            </div>
+          </div>
+        )}
+        
         {replyingTo && (
           <div className="mx-6 mb-2 px-4 py-2 bg-slate-800 rounded-lg flex items-center justify-between border-l-4 border-blue-500">
             <div className="text-sm text-slate-300 truncate">
@@ -1076,7 +1270,10 @@ if (!userValidation.valid) {
               <span className="font-semibold">
                 {replyingTo.username || "User"}
               </span>
-              : <span className="italic">{replyingTo.content}</span>
+              :{" "}
+              <span className="italic">
+                {replyingTo.content}
+              </span>
             </div>
             <button
               onClick={() => setReplyingTo(null)}
@@ -1086,7 +1283,27 @@ if (!userValidation.valid) {
             </button>
           </div>
         )}
-        {serverId ? (
+
+        {/* Show restricted channel notice if can't send */}
+        {channelPermissions && !channelPermissions.canSend ? (
+          <div className="mx-6 p-4 bg-slate-800/70 border-2 border-slate-700 rounded-lg text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <span className="text-2xl">
+                {channelPermissions.channelType === "read_only" ? "📢" : "🔒"}
+              </span>
+              <span className="text-slate-300 font-semibold">
+                {channelPermissions.channelType === "read_only" 
+                  ? "Read-Only Channel" 
+                  : "Restricted Channel"}
+              </span>
+            </div>
+            <p className="text-sm text-slate-400">
+              {channelPermissions.channelType === "read_only" 
+                ? "Only admins and moderators can send messages in this channel."
+                : "You need specific roles to send messages here."}
+            </p>
+          </div>
+        ) : serverId ? (
           <MessageInputWithMentions
             sendMessage={handleSend}
             isSending={isSending}
@@ -1097,7 +1314,7 @@ if (!userValidation.valid) {
           <MessageInput sendMessage={handleSend} isSending={isSending} />
         )}
       </div>
-
+      
       {roleModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="bg-[#232428] rounded-2xl shadow-2xl w-96 p-6 text-white relative">
@@ -1117,16 +1334,9 @@ if (!userValidation.valid) {
               {roleModal.users.length === 0 ? (
                 <div className="text-gray-500 text-center">No users found.</div>
               ) : (
-                roleModal.users.map((user) => (
-                  <div
-                    key={user.id}
-                    className="flex items-center gap-3 p-2 rounded hover:bg-gray-800 transition"
-                  >
-                    <img
-                      src={user.avatarUrl || "/User_profil.png"}
-                      alt={user.username}
-                      className="w-8 h-8 rounded-full"
-                    />
+                roleModal.users.map(user => (
+                  <div key={user.id} className="flex items-center gap-3 p-2 rounded hover:bg-gray-800 transition">
+                    <img src={user.avatarUrl || "/User_profil.png"} alt={user.username} className="w-8 h-8 rounded-full" />
                     <span>{user.username}</span>
                   </div>
                 ))
@@ -1135,6 +1345,7 @@ if (!userValidation.valid) {
           </div>
         </div>
       )}
+      
       <UserProfileModal
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}

@@ -50,3 +50,15 @@ export const fetchChannelsByServer = async (serverId: string): Promise<any> => {
     return null;
   }
 };
+
+// Get channel permissions for current user
+export const getChannelPermissions = async (channelId: string): Promise<{
+  channelType: string;
+  canView: boolean;
+  canSend: boolean;
+  isAdmin: boolean;
+  isModerator: boolean;
+}> => {
+  const response = await api.get(`/api/channel/channels/${channelId}/permissions`);
+  return response.data;
+};

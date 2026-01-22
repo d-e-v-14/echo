@@ -150,9 +150,9 @@ export default function Overview({ serverId, serverDetails, onServerUpdate, isOw
           <button
             onClick={handleSaveChanges}
             disabled={!hasChanges || isLoading}
-            className={`font-bold rounded px-6 py-2 shadow transition-all duration-200 focus:outline-none ${
+            className={`font-bold rounded px-6 py-3 shadow transition-all duration-200 focus:outline-none ${
               hasChanges && !isLoading
-                ? "bg-gradient-to-r from-[#ffb347] to-[#ffcc33] text-[#23272a] hover:from-[#ffcc33] hover:to-[#ffb347] hover:-translate-y-1 hover:scale-105"
+                ? "bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black hover:from-[#FFD700] hover:to-[#FFC341] hover:-translate-y-1 hover:scale-105"
                 : "bg-gray-600 text-gray-400 cursor-not-allowed"
             }`}
             style={{
