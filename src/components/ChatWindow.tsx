@@ -274,7 +274,7 @@ useEffect(() => {
 
         console.log(
           "VALID USERNAMES (from mentions search):",
-          [...set]
+          Array.from(set)
         );
       }
     } catch (err) {
