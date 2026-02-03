@@ -231,22 +231,66 @@ const isValidUsernameMention = (mention: string) => {
 
   return validUsernamesRef.current.has(name);
 };
-
 useEffect(() => {
-  const set = new Set<string>();
+  if (!serverId) return;
 
-  messages.forEach((m) => {
-    if (m.username && m.username !== "You") {
-      set.add(m.username.toLowerCase());
+  let cancelled = false;
+
+  const seedMentionableUsernames = async () => {
+    try {
+      // 🔹 use same endpoint as @ popup
+      const res = await apiClient.get(
+        `/api/mentions/search/${serverId}`,
+        { params: { q: "" } } // empty query = backend decides
+      );
+
+      const set = new Set<string>();
+
+      for (const user of res.data?.users ?? []) {
+        if (!user?.username) continue;
+
+        const normalized = user.username
+          .trim()
+          .toLowerCase()
+          .replace(/[^\w-]/g, "");
+
+        if (normalized) {
+          set.add(normalized);
+        }
+      }
+
+      // Always include self
+      if (currentUsername) {
+        set.add(
+          currentUsername
+            .trim()
+            .toLowerCase()
+            .replace(/[^\w-]/g, "")
+        );
+      }
+
+      if (!cancelled) {
+        validUsernamesRef.current = set;
+
+        console.log(
+          "VALID USERNAMES (from mentions search):",
+          [...set]
+        );
+      }
+    } catch (err) {
+      console.error("Failed to seed mention usernames", err);
     }
-  });
+  };
 
-  if (currentUsername) {
-    set.add(currentUsername.toLowerCase());
-  }
+  seedMentionableUsernames();
 
-  validUsernamesRef.current = set;
-}, [messages, currentUsername]);
+  return () => {
+    cancelled = true;
+  };
+}, [serverId, currentUsername]);
+
+
+
 
 useEffect(() => {
   const mentionExists = messages.some(
