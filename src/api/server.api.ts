@@ -1,4 +1,4 @@
-import {api,apiClient} from "./axios";
+import { apiClient } from "./axios";
 import {ServerDetails,ServerMember,ServerInvite} from "./types/server.types";
 import {SearchUser,BannedUser,SearchUserResult} from "./types/user.types";
 import {getUser} from "./profile.api";
@@ -8,7 +8,7 @@ import {Server} from "@/api/types/server.types";
 // Get server details
 export const getServerDetails = async (serverId: string): Promise<ServerDetails> => {
     const [serverResponse, user] = await Promise.all([
-        api.get(`/api/newserver/${serverId}`),
+        apiClient.get(`/api/newserver/${serverId}`),
         getUser()
     ]);
     
@@ -27,7 +27,7 @@ export const updateServer = async (serverId: string, data: { name?: string }, ic
     if (data.name) formData.append('name', data.name);
     if (iconFile) formData.append('icon', iconFile);
 
-    const response = await api.put(`/api/newserver/${serverId}`, formData, {
+    const response = await apiClient.put(`/api/newserver/${serverId}`, formData, {
         headers: {
             'Content-Type': 'multipart/form-data',
         },
@@ -45,28 +45,28 @@ export const updateServer = async (serverId: string, data: { name?: string }, ic
 
 // Kick member
 export const kickMember = async (serverId: string, userId: string): Promise<void> => {
-    await api.delete(`/api/newserver/${serverId}/members/${userId}/kick`);
+    await apiClient.delete(`/api/newserver/${serverId}/members/${userId}/kick`);
 };
 
 // Ban member
 export const banMember = async (serverId: string, userId: string, reason?: string): Promise<void> => {
-    await api.post(`/api/newserver/${serverId}/members/${userId}/ban`, { reason });
+    await apiClient.post(`/api/newserver/${serverId}/members/${userId}/ban`, { reason });
 };
 
 // Get banned users
 export const getBannedUsers = async (serverId: string): Promise<BannedUser[]> => {
-    const response = await api.get(`/api/newserver/${serverId}/bans`);
+    const response = await apiClient.get(`/api/newserver/${serverId}/bans`);
     return response.data;
 };
 
 // Unban user
 export const unbanUser = async (serverId: string, userId: string): Promise<void> => {
-    await api.delete(`/api/newserver/${serverId}/members/${userId}/unban`);
+    await apiClient.delete(`/api/newserver/${serverId}/members/${userId}/unban`);
 };
 
 // Add user to server
 export const addUserToServer = async (serverId: string, username: string): Promise<void> => {
-    await api.post(`/api/newserver/${serverId}/members`, { username });
+    await apiClient.post(`/api/newserver/${serverId}/members`, { username });
 };
 
 // Search users
@@ -88,25 +88,25 @@ export const searchUsers = async (query: string): Promise<SearchUserResult[]> =>
 
 // Get server invites
 export const getServerInvites = async (serverId: string): Promise<ServerInvite[]> => {
-    const response = await api.get(`/api/newserver/${serverId}/invites`);
+    const response = await apiClient.get(`/api/newserver/${serverId}/invites`);
     return response.data;
 };
 
 // Create server invite
-export const createServerInvite = async (serverId: string, options: { expiresAfter?: string; maxUses?: string }): Promise<{ invite: ServerInvite & { inviteLink: string } }> => {
-    const response = await api.post(`/api/newserver/${serverId}/invites`, options);
+export const createServerInvite = async (serverId: string, options: { expiresAfter?: string; maxUses?: string }): Promise<{ invite: ServerInvite }> => {
+    const response = await apiClient.post(`/api/newserver/${serverId}/invites`, options);
     return response.data;
 };
 
 
 // Delete invite
-export const deleteInvite = async (inviteId: string): Promise<void> => {
-    await api.delete(`/api/invites/${inviteId}`);
+export const deleteInvite = async (serverId: string, inviteId: string): Promise<void> => {
+    await apiClient.delete(`/api/newserver/${serverId}/invites/${inviteId}`);
 };
 
 // Leave server
 export const leaveServer = async (serverId: string): Promise<void> => {
-    await api.post(`/api/newserver/${serverId}/leave`);
+    await apiClient.post(`/api/newserver/${serverId}/leave`);
 };
 
 // Delete server
@@ -116,7 +116,7 @@ export const leaveServer = async (serverId: string): Promise<void> => {
 
 // Get available permissions
 export const getAvailablePermissions = async (): Promise<string[]> => {
-    const response = await api.get('/api/roles/permissions');
+    const response = await apiClient.get('/api/roles/permissions');
     return response.data;
 };
 
@@ -160,18 +160,27 @@ export const fetchServers = async (): Promise<Server[]> => {
 
 
 export const joinServer = async (inviteCode: string) => {
-  const res = await apiClient.post(
-    "/api/newserver/joinwithinvite",
-    { inviteCode }
-  );
+  try {
+    const res = await apiClient.post(
+      "/api/newserver/joinwithinvite",
+      { inviteCode }
+    );
 
-  if (!res.data.success) {
-    const error: any = new Error(res.data.message);
-    error.code = res.data.code; // Pass the error code (e.g., "USER_BANNED")
+    if (!res.data?.success) {
+      const error: any = new Error(res.data?.message || "Failed to join the server.");
+      error.code = res.data?.code;
+      throw error;
+    }
+
+    return res.data;
+  } catch (err: any) {
+    const data = err?.response?.data;
+    const error: any = new Error(
+      data?.message || data?.error || err?.message || "Failed to join the server."
+    );
+    error.code = data?.code;
     throw error;
   }
-
-  return res.data;
 };
 
 

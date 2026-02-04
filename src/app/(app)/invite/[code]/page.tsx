@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { joinServer } from "@/api";
 import Loader from "@/components/Loader";
@@ -11,6 +11,9 @@ export default function InvitePage() {
   const { code } = useParams<{ code: string }>();
   const router = useRouter();
 
+  // Prevent duplicate joins from React strict mode / re-renders.
+  const joinAttemptRef = useRef<string | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [errorCode, setErrorCode] = useState("");
@@ -18,56 +21,79 @@ export default function InvitePage() {
     message: string;
     type: "info" | "success" | "error";
   } | null>(null);
-useEffect(() => {
-  if (!code) {
-    setToast({ message: "Invalid invite link.", type: "error" });
-    setError("Invalid invite link.");
-    setLoading(false);
-    return;
-  }
-
-  const join = async () => {
-    try {
-      
-      setToast({ message: "Accepting invite…", type: "info" });
-
-      await joinServer(code);
-
-     
-      setToast({ message: "Joined server successfully!", type: "success" });
-
-      setTimeout(() => {
-        router.replace("/servers");
-      }, 800);
-    } catch (err: any) {
-      const msg = err?.message || "Failed to join the server.";
-
-
-      setToast({ message: msg, type: "error" });
-
-      setError(msg);
-      setErrorCode(err?.code || "");
-      setLoading(false);
-    }
-  };
-
-  join();
-}, [code, router]);
-
-
   useEffect(() => {
     if (!code) {
+      setToast({ message: "Invalid invite link.", type: "error" });
       setError("Invalid invite link.");
       setLoading(false);
       return;
     }
 
+    // Check if user is authenticated before attempting to join
+    const token = localStorage.getItem("access_token");
+    const tokenExpiry = localStorage.getItem("tokenExpiry");
+    const isExpired = tokenExpiry && Date.now() > parseInt(tokenExpiry);
+
+    if (!token || isExpired) {
+      // Save invite URL for redirect after login
+      localStorage.setItem("redirectAfterLogin", `/invite/${code}`);
+      setToast({ message: "Please log in to join this server.", type: "info" });
+      setTimeout(() => {
+        router.replace("/login");
+      }, 1000);
+      return;
+    }
+
+    // Prevent duplicate joins from React strict mode / re-renders
+    if (joinAttemptRef.current === code) {
+      return;
+    }
+
+    // Multi-tab race condition prevention
+    const lockKey = `invite_lock_${code}`;
+    const existingLock = localStorage.getItem(lockKey);
+    if (existingLock && Date.now() - parseInt(existingLock) < 10000) {
+      // Another tab is processing this invite within last 10 seconds
+      setToast({ message: "Join already in progress...", type: "info" });
+      return;
+    }
+    localStorage.setItem(lockKey, Date.now().toString());
+
+    joinAttemptRef.current = code;
+
     const join = async () => {
       try {
+        setToast({ message: "Accepting invite…", type: "info" });
+
         await joinServer(code);
-        router.replace("/servers");
+
+        // Clear the lock on success
+        localStorage.removeItem(lockKey);
+
+        setToast({ message: "Joined server successfully!", type: "success" });
+
+        setTimeout(() => {
+          router.replace("/servers");
+        }, 800);
       } catch (err: any) {
-        setError(err?.message || "Failed to join the server.");
+        // Clear the lock on error
+        localStorage.removeItem(lockKey);
+
+        // Handle auth errors - redirect to login
+        if (err.code === "AUTH_REQUIRED" || err?.response?.status === 401) {
+          localStorage.setItem("redirectAfterLogin", `/invite/${code}`);
+          setToast({ message: "Session expired. Please log in again.", type: "info" });
+          setTimeout(() => {
+            router.replace("/login");
+          }, 1000);
+          return;
+        }
+
+        const msg = err?.message || "Failed to join the server.";
+
+        setToast({ message: msg, type: "error" });
+
+        setError(msg);
         setErrorCode(err?.code || "");
         setLoading(false);
       }
