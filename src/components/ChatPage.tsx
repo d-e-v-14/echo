@@ -215,9 +215,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ activeUser, messages, currentUs
             const senderId = message.sender_id;
             const isSender = senderId === currentUser?.id;
             const name = isSender ? 'You' : partner?.fullname ?? 'Unknown User';
-            const avatarUrl = isSender
-            ? '/User_profil.png'
-            : partner?.avatar_url ?? '/User_profil.png';
+           const avatarUrl = isSender
+             ? currentUser?.avatar_url ?? "/User_profil.png"
+             : partner?.avatar_url ?? "/User_profil.png";
+
 
             let group = section.groups[section.groups.length - 1];
             if (!group || group.senderId !== senderId) {
@@ -557,17 +558,18 @@ useEffect(() => {
             router.push('/');
         }
     }, [router]);
-    useEffect(() => {
-      if (!currentUser?.id || !currentUser.avatar_url) return;
+  useEffect(() => {
+    if (!currentUser?.id || !currentUser.avatar_url) return;
 
-      setAllUsers((prev) =>
-        prev.map((u) =>
-          u.id === currentUser.id
-            ? { ...u, avatar_url: currentUser.avatar_url }
-            : u
-        )
-      );
-    }, [currentUser?.avatar_url]);
+    const bustedUrl = `${currentUser.avatar_url}?t=${Date.now()}`;
+
+    setAllUsers((prev) =>
+      prev.map((u) =>
+        u.id === currentUser.id ? { ...u, avatar_url: bustedUrl } : u
+      )
+    );
+  }, [currentUser?.avatar_url]);
+
 
     
     // Removed duplicate socket setup effect; handled in single effect above
@@ -876,7 +878,10 @@ useEffect(() => {
         });
     }, [allUsers, messages, currentUser?.id, unreadPerThread]);
 
-    const activeUser = allUsers.find(u => u.id === activeDmId) || null;
+    const activeUser = useMemo(() => {
+      return allUsers.find((u) => u.id === activeDmId) || null;
+    }, [allUsers, activeDmId]);
+
     const activeMessages = activeDmId ? messages.get(activeDmId) || [] : [];
 
     return (

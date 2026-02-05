@@ -14,17 +14,18 @@ Modal.setAppElement('body');
 
 export default function Home() {
   const [showLoadingToast, setShowLoadingToast] = useState(false);
+  const [scrollY, setScrollY] = useState(0);
 
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [faq, setfaq] = useState<number | null>(null);
   const [showNavbar, setShowNavbar] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
-  const [name, setname] = useState<string>()
-  const [email, setemail] = useState<string>()
-  const [message, setmessage] = useState<string>()
+  const [name, setname] = useState<string>();
+  const [email, setemail] = useState<string>();
+  const [message, setmessage] = useState<string>();
   const [showPopup, setShowPopup] = useState(false);
-  const[targetHref, setTargetHref] = useState<string | null>(null) ;
+  const [targetHref, setTargetHref] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
   const handleGoogleSignIn = async () => {
@@ -33,16 +34,36 @@ export default function Home() {
       options: {
         redirectTo: `${window.location.origin}/oauth-callback`,
         queryParams: {
-          hd: 'vitstudent.ac.in',
-          prompt: 'select_account',
+          hd: "vitstudent.ac.in",
+          prompt: "select_account",
         },
       },
     });
 
     if (error) {
-      console.error('Error initiating Google sign-in:', error);
+      console.error("Error initiating Google sign-in:", error);
     }
   };
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      setScrollY(currentScrollY);
+
+      if (currentScrollY < 10) {
+        setShowNavbar(true);
+      } else if (currentScrollY > lastScrollY) {
+        setShowNavbar(false);
+      } else {
+        setShowNavbar(true);
+      }
+
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [lastScrollY]); 
 
   useEffect(() => {
     if (loading) {
@@ -52,12 +73,9 @@ export default function Home() {
     }
   }, [loading]);
 
-
-
   useEffect(() => {
     document.body.style.overflow = loading ? "hidden" : "";
   }, [loading]);
-
 
   useEffect(() => {
     // Check screen size
@@ -66,17 +84,17 @@ export default function Home() {
     };
 
     handleResize(); // initial check
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   useEffect(() => {
     const handleLinkClick = (e: MouseEvent) => {
-      const target = (e.target as HTMLElement)?.closest('a');
+      const target = (e.target as HTMLElement)?.closest("a");
 
       if (!target || !(target instanceof HTMLAnchorElement)) return;
 
-      const href = target.getAttribute('href');
+      const href = target.getAttribute("href");
 
       if (href && isMobile) {
         e.preventDefault();
@@ -85,8 +103,8 @@ export default function Home() {
       }
     };
 
-    document.addEventListener('click', handleLinkClick);
-    return () => document.removeEventListener('click', handleLinkClick);
+    document.addEventListener("click", handleLinkClick);
+    return () => document.removeEventListener("click", handleLinkClick);
   }, [isMobile]);
 
   useEffect(() => {
@@ -116,15 +134,15 @@ export default function Home() {
       setLastScrollY(window.scrollY);
     };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScrollY]);
 
   useEffect(() => {
     if (isMobile && showPopup) {
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = '';
+      document.body.style.overflow = "";
     }
   }, [showPopup, isMobile]);
 
@@ -140,512 +158,407 @@ export default function Home() {
 
   return (
     <>
-      {/* Landing page */}
-      <section>
-        <div className="min-h-screen w-screen flex flex-col bg-[url('/bg0.svg')] bg-no-repeat bg-center bg-cover">
-          {/* Responsive Navbar */}
-          <div
-            className={`overflow-x-hidden transition-transform duration-300 fixed top-0 left-0 w-full z-50 ${
-              showNavbar ? "translate-y-0" : "-translate-y-full"
-            }`}
-          >
-            <Navbar />
+      <div className="relative w-screen overflow-x-hidden">
+     
+        <div
+          className="fixed inset-0 bg-[url('/bg1.png')] bg-cover bg-center -z-20 transition-transform duration-500"
+          aria-hidden="true"
+        />
+
+        <div
+          
+          className={`fixed inset-0 backdrop-blur-lg bg-black/30 -z-10 transition-all duration-700 ${
+            scrollY > 300
+              ? "opacity-100 pointer-events-auto"
+              : "opacity-0 pointer-events-none"
+          }`}
+        />
+
+    
+
+        {/* NAVBAR */}
+        <div
+          className={`fixed top-0 left-0 w-full z-50 transition-transform duration-300 ${
+            showNavbar ? "translate-y-0" : "-translate-y-full"
+          }`}
+        >
+          <Navbar />
+        </div>
+
+        {/* LANDING SECTION */}
+        <section className="min-h-screen flex items-center justify-between px-6 md:px-12 lg:px-24">
+          <div className="w-full md:w-1/2 text-[#FFAF00]">
+            <h1
+              className="text-[36px] md:text-[60px] font-semibold leading-tight"
+              data-aos="fade-right"
+            >
+              Say it once. <br /> Echo it forever.
+            </h1>
+            <p
+              className="mt-4 text-lg md:text-xl opacity-90"
+              data-aos="fade-right"
+              data-aos-delay="100"
+            >
+              Your space to connect, collaborate, and echo your voice—louder,
+              clearer, and together.
+            </p>
+            <button
+              onClick={handleGoogleSignIn}
+              className="mt-8 flex items-center gap-3 bg-white text-gray-800 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-all shadow-lg"
+            >
+              <FaGoogle className="text-xl text-[#4285F4]" />
+              <span>Sign in with Google</span>
+            </button>
           </div>
+          <div className="hidden md:block w-1/2" data-aos="zoom-in">
+            <SharkWithEyes />
+          </div>
+        </section>
 
-          {/* Main Content */}
-          <div className="flex-1 flex flex-col md:flex-row items-center justify-between px-6 md:px-12 py-12 gap-10">
-            {/* Left Section (Text) */}
-            <div className="w-full md:w-1/2 text-white text-center md:text-left lg:pl-10">
-              <h1 className="pt-72 md:pt-16 text-[28px] sm:text-[36px] md:text-[45px] lg:text-[60px] font-semibold leading-tight md:pl-10">
-                Say it once. <br />
-                Echo it forever.
-              </h1>
-              <p className="mt-4 text-base sm:text-lg md:text-xl lg:text-xl md:pl-10">
-                Your space to connect,
-                <br />
-                collaborate, and echo your voice—
-                <br />
-                louder, clearer, and together.
-              </p>
+        {/* EXPLORE SPACES SECTION */}
+        <section
+          id="about-us"
+          className="relative min-h-screen py-20 px-4 md:px-8"
+        >
+          <h2 className="text-3xl md:text-5xl font-semibold text-[#FFAF00] text-center mb-4">
+            Explore Echo Spaces
+          </h2>
+          <p className="text-center text-white/80 mb-12 max-w-2xl mx-auto">
+            Discover vibrant spaces tailored to your passions—from project repos
+            to gaming squads, study zones to hackathons.
+          </p>
 
-              {/* Sign in with Google Button */}
-              <div className="hidden md:flex flex-col sm:flex-row items-center justify-center md:justify-start mt-8 gap-4 md:pl-10">
-                <button
-                  onClick={handleGoogleSignIn}
-                  className="flex items-center gap-3 bg-white text-gray-800 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-all duration-200 shadow-lg hover:shadow-xl"
-                >
-                  <FaGoogle className="text-2xl text-[#4285F4]" />
-                  <span>Sign in with Google</span>
-                </button>
+         
+          <div className="max-w-7xl mx-auto flex flex-col gap-4">
+           
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-auto md:h-[300px]">
+              <div
+                data-aos="fade-down"
+                className="md:col-span-4 border-[4px] rounded-xl border-[#1C5889] bg-[url('/techonology.png')] bg-cover bg-center text-white font-bold text-xl flex items-end p-6 transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl cursor-pointer"
+              >
+                TECHNOLOGY
+              </div>
+              <div
+                data-aos="fade-down"
+                data-aos-delay="100"
+                className="md:col-span-3 border-[4px] rounded-xl border-[#1C5889] bg-[url('/gaming_1.jpg')] bg-cover bg-center text-white font-bold text-xl flex items-end justify-end p-6 transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl cursor-pointer"
+              >
+                GAMING
+              </div>
+              <div
+                data-aos="fade-down"
+                data-aos-delay="200"
+                className="md:col-span-5 border-[4px] rounded-xl border-[#FCBA4B] bg-[url('/study.png')] bg-cover bg-center text-white font-bold text-xl flex items-center justify-end p-6 transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl cursor-pointer"
+              >
+                STUDY
               </div>
             </div>
 
-            {/* Right Section (Shark) */}
-            <div className="hidden md:block w-full md:w-1/2 text-center">
-              <SharkWithEyes />
+           
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-auto md:min-h-[400px]">
+              <div
+                data-aos="fade-right"
+                data-aos-delay="300"
+                className="md:col-span-4 border-[4px] rounded-xl border-[#1C5889] bg-[url('/contactus.png')] bg-cover bg-center text-white font-bold text-xl flex items-end justify-end p-6 transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl cursor-pointer min-h-[200px]"
+              >
+                CONTACT US
+              </div>
+
+              <div
+                data-aos="fade-up"
+                data-aos-delay="400"
+                className="md:col-span-3 border-[4px] rounded-xl border-[#1C5889] bg-[url('/hackathons.png')] bg-cover bg-center text-white font-bold text-xl p-6 transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl cursor-pointer min-h-[200px]"
+              >
+                HACKATHONS
+              </div>
+
+            
+              <div className="md:col-span-5 flex flex-col gap-4">
+                <div className="grid grid-cols-2 gap-4 h-1/2">
+                  <div
+                    data-aos="fade-left"
+                    data-aos-delay="500"
+                    className="border-[4px] rounded-xl border-[#FCBA4B] bg-[url('/projectrepos.png')] bg-cover bg-center text-white font-bold text-lg flex items-end justify-center pb-4 transition-all duration-300 hover:scale-[1.05] cursor-pointer"
+                  >
+                    PROJECT REPOS
+                  </div>
+                  <div
+                    data-aos="fade-left"
+                    data-aos-delay="600"
+                    className="border-[4px] rounded-xl border-[#FCBA4B] bg-[url('/aboutus.png')] bg-cover bg-center text-white font-bold text-lg flex items-center justify-center text-center transition-all duration-300 hover:scale-[1.05] cursor-pointer"
+                  >
+                    ABOUT US
+                  </div>
+                </div>
+
+                <div
+                  data-aos="fade-up"
+                  data-aos-delay="700"
+                  className="h-1/2 border-[4px] rounded-xl border-[#FCBA4B] bg-[url('/popular.png')] bg-cover bg-center text-white font-bold text-2xl flex items-center justify-center transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl cursor-pointer min-h-[150px]"
+                >
+                  POPULAR
+                </div>
+              </div>
             </div>
+          </div>
+        </section>
+
+        <section className="mt-20 flex flex-col lg:flex-row items-center justify-between px-0 md:px-8">
+          {/* Text Content */}
+          <div className="text-center lg:text-left mt-8 lg:mt-0 max-w-xl md:pl-12">
+            <h1 className="text-[#FFC64A] font-semibold text-2xl md:text-[52px] md:leading-[70px]">
+              Build Your Space. <br />
+              Stay in Touch.
+            </h1>
+            <p className="text-white text-base md:text-[20px] mt-4">
+              Create and customize servers <br />
+              on web — chat effortlessly with your community on mobile.
+            </p>
+          </div>
+
+          {/* Image Container */}
+          <div className="relative w-[70vw] lg:w-[60%] max-w-[700px] h-[300px] md:h-[500px] lg:h-[600px] ml-14 md:ml-0">
+            <img
+              src="websample.svg"
+              alt="Web Sample"
+              className="absolute z-10 w-full h-auto object-contain top-20 -left-10"
+            />
+            <img
+              src="phonesample.svg"
+              alt="Phone Sample"
+              className="absolute z-20 w-1/2 md:w-1/3 h-[50vw] lg:h-[70vh] object-contain top-20 md:top-28 left-[80%] transform -translate-x-1/2"
+            />
+          </div>
+        </section>
+      </div>
+
+      {/* FAQ'S SECTION */}
+      <section id="faqs" className="relative py-24 px-6 overflow-hidden">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col items-center mb-16">
+            <h2 className="text-[#FFAF00] font-bold text-4xl mb-2">
+              Frequently Asked Questions
+            </h2>
+            <div className="w-24 h-1 bg-[#FFAF00] rounded-full" />
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-4 h-auto md:h-[400px]">
+            {[
+              {
+                q: "How do I join?",
+                a: "Click the '+' button to create a space or enter a code to join.",
+              },
+              {
+                q: "Is it secure?",
+                a: "Yes, we use end-to-end encryption for all your voice data.",
+              },
+              {
+                q: "Mic not working?",
+                a: "Ensure you've granted microphone permissions in your browser settings.",
+              },
+              {
+                q: "Mobile App?",
+                a: "Currently, you can use our responsive web app on any mobile device.",
+              },
+            ].map((item, index) => (
+              <div
+                key={index}
+                onClick={() => setfaq(faq === index ? null : index)}
+                className={`relative flex-1 group cursor-pointer transition-all duration-700 ease-in-out overflow-hidden rounded-3xl border border-white/10 backdrop-blur-xl
+            ${
+              faq === index
+                ? "flex-[2.5] bg-blue-500/20 border-blue-400/50"
+                : "hover:bg-white/5 bg-white/5"
+            }
+          `}
+              > 
+                {faq === index && (
+                  <div className="absolute inset-0 shadow-[inset_0_0_50px_rgba(59,130,246,0.3)] pointer-events-none" />
+                )}
+
+                <div className="p-8 h-full flex flex-col justify-center">
+                  <h3
+                    className={`text-xl font-bold transition-colors duration-300 ${
+                      faq === index ? "text-blue-300" : "text-white"
+                    }`}
+                  >
+                    {item.q}
+                  </h3>
+
+                  <div
+                    className={`mt-4 text-gray-200 transition-all duration-500 ${
+                      faq === index
+                        ? "opacity-100 max-h-40"
+                        : "opacity-0 max-h-0"
+                    }`}
+                  >
+                    <p className="leading-relaxed border-l-2 border-blue-400 pl-4">
+                      {item.a}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Explore Echo space */}
-      <div id="about-us" className="overflow-x-hidden w-screen">
-        <div className="sm:h-[310vh] md:h-[290vh] lg:h-[230vh] bg-[url('/bg.png')] bg-no-repeat bg-top bg-[length:100%_100%] flex flex-col">
-          <section className="px-4 md:px-8">
-            <h1 className="pt-5 font-semibold text-3xl md:text-5xl text-white text-center font-poppins">
-              Explore Echo Spaces
-            </h1>
-            <p className="text-center mt-4 mb-4 text-base md:text-xl font-medium text-white">
-              Discover vibrant spaces tailored to your passions—from project{" "}
-              <br className="hidden md:block" />
-              repos to gaming squads, study zones to hackathons.
-            </p>
-
-            <div className="w-full lg:h-[70vh] lg:w-[70vw] mx-auto mt-8 flex flex-col gap-6 lg:gap-3">
-              <div className="flex flex-col lg:flex-row items-center lg:h-[40%] w-full gap-3 lg:items-start">
-                <div
-                  data-aos="fade-down"
-                  className="border-[4px] rounded-md border-[#1C5889] h-[150px] lg:h-[100%] w-[70%] lg:w-[30%] bg-[url('/techonology.png')]  bg-no-repeat bg-cover text-white font-bold text-lg flex items-center pl-5 transition-transform duration-100 hover:!scale-110 hover:!shadow-xl cursor-pointer"
-                >
-                  TECHNOLOGY
-                </div>
-                <div
-                  data-aos="fade-down"
-                  data-aos-delay="100"
-                  className="border-[4px] border-[#1C5889] h-[150px] lg:h-[85%] w-[70%] lg:w-[30%] bg-[url('/gaming_1.jpg')]  bg-no-repeat bg-cover bg-center text-white font-semibold text-lg flex items-end justify-end pr-5 pb-5 transition-transform duration-100 hover:!scale-110 hover:!shadow-xl cursor-pointer"
-                >
-                  GAMING
-                </div>
-                <div
-                  data-aos="fade-down"
-                  data-aos-delay="200"
-                  className="border-[4px] rounded-md border-[#FCBA4B] h-[150px] lg:h-[75%] w-[70%] lg:w-[40%] bg-[url('/study.png')]  bg-no-repeat bg-cover bg-center text-white font-semibold text-xl flex items-center justify-end pr-7 transition-transform duration-100 hover:!scale-110 hover:!shadow-xl cursor-pointer"
-                >
-                  STUDY
-                </div>
-              </div>
-
-              <div className="flex flex-col lg:flex-row items-center lg:h-[60%] w-full gap-3 lg:items-stretch">
-                <div
-                  data-aos="fade-right"
-                  data-aos-delay="300"
-                  className="border-[4px] rounded-md border-[#1C5889] h-[150px] lg:h-[100%] w-[70%] lg:w-[30%] bg-[url('/contactus.png')]  bg-no-repeat bg-cover bg-center text-white font-bold text-lg flex items-end justify-end pr-5 pb-5 transition-transform duration-100 hover:!scale-110 hover:shadow-xl cursor-pointer"
-                >
-                  CONTACT US
-                </div>
-                <div
-                  data-aos="fade-up"
-                  data-aos-delay="400"
-                  className="border-[4px] rounded-md border-[#1C5889] h-[150px] lg:h-auto w-[70%] lg:w-[30%] lg:-mt-8 bg-[url('/hackathons.png')]  bg-no-repeat bg-cover bg-center text-white font-bold text-lg pt-5 pl-5 transition-transform duration-100 hover:!scale-110 hover:!shadow-xl cursor-pointer"
-                >
-                  HACKATHONS
-                </div>
-
-                <div className="flex flex-col w-full lg:w-[40%] lg:h-[100%] gap-3">
-                  <div className="flex flex-col lg:flex-row items-center lg:items-start lg:w-[100%] lg:h-[100%] gap-3">
-                    <div
-                      data-aos="fade-left"
-                      data-aos-delay="500"
-                      className="border-[4px] rounded-md border-[#FCBA4B] h-[150px] w-[70%] lg:h-[33%] lg:w-[60%] lg:-mt-12 bg-[url('/projectrepos.png')]  bg-no-repeat bg-cover bg-center text-white font-bold text-lg flex items-end justify-center transition-transform duration-100 hover:!scale-110 hover:!shadow-xl cursor-pointer"
-                    >
-                      PROJECT REPOS
-                    </div>
-                    <div
-                      data-aos="fade-left"
-                      data-aos-delay="600"
-                      className="border-[4px] rounded-md border-[#FCBA4B] h-[150px] w-[70%] lg:h-[33%] lg:w-[40%] lg:-mt-12 bg-[url('/aboutus.png')]  bg-no-repeat bg-cover bg-center text-white font-semibold text-lg flex items-center justify-center transition-transform duration-100 hover:!scale-110 hover:!shadow-xl cursor-pointer"
-                    >
-                      ABOUT
-                      <br /> US
-                    </div>
-                  </div>
-                  <div
-                    data-aos="fade-up"
-                    data-aos-delay="700"
-                    className="border-[4px] rounded-md border-[#FCBA4B] h-[150px] w-[70%] lg:h-[100%] lg:w-[100%] lg:-mt-48 mx-auto bg-[url('/popular.png')]  bg-no-repeat bg-cover bg-center text-white font-bold text-xl flex items-center justify-center transition-transform duration-100 hover:!scale-110 hover:!shadow-xl cursor-pointer"
-                  >
-                    POPULAR
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="mt-20 flex flex-col lg:flex-row items-center justify-between px-6 md:px-8">
-            {/* Text Content */}
-            <div className="text-center lg:text-left mt-8 lg:mt-0 max-w-xl md:pl-12">
-              <h1 className="text-[#FFC64A] font-semibold text-2xl md:text-[52px] md:leading-[70px]">
-                Build Your Space. <br />
-                Stay in Touch.
-              </h1>
-              <p className="text-white text-base md:text-[20px] mt-4">
-                Create and customize servers <br />
-                on web — chat effortlessly with your community on mobile.
-              </p>
-            </div>
-
-            {/* Image Container */}
-            <div className="relative w-[70vw] lg:w-[60%] max-w-[700px] h-[300px] md:h-[500px] lg:h-[600px] ml-14 md:ml-0">
-              <img
-                src="websample.svg"
-                alt="Web Sample"
-                className="absolute z-10 w-full h-auto object-contain top-20 -left-10"
-              />
-              <img
-                src="phonesample.svg"
-                alt="Phone Sample"
-                className="absolute z-20 w-1/2 md:w-1/3 h-[50vw] lg:h-[70vh] object-contain top-20 md:top-28 left-[80%] transform -translate-x-1/2"
-              />
-            </div>
-          </section>
-        </div>
-      </div>
-
-      <div className="relative min-h-[225vh] bg-[url('/bg3.svg')] bg-no-repeat bg-cover bg-top flex flex-col w-screen overflow-x-hidden">
-        {/* FAQ'S */}
-        <section id="faqs" className="min-h-[100vh] overflow-x-hidden">
-          <div className="absolute top-10 left-[30vw] flex gap-3 md:gap-7">
-            <div
-              className="-translate-y-1/2 -ml-4 md:-ml-6 rotate-180"
-              style={{
-                width: 40,
-                height: 0,
-                borderTop: "18px solid transparent",
-                borderBottom: "18px solid transparent",
-                borderRight: "28px solid #FFAF00",
-              }}
-            />
-            <div
-              className="-translate-y-1/2 -ml-4 md:-ml-6 rotate-180"
-              style={{
-                width: 40,
-                height: 0,
-                borderTop: "18px solid transparent",
-                borderBottom: "18px solid transparent",
-                borderRight: "28px solid #FFAF00",
-              }}
-            />
-            <div
-              className="-translate-y-1/2 -ml-4 md:-ml-6 rotate-180"
-              style={{
-                width: 40,
-                height: 0,
-                borderTop: "18px solid transparent",
-                borderBottom: "18px solid transparent",
-                borderRight: "28px solid #FFAF00",
-              }}
-            />
-          </div>
-          <h1 className="text-center mt-20 text-[#FFAF00] font-semibold text-3xl underline">
-            FAQs
+      {/* CONTACT US */}
+      <section
+        id="contact-us"
+        className="mt-40 flex flex-grow min-h-[100vh] overflow-x-hidden"
+      >
+        <div className="w-[70vw] h-[560px] py-5 border mx-auto bg-white/10 backdrop-blur-md rounded-xl border-white/20">
+          <h1 className="text-[#FFAF00] text-center font-bold text-4xl mb-2">
+            CONTACT US
           </h1>
-          <img
-            src="circles.png"
-            alt="circles"
-            className="absolute z-0 h-60 w-40 md:h-72 md:w-72 top-40 md:top-5 left-[56vw]"
-          />
-          <div className="flex flex-col items-center md:flex-row mt-20 justify-center gap-10">
-            <div
-              onClick={() => setfaq(0)}
-              className={`border w-[50vw] h-[25vh] md:h-[50vh] md:w-[15vw] text-white text-center font-bold text-xl cursor-pointer transition-all duration-500
-              ${faq == 0 ? "bg-[#4590E0] md:w-[30vw]" : "bg-[#DF9817CC]"}
-              flex flex-col justify-center items-center relative overflow-hidden`}
-            >
-              <div
-                className={`transition-all duration-500 px-5 w-full ${
-                  faq == 0 ? "mt-1" : "flex justify-center items-center h-full"
-                }`}
-              >
-                How do I join or create a space?
-              </div>
+          <div className="w-24 h-1 flex-center bg-[#FFAF00] rounded-full" />
 
-              <div
-                className={`transition-all duration-500 px-4 ${
-                  faq == 0 ? "max-h-40 opacity-100 pt-7" : "max-h-0 opacity-0"
-                } overflow-hidden text-sm text-center`}
-              >
-                <p>
-                  Click the "+" button to create a space or enter a code/invite
-                  link to join one.
-                </p>
-              </div>
+          <form className="max-w-md mx-auto mt-5 p-8 space-y-6">
+            <div>
+              <input
+                id="name"
+                type="text"
+                onChange={(e) => setname(e.target.value)}
+                className="w-full bg-[#4687CC] text-white rounded px-3 py-2 focus:outline-none focus:ring-blue-500"
+                placeholder="Your name"
+              />
             </div>
-            <div
-              onClick={() => setfaq(1)}
-              className={`border w-[50vw] h-[25vh] md:h-[50vh] md:w-[15vw] text-white text-center font-bold text-xl cursor-pointer transition-all duration-500
-              ${faq == 1 ? "bg-[#4590E0] md:w-[30vw]" : "bg-[#DF9817CC]"}
-              flex flex-col justify-center items-center relative overflow-hidden`}
+            <div>
+              <input
+                id="email"
+                type="email"
+                onChange={(e) => setemail(e.target.value)}
+                className="w-full bg-[#4687CC] text-white rounded px-3 py-2 focus:outline-none focus:ring-blue-500"
+                placeholder="Your email"
+              />
+            </div>
+            <div>
+              <textarea
+                id="message"
+                onChange={(e) => setmessage(e.target.value)}
+                className="w-full bg-[#4687CC] text-white rounded px-3 py-2 focus:outline-none focus:ring-blue-500"
+                placeholder="Your message"
+                rows={4}
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full bg-[#EFCA53] rounded-lg font-semibold py-2 hover:bg-[#94803d] transition"
             >
-              <div
-                className={`transition-all duration-500 px-5 w-full ${
-                  faq == 1 ? "mt-1" : "flex justify-center items-center h-full"
-                }`}
-              >
-                Is my voice data secure?
-              </div>
-
-              <div
-                className={`transition-all duration-500 px-4 ${
-                  faq == 1 ? "max-h-40 opacity-100 pt-7" : "max-h-0 opacity-0"
-                } overflow-hidden text-sm text-center`}
-              >
-                <p>
-                  Click the "+" button to create a space or enter a code/invite
-                  link to join one.
-                </p>
-              </div>
-            </div>
-            <div
-              onClick={() => setfaq(2)}
-              className={`border w-[50vw] h-[25vh] md:h-[50vh] md:w-[15vw] text-white text-center font-bold text-xl cursor-pointer transition-all duration-500
-              ${faq == 2 ? "bg-[#4590E0] md:w-[30vw]" : "bg-[#DF9817CC]"}
-              flex flex-col justify-center items-center relative overflow-hidden`}
+              Submit
+            </button>
+          </form>
+          <div className="flex justify-center items-center gap-5 md:gap-10">
+            <a
+              href="https://www.instagram.com/ieeecs_vit/?hl=en"
+              target="blank"
             >
-              <div
-                className={`transition-all duration-500 px-5 w-full ${
-                  faq == 2 ? "mt-1" : "flex justify-center items-center h-full"
-                }`}
-              >
-                Why can't others hear me?
-              </div>
-
-              <div
-                className={`transition-all duration-500 px-4 ${
-                  faq == 2 ? "max-h-40 opacity-100 pt-7" : "max-h-0 opacity-0"
-                } overflow-hidden text-sm text-center`}
-              >
-                <p>
-                  Click the "+" button to create a space or enter a code/invite
-                  link to join one.
-                </p>
-              </div>
-            </div>
-            <div
-              onClick={() => setfaq(3)}
-              className={`border w-[50vw] h-[25vh] md:h-[50vh] md:w-[15vw] text-white text-center font-bold text-xl cursor-pointer transition-all duration-500
-              ${faq == 3 ? "bg-[#4590E0] md:w-[30vw]" : "bg-[#DF9817CC]"}
-              flex flex-col justify-center items-center relative overflow-hidden`}
+              <img
+                src="instagram.svg"
+                alt="instagram"
+                className="h-5 w-5 md:h-12 md:w-12 cursor-pointer"
+              />
+            </a>
+            <a href="https://x.com/ieeecsvit" target="blank">
+              <img
+                src="x.svg"
+                alt="x"
+                className="h-5 w-5 md:h-12 md:w-12 cursor-pointer"
+              />
+            </a>
+            <a
+              href="https://www.linkedin.com/company/ieee-cs-vit/?originalSubdomain=in"
+              target="blank"
             >
-              <div
-                className={`transition-all duration-500 px-5 w-full ${
-                  faq == 3 ? "mt-1" : "flex justify-center items-center h-full"
-                }`}
-              >
-                How do I start a chat?
-              </div>
-
-              <div
-                className={`transition-all duration-500 px-4 ${
-                  faq == 3 ? "max-h-40 opacity-100 pt-7" : "max-h-0 opacity-0"
-                } overflow-hidden text-sm text-center`}
-              >
-                <p>
-                  Click the "+" button to create a space or enter a code/invite
-                  link to join one.
-                </p>
-              </div>
-            </div>
+              <img
+                src="linkedin.svg"
+                alt="linkedin"
+                className="h-5 w-5 md:h-12 md:w-12 cursor-pointer"
+              />
+            </a>
+            <a href="https://www.facebook.com/ieeecsvit" target="blank">
+              <img
+                src="facebook.svg"
+                alt="facebook"
+                className="h-5 w-5 md:h-12 md:w-12 cursor-pointer"
+              />
+            </a>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* CONTACT US */}
-        <section
-          id="contact-us"
-          className="mt-40 flex flex-grow min-h-[100vh] overflow-x-hidden"
-        >
-          <div className="w-[70vw] h-[560px] py-5 border mx-auto bg-gradient-to-b from-[#274D76] to-[#00142A]">
-            <h1 className=" mt-5 text-center text-[#EFCA53] font-bold text-xl md:text-3xl">
-              Contact Us
-            </h1>
+      {/* FOOTER */}
 
-            <form className="max-w-md mx-auto mt-5 p-8 space-y-6">
-              <div>
-                <input
-                  id="name"
-                  type="text"
-                  onChange={(e) => setname(e.target.value)}
-                  className="w-full bg-[#4687CC] text-white rounded px-3 py-2 focus:outline-none focus:ring-blue-500"
-                  placeholder="Your name"
-                />
-              </div>
-              <div>
-                <input
-                  id="email"
-                  type="email"
-                  onChange={(e) => setemail(e.target.value)}
-                  className="w-full bg-[#4687CC] text-white rounded px-3 py-2 focus:outline-none focus:ring-blue-500"
-                  placeholder="Your email"
-                />
-              </div>
-              <div>
-                <textarea
-                  id="message"
-                  onChange={(e) => setmessage(e.target.value)}
-                  className="w-full bg-[#4687CC] text-white rounded px-3 py-2 focus:outline-none focus:ring-blue-500"
-                  placeholder="Your message"
-                  rows={4}
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full bg-[#EFCA53] rounded-lg font-semibold py-2 hover:bg-[#94803d] transition"
-              >
-                Submit
-              </button>
-            </form>
-            <div className="flex justify-center items-center gap-5 md:gap-10">
+      {/* FOOTER */}
+      <footer className="mt-20 relative border-t border-white/10 bg-[#020617]/80 backdrop-blur-md">
+        {/* Decorative Divider */}
+        <div className="flex items-center justify-center -translate-y-1/2">
+          <div className="flex items-center w-full px-4 max-w-7xl">
+            <div className="flex-grow h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+            <span className="px-6 text-xs font-black tracking-[0.3em] text-[#FFAF00] uppercase">
+              Echo
+            </span>
+            <div className="flex-grow h-px bg-gradient-to-l from-transparent via-white/20 to-transparent"></div>
+          </div>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-6 py-16 grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-12">
+          {/* Brand Section */}
+          <div className="space-y-6 flex flex-col items-center md:items-start lg:col-span-1">
+            <img src="ieeecs.svg" alt="logo" className="h-12 w-auto" />
+            <p className="text-xs text-blue-200/40 uppercase tracking-widest font-bold">
+              Activate Your Knowledge
+            </p>
+          </div>
+
+          {/* Navigation Links */}
+          <div className="flex flex-col items-center md:items-start space-y-4">
+            <h3 className="text-sm font-black text-[#EFCA53] uppercase tracking-tighter">
+              Quick Menu
+            </h3>
+            <nav className="flex flex-col space-y-2 text-center md:text-left">
+              {["About", "Events", "Team", "Content"].map((item) => (
+                <a
+                  key={item}
+                  href="#"
+                  className="text-sm text-white/60 hover:text-[#EFCA53] transition-colors"
+                >
+                  {item}
+                </a>
+              ))}
+            </nav>
+          </div>
+
+          {/* Contact Details */}
+          <div className="flex flex-col items-center md:items-start space-y-4">
+            <h3 className="text-sm font-black text-[#EFCA53] uppercase tracking-tighter">
+              Direct Lines
+            </h3>
+            <div className="flex flex-col space-y-2 text-center md:text-left">
               <a
-                href="https://www.instagram.com/ieeecs_vit/?hl=en"
-                target="blank"
+                href="mailto:ieeecs@vit.ac.in"
+                className="text-sm text-white/60 hover:text-white transition-colors"
               >
-                <img
-                  src="instagram.svg"
-                  alt="instagram"
-                  className="h-5 w-5 md:h-12 md:w-12 cursor-pointer"
-                />
+                ieeecs@vit.ac.in
               </a>
-              <a href="https://x.com/ieeecsvit" target="blank">
-                <img
-                  src="x.svg"
-                  alt="x"
-                  className="h-5 w-5 md:h-12 md:w-12 cursor-pointer"
-                />
-              </a>
-              <a
-                href="https://www.linkedin.com/company/ieee-cs-vit/?originalSubdomain=in"
-                target="blank"
-              >
-                <img
-                  src="linkedin.svg"
-                  alt="linkedin"
-                  className="h-5 w-5 md:h-12 md:w-12 cursor-pointer"
-                />
-              </a>
-              <a href="https://www.facebook.com/ieeecsvit" target="blank">
-                <img
-                  src="facebook.svg"
-                  alt="facebook"
-                  className="h-5 w-5 md:h-12 md:w-12 cursor-pointer"
-                />
-              </a>
-            </div>
-          </div>
-        </section>
-
-        {/* FOOTER */}
-        <footer className="mt-10 bg-gradient-to-b from-[#0E345E] to-[#6F90D1] text-white">
-          {/* ECHO Header */}
-          <div className="flex items-center justify-center py-4">
-            <div className="flex items-center space-x-4">
-              <div className="w-[45vw] h-px bg-white"></div>
-              <h2 className="text-xl font-bold tracking-wider">ECHO</h2>
-              <div className="w-[45vw] h-px bg-white"></div>
+              <span className="text-sm text-white/60">+91 8700945939</span>
             </div>
           </div>
 
-          {/* Main Footer Content */}
-          <div className="px-6 py-8">
-            <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_0.5fr_1fr] gap-8">
-              {/* Logo Section */}
-              <div className="space-y-4 flex flex-col items-center">
-                <div className="flex items-center space-x-3">
-                  <img src="ieeecs.svg" alt="logo" />
-                </div>
-                <p className="text-sm text-white">Activate Your Knowledge</p>
-              </div>
-
-              {/* Menu Section */}
-              <div className="space-y-4 flex flex-col items-center">
-                <h3 className="text-lg font-semibold text-[#EFCA53]">Menu</h3>
-                <nav className="space-y-2">
-                  <a
-                    href="#"
-                    className="block text-sm text-white hover:text-white transition-colors"
-                  >
-                    About
-                  </a>
-                  <a
-                    href="#"
-                    className="block text-sm text-white hover:text-white transition-colors"
-                  >
-                    Events
-                  </a>
-                  <a
-                    href="#"
-                    className="block text-sm text-white hover:text-white transition-colors"
-                  >
-                    Team
-                  </a>
-                  <a
-                    href="#"
-                    className="block text-sm text-white hover:text-white transition-colors"
-                  >
-                    Content
-                  </a>
-                </nav>
-              </div>
-
-              {/* Contact Section */}
-              <div className="space-y-4 flex flex-col items-center">
-                <h3 className="text-lg font-semibold text-[#EFCA53]">
-                  Contact us
-                </h3>
-                <div className="space-y-2">
-                  <a className="block text-sm text-white transition-colors">
-                    ieeecs@vit.ac.in
-                  </a>
-                  <a className="block text-sm text-white transition-colors">
-                    +91 93803 02937
-                  </a>
-                </div>
-              </div>
-              <Modal
-                isOpen={showPopup}
-                onRequestClose={() => setShowPopup(false)}
-                contentLabel="Navigation Confirmation"
-                className="bg-white p-6 rounded-xl shadow-xl max-w-md mx-auto mt-40 outline-none"
-                overlayClassName="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
-              >
-                <h2 className="text-lg font-semibold mb-4">
-                  Do you want to continue?
-                </h2>
-                <div className="flex justify-end gap-4">
-                  <button
-                    onClick={() => {
-                      setShowPopup(false);
-                      if (targetHref) router.push(targetHref);
-                    }}
-                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                  >
-                    Yes
-                  </button>
-                  <button
-                    onClick={() => setShowPopup(false)}
-                    className="bg-gray-300 text-black px-4 py-2 rounded hover:bg-gray-400"
-                  >
-                    No
-                  </button>
-                </div>
-              </Modal>
-
-              {/* VIT Chapter Section */}
-              <div className="flex justify-center md:items-center md:justify-end">
-                <h3 className="text-lg font-semibold text-white">
-                  VIT Chapter
-                </h3>
-              </div>
-              <div className="space-y-4 flex flex-col md:flex-row items-center">
-                <p className="text-xs text-white leading-relaxed">
-                  We have at IEEECS, nurture the coders and leaders of tomorrow.
-                  We empower and support new ideas giving them a platform to
-                  shine. IEEECS has been a home to great ideas capable of
-                  bringing change to the world.
-                </p>
-              </div>
-            </div>
+          {/* Chapter Text */}
+          <div className="md:col-span-1 lg:col-span-2 space-y-4 text-center md:text-right">
+            <h3 className="text-sm font-black text-white uppercase tracking-tighter">
+              The VIT Chapter
+            </h3>
+            <p className="text-xs text-white/40 leading-relaxed font-medium">
+              We at IEEECS nurture the coders and leaders of tomorrow.
+              Supporting new ideas and giving them a platform to shine, our home
+              is where great ideas transform the world.
+            </p>
           </div>
-        </footer>
-      </div>
+        </div>
+      </footer>
     </>
   );
 }
