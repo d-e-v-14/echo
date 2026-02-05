@@ -14,6 +14,7 @@ import { createAuthSocket } from "@/socket";
 import MessageBubble from "./MessageBubble";
 import Toast from "@/components/Toast";
 import { ChevronDown } from "lucide-react";
+import { getServerMembers } from "@/api/server.api";
 import { apiClient } from "@/utils/apiClient";
 
 // Dynamic imports for heavy components that are conditionally rendered
@@ -231,6 +232,10 @@ const isValidUsernameMention = (mention: string) => {
 
   return validUsernamesRef.current.has(name);
 };
+const normalizeUsername = (name: string) =>
+  name
+    
+
 useEffect(() => {
   if (!serverId) return;
 
@@ -238,44 +243,26 @@ useEffect(() => {
 
   const seedMentionableUsernames = async () => {
     try {
-      // 🔹 use same endpoint as @ popup
-      const res = await apiClient.get(
-        `/api/mentions/search/${serverId}`,
-        { params: { q: "" } } // empty query = backend decides
-      );
+      const members = await getServerMembers(serverId);
 
       const set = new Set<string>();
 
-      for (const user of res.data?.users ?? []) {
-        if (!user?.username) continue;
+      for (const member of members ?? []) {
+        const username = member?.users?.username;
+        if (!username) continue;
 
-        const normalized = user.username
-          .trim()
-          .toLowerCase()
-          .replace(/[^\w-]/g, "");
-
-        if (normalized) {
-          set.add(normalized);
-        }
+        set.add(normalizeUsername(username));
       }
 
-      // Always include self
+      // Always include self (important for optimistic messages)
       if (currentUsername) {
-        set.add(
-          currentUsername
-            .trim()
-            .toLowerCase()
-            .replace(/[^\w-]/g, "")
-        );
+        set.add(normalizeUsername(currentUsername));
       }
 
       if (!cancelled) {
         validUsernamesRef.current = set;
 
-        console.log(
-          "VALID USERNAMES (from mentions search):",
-          Array.from(set)
-        );
+      
       }
     } catch (err) {
       console.error("Failed to seed mention usernames", err);
@@ -288,6 +275,7 @@ useEffect(() => {
     cancelled = true;
   };
 }, [serverId, currentUsername]);
+
 
 
 
