@@ -14,6 +14,7 @@ import { createAuthSocket } from "@/socket";
 import MessageBubble from "./MessageBubble";
 import Toast from "@/components/Toast";
 import { ChevronDown } from "lucide-react";
+import { getServerMembers } from "@/api/server.api";
 import { apiClient } from "@/utils/apiClient";
 
 // Dynamic imports for heavy components that are conditionally rendered
@@ -82,6 +83,7 @@ export default forwardRef(function ChatWindow(
   const [offset, setOffset] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const validRoleNamesRef = useRef<Set<string>>(new Set());
   const [socket, setSocket] = useState<Socket | null>(null);
   const usernamesRef = useRef<Record<string, string>>({});
  const avatarCacheRef = useRef<
@@ -203,19 +205,25 @@ const isMessageMentioningMe = useCallback(
     }
 
    
-    if (currentUsername) {
-      const userRegex = new RegExp(`@${currentUsername}\\b`, "i");
-      if (userRegex.test(content)) return true;
-    }
+   const normalizedContent = normalizeUsername(content);
+const normalizedUser = normalizeUsername(`@${currentUsername}`);
+
+if (normalizedContent.includes(normalizedUser)) return true;
+
 
     
     for (const roleId of currentUserRoleIds) {
-      const role = serverRoles.find((r) => r.id === roleId);
-      if (!role) continue;
+  const role = serverRoles.find((r) => r.id === roleId);
+  if (!role) continue;
 
-      const roleRegex = new RegExp(`@&${role.name}\\b`, "i");
-      if (roleRegex.test(content)) return true;
-    }
+  const normalizedContent = normalizeRoleName(content);
+  const normalizedRole = normalizeRoleName(`@&${role.name}`);
+
+  if (normalizedContent.includes(normalizedRole)) {
+    return true;
+  }
+}
+
 
     return false;
   },
@@ -231,6 +239,17 @@ const isValidUsernameMention = (mention: string) => {
 
   return validUsernamesRef.current.has(name);
 };
+const normalizeUsername = (name: string) =>
+  name
+  .trim()
+    
+const normalizeRoleName = (name: string) =>
+  name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+
+
 useEffect(() => {
   if (!serverId) return;
 
@@ -238,44 +257,26 @@ useEffect(() => {
 
   const seedMentionableUsernames = async () => {
     try {
-      // 🔹 use same endpoint as @ popup
-      const res = await apiClient.get(
-        `/api/mentions/search/${serverId}`,
-        { params: { q: "" } } // empty query = backend decides
-      );
+      const members = await getServerMembers(serverId);
 
       const set = new Set<string>();
 
-      for (const user of res.data?.users ?? []) {
-        if (!user?.username) continue;
+      for (const member of members ?? []) {
+        const username = member?.users?.username;
+        if (!username) continue;
 
-        const normalized = user.username
-          .trim()
-          .toLowerCase()
-          .replace(/[^\w-]/g, "");
-
-        if (normalized) {
-          set.add(normalized);
-        }
+        set.add(normalizeUsername(username));
       }
 
-      // Always include self
+      // Always include self (important for optimistic messages)
       if (currentUsername) {
-        set.add(
-          currentUsername
-            .trim()
-            .toLowerCase()
-            .replace(/[^\w-]/g, "")
-        );
+        set.add(normalizeUsername(currentUsername));
       }
 
       if (!cancelled) {
         validUsernamesRef.current = set;
 
-        console.log(
-          "VALID USERNAMES (from mentions search):",
-          Array.from(set)
-        );
+      
       }
     } catch (err) {
       console.error("Failed to seed mention usernames", err);
@@ -290,6 +291,21 @@ useEffect(() => {
 }, [serverId, currentUsername]);
 
 
+
+useEffect(() => {
+  if (!serverRoles.length) return;
+
+  const set = new Set<string>();
+
+  for (const role of serverRoles) {
+    if (!role?.name) continue;
+    set.add(normalizeRoleName(role.name));
+  }
+
+  validRoleNamesRef.current = set;
+
+  console.log("MENTIONABLE ROLES:", Array.from(set));
+}, [serverRoles]);
 
 
 useEffect(() => {
@@ -1104,17 +1120,21 @@ userHasScrolledRef.current = false;
     return { valid: true };
   };
 
-  const validateRoleMentions = (message: string) => {
-    const roleMentionRegex = /@&([a-zA-Z0-9_ ]+?)(?=\s|$)/g;
-    let match;
-    while ((match = roleMentionRegex.exec(message)) !== null) {
-      const roleName = match[1].trim();
-      if (!serverRoles.some(r => r.name.toLowerCase() === roleName.toLowerCase())) {
-        return { valid: false, invalidRole: roleName };
-      }
+const validateRoleMentions = (message: string) => {
+  const roleMentionRegex = /@&([^\s@]+)/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = roleMentionRegex.exec(message)) !== null) {
+    const rawRole = match[1];
+    const normalized = normalizeRoleName(rawRole);
+
+    if (!validRoleNamesRef.current.has(normalized)) {
+      return { valid: false, invalidRole: rawRole };
     }
-    return { valid: true };
-  };
+  }
+
+  return { valid: true };
+};
 
   const handleSend = async (text: string, file: File | null) => {
     if (text.trim() === "" && !file) return;
