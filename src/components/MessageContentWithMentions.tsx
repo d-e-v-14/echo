@@ -77,7 +77,7 @@ export default function MessageContentWithMentions({
         (r) => r.name.toLowerCase() === roleName.toLowerCase()
       );
 
-      if (!role || !role.color) return;
+      if (!role) return;
 
       const isOverlapping = Array.from(
         { length: match[0].length },
