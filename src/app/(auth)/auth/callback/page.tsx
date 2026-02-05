@@ -47,7 +47,12 @@ function AuthCallbackContent() {
               setMessage("Email verified! Redirecting to login...");
             }
             
-            setTimeout(() => router.push("/login?verified=true"), 2000);
+            // Check for pending invite redirect and preserve it through login
+            const pendingRedirect = localStorage.getItem("redirectAfterLogin");
+            const loginUrl = pendingRedirect 
+              ? `/login?verified=true&redirect=${encodeURIComponent(pendingRedirect)}`
+              : "/login?verified=true";
+            setTimeout(() => router.push(loginUrl), 2000);
           } else {
             setStatus("error");
             setMessage("Invalid verification link.");

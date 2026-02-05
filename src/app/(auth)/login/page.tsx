@@ -25,6 +25,13 @@ function LoginContent() {
       setMessage("Email verified successfully! You can now login.");
       setSuccess(true);
       
+      // Check for redirect URL in query params (from email verification flow)
+      const redirectParam = searchParams.get("redirect");
+      if (redirectParam) {
+        // Store in localStorage so it persists through login
+        localStorage.setItem("redirectAfterLogin", redirectParam);
+      }
+      
       // Clear the query parameter after 5 seconds
       setTimeout(() => {
         setMessage("");

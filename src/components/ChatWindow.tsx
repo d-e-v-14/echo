@@ -440,7 +440,7 @@ useEffect(() => {
       const finalUrl = avatarUrl || "/User_profil.png";
 
       avatarCacheRef.current[userId] = {
-        url: `${finalUrl}?t=${Date.now()}`, // 🔥 cache bust
+        url: `${finalUrl}?t=${Date.now()}`, 
         updatedAt: Date.now(),
       };
 
