@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Smile, Send, Paperclip, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import type { EmojiClickData } from "emoji-picker-react";
@@ -59,6 +59,27 @@ export default function MessageInputWithMentions({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showEmojiPicker) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        emojiPickerRef.current &&
+        !emojiPickerRef.current.contains(event.target as Node)
+      ) {
+        setShowEmojiPicker(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showEmojiPicker]);
+
 
   /* -------------------- EMOJI -------------------- */
 
@@ -231,8 +252,14 @@ export default function MessageInputWithMentions({
     <div className="relative p-4">
       {/* Emoji Picker */}
       {showEmojiPicker && (
-        <div className="absolute bottom-20 left-4 z-50">
-          <EmojiPicker theme={Theme.DARK} onEmojiClick={handleEmojiClick} />
+        <div
+          ref={emojiPickerRef}
+          className="absolute bottom-20 left-4 z-50"
+        >
+          <EmojiPicker
+            theme={Theme.DARK}
+            onEmojiClick={handleEmojiClick}
+          />
         </div>
       )}
 
