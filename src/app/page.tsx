@@ -160,7 +160,7 @@ export default function Home() {
     <>
       <div className="relative w-screen overflow-x-hidden">
         <div
-          className="fixed inset-0 bg-[url('/bg6.png')] bg-cover bg-center -z-20 transition-transform duration-500"
+          className="fixed inset-0 bg-[url('/bg1.jpg')] bg-cover bg-center -z-20 transition-transform duration-500"
           aria-hidden="true"
         />
         {/* NAVBAR */}
