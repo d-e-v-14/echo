@@ -148,27 +148,28 @@ export default function ProfilePage() {
         </div>
       )}
 
-      <div className="w-full max-w-6xl grid md:grid-cols-2 gap-14">
-        {/* LEFT */}
-        <div className="space-y-10">
-          <div className="relative rounded-3xl overflow-hidden shadow-xl">
+      <div className="w-full max-w-6xl mx-auto grid md:grid-cols-2 gap-16">
+        {/* LEFT — Identity / Hero */}
+        <div className="space-y-12">
+          <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-white/10">
             <div
-              className="absolute inset-0 bg-cover bg-center"
+              className="absolute inset-0 bg-cover bg-center scale-110"
               style={{ backgroundImage: "url('/profile-bg.png')" }}
             />
-            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+            <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/60 to-black/90 backdrop-blur-md" />
 
-            <div className="relative p-10 flex flex-col items-center gap-4">
+            <div className="relative p-12 flex flex-col items-center gap-5">
               <div
-                className="relative cursor-pointer"
+                className="group relative cursor-pointer"
                 onClick={() => avatarInput.current?.click()}
               >
+                <div className="absolute inset-0 rounded-full blur-lg bg-blue-500/40 opacity-0 group-hover:opacity-100 transition" />
                 <Image
                   src={avatar}
                   alt="Avatar"
-                  width={120}
-                  height={120}
-                  className="rounded-full border-4 border-blue-400 object-cover"
+                  width={132}
+                  height={132}
+                  className="relative rounded-full border-4 border-blue-400 object-cover shadow-xl"
                 />
               </div>
 
@@ -180,21 +181,30 @@ export default function ProfilePage() {
                 onChange={handleAvatarChange}
               />
 
-              <h2 className="text-xl font-semibold">{displayName}</h2>
-              <p className="text-sm text-gray-400">@{username}</p>
+              <div className="text-center">
+                <h2 className="text-2xl font-semibold tracking-tight text-white">
+                  {displayName}
+                </h2>
+                <p className="text-sm text-gray-400">@{username}</p>
+              </div>
             </div>
           </div>
 
-          {/* About */}
           <div>
-            <div className="flex justify-between mb-2">
-              <span className="text-sm text-gray-400">About</span>
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-xs uppercase tracking-wider text-gray-400">
+                About
+              </span>
               <button
                 onClick={() => {
                   setPrevAbout(about);
                   setEditing((p) => ({ ...p, about: true }));
                 }}
-                className="text-xs flex items-center gap-1 text-gray-400 hover:text-white"
+                className={`text-xs flex items-center gap-1 transition ${
+                  editing.about
+                    ? "text-blue-400"
+                    : "text-gray-400 hover:text-blue-400"
+                }`}
               >
                 <Pencil size={14} /> Edit
               </button>
@@ -212,23 +222,28 @@ export default function ProfilePage() {
                   setEditing((p) => ({ ...p, about: false }));
                 }
               }}
-              className="w-full h-36 p-4 rounded-xl bg-[#1f2937] border border-white/20"
+              className="w-full h-40 p-5 rounded-2xl bg-[#1f2937] text-white border border-white/20 backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
             />
           </div>
         </div>
 
-        {/* RIGHT */}
-        <div className="space-y-10">
-          {/* Name */}
+        {/* RIGHT — Settings Panel */}
+        <div className="relative rounded-3xl bg-white/5 border border-white/10 backdrop-blur-xl p-10 shadow-xl space-y-12">
           <div>
-            <div className="flex justify-between">
-              <label className="text-sm text-gray-400">Display Name</label>
+            <div className="flex justify-between items-center">
+              <label className="text-xs uppercase tracking-wider text-gray-400">
+                Display Name
+              </label>
               <button
                 onClick={() => {
                   setPrevName(displayName);
                   setEditing((p) => ({ ...p, name: true }));
                 }}
-                className="text-xs flex items-center gap-1 text-gray-400 hover:text-white"
+                className={`text-xs flex items-center gap-1 transition ${
+                  editing.name
+                    ? "text-blue-400"
+                    : "text-gray-400 hover:text-blue-400"
+                }`}
               >
                 <Pencil size={14} /> Edit
               </button>
@@ -240,38 +255,41 @@ export default function ProfilePage() {
               readOnly={!editing.name}
               onChange={(e) => setDisplayName(e.target.value)}
               onBlur={() => setEditing((p) => ({ ...p, name: false }))}
-              className="w-full mt-2 p-3 rounded-lg bg-[#1f2937] border border-white/20"
+              className="w-full mt-3 p-4 rounded-xl bg-[#1f2937] text-white border border-white/20 backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
             />
           </div>
+
           <div>
-            <label className="text-sm text-gray-400">Username</label>
+            <label className="text-xs uppercase tracking-wider text-gray-400">
+              Username
+            </label>
             <input
               value={username}
               readOnly
-              className="w-full mt-2 p-3 rounded-lg bg-[#1f2937] border border-white/20"
+              className="w-full mt-3 p-4 rounded-xl bg-[#111827] text-gray-500 border border-white/10 cursor-not-allowed shadow-inner"
             />
           </div>
 
-          {/* Email */}
           <div>
-            <label className="text-sm text-gray-400">Email</label>
+            <label className="text-xs uppercase tracking-wider text-gray-400">
+              Email
+            </label>
             <input
               value={email}
               readOnly
-              className="w-full mt-2 p-3 rounded-lg bg-[#1f2937] border border-white/20"
+              className="w-full mt-3 p-4 rounded-xl bg-[#111827] text-gray-500 border border-white/10 cursor-not-allowed shadow-inner"
             />
           </div>
 
-          {/* Actions */}
-          <div className="pt-6 border-t border-red-500/30">
-            <div className="flex gap-4">
+          <div className="pt-8 border-t border-white/10">
+            <div className="flex gap-5">
               <button
                 onClick={handleSave}
                 disabled={!changed || isSaving}
-                className={`px-6 py-2 rounded-lg font-semibold ${
+                className={`px-7 py-3 rounded-xl font-semibold tracking-wide transition-all ${
                   changed
-                    ? "bg-green-600 hover:bg-green-700"
-                    : "bg-gray-700 opacity-50"
+                    ? "bg-gradient-to-r from-green-500 to-emerald-600 hover:scale-[1.02] hover:shadow-lg"
+                    : "bg-gray-700 opacity-50 cursor-not-allowed"
                 }`}
               >
                 {isSaving ? "Saving…" : "Save Changes"}
@@ -279,7 +297,7 @@ export default function ProfilePage() {
 
               <button
                 onClick={() => router.push("/delete-account")}
-                className="px-6 py-2 rounded-lg bg-red-700 hover:bg-red-800 font-semibold"
+                className="px-7 py-3 rounded-xl bg-red-600/70 hover:bg-red-700 hover:shadow-lg transition font-semibold"
               >
                 Delete Account
               </button>
@@ -287,6 +305,7 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
     </div>
   );
 }

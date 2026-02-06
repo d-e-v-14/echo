@@ -12,6 +12,14 @@ import MessageAttachment from './MessageAttachment';
 import Loader from "@/components/Loader";
 import { useMessageNotifications } from '@/contexts/MessageNotificationContext';
 import Toast from "@/components/Toast";
+import dynamic from "next/dynamic";
+import { Theme } from "emoji-picker-react";
+
+
+const EmojiPicker = dynamic(
+  () => import("emoji-picker-react"),
+  { ssr: false }
+);
 
 
 interface User {
@@ -184,6 +192,8 @@ interface ChatWindowProps {
 
 const ChatWindow: React.FC<ChatWindowProps> = ({ activeUser, messages, currentUser, partnerId, allUsers, onSendMessage }) => {
     const [draft, setDraft] = useState('');
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const emojiPickerRef = useRef<HTMLDivElement>(null);
     const [file, setFile] = useState<File | null>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -243,7 +253,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ activeUser, messages, currentUs
     }, [messages, currentUser?.id, partnerId, allUsers, dayFormatter, timeFormatter]);
 
     const handleSend = (value: string) => {
-        if (!value.trim() && !file) return;
+        if (value.length === 0 && !file) return; // ← NO trim
         onSendMessage(value, file);
         setDraft('');
         setFile(null);
@@ -258,6 +268,26 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ activeUser, messages, currentUs
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
+
+    useEffect(() => {
+        if (!showEmojiPicker) return;
+
+        const handleClickOutside = (event: MouseEvent) => {
+            if (
+            emojiPickerRef.current &&
+            !emojiPickerRef.current.contains(event.target as Node)
+            ) {
+            setShowEmojiPicker(false);
+            }
+        };
+
+        document.addEventListener("mousedown", handleClickOutside);
+
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, [showEmojiPicker]);
+
 
     if (!activeUser) {
         return (
@@ -350,7 +380,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ activeUser, messages, currentUs
                 <div ref={bottomRef} />
             </div>
 
-            <footer className="border-t border-slate-800/80 bg-slate-900/70 px-6 py-5">
+            <footer className="relative border-t border-slate-800/80 bg-slate-900/70 px-6 py-5">
                 {file && (
                     <div className="mb-3 flex items-center justify-between rounded-xl border border-slate-800/70 bg-slate-900/60 px-4 py-3 text-sm text-slate-200">
                         <div className="flex items-center gap-3">
@@ -383,12 +413,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ activeUser, messages, currentUs
                         <Paperclip className="h-4 w-4" />
                     </button>
                     <button
-                        className="rounded-full border border-slate-800/70 p-2 text-slate-300 transition-colors hover:border-indigo-500/50 hover:text-indigo-300"
                         type="button"
                         aria-label="Add reaction"
-                    >
+                        onClick={() => setShowEmojiPicker(v => !v)}
+                        className="rounded-full border border-slate-800/70 p-2 text-slate-300 transition-colors hover:border-indigo-500/50 hover:text-indigo-300"
+                        >
                         <Smile className="h-4 w-4" />
-                    </button>
+                        </button>
+
                     <input
                         type="text"
                         value={draft}
@@ -402,6 +434,20 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ activeUser, messages, currentUs
                         placeholder={`Message @${recipientFirstName}`}
                         className="flex-1 bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500"
                     />
+                    {showEmojiPicker && (
+                        <div
+                            ref={emojiPickerRef}
+                            className="absolute bottom-20 left-6 z-50"
+                        >
+                            <EmojiPicker
+                            theme={Theme.DARK}
+                            onEmojiClick={(emojiData) => {
+                                setDraft(prev => prev + emojiData.emoji);
+                            }}
+                            />
+                        </div>
+                    )}
+
                     <button
                         onClick={() => handleSend(draft)}
                         className="flex items-center gap-2 rounded-full bg-indigo-500/90 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-400"
@@ -747,11 +793,10 @@ useEffect(() => {
         const tempId = `temp-${Date.now()}`;
         const tempMessage: DirectMessage = {
             id: tempId,
-            content: content.trim(),
+            content: content,        
             sender_id: currentUser.id,
             receiver_id: activeDmId,
             timestamp: new Date().toISOString(),
-            media_url: null,
         };
 
         setMessages(prev => {
@@ -767,9 +812,10 @@ useEffect(() => {
             const dmPayload = {
                 sender_id: currentUser.id,
                 receiver_id: activeDmId,
-                message: content.trim(),
+                message: content,
                 mediaurl: file ?? undefined,
-            } as const;
+            };
+
 
             const saved = await uploaddm(dmPayload);
             if (!saved) {
