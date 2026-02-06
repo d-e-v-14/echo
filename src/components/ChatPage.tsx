@@ -364,7 +364,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ activeUser, messages, currentUs
                                                 message={msg}
                                                 timestamp={msg.timeLabel}
                                                 name={!group.isSender && index === 0 ? group.name : undefined}
-                                                avatarUrl={!group.isSender && index === 0 ? group.avatarUrl : undefined}
+                                                avatarUrl={group.avatarUrl}
                                             >
                                                 {msg.media_url && (
                                                     <MessageAttachment media_url={msg.media_url} />
