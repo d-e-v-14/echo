@@ -248,10 +248,12 @@ export default forwardRef(function ChatWindow(
     [currentUsername, currentUserRoleIds, serverRoles]
   );
 
+ 
   const isValidUsernameMention = (mention: string) => {
     const name = mention.replace("@", "").toLowerCase();
 
-    if (name === "everyone" || name === "here") return true;
+    // ✅ Allow @everyone and @here
+    if (name === "everyone" ) return true;
 
     return validUsernamesRef.current.has(name);
   };
@@ -909,7 +911,6 @@ export default forwardRef(function ChatWindow(
     if (!container || loadingMore || !hasMore) return;
     isManuallyScrollingRef.current = false;
 
-
     // Check if user is at bottom
     const isAtBottom =
       container.scrollHeight - container.scrollTop - container.clientHeight <
@@ -1227,6 +1228,10 @@ export default forwardRef(function ChatWindow(
       const mention = `@${match[1]}`;
 
       if (message.includes(`@&${match[1]}`)) continue;
+       const mentionLower = mention.toLowerCase();
+       if (mentionLower === "@everyone" ) {
+         continue;
+       }
 
       if (!isValidUsernameMention(mention)) {
         return { valid: false, invalidUser: mention };
