@@ -159,23 +159,10 @@ export default function Home() {
   return (
     <>
       <div className="relative w-screen overflow-x-hidden">
-     
         <div
-          className="fixed inset-0 bg-[url('/bg1.png')] bg-cover bg-center -z-20 transition-transform duration-500"
+          className="fixed inset-0 bg-[url('/bg6.png')] bg-cover bg-center -z-20 transition-transform duration-500"
           aria-hidden="true"
         />
-
-        <div
-          
-          className={`fixed inset-0 backdrop-blur-lg bg-black/30 -z-10 transition-all duration-700 ${
-            scrollY > 300
-              ? "opacity-100 pointer-events-auto"
-              : "opacity-0 pointer-events-none"
-          }`}
-        />
-
-    
-
         {/* NAVBAR */}
         <div
           className={`fixed top-0 left-0 w-full z-50 transition-transform duration-300 ${
@@ -187,7 +174,7 @@ export default function Home() {
 
         {/* LANDING SECTION */}
         <section className="min-h-screen flex items-center justify-between px-6 md:px-12 lg:px-24">
-          <div className="w-full md:w-1/2 text-[#FFAF00]">
+          <div className="w-full md:w-1/2 text-white">
             <h1
               className="text-[36px] md:text-[60px] font-semibold leading-tight"
               data-aos="fade-right"
@@ -220,7 +207,7 @@ export default function Home() {
           id="about-us"
           className="relative min-h-screen py-20 px-4 md:px-8"
         >
-          <h2 className="text-3xl md:text-5xl font-semibold text-[#FFAF00] text-center mb-4">
+          <h2 className="text-3xl md:text-5xl font-semibold text-white text-center mb-4">
             Explore Echo Spaces
           </h2>
           <p className="text-center text-white/80 mb-12 max-w-2xl mx-auto">
@@ -228,9 +215,7 @@ export default function Home() {
             to gaming squads, study zones to hackathons.
           </p>
 
-         
           <div className="max-w-7xl mx-auto flex flex-col gap-4">
-           
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-auto md:h-[300px]">
               <div
                 data-aos="fade-down"
@@ -254,7 +239,6 @@ export default function Home() {
               </div>
             </div>
 
-           
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-auto md:min-h-[400px]">
               <div
                 data-aos="fade-right"
@@ -272,7 +256,6 @@ export default function Home() {
                 HACKATHONS
               </div>
 
-            
               <div className="md:col-span-5 flex flex-col gap-4">
                 <div className="grid grid-cols-2 gap-4 h-1/2">
                   <div
@@ -306,7 +289,7 @@ export default function Home() {
         <section className="mt-20 flex flex-col lg:flex-row items-center justify-between px-0 md:px-8">
           {/* Text Content */}
           <div className="text-center lg:text-left mt-8 lg:mt-0 max-w-xl md:pl-12">
-            <h1 className="text-[#FFC64A] font-semibold text-2xl md:text-[52px] md:leading-[70px]">
+            <h1 className="text-white font-semibold text-2xl md:text-[52px] md:leading-[70px]">
               Build Your Space. <br />
               Stay in Touch.
             </h1>
@@ -336,7 +319,7 @@ export default function Home() {
       <section id="faqs" className="relative py-24 px-6 overflow-hidden">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col items-center mb-16">
-            <h2 className="text-[#FFAF00] font-bold text-4xl mb-2">
+            <h2 className="text-white font-bold text-4xl mb-2">
               Frequently Asked Questions
             </h2>
             <div className="w-24 h-1 bg-[#FFAF00] rounded-full" />
@@ -371,7 +354,7 @@ export default function Home() {
                 : "hover:bg-white/5 bg-white/5"
             }
           `}
-              > 
+              >
                 {faq === index && (
                   <div className="absolute inset-0 shadow-[inset_0_0_50px_rgba(59,130,246,0.3)] pointer-events-none" />
                 )}
@@ -409,7 +392,7 @@ export default function Home() {
         className="mt-40 flex flex-grow min-h-[100vh] overflow-x-hidden"
       >
         <div className="w-[70vw] h-[560px] py-5 border mx-auto bg-white/10 backdrop-blur-md rounded-xl border-white/20">
-          <h1 className="text-[#FFAF00] text-center font-bold text-4xl mb-2">
+          <h1 className="text-white text-center font-bold text-4xl mb-2">
             CONTACT US
           </h1>
           <div className="w-24 h-1 flex-center bg-[#FFAF00] rounded-full" />
@@ -496,7 +479,7 @@ export default function Home() {
         <div className="flex items-center justify-center -translate-y-1/2">
           <div className="flex items-center w-full px-4 max-w-7xl">
             <div className="flex-grow h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
-            <span className="px-6 text-xs font-black tracking-[0.3em] text-[#FFAF00] uppercase">
+            <span className="px-6 text-xs font-black tracking-[0.3em] text-white uppercase">
               Echo
             </span>
             <div className="flex-grow h-px bg-gradient-to-l from-transparent via-white/20 to-transparent"></div>
@@ -514,7 +497,7 @@ export default function Home() {
 
           {/* Navigation Links */}
           <div className="flex flex-col items-center md:items-start space-y-4">
-            <h3 className="text-sm font-black text-[#EFCA53] uppercase tracking-tighter">
+            <h3 className="text-sm font-black text-white  uppercase tracking-tighter">
               Quick Menu
             </h3>
             <nav className="flex flex-col space-y-2 text-center md:text-left">
@@ -532,7 +515,7 @@ export default function Home() {
 
           {/* Contact Details */}
           <div className="flex flex-col items-center md:items-start space-y-4">
-            <h3 className="text-sm font-black text-[#EFCA53] uppercase tracking-tighter">
+            <h3 className="text-sm font-black text-white  uppercase tracking-tighter">
               Direct Lines
             </h3>
             <div className="flex flex-col space-y-2 text-center md:text-left">
