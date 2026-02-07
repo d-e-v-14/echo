@@ -56,7 +56,7 @@ interface Message {
     avatarUrl?: string;
   } | null;
   // Optimistic UI fields
-  status?: 'pending' | 'sent' | 'failed';
+  status?: "pending" | "sent" | "failed";
   tempId?: string;
 }
 
@@ -109,9 +109,9 @@ export default forwardRef(function ChatWindow(
   const [currentUserAvatar, setCurrentUserAvatar] =
     useState<string>("/User_profil.png");
   const isLoadingMoreRef = useRef(false);
-  const channelIdRef = useRef(channelId); // Add ref to track current channel
-  const receivedMessageIdsRef = useRef<Set<string | number>>(new Set()); // Persistent message ID tracking
-  const offsetRef = useRef(0); // Track offset in ref to prevent unnecessary callback recreation
+  const channelIdRef = useRef(channelId); 
+  const receivedMessageIdsRef = useRef<Set<string | number>>(new Set()); 
+  const offsetRef = useRef(0); 
   const [serverRoles, setServerRoles] = useState<
     { id: string; name: string; color?: string }[]
   >([]);
@@ -134,6 +134,8 @@ export default forwardRef(function ChatWindow(
   const isInitialLoadRef = useRef(true);
   const lastProcessedMessageIdRef = useRef<string | number | null>(null);
 
+  const hasUserScrolledRef = useRef(false);
+
   const initialScrollDoneRef = useRef<string | null>(null);
   const isAutoScrollingRef = useRef(false);
 
@@ -146,7 +148,7 @@ export default forwardRef(function ChatWindow(
   const [lastReadTimestamp, setLastReadTimestamp] = useState<string | null>(
     null
   );
-  // ✅ ADD this with your other refs (around line 330)
+
   const isManuallyScrollingRef = useRef(false);
 
   // Fetch unread mentions for a specific channel
@@ -163,43 +165,6 @@ export default forwardRef(function ChatWindow(
       mentionIds.map((id) => apiClient.patch(`/api/mentions/${id}/read`))
     );
   };
-
-  // Expose imperative methods to parent via ref
-  // ✅ REPLACE the scrollToMessage implementation inside useImperativeHandle
-  useImperativeHandle(ref, () => ({
-    async scrollToMessage(
-      messageId: string,
-      options: { highlightDuration?: number } = { highlightDuration: 1500 }
-    ) {
-      isAutoScrollingRef.current = true;
-
-      try {
-        const success = await scrollToMention(messageId, 6);
-
-        if (success) {
-          const el = document.querySelector(
-            `[data-message-id="${messageId}"]`
-          ) as HTMLElement;
-          if (el && options.highlightDuration) {
-            el.classList.add("mention-highlight");
-            setTimeout(
-              () => el.classList.remove("mention-highlight"),
-              options.highlightDuration
-            );
-          }
-        }
-
-        return success;
-      } finally {
-        setTimeout(() => {
-          isAutoScrollingRef.current = false;
-          isManuallyScrollingRef.current = false;
-        }, 1000);
-      }
-    },
-
-    // ... keep loadOlderPages and scrollToBottom as they are
-  }));
 
   // Update ref whenever channelId changes
   useEffect(() => {
@@ -251,12 +216,11 @@ export default forwardRef(function ChatWindow(
     [currentUsername, currentUserRoleIds, serverRoles]
   );
 
- 
   const isValidUsernameMention = (mention: string) => {
     const name = mention.replace("@", "").toLowerCase();
 
     // ✅ Allow @everyone and @here
-    if (name === "everyone" ) return true;
+    if (name === "everyone") return true;
 
     return validUsernamesRef.current.has(name);
   };
@@ -266,7 +230,7 @@ export default forwardRef(function ChatWindow(
   const normalizeRoleName = (name: string) =>
     name.trim().toLowerCase().replace(/\s+/g, " ");
 
-  // Load last-read timestamp for this channel from localStorage
+
   useEffect(() => {
     if (!channelId || !currentUserId) {
       setLastReadTimestamp(null);
@@ -283,13 +247,13 @@ export default forwardRef(function ChatWindow(
     }
   }, [channelId, currentUserId]);
 
-  // ✅ REPLACE: Auto-scroll only when user is at bottom AND not manually scrolling
+
   useEffect(() => {
-    // ✅ ADD: Check if manually scrolling
+   
     if (
       loadingMessages ||
       isAutoScrollingRef.current ||
-      isManuallyScrollingRef.current || // ← ADD THIS CHECK
+      isManuallyScrollingRef.current || 
       messages.length === 0
     ) {
       return;
@@ -548,17 +512,17 @@ export default forwardRef(function ChatWindow(
         // console.log("Response status:", response.status);
 
         if (!response.ok) {
-          // ⚠️ User not found in this server (normal case, non-blocking)
+          
           console.warn(
             "Member not found in server (non-blocking):",
             msg.senderId
           );
-          return; // ⬅️ IMPORTANT: stop here, keep basic profile
+          return; 
         }
 
         const memberData = await response.json();
 
-        // Update with full user details including roles
+
         setSelectedUser({
           id: msg.senderId,
           username: msg.username || "Unknown",
@@ -575,7 +539,7 @@ export default forwardRef(function ChatWindow(
 
   const handleUsernameClick = useCallback(
     async (userId: string, username: string) => {
-      // Try to find an existing message for richer data
+
       const existingMessage = messages.find(
         (msg) => msg.senderId === userId || msg.username === username
       );
@@ -698,25 +662,25 @@ export default forwardRef(function ChatWindow(
           isLoadingMoreRef.current = true;
         } else {
           setLoadingMessages(true);
-          offsetRef.current = 0; // Reset offset ref
+          offsetRef.current = 0; 
           setOffset(0);
           isLoadingMoreRef.current = false;
         }
 
         const currentOffset = loadMore ? offsetRef.current : 0;
 
-        // Check if request was cancelled
+     
         if (abortSignal?.aborted) {
           return;
         }
 
-        // Use channelIdRef.current to always get the latest channel ID
+    
         const currentChannelId = channelIdRef.current;
 
-        // Fetch messages for the CURRENT channel
+      
         const res = await fetchMessages(currentChannelId, currentOffset);
 
-        // Check again after async operation - verify we're still on the same channel
+       
         if (abortSignal?.aborted || channelIdRef.current !== currentChannelId) {
           console.log(
             `Fetch completed for ${currentChannelId} but current channel is ${channelIdRef.current}, ignoring`
@@ -729,7 +693,7 @@ export default forwardRef(function ChatWindow(
             const senderId = msg.sender_id || msg.senderId;
             const avatarUrl = await getAvatarUrl(senderId);
 
-            // Add replyTo using backend-provided reply_to_message
+
             let replyTo = null;
             if (msg.reply_to_message) {
               replyTo = {
@@ -756,12 +720,12 @@ export default forwardRef(function ChatWindow(
                     msg.sender_name ||
                     "Unknown",
               mediaUrl: msg.media_url || msg.mediaUrl,
-              replyTo, // <-- add this
+              replyTo, 
             };
           })
         );
 
-        // Final check before updating state - CRITICAL: verify channel hasn't changed
+        
         if (abortSignal?.aborted || channelIdRef.current !== currentChannelId) {
           console.log(
             `Message processing completed for ${currentChannelId} but current channel is ${channelIdRef.current}, ignoring`
@@ -818,7 +782,7 @@ export default forwardRef(function ChatWindow(
           return true;
         }
 
-        // If not found and we have more messages, load them
+      
         if (hasMore && attempt < retries - 1) {
           await loadMessages(true);
           await new Promise((resolve) => setTimeout(resolve, 100));
@@ -835,12 +799,18 @@ export default forwardRef(function ChatWindow(
   );
 
   useEffect(() => {
-    if (loadingMessages || initialScrollDoneRef.current === channelId) {
+ 
+    if (
+      loadingMessages ||
+      messages.length === 0 ||
+      initialScrollDoneRef.current === channelId
+    ) {
       return;
     }
 
     initialScrollDoneRef.current = channelId;
     isAutoScrollingRef.current = true;
+    hasUserScrolledRef.current = false; 
 
     const performInitialScroll = () => {
       try {
@@ -848,45 +818,62 @@ export default forwardRef(function ChatWindow(
           ? new Date(lastReadTimestamp).getTime()
           : 0;
 
-        if (!lastReadMs || messages.length === 0) {
-          // No read marker - scroll to bottom
+        if (!lastReadMs) {
           messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
-          isAutoScrollingRef.current = false;
+          
+          setTimeout(() => {
+            isAutoScrollingRef.current = false;
+          }, 500);
           return;
         }
 
-        // Find first unread message (any message, not just mentions)
+   
         const firstUnreadIndex = messages.findIndex((msg) => {
           const msgTime = new Date(msg.timestamp).getTime();
           return msgTime > lastReadMs && msg.senderId !== currentUserId;
         });
 
         if (firstUnreadIndex === -1) {
-          // All messages are read - scroll to bottom
+        
           messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+          setTimeout(() => {
+            isAutoScrollingRef.current = false;
+          }, 500);
         } else {
-          // Scroll to first unread message
+         
           const firstUnread = messages[firstUnreadIndex];
           const el = messageRefs.current[firstUnread.id];
 
           if (el) {
             el.scrollIntoView({ behavior: "auto", block: "start" });
+           
+            setTimeout(() => {
+              isAutoScrollingRef.current = false;
+            }, 500);
           } else {
-            // Element not rendered yet, scroll to bottom
-            messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+            requestAnimationFrame(() => {
+              const retryEl = messageRefs.current[firstUnread.id];
+              if (retryEl) {
+                retryEl.scrollIntoView({ behavior: "auto", block: "start" });
+              } else {
+                messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+              }
+              setTimeout(() => {
+                isAutoScrollingRef.current = false;
+              }, 500);
+            });
           }
         }
-
-        isAutoScrollingRef.current = false;
       } catch (error) {
         console.error("Error during initial scroll:", error);
         messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
-        isAutoScrollingRef.current = false;
+        setTimeout(() => {
+          isAutoScrollingRef.current = false;
+        }, 500);
       }
     };
 
-    // Small delay to ensure DOM is ready
-    setTimeout(performInitialScroll, 100);
+    requestAnimationFrame(performInitialScroll);
   }, [loadingMessages, channelId, currentUserId, messages, lastReadTimestamp]);
   useEffect(() => {
     initialScrollDoneRef.current = null;
@@ -909,85 +896,94 @@ export default forwardRef(function ChatWindow(
     };
   }, [channelId, loadMessages]);
 
-  const handleScroll = useCallback(() => {
-    const container = messagesContainerRef.current;
-    if (!container || loadingMore || !hasMore) return;
-    isManuallyScrollingRef.current = false;
+const handleScroll = useCallback(() => {
+  const container = messagesContainerRef.current;
+  if (!container || loadingMore || !hasMore) return;
 
-    // Check if user is at bottom
-    const isAtBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight <
-      50;
 
-    // Update last read timestamp if at bottom
-    if (isAtBottom && messages.length > 0 && channelId && currentUserId) {
-      const last = messages[messages.length - 1];
-      const ts = last.timestamp;
-      setLastReadTimestamp(ts);
-      try {
-        const key = `channel_last_read_${channelId}_${currentUserId}`;
-        localStorage.setItem(key, ts);
-      } catch (err) {
-        console.error("Failed to persist last read timestamp", err);
-      }
+  if (isAutoScrollingRef.current) return;
+
+  hasUserScrolledRef.current = true;
+  isManuallyScrollingRef.current = false;
+
+  const isAtBottom =
+    container.scrollHeight - container.scrollTop - container.clientHeight < 50;
+
+
+  if (
+    isAtBottom &&
+    hasUserScrolledRef.current &&
+    messages.length > 0 &&
+    channelId &&
+    currentUserId
+  ) {
+    const last = messages[messages.length - 1];
+    const ts = last.timestamp;
+    setLastReadTimestamp(ts);
+    try {
+      const key = `channel_last_read_${channelId}_${currentUserId}`;
+      localStorage.setItem(key, ts);
+    } catch (err) {
+      console.error("Failed to persist last read timestamp", err);
     }
+  }
 
-    // Update last read for visible messages
-    if (messages.length > 0 && channelId && currentUserId && !isAtBottom) {
-      const viewportBottom = container.scrollTop + container.clientHeight;
+  
+  if (messages.length > 0 && channelId && currentUserId && !isAtBottom) {
+    const viewportBottom = container.scrollTop + container.clientHeight;
 
-      for (let i = messages.length - 1; i >= 0; i--) {
-        const msg = messages[i];
-        const el = messageRefs.current[msg.id];
-        if (!el) continue;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      const el = messageRefs.current[msg.id];
+      if (!el) continue;
 
-        const elTop = el.offsetTop;
-        if (elTop <= viewportBottom) {
-          const ts = msg.timestamp;
-          const existing = lastReadTimestamp
-            ? new Date(lastReadTimestamp).getTime()
-            : 0;
-          const next = new Date(ts).getTime();
+      const elTop = el.offsetTop;
+      if (elTop <= viewportBottom) {
+        const ts = msg.timestamp;
+        const existing = lastReadTimestamp
+          ? new Date(lastReadTimestamp).getTime()
+          : 0;
+        const next = new Date(ts).getTime();
 
-          if (next > existing) {
-            setLastReadTimestamp(ts);
-            try {
-              const key = `channel_last_read_${channelId}_${currentUserId}`;
-              localStorage.setItem(key, ts);
-            } catch (err) {
-              console.error("Failed to persist last read timestamp", err);
-            }
+        if (next > existing) {
+          setLastReadTimestamp(ts);
+          try {
+            const key = `channel_last_read_${channelId}_${currentUserId}`;
+            localStorage.setItem(key, ts);
+          } catch (err) {
+            console.error("Failed to persist last read timestamp", err);
           }
-          break;
         }
+        break;
       }
     }
+  }
 
-    // Load more messages when scrolled to top
-    if (container.scrollTop < 100) {
-      const previousScrollHeight = container.scrollHeight;
-      const previousScrollTop = container.scrollTop;
+ 
+  if (container.scrollTop < 100) {
+    const previousScrollHeight = container.scrollHeight;
+    const previousScrollTop = container.scrollTop;
 
-      loadMessages(true).then(() => {
-        requestAnimationFrame(() => {
-          if (messagesContainerRef.current) {
-            const newScrollHeight = messagesContainerRef.current.scrollHeight;
-            messagesContainerRef.current.scrollTop =
-              previousScrollTop + (newScrollHeight - previousScrollHeight);
-          }
-        });
+    loadMessages(true).then(() => {
+      requestAnimationFrame(() => {
+        if (messagesContainerRef.current) {
+          const newScrollHeight = messagesContainerRef.current.scrollHeight;
+          messagesContainerRef.current.scrollTop =
+            previousScrollTop + (newScrollHeight - previousScrollHeight);
+        }
       });
-    }
-  }, [
-    loadingMore,
-    hasMore,
-    loadMessages,
-    messages,
-    channelId,
-    currentUserId,
-    lastReadTimestamp,
-  ]);
-  // ✅ ADD: Count unread mentions
+    });
+  }
+}, [
+  loadingMore,
+  hasMore,
+  loadMessages,
+  messages,
+  channelId,
+  currentUserId,
+  lastReadTimestamp,
+]);
+
   useEffect(() => {
     if (!lastReadTimestamp) {
       setUnreadMentionCount(0);
@@ -1005,8 +1001,7 @@ export default forwardRef(function ChatWindow(
 
     setUnreadMentionCount(unreadMentions.length);
   }, [messages, lastReadTimestamp, currentUserId, isMessageMentioningMe]);
-  // ✅ ADD: Jump to next mention
-  // ✅ REPLACE your jumpToNextMention function
+  
   const jumpToNextMention = useCallback(() => {
     if (!lastReadTimestamp) return;
 
@@ -1026,7 +1021,7 @@ export default forwardRef(function ChatWindow(
     const el = messageRefs.current[targetMention.id];
 
     if (el) {
-      // ✅ ADD: Set manual scrolling flag
+     
       isManuallyScrollingRef.current = true;
 
       el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -1047,6 +1042,59 @@ export default forwardRef(function ChatWindow(
     isMessageMentioningMe,
     currentMentionIndex,
   ]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      async scrollToMessage(
+        messageId: string,
+        options: { highlightDuration?: number } = { highlightDuration: 1500 }
+      ) {
+        isAutoScrollingRef.current = true;
+        isManuallyScrollingRef.current = true;
+
+        try {
+          const success = await scrollToMention(messageId, 6);
+
+          if (success) {
+            const el = document.querySelector(
+              `[data-message-id="${messageId}"]`
+            ) as HTMLElement;
+            if (el && options.highlightDuration) {
+              el.classList.add("mention-highlight");
+              setTimeout(
+                () => el.classList.remove("mention-highlight"),
+                options.highlightDuration
+              );
+            }
+          }
+
+          return success;
+        } finally {
+          setTimeout(() => {
+            isAutoScrollingRef.current = false;
+            isManuallyScrollingRef.current = false;
+          }, 1000);
+        }
+      },
+
+      async loadOlderPages(limitPages = 1) {
+        if (!hasMore) return false;
+        for (let i = 0; i < limitPages; i++) {
+          await loadMessages(true);
+          await new Promise((r) => setTimeout(r, 60));
+          if (!hasMore) break;
+        }
+        return true;
+      },
+
+      scrollToBottom() {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        return true;
+      },
+    }),
+    [scrollToMention, hasMore, loadMessages]
+  );
   useEffect(() => {
     if (!localStream) return;
     localStream.getAudioTracks().forEach((t) => (t.enabled = micOn));
@@ -1216,7 +1264,7 @@ export default forwardRef(function ChatWindow(
     const handleMessageConfirmed = async (saved: any) => {
       const tempId = saved?.tempId;
       const realId = saved?.id;
-      
+
       if (!tempId || !realId) {
         console.warn("message_confirmed missing tempId or id:", saved);
         return;
@@ -1226,9 +1274,9 @@ export default forwardRef(function ChatWindow(
       const avatarUrl = await getAvatarUrl(senderId);
 
       // Replace optimistic message with confirmed message
-      setMessages(prev => {
-        const optimisticIndex = prev.findIndex(msg => msg.tempId === tempId);
-        
+      setMessages((prev) => {
+        const optimisticIndex = prev.findIndex((msg) => msg.tempId === tempId);
+
         if (optimisticIndex === -1) {
           console.log(`No optimistic message found for tempId ${tempId}`);
           return prev;
@@ -1240,10 +1288,10 @@ export default forwardRef(function ChatWindow(
           senderId,
           timestamp: saved?.timestamp || new Date().toISOString(),
           avatarUrl,
-          username: 'You',
+          username: "You",
           mediaUrl: saved?.media_url || saved?.mediaUrl,
           replyTo: prev[optimisticIndex].replyTo,
-          status: 'sent'
+          status: "sent",
         };
 
         const updated = [...prev];
@@ -1259,16 +1307,16 @@ export default forwardRef(function ChatWindow(
     const handleMessageError = (error: any) => {
       const tempId = error?.tempId;
       const errorMsg = error?.error || error;
-      
-      console.error('Message error:', errorMsg);
-      
+
+      console.error("Message error:", errorMsg);
+
       if (tempId) {
         // Mark the optimistic message as failed
-        setMessages(prev => prev.map(msg => 
-          msg.tempId === tempId 
-            ? { ...msg, status: 'failed' as const }
-            : msg
-        ));
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.tempId === tempId ? { ...msg, status: "failed" as const } : msg
+          )
+        );
       }
     };
 
@@ -1293,10 +1341,10 @@ export default forwardRef(function ChatWindow(
       const mention = `@${match[1]}`;
 
       if (message.includes(`@&${match[1]}`)) continue;
-       const mentionLower = mention.toLowerCase();
-       if (mentionLower === "@everyone" ) {
-         continue;
-       }
+      const mentionLower = mention.toLowerCase();
+      if (mentionLower === "@everyone") {
+        continue;
+      }
 
       if (!isValidUsernameMention(mention)) {
         return { valid: false, invalidUser: mention };
