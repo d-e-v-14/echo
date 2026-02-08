@@ -2,7 +2,7 @@
 
 import React from "react";
 
-/* -------------------- TYPES -------------------- */
+
 
 interface Role {
   id: string;
@@ -22,7 +22,7 @@ interface MentionContentProps {
   onRoleMentionClick?: (roleName: string) => void;
 }
 
-/* -------------------- COMPONENT -------------------- */
+
 
 export default function MessageContentWithMentions({
   content,
@@ -40,6 +40,9 @@ export default function MessageContentWithMentions({
     const roleMentionRegex = /@&([a-zA-Z_][a-zA-Z0-9_\s]*)\b/g;
     const userMentionRegex = /@([a-zA-Z_][a-zA-Z0-9_]*)\b/g;
 
+    
+    const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+\.[a-zA-Z]{2,})/g;
+
     const parts: (string | JSX.Element)[] = [];
     let lastIndex = 0;
     let keyIndex = 0;
@@ -47,14 +50,14 @@ export default function MessageContentWithMentions({
     const mentions: Array<{
       start: number;
       end: number;
-      type: "user" | "role" | "everyone";
+      type: "user" | "role" | "everyone" | "url"; 
       match: string;
       displayText: string;
+      url?: string; 
     }> = [];
 
     const usedPositions = new Set<number>();
 
-    /* -------------------- EVERYONE / HERE -------------------- */
     Array.from(content.matchAll(everyoneMentionRegex)).forEach((match) => {
       mentions.push({
         start: match.index!,
@@ -69,7 +72,6 @@ export default function MessageContentWithMentions({
       }
     });
 
-    /* -------------------- ROLE -------------------- */
     Array.from(content.matchAll(roleMentionRegex)).forEach((match) => {
       const roleName = match[1].trim();
 
@@ -90,8 +92,8 @@ export default function MessageContentWithMentions({
         start: match.index!,
         end: match.index! + match[0].length,
         type: "role",
-        match: match[0], // stored as @&Role
-        displayText: `@${role.name}`, // shown as @Role
+        match: match[0], 
+        displayText: `@${role.name}`, 
       });
 
       for (let i = match.index!; i < match.index! + match[0].length; i++) {
@@ -99,7 +101,6 @@ export default function MessageContentWithMentions({
       }
     });
 
-    /* -------------------- USER -------------------- */
     Array.from(content.matchAll(userMentionRegex)).forEach((match) => {
       const username = match[1];
       if (username === "everyone" || username === "here") return;
@@ -110,17 +111,46 @@ export default function MessageContentWithMentions({
       ).some((pos) => usedPositions.has(pos));
 
       if (isOverlapping) return;
-      const mentionText = match[0]; // e.g. "@gmail"
+      const mentionText = match[0]; 
 
-if (!isValidUsernameMention(mentionText)) {
-  return; 
-}
+      if (!isValidUsernameMention(mentionText)) {
+        return;
+      }
       mentions.push({
         start: match.index!,
         end: match.index! + match[0].length,
         type: "user",
         match: match[0],
         displayText: match[0],
+      });
+
+      for (let i = match.index!; i < match.index! + match[0].length; i++) {
+        usedPositions.add(i);
+      }
+    });
+
+    
+    Array.from(content.matchAll(urlRegex)).forEach((match) => {
+      const isOverlapping = Array.from(
+        { length: match[0].length },
+        (_, i) => match.index! + i
+      ).some((pos) => usedPositions.has(pos));
+
+      if (isOverlapping) return;
+
+      // Prepare the full URL with protocol
+      let fullUrl = match[0];
+      if (match[0].startsWith("www.")) {
+        fullUrl = `https://${match[0]}`;
+      }
+
+      mentions.push({
+        start: match.index!,
+        end: match.index! + match[0].length,
+        type: "url",
+        match: match[0],
+        displayText: match[0],
+        url: fullUrl,
       });
 
       for (let i = match.index!; i < match.index! + match[0].length; i++) {
@@ -136,6 +166,25 @@ if (!isValidUsernameMention(mentionText)) {
         parts.push(content.substring(lastIndex, mention.start));
       }
 
+      // ✅ NEW: Handle URL rendering
+      if (mention.type === "url") {
+        parts.push(
+          <a
+            key={keyIndex++}
+            href={mention.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-400 hover:text-blue-300 underline hover:underline-offset-2 transition-colors break-all"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {mention.displayText}
+          </a>
+        );
+        lastIndex = mention.end;
+        return;
+      }
+
+      // Existing mention rendering logic
       const username = mention.match.substring(1);
       const roleName =
         mention.type === "role" ? mention.match.substring(2) : "";
@@ -163,13 +212,13 @@ if (!isValidUsernameMention(mentionText)) {
             mention.type === "role" && role?.color
               ? {
                   backgroundColor: isUserInRole
-                    ? "rgba(250, 204, 21, 0.45)" 
+                    ? "rgba(250, 204, 21, 0.45)"
                     : "transparent",
                   color: role.color,
                   borderRadius: "6px",
                   padding: "2px 8px",
                   border: isUserInRole
-                    ? "1px solid rgba(250, 204, 21, 0.9)" 
+                    ? "1px solid rgba(250, 204, 21, 0.9)"
                     : "none",
                 }
               : mention.type === "user"
