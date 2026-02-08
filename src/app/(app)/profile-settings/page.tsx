@@ -295,12 +295,12 @@ export default function ProfilePage() {
                 {isSaving ? "Saving…" : "Save Changes"}
               </button>
 
-              <button
+            {/*   <button
                 onClick={() => router.push("/delete-account")}
                 className="px-7 py-3 rounded-xl bg-red-600/70 hover:bg-red-700 hover:shadow-lg transition font-semibold"
               >
                 Delete Account
-              </button>
+              </button> */}
             </div>
           </div>
         </div>
