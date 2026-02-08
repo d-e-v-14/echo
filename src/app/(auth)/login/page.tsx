@@ -275,7 +275,7 @@ export default function Login() {
  "use client";
 
 import { useEffect } from "react";
- import { useRouter } from "next/navigation";
+ import { useRouter } from "next/router";
  import { useToast } from "@/contexts/ToastContext";
 
 export default function LoginPage() {
