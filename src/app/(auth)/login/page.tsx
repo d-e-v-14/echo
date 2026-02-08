@@ -1,4 +1,4 @@
-"use client";
+{/* "use client";
 
 import { login, getToken } from "@/api";
 import { useState, useEffect, Suspense } from "react";
@@ -113,7 +113,7 @@ function LoginContent() {
         </div>
       )}
 
-      {/* Left Image */}
+    
       <div className="w-1/2 h-full">
         <img
           src="/gradient.png"
@@ -122,10 +122,10 @@ function LoginContent() {
         />
       </div>
 
-      {/* Right Section */}
+
       <div className="w-1/2 flex justify-center items-center">
         <div className="w-[70%] max-w-md">
-          {/* Logo */}
+   
           <div className="w-full mb-[40px]">
             <div className="relative inline-block">
               <div className="font-jersey text-[64px] text-white">echo</div>
@@ -156,12 +156,12 @@ function LoginContent() {
             </div>
           </div>
 
-          {/* Title */}
+        
           <h1 className="text-4xl font-bold text-white mb-5 text-center">
             Login
           </h1>
 
-          {/* Sign up link */}
+        
           <div className="text-lg mb-8 text-center">
             <span className="text-white">New Here? </span>
             <Link href="/signup" className="text-[#FFC341] underline">
@@ -169,9 +169,9 @@ function LoginContent() {
             </Link>
           </div>
 
-          {/* FORM */}
+      
           <form onSubmit={handleLogin}>
-            {/* Email */}
+   
             <div className="mb-4">
               <label className="text-white text-sm">Email or Username</label>
               <input
@@ -184,7 +184,7 @@ function LoginContent() {
               />
             </div>
 
-            {/* Password */}
+           
             <div className="mb-4">
               <label className="text-white text-sm">Password</label>
               <input
@@ -205,7 +205,6 @@ function LoginContent() {
               </div>
             </div>
 
-            {/* Remember Me */}
             <div className="flex items-center mb-6">
               <input
                 type="checkbox"
@@ -217,7 +216,7 @@ function LoginContent() {
               <label className="ml-2 text-sm text-white">Remember Me</label>
             </div>
 
-            {/* Sign In */}
+        
             <button
               type="submit"
               disabled={loading}
@@ -227,7 +226,6 @@ function LoginContent() {
             </button>
           </form>
 
-          {/* Message */}
           {message && (
             <div
               className={`mt-4 text-center ${
@@ -238,14 +236,14 @@ function LoginContent() {
             </div>
           )}
 
-          {/* Divider */}
+          
           <div className="flex items-center justify-center mt-6 mb-4">
             <div className="flex-grow h-px bg-white opacity-40" />
             <span className="mx-4 text-white">Or</span>
             <div className="flex-grow h-px bg-white opacity-40" />
           </div>
 
-          {/* Google Login */}
+        
           <button
             type="button"
             onClick={handleGoogleLogin}
@@ -273,22 +271,22 @@ export default function Login() {
       <LoginContent />
     </Suspense>
   );
-}
-// "use client";
+} */}
+ "use client";
 
-// import { useEffect } from "react";
-// import { useRouter } from "next/navigation";
-// import { useToast } from "@/contexts/ToastContext";
+import { useEffect } from "react";
+ import { useRouter } from "next/navigation";
+ import { useToast } from "@/contexts/ToastContext";
 
-// export default function LoginPage() {
-//   const router = useRouter();
-//   const { showToast } = useToast();
+export default function LoginPage() {
+  const router = useRouter();
+   const { showToast } = useToast();
 
-//   useEffect(() => {
-//     showToast("Please login to continue", "info", 4000);
+   useEffect(() => {
+     showToast("Please login to continue", "info", 4000);
     
-//     router.replace("/");
-//   }, [router, showToast]);
+    router.replace("/");
+   }, [router, showToast]);
 
-//   return null;
-// }
+   return null;
+   }
