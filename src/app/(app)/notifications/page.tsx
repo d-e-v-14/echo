@@ -4,7 +4,7 @@ import { Bell, CheckCheck, Check } from 'lucide-react';
 import { getUser } from '@/api';
 import { useNotifications } from '../../../hooks/useNotifications';
 import { apiClient } from '@/utils/apiClient';
-import Loader from '@/components/Loader';
+
 import Toast from "@/components/Toast";
 
 
@@ -139,10 +139,7 @@ export default function NotificationsPage() {
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
-  
-  if (loading) {
-    return <Loader fullscreen  size="md" />;
-  }
+
 
   return (
     <> {toast && (() => {
