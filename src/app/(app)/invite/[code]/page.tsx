@@ -39,7 +39,7 @@ export default function InvitePage() {
       localStorage.setItem("redirectAfterLogin", `/invite/${code}`);
       setToast({ message: "Please log in to join this server.", type: "info" });
       setTimeout(() => {
-        router.replace("/login");
+        router.replace("/");
       }, 1000);
       return;
     }
@@ -84,7 +84,7 @@ export default function InvitePage() {
           localStorage.setItem("redirectAfterLogin", `/invite/${code}`);
           setToast({ message: "Session expired. Please log in again.", type: "info" });
           setTimeout(() => {
-            router.replace("/login");
+            router.replace("/");
           }, 1000);
           return;
         }
