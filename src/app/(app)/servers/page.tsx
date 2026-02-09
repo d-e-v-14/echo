@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, Suspense, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { usePageReady } from "@/components/RouteChangeLoader";
 import {
   FaHashtag,
   FaCog,
@@ -44,6 +45,7 @@ interface Channel {
 }
 
 const ServersPageContent: React.FC = () => {
+  const pageReady = usePageReady();
    const [isChannelSidebarCollapsed, setIsChannelSidebarCollapsed] =
      useState(false); 
   const searchParams = useSearchParams();
@@ -205,6 +207,7 @@ const showVoiceUI =
        setToast({ message: "Failed to load servers", type: "error" });
      } finally {
        setLoading(false);
+       pageReady();
      }
    };
 
@@ -499,8 +502,45 @@ const showVoiceUI =
 
         {/* Main Content */}
         {loading ? (
-          <div className="flex-1">
-            <Loader text="Loading servers…" />
+          <div className="flex-1 flex">
+            {/* Channel sidebar skeleton */}
+            <div className="w-60 shrink-0 flex flex-col border-r border-slate-800/50 p-3">
+              <div className="h-5 w-32 rounded bg-slate-800/70 animate-pulse mb-4" />
+              <div className="space-y-1.5">
+                <div className="h-3 w-20 rounded bg-slate-800/50 animate-pulse mb-2" />
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="h-8 rounded-md bg-slate-800/40 animate-pulse" />
+                ))}
+                <div className="h-3 w-24 rounded bg-slate-800/50 animate-pulse mt-4 mb-2" />
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="h-8 rounded-md bg-slate-800/40 animate-pulse" />
+                ))}
+              </div>
+            </div>
+            {/* Chat area skeleton */}
+            <div className="flex-1 flex flex-col">
+              <div className="h-14 border-b border-slate-800/50 flex items-center px-4 gap-3">
+                <div className="h-4 w-4 rounded bg-slate-800/50 animate-pulse" />
+                <div className="h-4 w-28 rounded bg-slate-800/60 animate-pulse" />
+              </div>
+              <div className="flex-1 p-4 space-y-5">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex gap-3">
+                    <div className="h-10 w-10 rounded-full bg-slate-800/50 animate-pulse shrink-0" />
+                    <div className="space-y-2 flex-1">
+                      <div className="flex items-center gap-2">
+                        <div className="h-3.5 w-24 rounded bg-slate-800/60 animate-pulse" />
+                        <div className="h-3 w-12 rounded bg-slate-800/30 animate-pulse" />
+                      </div>
+                      <div className="h-3.5 rounded bg-slate-800/40 animate-pulse w-3/4" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="h-16 border-t border-slate-800/50 px-4 flex items-center">
+                <div className="flex-1 h-10 rounded-lg bg-slate-800/40 animate-pulse" />
+              </div>
+            </div>
           </div>
         ) : error ? (
           // Error state

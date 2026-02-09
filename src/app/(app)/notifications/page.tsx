@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
+import { usePageReady } from "@/components/RouteChangeLoader";
 import { Bell, CheckCheck, Check } from 'lucide-react';
 import { getUser } from '@/api';
 import { useNotifications } from '../../../hooks/useNotifications';
@@ -34,6 +35,7 @@ interface Notification {
 }
 
 export default function NotificationsPage() {
+  const pageReady = usePageReady();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "unread">("all");
@@ -73,6 +75,7 @@ export default function NotificationsPage() {
       setNotifications([]);
     } finally {
       setLoading(false);
+      pageReady();
     }
   };
 

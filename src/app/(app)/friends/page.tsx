@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { usePageReady } from "@/components/RouteChangeLoader";
 import { FaUserFriends, FaPlus, FaUserCircle, FaSearch, FaCommentAlt } from "react-icons/fa";
 import { useRouter } from "next/navigation";
 import {
@@ -34,6 +35,7 @@ interface FriendData {
 
 export default function FriendsPage() {
   const router = useRouter();
+  const pageReady = usePageReady();
   const { refreshCount: refreshFriendNotifications } = useFriendNotifications();
   const [friends, setFriends] = useState<FriendData[]>([]);
   const [requests, setRequests] = useState<FriendRequestData[]>([]);
@@ -44,8 +46,7 @@ export default function FriendsPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    loadFriends();
-    loadRequests();
+    Promise.all([loadFriends(), loadRequests()]).finally(() => pageReady());
   }, []);
 
   const loadFriends = async () => {
