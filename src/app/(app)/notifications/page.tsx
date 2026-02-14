@@ -6,6 +6,7 @@ import { getUser } from '@/api';
 import { useNotifications } from '../../../hooks/useNotifications';
 import { apiClient } from '@/utils/apiClient';
 
+import Loader from "@/components/Loader";
 import Toast from "@/components/Toast";
 
 
@@ -225,7 +226,11 @@ export default function NotificationsPage() {
         </div>
 
         {/* Notifications List */}
-        {filteredNotifications.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center min-h-[400px]">
+            
+          </div>
+        ) : filteredNotifications.length === 0 ? (
           <div className="flex items-center justify-center min-h-[400px] text-center py-16">
             <div>
               <Bell size={64} className="text-gray-600 mx-auto mb-4" />

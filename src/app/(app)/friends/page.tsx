@@ -11,6 +11,7 @@ import {
   respondToFriendRequest,
   searchUsers
 } from "@/api";
+import Loader from "@/components/Loader";
 import { useFriendNotifications } from "@/contexts/FriendNotificationContext";
 import {SearchUserResult} from "@/api/types/user.types";
 
@@ -41,13 +42,17 @@ export default function FriendsPage() {
   const [requests, setRequests] = useState<FriendRequestData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchUserResult[]>([]);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    Promise.all([loadFriends(), loadRequests()]).finally(() => pageReady());
-  }, []);
+    Promise.all([loadFriends(), loadRequests()]).finally(() => {
+      setInitialLoading(false);
+      pageReady();
+    });
+  }, [pageReady]);
 
   const loadFriends = async () => {
     try {
@@ -153,6 +158,7 @@ export default function FriendsPage() {
     }
   };
 
+
   return (
     <div className="flex h-screen bg-black text-white">
       {/* Sidebar */}
@@ -185,6 +191,15 @@ export default function FriendsPage() {
           </label>
           
           {/* Search Results Dropdown */}
+          {searching && searchQuery.trim() && searchResults.length === 0 && (
+            <div className="mt-2 rounded border border-gray-700 bg-gray-800/70 px-3 py-2 text-xs text-gray-400">
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-3 rounded-full border-2 border-gray-600 border-t-blue-500 animate-spin" />
+                Searching...
+              </div>
+            </div>
+          )}
+
           {searchResults.length > 0 && (
             <div className="mt-2 max-h-64 overflow-y-auto bg-gray-800 border border-gray-700 rounded">
               {searchResults.map((user) => (

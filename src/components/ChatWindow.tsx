@@ -89,6 +89,7 @@ export default forwardRef(function ChatWindow(
   ref
 ) {
   const [loadingMessages, setLoadingMessages] = useState(true);
+  const [isInitialLoadDone, setIsInitialLoadDone] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [hasMore, setHasMore] = useState(true);
@@ -650,12 +651,14 @@ export default forwardRef(function ChatWindow(
 
   const loadMessages = useCallback(
     async (loadMore: boolean = false, abortSignal?: AbortSignal) => {
+      const currentChannelId = channelIdRef.current;
       try {
         if (loadMore) {
           setLoadingMore(true);
           isLoadingMoreRef.current = true;
         } else {
           setLoadingMessages(true);
+          setIsInitialLoadDone(false);
           offsetRef.current = 0; 
           setOffset(0);
           isLoadingMoreRef.current = false;
@@ -669,8 +672,6 @@ export default forwardRef(function ChatWindow(
         }
 
     
-        const currentChannelId = channelIdRef.current;
-
       
         const res = await fetchMessages(currentChannelId, currentOffset);
 
@@ -756,8 +757,18 @@ export default forwardRef(function ChatWindow(
       } catch (err) {
         console.error("Failed to fetch messages", err);
       } finally {
+        if (
+          abortSignal?.aborted ||
+          channelIdRef.current !== currentChannelId
+        ) {
+          return;
+        }
+
         setLoadingMessages(false);
         setLoadingMore(false);
+        if (!loadMore) {
+          setIsInitialLoadDone(true);
+        }
       }
     },
     [currentUserId]
@@ -874,6 +885,7 @@ export default forwardRef(function ChatWindow(
     hasScrolledForChannelRef.current = null;
 
     setMessages([]);
+    setIsInitialLoadDone(false);
     setOffset(0);
     offsetRef.current = 0;
     setHasMore(true);
@@ -1516,7 +1528,7 @@ const handleScroll = useCallback(() => {
             
             </div>
           </div>
-        ) : messages.length === 0 ? (
+        ) : isInitialLoadDone && !loadingMessages && messages.length === 0 ? (
           <div className="flex h-full items-center justify-center text-gray-500 text-sm">
             No messages yet. Say hi 👋
           </div>
