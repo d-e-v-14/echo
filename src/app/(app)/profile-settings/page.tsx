@@ -138,7 +138,7 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-black">
-        <Loader fullscreen text="Loading profile..." />
+        <Loader fullscreen text="" />
       </div>
     );
   }
