@@ -55,7 +55,7 @@ export default function NotificationsPage() {
       setLoading(true);
 
       
-      setToast({ message: "Loading notifications…", type: "info" });
+    
 
       const user = await getUser();
       if (!user?.id) return;

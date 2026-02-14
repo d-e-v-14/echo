@@ -99,13 +99,7 @@ function ResetPasswordContent() {
         }
     }
 
-    if (loading) {
-        return (
-            <div className="flex h-screen bg-black font-sans items-center justify-center">
-                <div className="text-white">Loading...</div>
-            </div>
-        );
-    }
+   
 
     return (
         <div className="flex h-screen bg-black font-sans">

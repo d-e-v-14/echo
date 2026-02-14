@@ -1513,7 +1513,7 @@ const handleScroll = useCallback(() => {
           <div className="flex h-full items-center justify-center">
             <div className="text-center">
               <div className="mx-auto mb-4 w-8 h-8 border-4 border-gray-700 border-t-blue-500 rounded-full animate-spin" />
-              <p className="text-gray-400 text-sm">Loading messages…</p>
+            
             </div>
           </div>
         ) : messages.length === 0 ? (

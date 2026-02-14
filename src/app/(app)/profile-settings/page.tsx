@@ -131,13 +131,7 @@ export default function ProfilePage() {
    }
  };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center text-gray-400">
-        Loading profile…
-      </div>
-    );
-  }
+ 
 
 
   return (

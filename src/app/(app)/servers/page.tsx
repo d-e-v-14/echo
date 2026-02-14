@@ -182,7 +182,7 @@ const showVoiceUI =
    const loadServers = async () => {
      try {
        setLoading(true);
-       setToast({ message: "Loading servers…", type: "info" });
+       
 
        const data = await fetchServers();
        setServers(data);

@@ -999,12 +999,7 @@ export default function MessagesPageContent() {
     type: "info" | "success" | "error";
   } | null>(null);
 
-  useEffect(() => {
-    setToast({
-      message: "Loading messages…",
-      type: "info",
-    });
-  }, []);
+
 
   return (
     <>

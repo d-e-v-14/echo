@@ -137,7 +137,7 @@ export default function Sidebar() {
   if (!user) {
     return (
       <aside className="w-64 h-screen bg-black flex items-center justify-center text-white">
-        Loading...
+       
       </aside>
     );
   }
