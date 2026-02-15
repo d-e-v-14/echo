@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { leaveServer } from "@/api";
 import {ServerDetails} from "@/api/types/server.types";
@@ -11,11 +11,16 @@ interface LeaveProps {
 export default function Leave({ serverId, serverDetails }: LeaveProps) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
+  const [isLeaving, setIsLeaving] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
 
   const serverName = serverDetails?.name || "Unknown Server";
+
+  useEffect(() => {
+    setPageLoading(false);
+  }, []);
 
   const handleLeaveServer = async () => {
     if (input !== serverName) {
@@ -23,7 +28,7 @@ export default function Leave({ serverId, serverDetails }: LeaveProps) {
       return;
     }
 
-    setLoading(true);
+    setIsLeaving(true);
     setError("");
 
     try {
@@ -40,9 +45,17 @@ export default function Leave({ serverId, serverDetails }: LeaveProps) {
       console.error("Error leaving server:", err);
       setError("Failed to leave server. Please try again.");
     } finally {
-      setLoading(false);
+      setIsLeaving(false);
     }
   };
+
+  if (pageLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-lg mx-auto p-8 text-white">
@@ -78,7 +91,7 @@ export default function Leave({ serverId, serverDetails }: LeaveProps) {
           onMouseEnter={e => (e.currentTarget.style.backgroundPosition = "right center")}
           onMouseLeave={e => (e.currentTarget.style.backgroundPosition = "left center")}
           onClick={() => setShowConfirm(true)}
-          disabled={loading}
+          disabled={isLeaving}
         >
           Leave Server
         </button>
@@ -92,7 +105,7 @@ export default function Leave({ serverId, serverDetails }: LeaveProps) {
             value={input}
             onChange={e => setInput(e.target.value)}
             placeholder={serverName}
-            disabled={loading}
+            disabled={isLeaving}
           />
           <div className="flex gap-2">
             <button
@@ -106,9 +119,9 @@ export default function Leave({ serverId, serverDetails }: LeaveProps) {
               onMouseEnter={e => (e.currentTarget.style.backgroundPosition = "right center")}
               onMouseLeave={e => (e.currentTarget.style.backgroundPosition = "left center")}
               onClick={handleLeaveServer}
-              disabled={loading || input !== serverName}
+              disabled={isLeaving || input !== serverName}
             >
-              {loading ? "Leaving..." : "Confirm Leave"}
+              {isLeaving ? "Leaving..." : "Confirm Leave"}
             </button>
             <button
               className="bg-[#23272a] text-[#ed4245] font-semibold rounded px-6 py-2 border-2 border-[#ed4245] transition hover:bg-[#ed4245] hover:text-white disabled:opacity-50"
@@ -117,7 +130,7 @@ export default function Leave({ serverId, serverDetails }: LeaveProps) {
                 setInput("");
                 setError("");
               }}
-              disabled={loading}
+              disabled={isLeaving}
             >
               Cancel
             </button>

@@ -198,8 +198,8 @@ export default function Members({ serverId, isOwner = false, isAdmin = false }: 
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto p-8 text-white">
-        <div className="text-center">Loading members...</div>
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400"></div>
       </div>
     );
   }

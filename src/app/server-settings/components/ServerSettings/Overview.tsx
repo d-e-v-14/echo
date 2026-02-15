@@ -16,6 +16,7 @@ export default function Overview({ serverId, serverDetails, onServerUpdate, isOw
   const [serverIcon, setServerIcon] = useState<string>(serverDetails.icon_url || "/server-default.png");
   const [iconFile, setIconFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -24,6 +25,10 @@ export default function Overview({ serverId, serverDetails, onServerUpdate, isOw
     setServerName(serverDetails.name);
     setServerIcon(serverDetails.icon_url || "/server-default.png");
   }, [serverDetails]);
+
+  useEffect(() => {
+    setPageLoading(false);
+  }, []);
 
   const handleIconClick = () => {
     if (canEdit) {
@@ -81,6 +86,22 @@ export default function Overview({ serverId, serverDetails, onServerUpdate, isOw
 
   const hasChanges = serverName !== serverDetails.name || 
                    iconFile !== null;
+
+  if (pageLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400"></div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-xl mx-auto p-8 text-white">
