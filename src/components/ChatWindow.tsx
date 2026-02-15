@@ -1345,8 +1345,8 @@ const handleScroll = useCallback(() => {
     return { valid: true };
   };
 
-  const handleSend = async (text: string, files: File[]) => {
-    if (text.trim() === "" && files.length === 0) return;
+  const sendSingleMessage = async (text: string, file: File | null) => {
+    if (text.trim() === "" && !file) return;
 
     if (channelPermissions && !channelPermissions.canSend) {
       let errorMsg =
@@ -1365,18 +1365,16 @@ const handleScroll = useCallback(() => {
     const validation = validateRoleMentions(text);
     if (!validation.valid) {
       alert(`Role "${validation.invalidRole}" does not exist in this server.`);
-      setIsSending(false);
       return;
     }
     const userValidation = validateUserMentions(text);
 
     if (!userValidation.valid) {
-      alert(`User "${userValidation.invalidUser}" does not exist in this server.`);
-      setIsSending(false);
+      alert(
+        `User "${userValidation.invalidUser}" does not exist in this server.`
+      );
       return;
     }
-
-    setIsSending(true);
 
     const userAvatar =
       avatarCacheRef.current[currentUserId] ||
@@ -1430,23 +1428,13 @@ const handleScroll = useCallback(() => {
     });
 
     try {
-      const response = await uploadMessage({
+      await uploadMessage({
         content: text.trim(),
         channel_id: channelId,
         sender_id: currentUserId,
         reply_to: replyingTo?.id,
-        file: firstFile,
+        file: file || undefined,
       });
-
-      for (let i = 1; i < files.length; i++) {
-        await uploadMessage({
-          content: "",
-          channel_id: channelId,
-          sender_id: currentUserId,
-          file: files[i],
-        });
-      }
-
       setReplyingTo(null);
     } catch (err: any) {
       console.error(" Failed to upload message:", err);
@@ -1458,6 +1446,29 @@ const handleScroll = useCallback(() => {
         setTimeout(() => setPermissionError(null), 5000);
       } else {
         alert(`Upload failed: ${errorMessage}`);
+      }
+    }
+  };
+
+  const handleSend = async (text: string, files: File[]) => {
+    const normalizedText = text.trim();
+    const fileList = files || [];
+
+    if (!normalizedText && fileList.length === 0) return;
+
+    setIsSending(true);
+
+    try {
+      if (fileList.length === 0) {
+        await sendSingleMessage(normalizedText, null);
+        return;
+      }
+
+      const [firstFile, ...restFiles] = fileList;
+      await sendSingleMessage(normalizedText, firstFile);
+git ad
+      for (const file of restFiles) {
+        await sendSingleMessage("", file);
       }
     } finally {
       setIsSending(false);
