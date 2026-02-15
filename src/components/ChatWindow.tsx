@@ -1466,7 +1466,7 @@ const handleScroll = useCallback(() => {
 
       const [firstFile, ...restFiles] = fileList;
       await sendSingleMessage(normalizedText, firstFile);
-git ad
+
       for (const file of restFiles) {
         await sendSingleMessage("", file);
       }
