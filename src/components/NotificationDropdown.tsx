@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Check, CheckCheck, Bell } from 'lucide-react';
 import { getUser } from '@/api';
 import { useNotifications } from '../hooks/useNotifications';
@@ -33,21 +34,32 @@ interface Notification {
 interface NotificationDropdownProps {
   onClose: () => void;
   onNavigateToMessage?: (channelId: string, messageId: string) => void;
+  anchorRect: {
+    top: number;
+    left: number;
+    right: number;
+    bottom: number;
+    width: number;
+    height: number;
+  } | null;
 }
 
 export default function NotificationDropdown({ 
   onClose,
-  onNavigateToMessage
+  onNavigateToMessage,
+  anchorRect
 }: NotificationDropdownProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [portalReady, setPortalReady] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { markAsRead: hookMarkAsRead, markAllAsRead: hookMarkAllAsRead } = useNotifications();
 
   useEffect(() => {
     loadNotifications();
     setMounted(true);
+    setPortalReady(true);
     
     // Close dropdown when clicking outside
     const handleClickOutside = (event: MouseEvent) => {
@@ -132,15 +144,36 @@ export default function NotificationDropdown({
     return content.substring(0, maxLength) + '...';
   };
 
-  return (
+  if (!portalReady || !anchorRect) {
+    return null;
+  }
+
+  const maxWidth = 680;
+  const viewportWidth = window.innerWidth;
+  const usableWidth = Math.min(maxWidth, Math.round(viewportWidth * 0.92));
+  const preferredLeft =
+    anchorRect.left + anchorRect.width / 2 - usableWidth / 2;
+  const clampedLeft = Math.min(
+    Math.max(8, Math.round(preferredLeft)),
+    Math.max(8, viewportWidth - 8 - usableWidth)
+  );
+
+  const dropdownStyle: React.CSSProperties = {
+    top: Math.round(anchorRect.bottom + 10),
+    left: clampedLeft,
+  };
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex justify-center pt-16 bg-black/60 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[2147483647]"
       onClick={onClose}
     >
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px]" />
       <div
         ref={dropdownRef}
         onClick={(e) => e.stopPropagation()}
-        className={`w-[420px] max-h-[70vh] flex flex-col bg-[#111214] border border-gray-800 rounded-2xl shadow-2xl transition-all duration-200 ${
+        style={dropdownStyle}
+        className={`fixed w-[min(92vw,680px)] max-h-[75vh] flex flex-col bg-[#111214] border border-gray-800 rounded-2xl shadow-2xl transition-all duration-200 ${
           mounted ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2"
         }`}
       >
@@ -276,6 +309,7 @@ export default function NotificationDropdown({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
