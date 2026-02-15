@@ -25,7 +25,8 @@ import { ChevronDown } from "lucide-react";
 import { getServerMembers } from "@/api/server.api";
 import { getAllRoles } from "@/api/roles.api";
 
-import { apiClient } from "@/utils/apiClient";
+import { apiClient as mentionsApiClient } from "@/utils/apiClient";
+import { apiClient as profileApiClient } from "@/api/axios";
 
 // Dynamic imports for heavy components that are conditionally rendered
 const VideoPanel = dynamic(() => import("./VideoPanel"), {
@@ -56,6 +57,9 @@ interface Message {
     author: string;
     avatarUrl?: string;
   } | null;
+  // Optimistic UI fields
+  status?: "pending" | "sent" | "failed";
+  tempId?: string;
 }
 
 interface ChatWindowProps {
@@ -152,7 +156,7 @@ export default forwardRef(function ChatWindow(
 
   // Fetch unread mentions for a specific channel
   const fetchChannelUnreadMentions = async (chId: string, userId: string) => {
-    const response = await apiClient.get(
+    const response = await mentionsApiClient.get(
       `/api/mentions?userId=${userId}&unreadOnly=true&channelId=${chId}`
     );
     return response.data || [];
@@ -161,7 +165,7 @@ export default forwardRef(function ChatWindow(
   // Mark all mentions as read for a channel
   const markAllChannelMentionsAsRead = async (mentionIds: string[]) => {
     await Promise.all(
-      mentionIds.map((id) => apiClient.patch(`/api/mentions/${id}/read`))
+      mentionIds.map((id) => mentionsApiClient.patch(`/api/mentions/${id}/read`))
     );
   };
 
@@ -371,11 +375,14 @@ export default forwardRef(function ChatWindow(
 
   useEffect(() => {
     const loadCurrentUserAvatar = async () => {
-      try {
-        const user = await getUser();
-        if (!user?.avatar_url) return;
+      if (!currentUserId) return;
 
-        const freshUrl = `${user.avatar_url}?t=${Date.now()}`;
+      try {
+        const res = await profileApiClient.get("/api/profile/getProfile");
+        const profile = res.data?.user;
+        if (!profile?.avatar_url) return;
+
+        const freshUrl = `${profile.avatar_url}?t=${Date.now()}`;
 
         setCurrentUserAvatar(freshUrl);
 
@@ -396,39 +403,7 @@ export default forwardRef(function ChatWindow(
       }
     };
 
-    if (currentUserId) {
-      loadCurrentUserAvatar();
-    }
-  }, [currentUserId]);
-
-  useEffect(() => {
-    if (!currentUserId) return;
-
-    const syncMyAvatar = async () => {
-      try {
-        const user = await getUser();
-        if (!user?.avatar_url) return;
-
-        const freshUrl = `${user.avatar_url}?t=${Date.now()}`;
-
-        avatarCacheRef.current[currentUserId] = {
-          url: freshUrl,
-          updatedAt: Date.now(),
-        };
-
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.senderId === currentUserId
-              ? { ...msg, avatarUrl: freshUrl }
-              : msg
-          )
-        );
-      } catch (err) {
-        console.error("Failed to sync avatar", err);
-      }
-    };
-
-    syncMyAvatar();
+    loadCurrentUserAvatar();
   }, [currentUserId]);
 
   // Function to get user avatar with caching
@@ -454,6 +429,66 @@ export default forwardRef(function ChatWindow(
       return "/User_profil.png";
     }
   };
+
+  const resolveAvatarUrl = async (userId: string, raw?: any) => {
+    const directUrl =
+      raw?.avatar_url ||
+      raw?.users?.avatar_url ||
+      raw?.sender?.avatar_url ||
+      raw?.sender?.users?.avatar_url ||
+      raw?.sender?.profile?.avatar_url;
+
+    if (directUrl) {
+      return `${directUrl}?t=${Date.now()}`;
+    }
+
+    return getAvatarUrl(userId);
+  };
+
+  useEffect(() => {
+    const DEFAULT_AVATAR = "/User_profil.png";
+
+    const missingSenders = Array.from(
+      new Set(
+        messages
+          .filter(
+            (msg) =>
+              msg.senderId &&
+              msg.senderId !== currentUserId &&
+              (!msg.avatarUrl || msg.avatarUrl === DEFAULT_AVATAR)
+          )
+          .map((msg) => String(msg.senderId))
+      )
+    );
+
+    if (missingSenders.length === 0) return;
+
+    let cancelled = false;
+
+    const hydrateMissingAvatars = async () => {
+      for (const senderId of missingSenders) {
+        const avatarUrl = await getUserAvatar(senderId);
+        if (cancelled || !avatarUrl || avatarUrl === DEFAULT_AVATAR) {
+          continue;
+        }
+
+        setMessages((prev) =>
+          prev.map((msg) =>
+            String(msg.senderId) === senderId &&
+            (!msg.avatarUrl || msg.avatarUrl === DEFAULT_AVATAR)
+              ? { ...msg, avatarUrl }
+              : msg
+          )
+        );
+      }
+    };
+
+    hydrateMissingAvatars();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [messages, currentUserId]);
 
   const [selectedUser, setSelectedUser] = useState<{
     id: string;
@@ -683,7 +718,7 @@ export default forwardRef(function ChatWindow(
         const formattedMessages: Message[] = await Promise.all(
           res.data.map(async (msg: any) => {
             const senderId = msg.sender_id || msg.senderId;
-            const avatarUrl = await getAvatarUrl(senderId);
+            const avatarUrl = await resolveAvatarUrl(senderId, msg);
 
 
             let replyTo = null;
@@ -1201,7 +1236,7 @@ const handleScroll = useCallback(() => {
             usernamesRef.current[senderId] ||
             "Unknown";
 
-      const avatarUrl = await getAvatarUrl(senderId);
+      const avatarUrl = await resolveAvatarUrl(senderId, saved);
 
       let replyTo = null;
       if (saved.reply_to_message) {
@@ -1263,6 +1298,66 @@ const handleScroll = useCallback(() => {
       }, 10 * 60 * 1000);
     };
 
+    // Handle message confirmation (for sender's optimistic UI)
+    const handleMessageConfirmed = async (saved: any) => {
+      const tempId = saved?.tempId;
+      const realId = saved?.id;
+
+      if (!tempId || !realId) {
+        console.warn("message_confirmed missing tempId or id:", saved);
+        return;
+      }
+
+      const senderId = saved?.sender_id || saved?.senderId || currentUserId;
+      const avatarUrl = await getAvatarUrl(senderId);
+
+      // Replace optimistic message with confirmed message
+      setMessages((prev) => {
+        const optimisticIndex = prev.findIndex((msg) => msg.tempId === tempId);
+
+        if (optimisticIndex === -1) {
+          console.log(`No optimistic message found for tempId ${tempId}`);
+          return prev;
+        }
+
+        const confirmedMessage: Message = {
+          id: realId,
+          content: saved?.content || prev[optimisticIndex].content,
+          senderId,
+          timestamp: saved?.timestamp || new Date().toISOString(),
+          avatarUrl,
+          username: "You",
+          mediaUrl: saved?.media_url || saved?.mediaUrl,
+          replyTo: prev[optimisticIndex].replyTo,
+          status: "sent",
+        };
+
+        const updated = [...prev];
+        updated[optimisticIndex] = confirmedMessage;
+        return updated;
+      });
+
+      // Mark as received to prevent duplicate from socket
+      receivedMessageIdsRef.current.add(realId);
+    };
+
+    // Handle message error (for sender's optimistic UI)
+    const handleMessageError = (error: any) => {
+      const tempId = error?.tempId;
+      const errorMsg = error?.error || error;
+
+      console.error("Message error:", errorMsg);
+
+      if (tempId) {
+        // Mark the optimistic message as failed
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.tempId === tempId ? { ...msg, status: "failed" as const } : msg
+          )
+        );
+      }
+    };
+
     socket.on("new_message", handleIncomingMessage);
     socket.on("reconnect", async () => {
       await loadMessages();
@@ -1313,8 +1408,8 @@ const handleScroll = useCallback(() => {
     return { valid: true };
   };
 
-  const handleSend = async (text: string, files: File[]) => {
-    if (text.trim() === "" && files.length === 0) return;
+  const sendSingleMessage = async (text: string, file: File | null) => {
+    if (text.trim() === "" && !file) return;
 
     if (channelPermissions && !channelPermissions.canSend) {
       let errorMsg =
@@ -1333,39 +1428,76 @@ const handleScroll = useCallback(() => {
     const validation = validateRoleMentions(text);
     if (!validation.valid) {
       alert(`Role "${validation.invalidRole}" does not exist in this server.`);
-      setIsSending(false);
       return;
     }
     const userValidation = validateUserMentions(text);
 
     if (!userValidation.valid) {
-      alert(`User "${userValidation.invalidUser}" does not exist in this server.`);
-      setIsSending(false);
-      return;
     }
 
-    setIsSending(true);
+    const userAvatar =
+      avatarCacheRef.current[currentUserId] ||
+      currentUserAvatar ||
+      "/User_profil.png";
+
+    const resolvedAvatarUrl =
+      typeof userAvatar === "string" ? userAvatar : userAvatar?.url;
+
+    const tempId = `temp-${currentUserId}-${Date.now()}-${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
+
+    const optimisticMessage: Message = {
+      id: tempId,
+      content: file ? `${text} 📎 Uploading ${file.name}...` : text,
+      senderId: currentUserId,
+      timestamp: new Date().toISOString(),
+      avatarUrl: resolvedAvatarUrl || "/User_profil.png",
+
+      username: "You",
+      replyTo: replyingTo
+        ? {
+            id: replyingTo.id,
+            content: replyingTo.content,
+            author: (replyingTo as any).username || "User",
+            avatarUrl: replyingTo.avatarUrl || "/User_profil.png",
+          }
+        : null,
+    };
+
+    setMessages((prev) => {
+      const hasSimilarRecent = prev.some(
+        (msg) =>
+          msg.senderId === currentUserId &&
+          msg.content === optimisticMessage.content &&
+          Math.abs(
+            new Date(msg.timestamp).getTime() -
+              new Date(optimisticMessage.timestamp).getTime()
+          ) < 2000
+      );
+
+      if (hasSimilarRecent) {
+        console.log(
+          "Similar message already exists, not adding optimistic duplicate"
+        );
+        return prev;
+      }
+
+      return [...prev, optimisticMessage];
+    });
 
     try {
-      const firstFile = files.length > 0 ? files[0] : undefined;
-      await uploadMessage({
+      const response = await uploadMessage({
         content: text.trim(),
         channel_id: channelId,
         sender_id: currentUserId,
         reply_to: replyingTo?.id,
-        file: firstFile,
+        file: file || undefined,
       });
-
-      for (let i = 1; i < files.length; i++) {
-        await uploadMessage({
-          content: "",
-          channel_id: channelId,
-          sender_id: currentUserId,
-          file: files[i],
-        });
-      }
-
       setReplyingTo(null);
+      console.log("[Upload Message] Response:", response);
+
+      setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
     } catch (err: any) {
       console.error("💔 Failed to upload message:", err);
       const errorMessage =
@@ -1376,6 +1508,31 @@ const handleScroll = useCallback(() => {
         setTimeout(() => setPermissionError(null), 5000);
       } else {
         alert(`Upload failed: ${errorMessage}`);
+      }
+
+      setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
+    }
+  };
+
+  const handleSend = async (text: string, files: File[]) => {
+    const normalizedText = text.trim();
+    const fileList = files || [];
+
+    if (!normalizedText && fileList.length === 0) return;
+
+    setIsSending(true);
+
+    try {
+      if (fileList.length === 0) {
+        await sendSingleMessage(normalizedText, null);
+        return;
+      }
+
+      const [firstFile, ...restFiles] = fileList;
+      await sendSingleMessage(normalizedText, firstFile);
+
+      for (const file of restFiles) {
+        await sendSingleMessage("", file);
       }
     } finally {
       setIsSending(false);
