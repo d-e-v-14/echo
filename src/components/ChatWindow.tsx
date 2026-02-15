@@ -57,6 +57,9 @@ interface Message {
     author: string;
     avatarUrl?: string;
   } | null;
+  // Optimistic UI fields
+  status?: "pending" | "sent" | "failed";
+  tempId?: string;
 }
 
 interface ChatWindowProps {
@@ -1295,6 +1298,66 @@ const handleScroll = useCallback(() => {
       }, 10 * 60 * 1000);
     };
 
+    // Handle message confirmation (for sender's optimistic UI)
+    const handleMessageConfirmed = async (saved: any) => {
+      const tempId = saved?.tempId;
+      const realId = saved?.id;
+
+      if (!tempId || !realId) {
+        console.warn("message_confirmed missing tempId or id:", saved);
+        return;
+      }
+
+      const senderId = saved?.sender_id || saved?.senderId || currentUserId;
+      const avatarUrl = await getAvatarUrl(senderId);
+
+      // Replace optimistic message with confirmed message
+      setMessages((prev) => {
+        const optimisticIndex = prev.findIndex((msg) => msg.tempId === tempId);
+
+        if (optimisticIndex === -1) {
+          console.log(`No optimistic message found for tempId ${tempId}`);
+          return prev;
+        }
+
+        const confirmedMessage: Message = {
+          id: realId,
+          content: saved?.content || prev[optimisticIndex].content,
+          senderId,
+          timestamp: saved?.timestamp || new Date().toISOString(),
+          avatarUrl,
+          username: "You",
+          mediaUrl: saved?.media_url || saved?.mediaUrl,
+          replyTo: prev[optimisticIndex].replyTo,
+          status: "sent",
+        };
+
+        const updated = [...prev];
+        updated[optimisticIndex] = confirmedMessage;
+        return updated;
+      });
+
+      // Mark as received to prevent duplicate from socket
+      receivedMessageIdsRef.current.add(realId);
+    };
+
+    // Handle message error (for sender's optimistic UI)
+    const handleMessageError = (error: any) => {
+      const tempId = error?.tempId;
+      const errorMsg = error?.error || error;
+
+      console.error("Message error:", errorMsg);
+
+      if (tempId) {
+        // Mark the optimistic message as failed
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.tempId === tempId ? { ...msg, status: "failed" as const } : msg
+          )
+        );
+      }
+    };
+
     socket.on("new_message", handleIncomingMessage);
     socket.on("reconnect", async () => {
       await loadMessages();
@@ -1370,10 +1433,6 @@ const handleScroll = useCallback(() => {
     const userValidation = validateUserMentions(text);
 
     if (!userValidation.valid) {
-      alert(
-        `User "${userValidation.invalidUser}" does not exist in this server.`
-      );
-      return;
     }
 
     const userAvatar =
@@ -1428,7 +1487,7 @@ const handleScroll = useCallback(() => {
     });
 
     try {
-      await uploadMessage({
+      const response = await uploadMessage({
         content: text.trim(),
         channel_id: channelId,
         sender_id: currentUserId,
@@ -1436,8 +1495,11 @@ const handleScroll = useCallback(() => {
         file: file || undefined,
       });
       setReplyingTo(null);
+      console.log("[Upload Message] Response:", response);
+
+      setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
     } catch (err: any) {
-      console.error(" Failed to upload message:", err);
+      console.error("💔 Failed to upload message:", err);
       const errorMessage =
         err?.response?.data?.error || err.message || "Unknown error";
 
@@ -1447,10 +1509,11 @@ const handleScroll = useCallback(() => {
       } else {
         alert(`Upload failed: ${errorMessage}`);
       }
-    } finally {
+
       setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
     }
   };
+
   const handleSend = async (text: string, files: File[]) => {
     const normalizedText = text.trim();
     const fileList = files || [];
