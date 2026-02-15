@@ -1408,7 +1408,7 @@ const handleScroll = useCallback(() => {
     return { valid: true };
   };
 
-  const handleSend = async (text: string, file: File | null) => {
+  const sendSingleMessage = async (text: string, file: File | null) => {
     if (text.trim() === "" && !file) return;
 
     if (channelPermissions && !channelPermissions.canSend) {
@@ -1428,15 +1428,12 @@ const handleScroll = useCallback(() => {
     const validation = validateRoleMentions(text);
     if (!validation.valid) {
       alert(`Role "${validation.invalidRole}" does not exist in this server.`);
-      setIsSending(false);
       return;
     }
     const userValidation = validateUserMentions(text);
 
     if (!userValidation.valid) {
     }
-
-    setIsSending(true);
 
     const userAvatar =
       avatarCacheRef.current[currentUserId] ||
@@ -1514,6 +1511,29 @@ const handleScroll = useCallback(() => {
       }
 
       setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
+    }
+  };
+
+  const handleSend = async (text: string, files: File[]) => {
+    const normalizedText = text.trim();
+    const fileList = files || [];
+
+    if (!normalizedText && fileList.length === 0) return;
+
+    setIsSending(true);
+
+    try {
+      if (fileList.length === 0) {
+        await sendSingleMessage(normalizedText, null);
+        return;
+      }
+
+      const [firstFile, ...restFiles] = fileList;
+      await sendSingleMessage(normalizedText, firstFile);
+
+      for (const file of restFiles) {
+        await sendSingleMessage("", file);
+      }
     } finally {
       setIsSending(false);
     }
