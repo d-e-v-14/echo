@@ -620,6 +620,33 @@ useEffect(() => {
             router.push('/');
         }
     }, [router]);
+    useEffect(() => {
+        const handleProfileUpdate = () => {
+            const userItem = localStorage.getItem("user");
+            if (!userItem) return;
+
+            const updatedUser = JSON.parse(userItem) as User;
+            setCurrentUser(updatedUser);
+
+            setAllUsers((prev) =>
+                prev.map((u) =>
+                    u.id === updatedUser.id
+                        ? {
+                            ...u,
+                            fullname: updatedUser.fullname,
+                            avatar_url: updatedUser.avatar_url
+                                ? `${updatedUser.avatar_url}?t=${Date.now()}`
+                                : u.avatar_url,
+                        }
+                        : u
+                )
+            );
+        };
+
+        window.addEventListener("user-profile-updated", handleProfileUpdate);
+        return () =>
+            window.removeEventListener("user-profile-updated", handleProfileUpdate);
+    }, []);
   useEffect(() => {
     if (!currentUser?.id || !currentUser.avatar_url) return;
 

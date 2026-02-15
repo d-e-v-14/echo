@@ -274,13 +274,15 @@ export default function Sidebar() {
             <div className="p-4 flex items-center gap-3 mt-auto cursor-pointer group hover:bg-white/10 transition rounded-lg">
               <div className="relative shrink-0">
                 <div className="p-[2px] rounded-full bg-gradient-to-tr from-purple-500 via-pink-500 to-indigo-500">
-                  <Image
-                    src={user?.avatar_url || "/avatar.png"}
-                    alt="User"
-                    width={40}
-                    height={40}
-                    className="rounded-full bg-white"
-                  />
+                  <div className="relative w-10 h-10 rounded-full overflow-hidden bg-white">
+                    <Image
+                      src={user?.avatar_url || "/avatar.png"}
+                      alt="User"
+                      fill
+                      sizes="40px"
+                      className="object-cover"
+                    />
+                  </div>
                 </div>
                 <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-[#1a1a1a] rounded-full" />
               </div>
