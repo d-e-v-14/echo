@@ -62,7 +62,7 @@ const ServersPageContent: React.FC = () => {
 
   const router = useRouter();
   const [servers, setServers] = useState<any[]>([]);
-  const [selectedServerId, setSelectedServerId] = useState<string>("");
+  const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
   const [selectedServerName, setSelectedServerName] = useState<string>("");
   const [channels, setChannels] = useState<Channel[]>([]);
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
@@ -429,8 +429,6 @@ const showVoiceUI =
 
   return (
     <>
-      
-
       <div className="relative flex h-screen z-0 bg-black select-none">
         {/* Server Sidebar */}
         <div className="w-16 p-2 flex flex-col items-center bg-black space-y-3 relative">
@@ -502,18 +500,23 @@ const showVoiceUI =
         {/* Main Content */}
         {loading ? (
           <div className="relative flex-1 flex">
-           
             {/* Channel sidebar skeleton */}
             <div className="w-60 shrink-0 flex flex-col border-r border-slate-800/50 p-3 bg-black">
               <div className="h-5 w-32 rounded bg-slate-800/70 animate-pulse mb-4" />
               <div className="space-y-1.5">
                 <div className="h-3 w-20 rounded bg-slate-800/50 animate-pulse mb-2" />
                 {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="h-8 rounded-md bg-slate-800/40 animate-pulse" />
+                  <div
+                    key={i}
+                    className="h-8 rounded-md bg-slate-800/40 animate-pulse"
+                  />
                 ))}
                 <div className="h-3 w-24 rounded bg-slate-800/50 animate-pulse mt-4 mb-2" />
                 {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="h-8 rounded-md bg-slate-800/40 animate-pulse" />
+                  <div
+                    key={i}
+                    className="h-8 rounded-md bg-slate-800/40 animate-pulse"
+                  />
                 ))}
               </div>
             </div>
@@ -657,18 +660,22 @@ const showVoiceUI =
                       }}
                     />
                     <button
-                      className="p-2 rounded-full hover:bg-[#23272a] transition"
+                      className={`p-2 rounded-full transition ${
+                        !selectedServerId ? "opacity-50" : "hover:bg-[#23272a]"
+                      }`}
                       title="Server Settings"
                       onClick={() => {
-                        if (selectedServerId) {
-                          localStorage.setItem(
-                            "currentServerId",
-                            selectedServerId
-                          );
-                          router.push(
-                            `/server-settings?serverId=${selectedServerId}`
-                          );
+                        
+                        const targetId =
+                          selectedServerId ||
+                          searchParams.get("serverId") ||
+                          (servers.length > 0 ? servers[0].id : null);
+
+                        if (targetId) {
+                          localStorage.setItem("currentServerId", targetId);
+                          router.push(`/server-settings?serverId=${targetId}`);
                         } else {
+                          // This will now only show if the 'servers' array is literally empty
                           alert("Please select a server first");
                         }
                       }}
@@ -766,7 +773,8 @@ const showVoiceUI =
                                 Available to Join (
                                 {
                                   selfAssignableRoles.filter(
-                                    (role) => !myRoles.some((r) => r.id === role.id)
+                                    (role) =>
+                                      !myRoles.some((r) => r.id === role.id)
                                   ).length
                                 }
                                 )
@@ -774,7 +782,8 @@ const showVoiceUI =
                               <div className="space-y-1 max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
                                 {selfAssignableRoles
                                   .filter(
-                                    (role) => !myRoles.some((r) => r.id === role.id)
+                                    (role) =>
+                                      !myRoles.some((r) => r.id === role.id)
                                   )
                                   .map((role) => (
                                     <div
@@ -841,8 +850,7 @@ const showVoiceUI =
                         )}
                         {channel.name}
                       </span>
-                      {activeChannel?.id === channel.id &&
-                        viewMode === "chat"}
+                      {activeChannel?.id === channel.id && viewMode === "chat"}
                     </div>
                   ))}
                 </div>
@@ -1001,9 +1009,7 @@ const showVoiceUI =
                 </div>
               ) : activeChannel ? (
                 <>
-                 
                   <div className="flex-1 overflow-y-auto px-6 pb-6 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900 rounded-lg">
-
                     <Chatwindow
                       ref={chatWindowRef}
                       channelId={activeChannel.id}
@@ -1011,15 +1017,13 @@ const showVoiceUI =
                       currentUserId={user.id}
                       localStream={null}
                       remoteStreams={[]}
-                      serverId={selectedServerId}
+                      serverId={selectedServerId ?? undefined}
                     />
                   </div>
                 </>
               ) : (
                 <div className="flex flex-col items-center justify-center h-full">
-                  <h2 className="text-2xl text-gray-400">
-                    
-                  </h2>
+                  <h2 className="text-2xl text-gray-400"></h2>
                 </div>
               )}
             </div>
