@@ -202,28 +202,32 @@ export default function MessageInputWithMentions({
 
 
 
-  const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    const cursor = e.target.selectionStart || 0;
+ const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+   const value = e.target.value;
+   const cursor = e.target.selectionStart || 0;
 
-    setText(value);
+   setText(value);
 
-    const beforeCursor = value.slice(0, cursor);
-    const match = beforeCursor.match(/@([a-zA-Z0-9_]*)$/);
 
-    if (match) {
-      setMentionQuery(match[1]);
-      setMentionPosition(match.index || 0);
-      setShowMentionDropdown(true);
-      setSelectedMentionIndex(0);
-      searchMentionable(match[1]);
-    } else {
-      setShowMentionDropdown(false);
-      setMentionableUsers([]);
-    }
-  };
+   const beforeCursor = value.slice(0, cursor);
 
- 
+  
+   const match = beforeCursor.match(/(?:^|\s)@([a-zA-Z0-9_]*)$/);
+
+   if (match) {
+    
+     const atSymbolIndex = beforeCursor.lastIndexOf("@");
+
+     setMentionQuery(match[1]);
+     setMentionPosition(atSymbolIndex); 
+     setShowMentionDropdown(true);
+     setSelectedMentionIndex(0);
+     searchMentionable(match[1]);
+   } else {
+     setShowMentionDropdown(false);
+     setMentionableUsers([]);
+   }
+ };
 
   const insertMention = (type: "user" | "role" | "everyone", name: string) => {
     const beforeMention = text.substring(0, mentionPosition);
