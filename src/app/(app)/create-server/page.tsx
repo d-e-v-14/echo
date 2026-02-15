@@ -1,5 +1,5 @@
 "use client";
-
+{/*
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createServer } from "@/api/";
@@ -55,7 +55,7 @@ export default function CreateServerPage() {
         </h1>
 
         <form onSubmit={handleCreateServer} className="space-y-5">
-          {/* Server Name Input */}
+      
           <input
             type="text"
             placeholder="Enter server name"
@@ -64,14 +64,14 @@ export default function CreateServerPage() {
             className="w-full p-3 bg-gray-800 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
           />
 
-          {/* File Upload Section */}
+        
           <div className="space-y-2">
             <label className="block text-sm text-gray-400 font-medium">
               Server Icon
             </label>
 
             <div className="flex items-center gap-3">
-              {/* File Input */}
+             
               <label
                 htmlFor="fileUpload"
                 className="cursor-pointer px-4 py-2 rounded-lg bg-gray-700 hover:bg-green-500 text-white text-sm font-medium transition-all"
@@ -92,7 +92,7 @@ export default function CreateServerPage() {
               )}
             </div>
 
-            {/* Image Preview */}
+            
             {previewUrl && (
               <div className="mt-3 flex justify-center">
                 <img
@@ -104,13 +104,13 @@ export default function CreateServerPage() {
             )}
           </div>
 
-          {/* Status Messages */}
+        
           {error && <p className="text-red-500 text-center text-sm">{error}</p>}
           {success && (
             <p className="text-green-400 text-center text-sm">{success}</p>
           )}
 
-          {/* Submit Button */}
+
           <button
             type="submit"
             disabled={loading}
@@ -134,3 +134,23 @@ export default function CreateServerPage() {
     </div>
   );
 }
+
+
+*/}
+
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+ import { useToast } from "@/contexts/ToastContext";
+ export default function CreateServerPage() {
+   const router = useRouter();
+   const { showToast } = useToast();
+
+   useEffect(() => {
+     showToast("Please login to continue", "info", 4000);
+
+     router.replace("/");
+   }, [router, showToast]);
+
+   return null;
+ }
