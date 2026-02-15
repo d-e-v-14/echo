@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { leaveServer } from "@/api";
-import {ServerDetails} from "@/api/types/server.types";
+import {ServerDetails} from "@/api/types/server.types"; 
+import Toast from "@/components/Loader";
 
 interface LeaveProps {
   serverId: string;
@@ -15,6 +16,7 @@ export default function Leave({ serverId, serverDetails }: LeaveProps) {
   const [isLeaving, setIsLeaving] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+const [showToast, setShowToast] = useState(false);
 
   const serverName = serverDetails?.name || "Unknown Server";
 
@@ -33,18 +35,17 @@ export default function Leave({ serverId, serverDetails }: LeaveProps) {
 
     try {
       await leaveServer(serverId);
+      localStorage.removeItem("currentServerId");
+
+
+      setShowToast(true);
+
       
-      // Clear server from localStorage
-      localStorage.removeItem('currentServerId');
-      
-      // Show success message and redirect to servers page
-      alert(`You have successfully left ${serverName}`);
-      router.push('/servers'); // Redirect to servers page
-      
+      setTimeout(() => {
+        router.push("/servers");
+      }, 2000);
     } catch (err) {
-      console.error("Error leaving server:", err);
-      setError("Failed to leave server. Please try again.");
-    } finally {
+      setError("Failed to leave server.");
       setIsLeaving(false);
     }
   };
