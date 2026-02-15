@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Bell } from 'lucide-react';
 import { useNotifications } from '../hooks/useNotifications';
 import NotificationDropdown from './NotificationDropdown';
@@ -11,15 +11,51 @@ interface NotificationBellProps {
 
 export default function NotificationBell({ className = "", onNavigateToMessage }: NotificationBellProps) {
   const [showDropdown, setShowDropdown] = useState(false);
+  const [anchorRect, setAnchorRect] = useState<{
+    top: number;
+    left: number;
+    right: number;
+    bottom: number;
+    width: number;
+    height: number;
+  } | null>(null);
   const { unreadCount } = useNotifications();
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   const handleBellClick = () => {
-    setShowDropdown(!showDropdown);
+    setShowDropdown((prev) => !prev);
   };
+
+  useEffect(() => {
+    if (!showDropdown) return;
+
+    const updateAnchor = () => {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setAnchorRect({
+        top: rect.top,
+        left: rect.left,
+        right: rect.right,
+        bottom: rect.bottom,
+        width: rect.width,
+        height: rect.height,
+      });
+    };
+
+    updateAnchor();
+    window.addEventListener('resize', updateAnchor);
+    window.addEventListener('scroll', updateAnchor, true);
+
+    return () => {
+      window.removeEventListener('resize', updateAnchor);
+      window.removeEventListener('scroll', updateAnchor, true);
+    };
+  }, [showDropdown]);
 
   return (
     <div className={`relative ${className}`}>
       <button
+        ref={buttonRef}
         onClick={handleBellClick}
         className={`relative p-2 rounded-full hover:bg-[#23272a] transition-colors ${
           unreadCount > 0 ? 'text-yellow-500' : 'text-gray-400 hover:text-white'
@@ -41,6 +77,7 @@ export default function NotificationBell({ className = "", onNavigateToMessage }
         <NotificationDropdown
           onClose={() => setShowDropdown(false)}
           onNavigateToMessage={onNavigateToMessage}
+          anchorRect={anchorRect}
         />
       )}
     </div>
