@@ -1447,9 +1447,10 @@ const handleScroll = useCallback(() => {
       } else {
         alert(`Upload failed: ${errorMessage}`);
       }
+    } finally {
+      setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
     }
   };
-
   const handleSend = async (text: string, files: File[]) => {
     const normalizedText = text.trim();
     const fileList = files || [];
