@@ -91,7 +91,9 @@ export default function ServerSettingsPage() {
 if (!serverIdReady || loading) {
   return (
     <div className="flex min-h-screen bg-black items-center justify-center">
-      <div className="text-white">Loading server...</div>
+       <div className="mb-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto"></div>
+              </div>
     </div>
   );
 }

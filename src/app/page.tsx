@@ -44,13 +44,29 @@ export default function Home() {
       console.error("Error initiating Google sign-in:", error);
     }
   };
-   useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false)
-    }, 1800) // adjust time here
+  useEffect(() => {
+    let didFinish = false;
 
-    return () => clearTimeout(timer)
-  }, [])
+    const bgImage = new Image();
+    bgImage.src = "/bg1.webp";
+
+    const finalize = () => {
+      if (didFinish) return;
+      didFinish = true;
+      setLoading(false);
+    };
+
+    bgImage.onload = finalize;
+    bgImage.onerror = finalize;
+
+    const fallbackTimer = setTimeout(finalize, 4000);
+
+    return () => {
+      bgImage.onload = null;
+      bgImage.onerror = null;
+      clearTimeout(fallbackTimer);
+    };
+  }, []);
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
@@ -144,12 +160,6 @@ export default function Home() {
 
   useEffect(() => {
     AOS.init({ duration: 800, once: true });
-
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 900);
-
-    return () => clearTimeout(timer);
   }, []);
 
  
