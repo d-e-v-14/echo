@@ -120,6 +120,8 @@ export default function ProfilePage() {
 
 
      setUser(updatedUser);
+    localStorage.setItem("user", JSON.stringify(updatedUser));
+    window.dispatchEvent(new Event("user-profile-updated"));
 
      setAvatarFile(null);
      setChanged(false);
@@ -167,13 +169,15 @@ export default function ProfilePage() {
                 onClick={() => avatarInput.current?.click()}
               >
                 <div className="absolute inset-0 rounded-full blur-lg bg-blue-500/40 opacity-0 group-hover:opacity-100 transition" />
-                <Image
-                  src={avatar}
-                  alt="Avatar"
-                  width={132}
-                  height={132}
-                  className="relative rounded-full border-4 border-blue-400 object-cover shadow-xl"
-                />
+                <div className="relative h-32 w-32 rounded-full border-4 border-blue-400 overflow-hidden shadow-xl">
+                  <Image
+                    src={avatar}
+                    alt="Avatar"
+                    fill
+                    sizes="132px"
+                    className="object-cover"
+                  />
+                </div>
               </div>
 
               <input
