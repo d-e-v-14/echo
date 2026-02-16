@@ -88,26 +88,37 @@ export default function ServerSettingsPage() {
 
 
 
-  if (error || !serverDetails) {
-    return (
-      <div className="flex min-h-screen bg-black items-center justify-center">
-        <div className="text-center max-w-md">
-          <div className="text-red-500 text-xl mb-4">
-            {error || "Server not found"}
-          </div>
-          <div className="text-gray-400 mb-6">
-            Please select a server to continue.
-          </div>
-          <button
-            onClick={() => router.push("/servers")}
-            className="bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700 transition"
-          >
-            Go to Servers
-          </button>
-        </div>
-      </div>
-    );
-  }
+if (!serverIdReady || loading) {
+  return (
+    <div className="flex min-h-screen bg-black items-center justify-center">
+      <div className="text-white">Loading server...</div>
+    </div>
+  );
+}
+
+if (!serverId) {
+  return (
+    <div className="flex min-h-screen bg-black items-center justify-center">
+      <div className="text-red-500 text-xl">No server selected</div>
+    </div>
+  );
+}
+
+if (error) {
+  return (
+    <div className="flex min-h-screen bg-black items-center justify-center">
+      <div className="text-red-500 text-xl">{error}</div>
+    </div>
+  );
+}
+
+if (!serverDetails) {
+  return (
+    <div className="flex min-h-screen bg-black items-center justify-center">
+      <div className="text-red-500 text-xl">Server not found</div>
+    </div>
+  );
+}
 
 
   const resolvedServerId: string = serverId!;

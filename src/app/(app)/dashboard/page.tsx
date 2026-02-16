@@ -1,11 +1,12 @@
-"use client";
+ "use client";
+ { /*
 
 export default function DashboardPage() {
   return (
     <div className="flex h-screen text-white overflow-hidden bg-gradient-to-br from-black via-slate-900 to-black">
-      {/* Main Section */}
+      
       <main className="flex-1 overflow-y-auto p-10">
-        {/* Hero Section */}
+        
         <section className="relative mb-14">
           <div className="absolute inset-0 bg-black blur-3xl" />
           <h1 className="relative text-5xl font-extrabold mb-4 bg-gradient-to-r from-blue-600 via-cyan-400 to-purple-400 bg-clip-text text-transparent">
@@ -21,7 +22,7 @@ export default function DashboardPage() {
           </p>
         </section>
 
-        {/* Projects Section */}
+    
         <section className="mb-16">
           <h2 className="text-5xl font-semibold mb-8"> Our Projects </h2>
 
@@ -113,7 +114,7 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* CTA Section */}
+
         <section className="relative text-center py-16 rounded-3xl bg-black border border-white/10">
           <h2 className="text-4xl font-bold mb-4">Visit our Website</h2>
 
@@ -306,4 +307,22 @@ export default function DashboardPage() {
     </div>
   );
 }
- */}
+
+  */}
+
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/contexts/ToastContext";
+export default function DashboardPage() {
+  const router = useRouter();
+  const { showToast } = useToast();
+
+  useEffect(() => {
+    showToast("Please login to continue", "info", 4000);
+
+    router.replace("/");
+  }, [router, showToast]);
+
+  return null;
+}
