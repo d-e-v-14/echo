@@ -1,5 +1,4 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
-import { apiClient } from "@/utils/apiClient";
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // Flag to prevent multiple simultaneous refresh attempts
@@ -26,6 +25,8 @@ export const api = axios.create({
     baseURL: API_BASE_URL,
     withCredentials: true,
 });
+
+export const apiClient = api;
 
 //Request interceptor - Add access token to all requests
 api.interceptors.request.use(
@@ -204,16 +205,5 @@ if (typeof window !== "undefined") {
         getToken(storedToken);
     }
 }
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if ([401, 403].includes(error.response?.status)) {
-      console.error("Authentication Error:", error.response?.data);
-    }
-    return Promise.reject(error);
-  }
-);
-
-export { apiClient };
 
 
