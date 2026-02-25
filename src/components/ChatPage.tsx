@@ -336,7 +336,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
     if (errors.length > 0) {
       onFileError(errors.join("\n"));
-      showToast(`${errors.length} file(s) not added.`, "error");
+      showToast(`${errors.length} file(s) not added. Max size is 25MB.`, "error");
     }
     if (valid.length > 0) setFiles((prev) => [...prev, ...valid]);
     if (fileInputRef.current) fileInputRef.current.value = "";
