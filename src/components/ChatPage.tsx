@@ -13,6 +13,7 @@ import MessageAttachment from './MessageAttachment';
 import Loader from "@/components/Loader";
 import { useMessageNotifications } from '@/contexts/MessageNotificationContext';
 import Toast from "@/components/Toast";
+import { useToast } from "@/contexts/ToastContext";
 import dynamic from "next/dynamic";
 import { Theme } from "emoji-picker-react";
 
@@ -21,6 +22,8 @@ const EmojiPicker = dynamic(
   () => import("emoji-picker-react"),
   { ssr: false }
 );
+
+const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024;
 
 
 interface User {
@@ -192,6 +195,7 @@ interface ChatWindowProps {
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({ activeUser, messages, currentUser, partnerId, allUsers, onSendMessage }) => {
+    const { showToast } = useToast();
     const [draft, setDraft] = useState('');
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const emojiPickerRef = useRef<HTMLDivElement>(null);
@@ -262,8 +266,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ activeUser, messages, currentUs
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const selected = Array.from(event.target.files || []);
-        if (selected.length > 0) {
-            setFiles((prev) => [...prev, ...selected]);
+        const validFiles = selected.filter((file) => file.size < MAX_FILE_SIZE_BYTES);
+        const oversizedFiles = selected.filter((file) => file.size >= MAX_FILE_SIZE_BYTES);
+
+        if (oversizedFiles.length > 0) {
+            showToast(`${oversizedFiles.length} file(s) not added. Max size is 2MB.`, "error");
+        }
+
+        if (validFiles.length > 0) {
+            setFiles((prev) => [...prev, ...validFiles]);
         }
         if (fileInputRef.current) {
             fileInputRef.current.value = "";
