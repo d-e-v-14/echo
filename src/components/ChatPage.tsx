@@ -61,7 +61,22 @@ type GroupedSection = {
         messages: Array<DirectMessage & { timeLabel: string }>;
     }>;
 };
-
+const MAX_FILE_SIZE_MB = 25;
+const ALLOWED_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/plain",
+];
 // 1. ChatList Component (Updated to show errors)
 
 interface ChatListProps {
@@ -183,154 +198,229 @@ const ChatList: React.FC<ChatListProps> = ({ conversations, activeDmId, onSelect
 // 2. ChatWindow Component (No changes needed)
 
 interface ChatWindowProps {
-    activeUser: User | null;
-    messages: DirectMessage[];
-    currentUser: User | null;
-    partnerId: string | null;
-    allUsers: User[];
-    onSendMessage: (message: string, files: File[]) => void;
+  activeUser: User | null;
+  messages: DirectMessage[];
+  currentUser: User | null;
+  partnerId: string | null;
+  allUsers: User[];
+  onSendMessage: (message: string, files: File[]) => void;
+  onFileError: (msg: string) => void;
 }
 
-const ChatWindow: React.FC<ChatWindowProps> = ({ activeUser, messages, currentUser, partnerId, allUsers, onSendMessage }) => {
-    const [draft, setDraft] = useState('');
-    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-    const emojiPickerRef = useRef<HTMLDivElement>(null);
-    const [files, setFiles] = useState<File[]>([]);
-    const bottomRef = useRef<HTMLDivElement>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+const ChatWindow: React.FC<ChatWindowProps> = ({
+  activeUser,
+  messages,
+  currentUser,
+  partnerId,
+  allUsers,
+  onSendMessage,
+  onFileError,
+}) => {
+  const [draft, setDraft] = useState("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const timeFormatter = useMemo(
-        () => new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }),
-        []
-    );
-    const dayFormatter = useMemo(
-        () => new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
-        []
-    );
+  const timeFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+    []
+  );
+  const dayFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      }),
+    []
+  );
 
-    const groupedMessages = useMemo<GroupedSection[]>(() => {
-        if (!messages.length) return [];
+  const groupedMessages = useMemo<GroupedSection[]>(() => {
+    if (!messages.length) return [];
 
-        const sections: GroupedSection[] = [];
-        const partner = partnerId ? allUsers.find(u => u.id === partnerId) || activeUser : activeUser;
+    const sections: GroupedSection[] = [];
+    const partner = partnerId
+      ? allUsers.find((u) => u.id === partnerId) || activeUser
+      : activeUser;
 
-        messages.forEach((message) => {
-            const timestamp = new Date(message.timestamp);
-            const dayLabel = Number.isNaN(timestamp.getTime()) ? 'Recent' : dayFormatter.format(timestamp);
-            let section = sections[sections.length - 1];
-            if (!section || section.dayLabel !== dayLabel) {
-                section = { dayLabel, groups: [] };
-                sections.push(section);
-            }
+    messages.forEach((message) => {
+      const timestamp = new Date(message.timestamp);
+      const dayLabel = Number.isNaN(timestamp.getTime())
+        ? "Recent"
+        : dayFormatter.format(timestamp);
+      let section = sections[sections.length - 1];
+      if (!section || section.dayLabel !== dayLabel) {
+        section = { dayLabel, groups: [] };
+        sections.push(section);
+      }
 
-            const senderId = message.sender_id;
-            const isSender = senderId === currentUser?.id;
-            const name = isSender ? 'You' : partner?.fullname ?? 'Unknown User';
-           const avatarUrl = isSender
-             ? currentUser?.avatar_url 
-             : partner?.avatar_url;
+      const senderId = message.sender_id;
+      const isSender = senderId === currentUser?.id;
+      const name = isSender ? "You" : partner?.fullname ?? "Unknown User";
+      const avatarUrl = isSender
+        ? currentUser?.avatar_url
+        : partner?.avatar_url;
 
-
-            let group = section.groups[section.groups.length - 1];
-            if (!group || group.senderId !== senderId) {
-                group = {
-                    key: `${dayLabel}-${partnerId}-${isSender ? 'me' : 'them'}-${message.id}`,
-                    senderId,
-                    name,
-                    isSender,
-                    avatarUrl,
-                    messages: [],
-                };
-                section.groups.push(group);
-            }
-
-            group.messages.push({
-                ...message,
-                timeLabel: Number.isNaN(timestamp.getTime()) ? '' : timeFormatter.format(timestamp),
-            });
-        });
-
-        return sections;
-    }, [messages, currentUser?.id, partnerId, allUsers, dayFormatter, timeFormatter]);
-
-    const handleSend = (value: string) => {
-        if (value.length === 0 && files.length === 0) return; // ← NO trim
-        onSendMessage(value, files);
-        setDraft('');
-        setFiles([]);
-    };
-
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const selected = Array.from(event.target.files || []);
-        if (selected.length > 0) {
-            setFiles((prev) => [...prev, ...selected]);
-        }
-        if (fileInputRef.current) {
-            fileInputRef.current.value = "";
-        }
-    };
-
-    useEffect(() => {
-        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
-
-    useEffect(() => {
-        if (!showEmojiPicker) return;
-
-        const handleClickOutside = (event: MouseEvent) => {
-            if (
-            emojiPickerRef.current &&
-            !emojiPickerRef.current.contains(event.target as Node)
-            ) {
-            setShowEmojiPicker(false);
-            }
+      let group = section.groups[section.groups.length - 1];
+      if (!group || group.senderId !== senderId) {
+        group = {
+          key: `${dayLabel}-${partnerId}-${isSender ? "me" : "them"}-${
+            message.id
+          }`,
+          senderId,
+          name,
+          isSender,
+          avatarUrl,
+          messages: [],
         };
+        section.groups.push(group);
+      }
 
-        document.addEventListener("mousedown", handleClickOutside);
+      group.messages.push({
+        ...message,
+        timeLabel: Number.isNaN(timestamp.getTime())
+          ? ""
+          : timeFormatter.format(timestamp),
+      });
+    });
 
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, [showEmojiPicker]);
+    return sections;
+  }, [
+    messages,
+    currentUser?.id,
+    partnerId,
+    allUsers,
+    dayFormatter,
+    timeFormatter,
+  ]);
 
+  const handleSend = (value: string) => {
+    if (value.length === 0 && files.length === 0) return; // ← NO trim
+    onSendMessage(value, files);
+    setDraft("");
+    setFiles([]);
+  };
 
-    if (!activeUser) {
-        return (
-            <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-black text-slate-400">
-                <div className="rounded-full border border-slate-800/70 bg-slate-900/50 p-6">
-                    <Paperclip className="h-8 w-8 text-slate-500" />
-                </div>
-                <div className="text-center">
-                    <p className="font-medium text-slate-200">Select a conversation</p>
-                    <p className="mt-1 text-sm text-slate-400">
-                        Choose someone from the list to start chatting.
-                    </p>
-                </div>
-            </div>
+  const MAX_FILE_SIZE_MB = 25;
+  const ALLOWED_TYPES = [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "image/svg+xml",
+    "video/mp4",
+    "video/webm",
+    "video/quicktime",
+    "video/x-msvideo",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "text/plain",
+    "text/csv",
+  ];
+
+  const ALLOWED_LABEL =
+    "Images, videos, PDFs, Word, Excel, CSV, and plain text (max 25 MB each)";
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(event.target.files || []);
+    const valid: File[] = [];
+    const errors: string[] = [];
+
+    selected.forEach((file) => {
+      if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+        errors.push(
+          `"${file.name}" is too large (max ${MAX_FILE_SIZE_MB} MB).`
         );
-    }
+      } else if (!ALLOWED_TYPES.includes(file.type)) {
+        errors.push(`"${file.name}" — unsupported type. ${ALLOWED_LABEL}.`);
+      } else {
+        valid.push(file);
+      }
+    });
 
-    const recipientFirstName = activeUser.fullname.split(' ')[0] || activeUser.fullname;
+    if (errors.length > 0) onFileError(errors.join("\n"));
+    if (valid.length > 0) setFiles((prev) => [...prev, ...valid]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
+  useEffect(() => {
+    if (!showEmojiPicker) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        emojiPickerRef.current &&
+        !emojiPickerRef.current.contains(event.target as Node)
+      ) {
+        setShowEmojiPicker(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showEmojiPicker]);
+
+  if (!activeUser) {
     return (
-        <div className="flex h-full flex-1 flex-col bg-black backdrop-blur">
-            <header className="flex items-center justify-between border-b border-slate-800/80 px-6 py-5">
-                <div className="flex items-center gap-3">
-                    <div className="h-11 w-11 overflow-hidden rounded-full border border-slate-800/70 bg-slate-900/70">
-                        {activeUser.avatar_url ? (
-                            <img src={activeUser.avatar_url} alt={activeUser.fullname} className="h-full w-full object-cover" />
-                        ) : (
-                            <div className="flex h-full w-full items-center justify-center text-sm font-semibold uppercase text-slate-200">
-                                {getInitials(activeUser.fullname)}
-                            </div>
-                        )}
-                    </div>
-                    <div>
-                        <h3 className="text-base font-semibold text-slate-100">{activeUser.fullname}</h3>
-                        <p className="text-xs text-slate-400">Direct message • {messages.length} {messages.length === 1 ? 'message' : 'messages'}</p>
-                    </div>
-                </div>
-                {/* <div className="flex items-center gap-2 text-slate-400">
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-black text-slate-400">
+        <div className="rounded-full border border-slate-800/70 bg-slate-900/50 p-6">
+          <Paperclip className="h-8 w-8 text-slate-500" />
+        </div>
+        <div className="text-center">
+          <p className="font-medium text-slate-200">Select a conversation</p>
+          <p className="mt-1 text-sm text-slate-400">
+            Choose someone from the list to start chatting.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const recipientFirstName =
+    activeUser.fullname.split(" ")[0] || activeUser.fullname;
+
+  return (
+    <div className="flex h-full flex-1 flex-col bg-black backdrop-blur">
+      <header className="flex items-center justify-between border-b border-slate-800/80 px-6 py-5">
+        <div className="flex items-center gap-3">
+          <div className="h-11 w-11 overflow-hidden rounded-full border border-slate-800/70 bg-slate-900/70">
+            {activeUser.avatar_url ? (
+              <img
+                src={activeUser.avatar_url}
+                alt={activeUser.fullname}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-sm font-semibold uppercase text-slate-200">
+                {getInitials(activeUser.fullname)}
+              </div>
+            )}
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-slate-100">
+              {activeUser.fullname}
+            </h3>
+            <p className="text-xs text-slate-400">
+              Direct message • {messages.length}{" "}
+              {messages.length === 1 ? "message" : "messages"}
+            </p>
+          </div>
+        </div>
+        {/* <div className="flex items-center gap-2 text-slate-400">
                     <button className="rounded-full border border-slate-800/70 p-2 transition-colors hover:border-indigo-500/50 hover:text-slate-100" aria-label="Search in conversation">
                         <Search className="h-4 w-4" />
                     </button>
@@ -341,139 +431,148 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ activeUser, messages, currentUs
                         <MoreVertical className="h-4 w-4" />
                     </button>
                 </div> */}
-            </header>
+      </header>
 
-            <div className="chat-scroll flex-1 space-y-8 overflow-y-auto px-6 py-8">
-                {groupedMessages.length === 0 ? (
-                    <div className="flex h-full flex-col items-center justify-center text-center text-slate-400">
-                        <p>No messages yet.</p>
-                        <p className="text-sm">Say hi to start the conversation!</p>
-                    </div>
-                ) : (
-                    groupedMessages.map((section) => (
-                        <div key={section.dayLabel} className="space-y-4">
-                            <div className="flex items-center gap-4 text-xs text-slate-400">
-                                <span className="flex-1 border-t border-slate-800/70" />
-                                <span className="rounded-full border border-slate-800/60 bg-slate-900/60 px-3 py-1 uppercase tracking-wide text-slate-300">
-                                    {section.dayLabel}
-                                </span>
-                                <span className="flex-1 border-t border-slate-800/70" />
-                            </div>
-                            <div className="space-y-5">
-                                        {section.groups.map((group) => (
-                                    <div key={group.key} className="space-y-2">
-                                        {group.messages.map((msg, index) => (
-                                            <MessageBubble
-                                                key={msg.id}
-                                                isSender={group.isSender}
-                                                message={msg}
-                                                timestamp={msg.timeLabel}
-                                                name={!group.isSender && index === 0 ? group.name : undefined}
-                                                avatarUrl={group.avatarUrl}
-                                            >
-                                                {msg.media_url && (
-                                                    <MessageAttachment media_url={msg.media_url} />
-                                                )}
-                                            </MessageBubble>
-                                        ))}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ))
-                )}
-                <div ref={bottomRef} />
+      <div className="chat-scroll flex-1 space-y-8 overflow-y-auto px-6 py-8">
+        {groupedMessages.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center text-center text-slate-400">
+            <p>No messages yet.</p>
+            <p className="text-sm">Say hi to start the conversation!</p>
+          </div>
+        ) : (
+          groupedMessages.map((section) => (
+            <div key={section.dayLabel} className="space-y-4">
+              <div className="flex items-center gap-4 text-xs text-slate-400">
+                <span className="flex-1 border-t border-slate-800/70" />
+                <span className="rounded-full border border-slate-800/60 bg-slate-900/60 px-3 py-1 uppercase tracking-wide text-slate-300">
+                  {section.dayLabel}
+                </span>
+                <span className="flex-1 border-t border-slate-800/70" />
+              </div>
+              <div className="space-y-5">
+                {section.groups.map((group) => (
+                  <div key={group.key} className="space-y-2">
+                    {group.messages.map((msg, index) => (
+                      <MessageBubble
+                        key={msg.id}
+                        isSender={group.isSender}
+                        message={msg}
+                        timestamp={msg.timeLabel}
+                        name={
+                          !group.isSender && index === 0
+                            ? group.name
+                            : undefined
+                        }
+                        avatarUrl={group.avatarUrl}
+                      >
+                        {msg.media_url && (
+                          <MessageAttachment media_url={msg.media_url} />
+                        )}
+                      </MessageBubble>
+                    ))}
+                  </div>
+                ))}
+              </div>
             </div>
+          ))
+        )}
+        <div ref={bottomRef} />
+      </div>
 
-            <footer className="relative border-t border-slate-800/80 bg-slate-900/70 px-6 py-5">
-                {files.length > 0 && (
-                    <div className="mb-3 space-y-2">
-                        {files.map((file, index) => (
-                            <div
-                                key={`${file.name}-${file.lastModified}-${index}`}
-                                className="flex items-center justify-between rounded-xl border border-slate-800/70 bg-slate-900/60 px-4 py-3 text-sm text-slate-200"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <Paperclip className="h-4 w-4 text-indigo-300" />
-                                    <span className="truncate max-w-[220px]">{file.name}</span>
-                                    <span className="text-xs text-slate-400">{Math.round(file.size / 1024)} KB</span>
-                                </div>
-                                <button
-                                    onClick={() =>
-                                        setFiles((prev) => prev.filter((_, fileIndex) => fileIndex !== index))
-                                    }
-                                    className="rounded-full border border-slate-800/70 p-1 text-slate-400 transition-colors hover:border-rose-500/50 hover:text-rose-300"
-                                    aria-label="Remove attachment"
-                                >
-                                    <X className="h-4 w-4" />
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                <div className="flex items-center gap-3 rounded-2xl border border-slate-800/70 bg-slate-950/70 px-4 py-3">
-                    <input
-                        type="file"
-                        ref={fileInputRef}
-                        multiple
-                        onChange={handleFileChange}
-                        className="hidden"
-                    />
-                    <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="rounded-full border border-slate-800/70 p-2 text-slate-300 transition-colors hover:border-indigo-500/50 hover:text-indigo-300"
-                        aria-label="Attach file"
-                    >
-                        <Paperclip className="h-4 w-4" />
-                    </button>
-                    <button
-                        type="button"
-                        aria-label="Add reaction"
-                        onClick={() => setShowEmojiPicker(v => !v)}
-                        className="rounded-full border border-slate-800/70 p-2 text-slate-300 transition-colors hover:border-indigo-500/50 hover:text-indigo-300"
-                        >
-                        <Smile className="h-4 w-4" />
-                        </button>
-
-                    <input
-                        type="text"
-                        value={draft}
-                        onChange={(event) => setDraft(event.target.value)}
-                        onKeyDown={(event) => {
-                            if (event.key === 'Enter' && !event.shiftKey) {
-                                event.preventDefault();
-                                handleSend(draft);
-                            }
-                        }}
-                        placeholder={`Message @${recipientFirstName}`}
-                        className="flex-1 bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500"
-                    />
-                    {showEmojiPicker && (
-                        <div
-                            ref={emojiPickerRef}
-                            className="absolute bottom-20 left-6 z-50"
-                        >
-                            <EmojiPicker
-                            theme={Theme.DARK}
-                            onEmojiClick={(emojiData) => {
-                                setDraft(prev => prev + emojiData.emoji);
-                            }}
-                            />
-                        </div>
-                    )}
-
-                    <button
-                        onClick={() => handleSend(draft)}
-                        className="flex items-center gap-2 rounded-full bg-indigo-500/90 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-400"
-                    >
-                        <span>Send</span>
-                        <Send className="h-4 w-4" />
-                    </button>
+      <footer className="relative border-t border-slate-800/80 bg-slate-900/70 px-6 py-5">
+        {files.length > 0 && (
+          <div className="mb-3 space-y-2">
+            {files.map((file, index) => (
+              <div
+                key={`${file.name}-${file.lastModified}-${index}`}
+                className="flex items-center justify-between rounded-xl border border-slate-800/70 bg-slate-900/60 px-4 py-3 text-sm text-slate-200"
+              >
+                <div className="flex items-center gap-3">
+                  <Paperclip className="h-4 w-4 text-indigo-300" />
+                  <span className="truncate max-w-[220px]">{file.name}</span>
+                  <span className="text-xs text-slate-400">
+                    {Math.round(file.size / 1024)} KB
+                  </span>
                 </div>
-            </footer>
+                <button
+                  onClick={() =>
+                    setFiles((prev) =>
+                      prev.filter((_, fileIndex) => fileIndex !== index)
+                    )
+                  }
+                  className="rounded-full border border-slate-800/70 p-1 text-slate-400 transition-colors hover:border-rose-500/50 hover:text-rose-300"
+                  aria-label="Remove attachment"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 rounded-2xl border border-slate-800/70 bg-slate-950/70 px-4 py-3">
+          <input
+            type="file"
+            ref={fileInputRef}
+            multiple
+            accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml,video/mp4,video/webm,video/quicktime,video/x-msvideo,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,text/csv"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="rounded-full border border-slate-800/70 p-2 text-slate-300 transition-colors hover:border-indigo-500/50 hover:text-indigo-300"
+            aria-label="Attach file"
+          >
+            <Paperclip className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            aria-label="Add reaction"
+            onClick={() => setShowEmojiPicker((v) => !v)}
+            className="rounded-full border border-slate-800/70 p-2 text-slate-300 transition-colors hover:border-indigo-500/50 hover:text-indigo-300"
+          >
+            <Smile className="h-4 w-4" />
+          </button>
+
+          <input
+            type="text"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                handleSend(draft);
+              }
+            }}
+            placeholder={`Message @${recipientFirstName}`}
+            className="flex-1 bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500"
+          />
+          {showEmojiPicker && (
+            <div
+              ref={emojiPickerRef}
+              className="absolute bottom-20 left-6 z-50"
+            >
+              <EmojiPicker
+                theme={Theme.DARK}
+                onEmojiClick={(emojiData) => {
+                  setDraft((prev) => prev + emojiData.emoji);
+                }}
+              />
+            </div>
+          )}
+
+          <button
+            onClick={() => handleSend(draft)}
+            className="flex items-center gap-2 rounded-full bg-indigo-500/90 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-400"
+          >
+            <span>Send</span>
+            <Send className="h-4 w-4" />
+          </button>
         </div>
-    );
+      </footer>
+    </div>
+  );
 };
 
 // =============================================================
@@ -491,6 +590,7 @@ function MessagesPageContentInner() {
     const [messages, setMessages] = useState<Map<string, DirectMessage[]>>(new Map());
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+      const [fileError, setFileError] = useState<string | null>(null);
     const pageReady = usePageReady();
 
 const socketRef = useRef<Socket | null>(null);
@@ -563,14 +663,18 @@ useEffect(() => {
                 // De-duplicate: remove optimistic message with same sender+content close in time
                 const thresholdMs = 60_000; // 60s window
                 const incTime = Date.parse(incomingMsg.timestamp);
-                let updated = currentDms.filter(m => {
-                    const sameSender = m.sender_id === incomingMsg.sender_id;
-                    const sameContent = (m.content || "") === (incomingMsg.content || "");
-                    const mTime = Date.parse(m.timestamp);
-                    const nearInTime = Number.isFinite(incTime) && Number.isFinite(mTime)
-                        ? Math.abs(mTime - incTime) < thresholdMs
-                        : false;
-                    return !(sameSender && sameContent && nearInTime);
+                let updated = currentDms.filter((m) => {
+                  if (incomingMsg.media_url || m.media_url) return true; // never dedup file messages
+                  const sameSender = m.sender_id === incomingMsg.sender_id;
+                  const sameContent =
+                    (m.content || "") === (incomingMsg.content || "");
+                  const mTime = Date.parse(m.timestamp);
+                  const incTime2 = Date.parse(incomingMsg.timestamp);
+                  const nearInTime =
+                    Number.isFinite(incTime2) && Number.isFinite(mTime)
+                      ? Math.abs(mTime - incTime2) < 60_000
+                      : false;
+                  return !(sameSender && sameContent && nearInTime);
                 });
 
                 // If exact id exists, avoid duplicate; otherwise append to the end (arrival order)
@@ -850,13 +954,16 @@ useEffect(() => {
             const updated = [...list];
 
             uploads.forEach(upload => {
-                updated.push({
-                    id: upload.tempId,
-                    content: upload.optimisticContent,
-                    sender_id: currentUser.id,
-                    receiver_id: activeDmId,
-                    timestamp: new Date().toISOString(),
-                });
+              updated.push({
+                id: upload.tempId,
+                content: upload.optimisticContent,
+                sender_id: currentUser.id,
+                receiver_id: activeDmId,
+                timestamp: new Date().toISOString(),
+                media_url: upload.file
+                  ? URL.createObjectURL(upload.file)
+                  : null, 
+              });
             });
 
             newMap.set(activeDmId, updated);
@@ -989,62 +1096,73 @@ useEffect(() => {
     const activeMessages = activeDmId ? messages.get(activeDmId) || [] : [];
 
     return (
-        <div className="flex h-screen min-h-0 w-full bg-slate-950 text-slate-100">
-            <ChatList 
-                conversations={conversations} 
-                activeDmId={activeDmId} 
-                onSelectDm={handleSelectDm}
-                isLoading={isLoading} 
-                error={error}
-            />
-            <div className="flex flex-1 flex-col">
-                <div className="border-b border-slate-800/70 bg-black px-4 py-3 lg:hidden">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h2 className="text-base font-semibold text-slate-100">Direct Messages</h2>
-                            <p className="text-xs text-slate-400">Tap a friend to open the chat.</p>
-                        </div>
-                    </div>
-                    <div className="mt-4 flex gap-3 overflow-x-auto">
-                        {conversations.map(({ user }) => {
-                            const isActive = activeDmId === user.id;
-                            return (
-                                <button
-                                    key={user.id}
-                                    onClick={() => handleSelectDm(user.id)}
-                                    className={`flex min-w-[64px] flex-col items-center gap-2 rounded-2xl border px-3 py-2 text-xs transition-colors ${
-                                        isActive
-                                            ? 'border-indigo-400/70 bg-indigo-500/10 text-indigo-100'
-                                            : 'border-slate-800/70 bg-slate-900/60 text-slate-300'
-                                    }`}
-                                >
-                                    <div className="h-10 w-10 overflow-hidden rounded-full border border-slate-800/70 bg-slate-800/60">
-                                        {user.avatar_url ? (
-                                            <img src={user.avatar_url} alt={user.fullname} className="h-full w-full object-cover" />
-                                        ) : (
-                                            <div className="flex h-full w-full items-center justify-center text-xs font-semibold uppercase text-slate-200">
-                                                {getInitials(user.fullname)}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <span className="truncate text-center text-[11px] leading-tight">{user.fullname.split(' ')[0]}</span>
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-                <div className="flex flex-1 overflow-hidden">
-                    <ChatWindow 
-                        activeUser={activeUser}
-                        messages={activeMessages} 
-                        currentUser={currentUser}
-                        partnerId={activeDmId}
-                        allUsers={allUsers}
-                        onSendMessage={handleSendMessage}
-                    />
-                </div>
+      <div className="flex h-screen min-h-0 w-full bg-slate-950 text-slate-100">
+        <ChatList
+          conversations={conversations}
+          activeDmId={activeDmId}
+          onSelectDm={handleSelectDm}
+          isLoading={isLoading}
+          error={error}
+        />
+        <div className="flex flex-1 flex-col">
+          <div className="border-b border-slate-800/70 bg-black px-4 py-3 lg:hidden">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-slate-100">
+                  Direct Messages
+                </h2>
+                <p className="text-xs text-slate-400">
+                  Tap a friend to open the chat.
+                </p>
+              </div>
             </div>
+            <div className="mt-4 flex gap-3 overflow-x-auto">
+              {conversations.map(({ user }) => {
+                const isActive = activeDmId === user.id;
+                return (
+                  <button
+                    key={user.id}
+                    onClick={() => handleSelectDm(user.id)}
+                    className={`flex min-w-[64px] flex-col items-center gap-2 rounded-2xl border px-3 py-2 text-xs transition-colors ${
+                      isActive
+                        ? "border-indigo-400/70 bg-indigo-500/10 text-indigo-100"
+                        : "border-slate-800/70 bg-slate-900/60 text-slate-300"
+                    }`}
+                  >
+                    <div className="h-10 w-10 overflow-hidden rounded-full border border-slate-800/70 bg-slate-800/60">
+                      {user.avatar_url ? (
+                        <img
+                          src={user.avatar_url}
+                          alt={user.fullname}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-xs font-semibold uppercase text-slate-200">
+                          {getInitials(user.fullname)}
+                        </div>
+                      )}
+                    </div>
+                    <span className="truncate text-center text-[11px] leading-tight">
+                      {user.fullname.split(" ")[0]}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="flex flex-1 overflow-hidden">
+            <ChatWindow
+              activeUser={activeUser}
+              messages={activeMessages}
+              currentUser={currentUser}
+              partnerId={activeDmId}
+              allUsers={allUsers}
+              onSendMessage={handleSendMessage}
+              onFileError={(msg) => setFileError(msg)}
+            />
+          </div>
         </div>
+      </div>
     );
 }
 

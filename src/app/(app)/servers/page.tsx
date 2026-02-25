@@ -482,7 +482,7 @@ const showVoiceUI =
                   >
                     Join Server
                   </button>
-                  <button
+                  {/*  <button
                     onClick={() => {
                       router.push("/create-server");
                       setShowAddMenu(false);
@@ -490,7 +490,7 @@ const showVoiceUI =
                     className="block w-full text-left px-3 py-2 rounded hover:bg-[#2f3136] transition"
                   >
                     Create Server
-                  </button>
+                  </button> */}
                 </div>
               )}
             </div>
