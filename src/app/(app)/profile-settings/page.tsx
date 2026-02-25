@@ -189,7 +189,7 @@ export default function ProfilePage() {
               />
 
               <div className="text-center">
-                <h2 className="text-2xl font-semibold tracking-tight text-white">
+                <h2 className="text-2xl font-semibold tracking-tight text-white truncate max-w-[220px]">
                   {displayName}
                 </h2>
                 <p className="text-sm text-gray-400">@{username}</p>
@@ -259,6 +259,7 @@ export default function ProfilePage() {
             <input
               ref={nameInputRef}
               value={displayName}
+              maxLength={20}
               readOnly={!editing.name}
               onChange={(e) => setDisplayName(e.target.value)}
               onBlur={() => setEditing((p) => ({ ...p, name: false }))}
@@ -302,7 +303,7 @@ export default function ProfilePage() {
                 {isSaving ? "Saving…" : "Save Changes"}
               </button>
 
-            {/*   <button
+              {/*   <button
                 onClick={() => router.push("/delete-account")}
                 className="px-7 py-3 rounded-xl bg-red-600/70 hover:bg-red-700 hover:shadow-lg transition font-semibold"
               >
@@ -312,7 +313,6 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
-
     </div>
   );
 }

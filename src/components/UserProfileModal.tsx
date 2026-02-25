@@ -56,36 +56,56 @@ export default function UserProfileModal({
         >
           ✖
         </button>
-        <div className="flex flex-col items-center space-y-3">
-          <img
-            src={user.avatarUrl || "/User_profil.png"}
-            alt={user.username}
-            className="w-20 h-20 rounded-full border-2 border-gray-500"
-          />
-          <h2 className="text-xl font-semibold">{user.username}</h2>
-          
-          {/* Bio Display
-          <div className="w-full">
-            <h3 className="text-xs text-gray-400 uppercase font-semibold mb-2">Bio</h3>
-            <p className="text-sm text-gray-300 text-center bg-gray-800/50 rounded-lg p-3 max-h-20 overflow-y-auto">
-    {user.about || "No bio yet..."}
-  </p>
-          </div> */}
+   <div className="w-full flex flex-col items-center space-y-4 px-4">
+
+  {/* Avatar */}
+  <div className="relative group">
+    <div className="absolute inset-0 rounded-full bg-blue-500/30 blur-lg opacity-0 group-hover:opacity-100 transition duration-300" />
+    <img
+      src={user.avatarUrl || "/User_profil.png"}
+      alt={user.username}
+      className="relative w-24 h-24 rounded-full border-4 border-gray-600 object-cover shadow-xl transition-transform duration-300 group-hover:scale-105"
+    />
+  </div>
+
+  {/* Username */}
+  <div className="w-full min-w-0 text-center">
+    <h2 className="text-xl font-semibold text-white truncate max-w-full">
+      {user.username}
+    </h2>
+  </div>
+
+  {/* Bio Section */}
+  <div className="w-full bg-gray-800/60 backdrop-blur-md rounded-2xl p-4 border border-gray-700/60 shadow-lg">
+    <h3 className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-2 text-center">
+      Bio
+    </h3>
+
+    <p className="text-sm text-gray-300 text-center break-words max-h-24 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600">
+      {user.about || "No bio yet..."}
+    </p>
+  </div>
+
+
 
           {/* Roles Display */}
           {user.isLoadingRoles ? (
             <div className="w-full">
-              <h3 className="text-xs text-gray-400 uppercase font-semibold mb-2">Roles</h3>
+              <h3 className="text-xs text-gray-400 uppercase font-semibold mb-2">
+                Roles
+              </h3>
               <div className="flex justify-center py-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-500"></div>
               </div>
             </div>
           ) : user.roles && user.roles.length > 0 ? (
             <div className="w-full">
-              <h3 className="text-xs text-gray-400 uppercase font-semibold mb-2">Roles</h3>
+              <h3 className="text-xs text-gray-400 uppercase font-semibold mb-2">
+                Roles
+              </h3>
               <div className="flex flex-wrap gap-2">
                 {user.roles.map((role, index) => {
-                  const roleName = typeof role === 'string' ? role : role.name;
+                  const roleName = typeof role === "string" ? role : role.name;
                   return (
                     <span
                       key={index}
