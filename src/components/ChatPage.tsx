@@ -136,43 +136,62 @@ const ChatList: React.FC<ChatListProps> = ({ conversations, activeDmId, onSelect
                         {filteredConversations.map(({ user, lastMessage, unreadCount }) => {
                             const isActive = activeDmId === user.id;
                             return (
-                                <li
-                                    key={user.id}
-                                    onClick={() => onSelectDm(user.id)}
-                                    className={`group flex cursor-pointer items-center gap-3 rounded-2xl border border-transparent p-3 transition-colors hover:border-indigo-500/40 hover:bg-slate-800/40 ${
-                                        isActive ? 'border-indigo-500/50 bg-indigo-500/10 shadow-[0_0_0_1px_rgba(99,102,241,0.2)]' : ''
+                              <li
+                                key={user.id}
+                                onClick={() => onSelectDm(user.id)}
+                                className={`group flex cursor-pointer items-center gap-3 rounded-2xl border border-transparent p-3 transition-colors hover:border-indigo-500/40 hover:bg-slate-800/40 ${
+                                  isActive
+                                    ? "border-indigo-500/50 bg-indigo-500/10 shadow-[0_0_0_1px_rgba(99,102,241,0.2)]"
+                                    : ""
+                                }`}
+                              >
+                                <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-full border border-slate-700/60 bg-slate-800/60">
+                                  {user.avatar_url ? (
+                                    <img
+                                      src={user.avatar_url}
+                                      alt={user.fullname}
+                                      className="h-10 w-10 object-cover rounded-full"
+                                      onError={(e) => {
+                                        e.currentTarget.style.display = "none";
+                                        e.currentTarget.nextElementSibling?.classList.remove(
+                                          "hidden"
+                                        );
+                                      }}
+                                    />
+                                  ) : null}
+                                  <div
+                                    className={`flex h-full w-full items-center justify-center text-xs font-semibold uppercase text-slate-300 ${
+                                      user.avatar_url ? "hidden" : ""
                                     }`}
-                                >
-                                    <div className="h-10 w-10 overflow-hidden rounded-full border border-slate-700/60 bg-slate-800/60">
-                                        {user.avatar_url ? (
-                                            <img
-                                                src={user.avatar_url}
-                                                alt={user.fullname}
-                                                className="h-full w-full object-cover"
-                                            />
-                                        ) : (
-                                            <div className="flex h-full w-full items-center justify-center text-xs font-semibold uppercase text-slate-300">
-                                                {getInitials(user.fullname)}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                        <div className="flex items-center justify-between gap-2">
-                                            <p className={`truncate text-sm font-medium ${isActive ? 'text-slate-100' : 'text-slate-200'}`}>
-                                                {user.fullname}
-                                            </p>
-                                            {unreadCount > 0 && !isActive && (
-                                                <span className="flex-shrink-0 bg-green-500 text-white text-xs rounded-full min-w-[20px] h-[20px] flex items-center justify-center px-1.5 font-bold">
-                                                    {unreadCount > 99 ? '99+' : unreadCount}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <p className="truncate text-xs text-slate-400 group-hover:text-slate-300">
-                                            {lastMessage || 'No messages yet.'}
-                                        </p>
-                                    </div>
-                                    {isActive && <div className="h-2 w-2 rounded-full bg-indigo-400" />}
-                                </li>
+                                  >
+                                    {getInitials(user.fullname)}
+                                  </div>
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <p
+                                      className={`truncate text-sm font-medium ${
+                                        isActive
+                                          ? "text-slate-100"
+                                          : "text-slate-200"
+                                      }`}
+                                    >
+                                      {user.fullname}
+                                    </p>
+                                    {unreadCount > 0 && !isActive && (
+                                      <span className="flex-shrink-0 bg-green-500 text-white text-xs rounded-full min-w-[20px] h-[20px] flex items-center justify-center px-1.5 font-bold">
+                                        {unreadCount > 99 ? "99+" : unreadCount}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="truncate text-xs text-slate-400 group-hover:text-slate-300">
+                                    {lastMessage || "No messages yet."}
+                                  </p>
+                                </div>
+                                {isActive && (
+                                  <div className="h-2 w-2 rounded-full bg-indigo-400" />
+                                )}
+                              </li>
                             );
                         })}
                     </ul>
