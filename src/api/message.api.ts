@@ -18,6 +18,17 @@ type CachedDmEntry = {
 const userDmCache = new Map<string, CachedDmEntry>();
 const userDmInFlight = new Map<string, Promise<CachedDmResponse>>();
 
+export const invalidateUserDmCache = (userId?: string) => {
+  if (userId) {
+    userDmCache.delete(userId);
+    userDmInFlight.delete(userId);
+    return;
+  }
+
+  userDmCache.clear();
+  userDmInFlight.clear();
+};
+
 //Uploads messages in the channel
 export const uploadMessage = async (payload: {
   file?: File;
