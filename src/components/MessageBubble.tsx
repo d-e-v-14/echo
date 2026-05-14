@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+import React, { memo, useState } from "react";
 
 /* -------------------- TYPES -------------------- */
 
@@ -10,7 +10,7 @@ export interface ChatMessage {
     content: string;
     author?: string;
   } | null;
-  status?: 'pending' | 'sent' | 'failed';
+  status?: "pending" | "sent" | "failed";
 }
 
 interface MessageBubbleProps {
@@ -19,7 +19,6 @@ interface MessageBubbleProps {
   isSender?: boolean;
   avatarUrl?: string;
   timestamp?: string;
-
   onProfileClick?: () => void;
   onReply?: () => void;
   onRetry?: () => void;
@@ -27,6 +26,40 @@ interface MessageBubbleProps {
   messageRenderer?: (content: string) => React.ReactNode;
   isMentioned?: boolean;
 }
+
+/* -------------------- AVATAR -------------------- */
+
+const MessageAvatar: React.FC<{
+  name?: string;
+  avatarUrl?: string;
+  onClick?: () => void;
+  className?: string;
+}> = ({ name, avatarUrl, onClick, className = "" }) => {
+  const [hasError, setHasError] = useState(false);
+  const initials = (name || "?").slice(0, 2).toUpperCase();
+
+  return (
+    <div
+      onClick={onClick}
+      className={`w-8 h-8 flex-shrink-0 rounded-full overflow-hidden bg-slate-700 border border-slate-600 flex items-center justify-center ${
+        onClick ? "cursor-pointer hover:opacity-90 transition" : ""
+      } ${className}`}
+    >
+      {avatarUrl && !hasError ? (
+        <img
+          src={avatarUrl}
+          alt={name || "User"}
+          className="w-full h-full object-cover"
+          onError={() => setHasError(true)}
+        />
+      ) : (
+        <span className="text-xs font-semibold uppercase text-slate-300">
+          {initials}
+        </span>
+      )}
+    </div>
+  );
+};
 
 /* -------------------- COMPONENT -------------------- */
 
@@ -43,29 +76,27 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   messageRenderer,
   isMentioned = false,
 }) => {
-  const isPending = message.status === 'pending';
-  const isFailed = message.status === 'failed';
-  
+  const isPending = message.status === "pending";
+  const isFailed = message.status === "failed";
+
   const bubbleStyles = isSender
     ? "bg-[#3a3c43] text-[#dbdee1]"
     : "bg-[#2b2d31] text-[#dbdee1]";
 
-  const displayAvatar = avatarUrl;
-
   return (
-    <div 
-    data-message-id = {message.id}
-    className={`flex mb-3 ${isSender ? "justify-end" : "justify-start"} ${isPending ? "opacity-70" : ""}`}
+    <div
+      data-message-id={message.id}
+      className={`flex mb-3 ${isSender ? "justify-end" : "justify-start"} ${
+        isPending ? "opacity-70" : ""
+      }`}
     >
-      {/* Left Avatar */}
+      {/* Left Avatar (receiver) */}
       {!isSender && (
-        <div className="w-8 h-8 mr-3 flex-shrink-0">
-          <img
-            src={displayAvatar}
-            alt={name || "User"}
+        <div className="mr-3">
+          <MessageAvatar
+            name={name}
+            avatarUrl={avatarUrl}
             onClick={onProfileClick}
-            onError={(e) => (e.currentTarget.src = "/User_profil.png")}
-            className="w-8 h-8 rounded-full object-cover cursor-pointer hover:opacity-90 transition"
           />
         </div>
       )}
@@ -110,7 +141,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             ${isFailed ? "ring-1 ring-red-500 bg-red-900/20" : ""}
           `}
         >
-          {/* Message text */}
           <div className="text-sm leading-relaxed whitespace-pre-wrap break-all">
             {messageRenderer
               ? messageRenderer(message.content)
@@ -119,7 +149,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
           {children && <div className="mt-3">{children}</div>}
 
-          {/* Action buttons row */}
           <div className="flex items-center gap-2 mt-1">
             {onReply && !isFailed && (
               <button
@@ -129,8 +158,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 Reply
               </button>
             )}
-            
-            {/* Failed message retry button */}
             {isFailed && onRetry && (
               <button
                 onClick={onRetry}
@@ -148,44 +175,37 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           {timestamp && (
             <span className="text-[10px] text-[#949ba4]">{timestamp}</span>
           )}
-          
-          {/* Pending indicator */}
           {isPending && (
             <span className="text-[10px] text-[#949ba4] flex items-center gap-1">
               <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
-                <circle 
-                  className="opacity-25" 
-                  cx="12" cy="12" r="10" 
-                  stroke="currentColor" 
-                  strokeWidth="4" 
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
                   fill="none"
                 />
-                <path 
-                  className="opacity-75" 
-                  fill="currentColor" 
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 />
               </svg>
               Sending...
             </span>
           )}
-          
-          {/* Failed indicator */}
           {isFailed && (
             <span className="text-[10px] text-red-400">Not delivered</span>
           )}
         </div>
       </div>
 
-      {/* Right Avatar */}
+      {/* Right Avatar (sender) */}
       {isSender && (
-        <div className="w-8 h-8 ml-3 flex-shrink-0">
-          <img
-            src={displayAvatar}
-            alt="You"
-            onError={(e) => (e.currentTarget.src = "/User_profil.png")}
-            className="w-8 h-8 rounded-full object-cover"
-          />
+        <div className="ml-3">
+          <MessageAvatar name={name || "You"} avatarUrl={avatarUrl} />
         </div>
       )}
     </div>
