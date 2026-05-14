@@ -4,7 +4,7 @@ import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } fr
 import { useSearchParams, useRouter } from 'next/navigation';
 import { usePageReady } from '@/components/RouteChangeLoader';
 import { Bell, MoreVertical, Paperclip, Search, Send, Smile, X } from 'lucide-react';
-import { getUserDMs, uploaddm, markThreadAsRead } from '@/api/message.api'; 
+import { getUserDMs, uploaddm, markThreadAsRead, invalidateUserDmCache } from '@/api/message.api'; 
 import { fetchUserProfile } from '@/api/profile.api'; 
 import { Socket } from "socket.io-client";
 import { createAuthSocket } from '@/socket';
@@ -603,6 +603,11 @@ function MessagesPageContentInner() {
     const pageReady = usePageReady();
 
 const socketRef = useRef<Socket | null>(null);
+const invalidateDmCacheForCurrentUser = () => {
+  if (currentUser?.id) {
+    invalidateUserDmCache(currentUser.id);
+  }
+};
 
 // Single socket setup and event wiring
 useEffect(() => {
@@ -619,6 +624,7 @@ useEffect(() => {
     const handleNewMessage = (raw: any) => {
         try {
             if (!raw) return;
+        invalidateDmCacheForCurrentUser();
             // Unwrap common envelope shapes
             const incoming = (raw as any)?.data ?? (raw as any)?.message ?? raw;
             if (!incoming) return;
@@ -993,6 +999,7 @@ useEffect(() => {
                 if (!saved) {
                     console.warn("DM upload returned no data");
                 }
+                invalidateDmCacheForCurrentUser();
                 // Optionally reconcile temp message with saved (id/media_url) if backend doesn't echo quickly
                 if (saved && (saved.id || saved.media_url)) {
                     setMessages(prev => {
