@@ -165,8 +165,6 @@ export default function FriendsPage() {
         {/* Sidebar */}
         <div className="w-80 border-r border-gray-800 bg-black">
           <div className="p-5">
-           
-        
             {error && (
               <div className="mt-3 rounded-lg border border-red-500/40 bg-red-500/10 p-2 text-xs text-red-200">
                 {error}
@@ -184,15 +182,17 @@ export default function FriendsPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </label>
-          
-              {searching && searchQuery.trim() && searchResults.length === 0 && (
-                <div className="mt-2 rounded-lg border border-gray-800 bg-gray-900/60 px-3 py-2 text-xs text-gray-400">
-                  <div className="flex items-center gap-2">
-                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-gray-700 border-t-gray-400" />
-                    Searching...
+
+              {searching &&
+                searchQuery.trim() &&
+                searchResults.length === 0 && (
+                  <div className="mt-2 rounded-lg border border-gray-800 bg-gray-900/60 px-3 py-2 text-xs text-gray-400">
+                    <div className="flex items-center gap-2">
+                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-gray-700 border-t-gray-400" />
+                      Searching...
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {searchResults.length > 0 && (
                 <div className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-gray-800 bg-black">
@@ -212,8 +212,12 @@ export default function FriendsPage() {
                           }}
                         />
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-medium">{user.username}</div>
-                          <div className="truncate text-xs text-white/50">{user.fullname}</div>
+                          <div className="truncate text-sm font-medium">
+                            {user.username}
+                          </div>
+                          <div className="truncate text-xs text-white/50">
+                            {user.fullname}
+                          </div>
                         </div>
                       </div>
 
@@ -227,13 +231,19 @@ export default function FriendsPage() {
                         </button>
                       )}
                       {user.relationshipStatus === "pending" && (
-                        <span className="rounded-full bg-gray-800 px-3 py-1 text-xs text-gray-300">Pending</span>
+                        <span className="rounded-full bg-gray-800 px-3 py-1 text-xs text-gray-300">
+                          Pending
+                        </span>
                       )}
                       {user.relationshipStatus === "accepted" && (
-                        <span className="rounded-full bg-gray-800 px-3 py-1 text-xs text-gray-300">Friends</span>
+                        <span className="rounded-full bg-gray-800 px-3 py-1 text-xs text-gray-300">
+                          Friends
+                        </span>
                       )}
                       {user.relationshipStatus === "rejected" && (
-                        <span className="rounded-full bg-gray-800 px-3 py-1 text-xs text-gray-300">Rejected</span>
+                        <span className="rounded-full bg-gray-800 px-3 py-1 text-xs text-gray-300">
+                          Rejected
+                        </span>
                       )}
                     </div>
                   ))}
@@ -243,7 +253,9 @@ export default function FriendsPage() {
 
             <div className="mt-6">
               <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-xs uppercase text-white/50">Pending Requests</h3>
+                <h3 className="text-xs uppercase text-white/50">
+                  Pending Requests
+                </h3>
                 <span className="text-xs text-white/40">{requests.length}</span>
               </div>
 
@@ -259,18 +271,36 @@ export default function FriendsPage() {
                   className="mt-2 rounded-xl border border-gray-800 bg-gray-900/60 p-3"
                 >
                   <div className="mb-3 flex items-center gap-2">
-                    <img
-                      src={req.user1.avatar_url || "/avatar.png"}
-                      alt={req.user1.username}
-                      className="h-9 w-9 rounded-full bg-gray-700 object-cover"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.src = "/avatar.png";
-                      }}
-                    />
+                    <div className="h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-gray-800 border border-gray-700">
+                      {req.user1.avatar_url ? (
+                        <img
+                          src={req.user1.avatar_url}
+                          alt={req.user1.username}
+                          className="h-9 w-9 object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                            const fallback = e.currentTarget
+                              .nextElementSibling as HTMLElement;
+                            if (fallback) fallback.style.display = "flex";
+                          }}
+                        />
+                      ) : null}
+                      <div
+                        style={{
+                          display: req.user1.avatar_url ? "none" : "flex",
+                        }}
+                        className="h-full w-full items-center justify-center text-xs font-semibold uppercase text-slate-300"
+                      >
+                        {req.user1.username?.slice(0, 2).toUpperCase() || "??"}
+                      </div>
+                    </div>
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-medium">{req.user1.username}</div>
-                      <div className="truncate text-xs text-white/50">{req.user1.fullname}</div>
+                      <div className="truncate text-sm font-medium">
+                        {req.user1.username}
+                      </div>
+                      <div className="truncate text-xs text-white/50">
+                        {req.user1.fullname}
+                      </div>
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -295,15 +325,15 @@ export default function FriendsPage() {
 
         {/* Main content */}
         <div className="flex-1 p-8">
-          
-
           {friends.length === 0 ? (
             <div className="rounded-2xl border border-gray-800 bg-gray-900/60 p-10 text-center">
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-gray-800 bg-gray-900">
                 <FaUserFriends className="text-gray-300" />
               </div>
               <p className="text-gray-200">No friends yet.</p>
-              <p className="mt-1 text-xs text-gray-500">Search by username to start building your list.</p>
+              <p className="mt-1 text-xs text-gray-500">
+                Search by username to start building your list.
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -314,7 +344,7 @@ export default function FriendsPage() {
                 >
                   <div className="relative flex items-center gap-3">
                     <img
-                      src={f.avatar_url || "/avatar.png"}
+                      src={f.avatar_url}
                       alt={f.username}
                       className="h-12 w-12 rounded-xl bg-gray-700 object-cover"
                       onError={(e) => {
@@ -323,11 +353,23 @@ export default function FriendsPage() {
                       }}
                     />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-base font-semibold">{f.username}</div>
-                      <div className="truncate text-xs text-white/50">{f.fullname}</div>
+                      <div className="truncate text-base font-semibold">
+                        {f.username}
+                      </div>
+                      <div className="truncate text-xs text-white/50">
+                        {f.fullname}
+                      </div>
                       <div className="mt-2 flex items-center gap-2">
-                        <span className={`h-2 w-2 rounded-full ${f.status === "online" ? "bg-emerald-400" : "bg-white/30"}`} />
-                        <span className="text-xs text-white/50 capitalize">{f.status}</span>
+                        <span
+                          className={`h-2 w-2 rounded-full ${
+                            f.status === "online"
+                              ? "bg-emerald-400"
+                              : "bg-white/30"
+                          }`}
+                        />
+                        <span className="text-xs text-white/50 capitalize">
+                          {f.status}
+                        </span>
                       </div>
                     </div>
                     <button
