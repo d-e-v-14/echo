@@ -31,7 +31,7 @@ export default function OAuthCallback() {
            setToast({ message: "Failed to get session", type: "error" });
            setMessage("Failed to get session. Please try again.");
            setError(true);
-           setTimeout(() => router.push("/login"), 3000);
+           setTimeout(() => router.push("/"), 3000);
            return;
          }
 
@@ -64,7 +64,7 @@ export default function OAuthCallback() {
          setMessage(errorMsg);
          setError(true);
 
-         setTimeout(() => router.push("/login"), 3000);
+         setTimeout(() => router.push("/"), 3000);
        }
      };
 
