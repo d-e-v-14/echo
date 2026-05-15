@@ -31,7 +31,7 @@ function AuthCallbackContent() {
               console.error("Session error:", error);
               setStatus("error");
               setMessage("Failed to verify email. Please try again.");
-              setTimeout(() => router.push("/login"), 3000);
+              setTimeout(() => router.push("/"), 3000);
               return;
             }
 
@@ -56,19 +56,19 @@ function AuthCallbackContent() {
           } else {
             setStatus("error");
             setMessage("Invalid verification link.");
-            setTimeout(() => router.push("/login"), 3000);
+            setTimeout(() => router.push("/"), 3000);
           }
         } else {
           // Unknown type or no type
           setStatus("success");
           setMessage("Redirecting to login...");
-          setTimeout(() => router.push("/login"), 1000);
+          setTimeout(() => router.push("/"), 1000);
         }
       } catch (error) {
         console.error("Auth callback error:", error);
         setStatus("error");
         setMessage("An error occurred. Redirecting to login...");
-        setTimeout(() => router.push("/login"), 3000);
+        setTimeout(() => router.push("/"), 3000);
       }
     };
 
