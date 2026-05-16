@@ -24,6 +24,7 @@ import Toast from "@/components/Toast";
 import { ChevronDown } from "lucide-react";
 import { getServerMembers } from "@/api/server.api";
 import { getAllRoles } from "@/api/roles.api";
+import { useNotifications } from "@/hooks/useNotifications";
 
 import { apiClient as mentionsApiClient } from "@/utils/apiClient";
 import { apiClient as profileApiClient } from "@/api/axios";
@@ -145,12 +146,27 @@ export default forwardRef(function ChatWindow(
   const hasMountedRef = useRef(false);
   const hasScrolledForChannelRef = useRef<string | null>(null);
 
-  const [unreadMentionCount, setUnreadMentionCount] = useState(0);
   const [currentMentionIndex, setCurrentMentionIndex] = useState(0);
 
   const [lastReadTimestamp, setLastReadTimestamp] = useState<string | null>(
     null
   );
+
+  const {
+    notifications: mentionNotifications,
+    markAsRead: markMentionAsRead,
+  } = useNotifications();
+
+  const unreadMentionsForChannel = useMemo(
+    () =>
+      mentionNotifications.filter(
+        (notification) =>
+          notification.channelId === channelId && !notification.isRead
+      ),
+    [mentionNotifications, channelId]
+  );
+
+  const unreadMentionCount = unreadMentionsForChannel.length;
 
   const isManuallyScrollingRef = useRef(false);
 
@@ -858,6 +874,7 @@ export default forwardRef(function ChatWindow(
 
         if (!lastReadMs) {
           messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+          void markUnreadMentionsAsRead();
           
           setTimeout(() => {
             isAutoScrollingRef.current = false;
@@ -874,6 +891,7 @@ export default forwardRef(function ChatWindow(
         if (firstUnreadIndex === -1) {
         
           messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+          void markUnreadMentionsAsRead();
           setTimeout(() => {
             isAutoScrollingRef.current = false;
           }, 500);
@@ -965,6 +983,8 @@ const handleScroll = useCallback(() => {
     } catch (err) {
       console.error("Failed to persist last read timestamp", err);
     }
+
+    void markUnreadMentionsAsRead();
   }
 
   
@@ -992,6 +1012,8 @@ const handleScroll = useCallback(() => {
           } catch (err) {
             console.error("Failed to persist last read timestamp", err);
           }
+
+          void markUnreadMentionsAsRead();
         }
         break;
       }
@@ -1023,41 +1045,12 @@ const handleScroll = useCallback(() => {
   lastReadTimestamp,
 ]);
 
-  useEffect(() => {
-    if (!lastReadTimestamp) {
-      setUnreadMentionCount(0);
-      return;
-    }
-
-    const lastReadMs = new Date(lastReadTimestamp).getTime();
-
-    const unreadMentions = messages.filter((msg) => {
-      if (msg.senderId === currentUserId) return false;
-      if (!isMessageMentioningMe(msg.content)) return false;
-      const msgTime = new Date(msg.timestamp).getTime();
-      return msgTime > lastReadMs;
-    });
-
-    setUnreadMentionCount(unreadMentions.length);
-  }, [messages, lastReadTimestamp, currentUserId, isMessageMentioningMe]);
-  
   const jumpToNextMention = useCallback(() => {
-    if (!lastReadTimestamp) return;
-
-    const lastReadMs = new Date(lastReadTimestamp).getTime();
-
-    const unreadMentions = messages.filter((msg) => {
-      if (msg.senderId === currentUserId) return false;
-      if (!isMessageMentioningMe(msg.content)) return false;
-      const msgTime = new Date(msg.timestamp).getTime();
-      return msgTime > lastReadMs;
-    });
-
-    if (unreadMentions.length === 0) return;
+    if (unreadMentionsForChannel.length === 0) return;
 
     const targetMention =
-      unreadMentions[currentMentionIndex % unreadMentions.length];
-    const el = messageRefs.current[targetMention.id];
+      unreadMentionsForChannel[currentMentionIndex % unreadMentionsForChannel.length];
+    const el = messageRefs.current[targetMention.messageId];
 
     if (el) {
      
@@ -1075,12 +1068,19 @@ const handleScroll = useCallback(() => {
 
     setCurrentMentionIndex((prev) => prev + 1);
   }, [
-    messages,
-    lastReadTimestamp,
-    currentUserId,
-    isMessageMentioningMe,
+    unreadMentionsForChannel,
     currentMentionIndex,
   ]);
+
+  const markUnreadMentionsAsRead = useCallback(async () => {
+    if (unreadMentionsForChannel.length === 0) return;
+
+    await Promise.all(
+      unreadMentionsForChannel.map((notification) =>
+        markMentionAsRead(notification.id)
+      )
+    );
+  }, [markMentionAsRead, unreadMentionsForChannel]);
 
   useImperativeHandle(
     ref,

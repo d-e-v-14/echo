@@ -33,6 +33,16 @@ let socketInitPromise: Promise<void> | null = null;
 let initialUnreadPromise: Promise<void> | null = null;
 let permissionRequested = false;
 
+const fetchUnreadCountFromServer = async () => {
+  const user = await getUser();
+  if (!user?.id) return;
+
+  const response = await apiClient.get(`/api/mentions?userId=${user.id}&unreadOnly=true`);
+  const data = response.data;
+  const unreadCount = Array.isArray(data) ? data.length : 0;
+  setSharedUnreadCount(unreadCount);
+};
+
 const notifySubscribers = () => {
   subscribers.forEach((listener) => listener(sharedState));
 };
@@ -68,6 +78,7 @@ const ensureSocket = async () => {
     sharedSocket.on('mention_notification', (notification: MentionNotification) => {
       setSharedNotifications((prev) => [notification, ...prev.slice(0, 49)]);
       setSharedUnreadCount((prev) => prev + 1);
+      void fetchUnreadCountFromServer();
 
       if ('Notification' in window && Notification.permission === 'granted') {
         new Notification(`${notification.senderUsername} mentioned you`, {
@@ -83,6 +94,7 @@ const ensureSocket = async () => {
         prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n))
       );
       setSharedUnreadCount((prev) => Math.max(0, prev - 1));
+      void fetchUnreadCountFromServer();
     });
   })();
 
@@ -160,6 +172,7 @@ export function useNotifications() {
         prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n))
       );
       setSharedUnreadCount((prev) => Math.max(0, prev - 1));
+      await fetchUnreadCountFromServer();
     } catch (error) {
       console.error('Failed to mark notification as read:', error);
     }
@@ -182,6 +195,8 @@ export function useNotifications() {
           socket.emit('mention_read', id);
         });
       }
+
+      await fetchUnreadCountFromServer();
     } catch (error) {
       console.error('Failed to mark all as read:', error);
     }

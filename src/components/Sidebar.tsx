@@ -199,6 +199,7 @@ export default function Sidebar() {
             {navItems.map((item) => {
               const isActive = pathname === item.path;
               let notificationCount = 0;
+              const showDotOnly = item.label === "Notifications";
               if (item.label === "Notifications") {
                 notificationCount = unreadCount;
               } else if (item.label === "Messages") {
@@ -223,7 +224,9 @@ export default function Sidebar() {
                     <div className="relative">
                       <item.icon className="w-5 h-5" />
                       {/* Show notification badge with animation */}
-                      {notificationCount > 0 && (
+                      {notificationCount > 0 && showDotOnly ? (
+                        <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[#111214] animate-pulse" />
+                      ) : notificationCount > 0 && (
                         <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1 font-bold animate-pulse">
                           {notificationCount > 99 ? "99+" : notificationCount}
                         </span>
@@ -236,7 +239,7 @@ export default function Sidebar() {
                   {collapsed && (
                     <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-20 px-3 py-1 text-sm text-white bg-black rounded shadow-lg opacity-0 group-hover:opacity-100 transition">
                       {item.label}
-                      {notificationCount > 0 && ` (${notificationCount})`}
+                      {notificationCount > 0 && !showDotOnly && ` (${notificationCount})`}
                     </div>
                   )}
                 </div>
