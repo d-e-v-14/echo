@@ -448,7 +448,7 @@ export default function FriendsPage() {
                       <div className="truncate text-xs text-white/50">
                         {f.fullname}
                       </div>
-                      <div className="mt-2 flex items-center gap-2">
+                      {/* <div className="mt-2 flex items-center gap-2">
                         <span
                           className={`h-2 w-2 rounded-full ${
                             f.status === "online"
@@ -459,7 +459,7 @@ export default function FriendsPage() {
                         <span className="text-xs text-white/50 capitalize">
                           {f.status}
                         </span>
-                      </div>
+                      </div> */}
                     </div>
                     <button
                       onClick={() => handleSendDM(f.id, f.username)}
