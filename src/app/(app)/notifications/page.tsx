@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
 import { usePageReady } from "@/components/RouteChangeLoader";
-import { Bell, CheckCheck, Check } from 'lucide-react';
+import { Bell, CheckCheck, Check, Loader2 } from 'lucide-react';
 import { getUser } from '@/api';
 import { useNotifications } from '../../../hooks/useNotifications';
 import { apiClient } from '@/utils/apiClient';
@@ -39,6 +39,7 @@ export default function NotificationsPage() {
   const pageReady = usePageReady();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const { notifications: realtimeNotifications, unreadCount: realtimeUnreadCount, markAsRead, markAllAsRead } = useNotifications();
   const lastRealtimeNotificationCountRef = useRef(0);
@@ -59,9 +60,15 @@ export default function NotificationsPage() {
     lastRealtimeNotificationCountRef.current = realtimeNotifications.length;
   }, [realtimeNotifications.length]);
 
-  const loadNotifications = async () => {
+  const loadNotifications = async (options?: { showFullLoader?: boolean }) => {
+    const showFullLoader = options?.showFullLoader ?? true;
+
     try {
-      setLoading(true);
+      if (showFullLoader) {
+        setLoading(true);
+      } else {
+        setRefreshing(true);
+      }
 
       
     
@@ -83,7 +90,11 @@ export default function NotificationsPage() {
 
       setNotifications([]);
     } finally {
-      setLoading(false);
+      if (showFullLoader) {
+        setLoading(false);
+      } else {
+        setRefreshing(false);
+      }
       pageReady();
     }
   };
@@ -227,14 +238,29 @@ export default function NotificationsPage() {
 
             {/* Refresh */}
             <button
-              onClick={loadNotifications}
-              className="bg-[#4f545c] hover:bg-[#5f656c] text-white px-3 md:px-4 py-2 rounded-lg transition-colors text-xs md:text-sm"
+              onClick={() => loadNotifications({ showFullLoader: false })}
+              disabled={refreshing || loading}
+              className={`text-white px-3 md:px-4 py-2 rounded-lg transition-colors text-xs md:text-sm inline-flex items-center gap-2 ${
+                refreshing || loading
+                  ? "bg-[#5f656c] cursor-not-allowed opacity-80"
+                  : "bg-[#4f545c] hover:bg-[#5f656c]"
+              }`}
             >
+              {(refreshing || loading) && <Loader2 size={14} className="animate-spin" />}
               <span className="hidden sm:inline">Refresh</span>
               <span className="sm:hidden">↻</span>
             </button>
           </div>
         </div>
+
+        {refreshing && (
+          <div className="px-6 py-2 border-b border-[#2f3136] bg-[#111214]">
+            <div className="flex items-center gap-2 text-sm text-gray-300">
+              <Loader2 size={14} className="animate-spin" />
+              <span>Refreshing notifications...</span>
+            </div>
+          </div>
+        )}
 
         {/* Notifications List */}
         {loading ? (
