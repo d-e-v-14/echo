@@ -1150,7 +1150,7 @@ const showVoiceUI =
           isActive && viewMode === "voice"
             ? "bg-[#2f3136] text-white"
             : "text-gray-400 hover:bg-[#2f3136] hover:text-white"
-        } ${isActive ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+        } group/channel ${isActive ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
         onClick={() => {
           if (isActive) return;
           handleJoinVoiceChannel(channel);
@@ -1170,6 +1170,25 @@ const showVoiceUI =
             />
           )}
         </span>
+        <button
+          type="button"
+          title="Channel Settings"
+          aria-label={`Settings for ${channel.name}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            setChannelSettings({
+              channel,
+              name: channel.name,
+            });
+          }}
+          className={`ml-2 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded text-gray-400 transition hover:bg-[#1e1f22] hover:text-white focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+            isActive && viewMode === "voice"
+              ? "opacity-100"
+              : "opacity-0 group-hover/channel:opacity-100"
+          }`}
+        >
+          <FaCog className="h-3.5 w-3.5" />
+        </button>
       </div>
       {isActive && (
                         <div className="ml-6 space-y-1">
