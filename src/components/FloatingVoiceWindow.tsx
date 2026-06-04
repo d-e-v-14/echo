@@ -286,7 +286,7 @@ useEffect(() => {
           </div>
         </div>
       </div>
-    </Draggable>
+    </DragWrapper>
   );
 };
 
