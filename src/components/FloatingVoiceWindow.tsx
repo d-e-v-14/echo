@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useRef, useEffect, useState, useMemo } from "react";
-import Draggable, { DraggableData, DraggableEvent } from "react-draggable";
+import Draggable from "react-draggable";
+import type { DraggableData, DraggableEvent } from "react-draggable";
 import { usePathname, useRouter } from "next/navigation";
 import { useVoiceCall } from "@/contexts/VoiceCallContext";
 import {
@@ -59,6 +60,7 @@ const FloatingVoiceWindow: React.FC<FloatingVoiceWindowProps> = ({
   const [viewedServerId, setViewedServerId] = useState<string | null>(null);
   const [currentViewMode, setCurrentViewMode] = useState<string | null>(null);
   const [isVisible, setIsVisible] = useState(true);
+  const DragWrapper: any = Draggable;
 
   /* ---------------- position ---------------- */
 
@@ -170,13 +172,13 @@ useEffect(() => {
   /* ---------------- render ---------------- */
 
   return (
-    <Draggable
-      nodeRef={nodeRef}
-      defaultPosition={position}
-      onStop={handleDragStop}
-      bounds="parent"
-      handle=".drag-handle"
-    >
+<DragWrapper
+    nodeRef={nodeRef}
+    defaultPosition={position}
+    onStop={handleDragStop}
+    bounds="parent"
+    handle=".drag-handle"
+  >
       <div
         ref={nodeRef}
         className="fixed bottom-6 right-6 z-50 select-none"
