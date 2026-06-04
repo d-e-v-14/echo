@@ -41,6 +41,40 @@ export const createChannel = async (serverId: string, data: ChannelData) => {
   return response.data;
 };
 
+export const updateChannel = async (
+  serverId: string,
+  channelId: string,
+  data: Partial<ChannelData>
+) => {
+  if (!serverId) throw new Error("Missing server ID");
+  if (!channelId) throw new Error("Missing channel ID");
+
+  const response = await api.put(
+    `/api/channel/${serverId}/channels/${channelId}`,
+    data,
+    {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  return response.data;
+};
+
+export const deleteChannel = async (serverId: string, channelId: string) => {
+  if (!serverId) throw new Error("Missing server ID");
+  if (!channelId) throw new Error("Missing channel ID");
+  console.log("server: ",serverId);
+  console.log("channelId: ",channelId);
+
+  const response = await api.delete(
+    `/api/channel/${serverId}/channels/${channelId}`
+  );
+
+  return response.data;
+};
+
 export const fetchChannelsByServer = async (serverId: string): Promise<any> => {
   try {
     const response = await apiClient.get(`/api/channel/${serverId}/channels-with-access`);

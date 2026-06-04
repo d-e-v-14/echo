@@ -2,9 +2,17 @@
 
 export const dynamic = 'force-dynamic';
 
-import React, { useState, useEffect, Suspense, useRef, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  Suspense,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
 import { useRouter } from "next/navigation";
 import { usePageReady } from "@/components/RouteChangeLoader";
+import FocusLock from "react-focus-lock";
 import {
   FaHashtag,
   FaCog,
@@ -16,9 +24,16 @@ import {
   FaPlusCircle,
   FaAngleLeft,
   FaAngleRight,
+  FaTrash,
+  FaTimes,
 } from "react-icons/fa";
 import VoiceChannel from "@/components/EnhancedVoiceChannel";
-import { fetchServers, fetchChannelsByServer } from "@/api";
+import {
+  fetchServers,
+  fetchChannelsByServer,
+  updateChannel,
+  deleteChannel,
+} from "@/api";
 import {
   getSelfAssignableRoles,
   getMyRoles,
@@ -84,6 +99,12 @@ const ServersPageContent: React.FC = () => {
     message: string;
     type: "info" | "success" | "error";
   } | null>(null);
+  const [channelSettings, setChannelSettings] = useState<{
+    channel: Channel;
+    name: string;
+  } | null>(null);
+  const [isSavingChannel, setIsSavingChannel] = useState(false);
+  const [isDeletingChannel, setIsDeletingChannel] = useState(false);
 
 
   // Store viewMode in localStorage for FloatingVoiceWindow to read
@@ -272,50 +293,53 @@ const showVoiceUI =
     };
   }, [selectedServerId, activeCall, servers]);
 
+  const loadChannelsForServer = useCallback(async (serverId: string) => {
+    const { data: controls } = await supabase
+      .from("admin_controls")
+      .select("voice_enabled")
+      .single();
+
+    const isVoiceEnabled = controls?.voice_enabled ?? true;
+    setVoiceEnabled(isVoiceEnabled);
+
+    const data: Channel[] = await fetchChannelsByServer(serverId);
+
+    const normalized = (data || []).map((c) => ({
+      ...c,
+      type: (c.type || "").toLowerCase(),
+    }));
+
+    const filteredChannels = isVoiceEnabled
+      ? normalized
+      : normalized.filter((c) => c.type === "text");
+
+    setChannels(filteredChannels);
+
+    const firstTextChannel = filteredChannels.find((c) => c.type === "text");
+    setActiveChannel((prev) => {
+      if (prev && filteredChannels.some((c) => c.id === prev.id)) {
+        return prev;
+      }
+      return firstTextChannel || null;
+    });
+
+    return filteredChannels;
+  }, []);
+
   useEffect(() => {
     if (!selectedServerId) return;
     const loadChannels = async () => {
       try {
-        const { data: controls } = await supabase
-          .from("admin_controls")
-          .select("voice_enabled")
-          .single();
-
-        const isVoiceEnabled = controls?.voice_enabled ?? true;
-        setVoiceEnabled(isVoiceEnabled);
-
-        const data: Channel[] = await fetchChannelsByServer(selectedServerId);
-
-        const normalized = (data || []).map((c) => ({
-          ...c,
-          type: (c.type || "").toLowerCase(),
-        }));
-
-        const filteredChannels = isVoiceEnabled
-          ? normalized
-          : normalized.filter((c) => c.type === "text");
-
-        setChannels(filteredChannels);
-
-        const firstTextChannel = filteredChannels.find(
-          (c) => c.type === "text"
-        );
-        setActiveChannel((prev) => {
-          if (prev && filteredChannels.some((c) => c.id === prev.id)) {
-            return prev;
-          }
-          return firstTextChannel || null;
-        });
+        await loadChannelsForServer(selectedServerId);
       } catch (err) {
         console.error("Error fetching channels", err);
         setError("Failed to load channels");
         setChannels([]);
         setToast({ message: "Failed to load channels", type: "error" });
       }
-
     };
     loadChannels();
-  }, [selectedServerId, myRoles]);
+  }, [selectedServerId, myRoles, loadChannelsForServer]);
 
   // Load self-assignable roles when server is selected
   useEffect(() => {
@@ -409,6 +433,95 @@ const showVoiceUI =
     }
   };
 
+  const closeChannelSettings = () => {
+    if (isSavingChannel || isDeletingChannel) return;
+    setChannelSettings(null);
+  };
+
+  const handleSaveChannel = async () => {
+    if (!selectedServerId || !channelSettings) return;
+
+    const nextName = channelSettings.name.trim();
+    if (!nextName) {
+      setToast({ message: "Channel name cannot be empty", type: "error" });
+      return;
+    }
+        
+    if (nextName.length > 20) {
+      setToast({
+        message: "Channel name cannot exceed 20 characters",
+        type: "error",
+      });
+      return;
+    }
+
+    setIsSavingChannel(true);
+    try {
+      await updateChannel(selectedServerId, channelSettings.channel.id, {
+        name: nextName,
+      });
+
+      setChannels((prev) =>
+        prev.map((channel) =>
+          channel.id === channelSettings.channel.id
+            ? { ...channel, name: nextName }
+            : channel
+        )
+      );
+      setActiveChannel((prev) =>
+        prev?.id === channelSettings.channel.id
+          ? { ...prev, name: nextName }
+          : prev
+      );
+      setChannelSettings(null);
+      setToast({ message: "Channel updated", type: "success" });
+    } catch (err: any) {
+      console.error("Error updating channel:", err);
+      setToast({
+        message:
+          err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          "Failed to update channel",
+        type: "error",
+      });
+    } finally {
+      setIsSavingChannel(false);
+    }
+  };
+
+  const handleDeleteChannel = async () => {
+    if (!selectedServerId || !channelSettings) return;
+
+    setIsDeletingChannel(true);
+    try {
+      await deleteChannel(selectedServerId, channelSettings.channel.id);
+
+      const remainingChannels = channels.filter(
+        (channel) => channel.id !== channelSettings.channel.id
+      );
+      setChannels(remainingChannels);
+      setActiveChannel((prev) => {
+        if (prev?.id !== channelSettings.channel.id) return prev;
+        return (
+          remainingChannels.find((channel) => channel.type === "text") || null
+        );
+      });
+      setChannelSettings(null);
+      setToast({ message: "Channel deleted", type: "success" });
+    } catch (err: any) {
+      console.error("Error deleting channel:", err);
+      setToast({
+        message:
+          err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          "Failed to delete channel",
+        type: "error",
+      });
+    } finally {
+      setIsDeletingChannel(false);
+    }
+  };
+
   // Build external state for EnhancedVoiceChannel
   const externalState = useMemo(
     () => ({
@@ -435,6 +548,100 @@ const showVoiceUI =
 
   return (
     <>
+      {toast && (
+        <div className="fixed top-6 right-6 z-[9999]">
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            duration={3000}
+            onClose={() => setToast(null)}
+          />
+        </div>
+      )}
+      {channelSettings && (
+        <div
+          className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/70 px-4"
+          onClick={closeChannelSettings}
+        >
+          <FocusLock>
+          <div
+            className="w-full max-w-md rounded-lg border border-gray-800 bg-[#1e1f22] p-5 text-white shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">Channel Settings</h2>
+                <p className="text-xs text-gray-400">
+                  #{channelSettings.channel.name}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeChannelSettings}
+                className="flex h-8 w-8 items-center justify-center rounded text-gray-400 hover:bg-[#2f3136] hover:text-white"
+                aria-label="Close channel settings"
+              >
+                <FaTimes className="h-4 w-4" />
+              </button>
+            </div>
+
+            <label className="block text-xs font-bold uppercase text-gray-400">
+              Channel Name
+            </label>
+            <input
+              value={channelSettings.name}
+              onChange={(event) =>
+                setChannelSettings((prev) =>
+                  prev ? { ...prev, name: event.target.value } : prev
+                )
+              }
+              className="mt-2 w-full rounded-md border border-gray-700 bg-black px-3 py-2 text-sm text-white outline-none transition focus:border-indigo-500"
+              placeholder="channel-name"
+              disabled={isSavingChannel || isDeletingChannel}
+            />
+
+            <div className="mt-6 border-t border-gray-800 pt-4">
+              <div className="mb-3">
+                <h3 className="text-sm font-semibold text-red-300">
+                  Delete Channel
+                </h3>
+                <p className="mt-1 text-xs text-gray-400">
+                  This removes the channel from this server.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleDeleteChannel}
+                disabled={isSavingChannel || isDeletingChannel}
+                className="flex w-full items-center justify-center gap-2 rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <FaTrash className="h-3.5 w-3.5" />
+                {isDeletingChannel ? "Deleting..." : "Delete Channel"}
+              </button>
+            </div>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeChannelSettings}
+                disabled={isSavingChannel || isDeletingChannel}
+                className="rounded-md px-4 py-2 text-sm font-medium text-gray-300 transition hover:bg-[#2f3136] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveChannel}
+                disabled={isSavingChannel || isDeletingChannel}
+                className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSavingChannel ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+          </FocusLock>
+        </div>
+      )}
       <div className="relative flex h-screen z-0 bg-black select-none">
         {/* Server Sidebar */}
         <div className="w-16 p-2 flex flex-col items-center bg-black space-y-3 relative">
@@ -832,7 +1039,7 @@ const showVoiceUI =
                   {textChannels.map((channel) => (
                     <div
                       key={channel.id}
-                      className={`flex items-center justify-between p-2 text-sm rounded-md cursor-pointer transition-all min-w-0 ${
+                      className={`group/channel flex items-center justify-between p-2 text-sm rounded-md cursor-pointer transition-all min-w-0 ${
                         activeChannel?.id === channel.id && viewMode === "chat"
                           ? "bg-[#2f3136] text-white"
                           : "text-gray-400 hover:bg-[#2f3136] hover:text-white"
@@ -858,7 +1065,26 @@ const showVoiceUI =
                           {channel.name}
                         </span>
                       </span>
-                      {activeChannel?.id === channel.id && viewMode === "chat"}
+                      <button
+                        type="button"
+                        title="Channel Settings"
+                        aria-label={`Settings for ${channel.name}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setChannelSettings({
+                            channel,
+                            name: channel.name,
+                          });
+                        }}
+                        className={`ml-2 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded text-gray-400 transition hover:bg-[#1e1f22] hover:text-white focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                          activeChannel?.id === channel.id &&
+                          viewMode === "chat"
+                            ? "opacity-100"
+                            : "opacity-0 group-hover/channel:opacity-100"
+                        }`}
+                      >
+                        <FaCog className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   ))}
                 </div>
