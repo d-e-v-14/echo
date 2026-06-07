@@ -53,11 +53,14 @@ interface Message {
   username?: string;
   file?: string;
   mediaUrl?: string;
+  mediaType?: string;
   replyTo?: {
     id: string | number;
     content: string;
     author: string;
     avatarUrl?: string;
+    mediaUrl?: string | null;
+    mediaType?: string;
   } | null;
   // Optimistic UI fields
   status?: "pending" | "sent" | "failed";
@@ -210,6 +213,13 @@ export default forwardRef(function ChatWindow(
   const handleReply = (message: Message) => {
     console.log("Reply clicked for:", message);
     setReplyingTo(message);
+  };
+
+  const scrollToMessage = (messageId: string | number) => {
+    const el = messageRefs.current[messageId];
+    if (!el) return;
+
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
   };
   const [currentUserRoleIds, setCurrentUserRoleIds] = useState<string[]>([]);
   const messageRefs = useRef<Record<string | number, HTMLDivElement | null>>(
@@ -752,6 +762,11 @@ export default forwardRef(function ChatWindow(
                 author: msg.reply_to_message.users?.username || "Unknown",
                 avatarUrl:
                   msg.reply_to_message.users?.avatar_url || "/User_profil.png",
+                mediaUrl:
+                  msg.reply_to_message.media_url ||
+                  msg.reply_to_message.mediaUrl ||
+                  null,
+                mediaType: msg.reply_to_message.media_type,
               };
             }
 
@@ -770,6 +785,7 @@ export default forwardRef(function ChatWindow(
                     msg.sender_name ||
                     "Unknown",
               mediaUrl: msg.media_url || msg.mediaUrl,
+              mediaType: msg.media_type,
               replyTo,
             };
           })
@@ -1239,6 +1255,11 @@ export default forwardRef(function ChatWindow(
           author: saved.reply_to_message.users?.username || "Unknown",
           avatarUrl:
             saved.reply_to_message.users?.avatar_url || "/User_profil.png",
+          mediaUrl:
+            saved.reply_to_message.media_url ||
+            saved.reply_to_message.mediaUrl ||
+            null,
+          mediaType: saved.reply_to_message.media_type,
         };
       }
 
@@ -1250,6 +1271,7 @@ export default forwardRef(function ChatWindow(
         avatarUrl,
         username: resolvedUsername,
         mediaUrl: saved?.media_url || saved?.mediaUrl,
+        mediaType: saved?.media_type,
         replyTo,
       };
 
@@ -1324,6 +1346,7 @@ export default forwardRef(function ChatWindow(
           avatarUrl,
           username: "You",
           mediaUrl: saved?.media_url || saved?.mediaUrl,
+          mediaType: saved?.media_type,
           replyTo: prev[optimisticIndex].replyTo,
           status: "sent",
         };
@@ -1457,6 +1480,8 @@ export default forwardRef(function ChatWindow(
             content: replyingTo.content,
             author: (replyingTo as any).username || "User",
             avatarUrl: replyingTo.avatarUrl || "/User_profil.png",
+            mediaUrl: replyingTo.mediaUrl || null,
+            mediaType: replyingTo.mediaType,
           }
         : null,
     };
@@ -1712,6 +1737,7 @@ export default forwardRef(function ChatWindow(
                         }
                       )}
                       onReply={() => handleReply(msg)}
+                      onReplyPreviewClick={scrollToMessage}
                       onProfileClick={() => openProfile(msg)}
                       messageRenderer={(content: string) => (
                         <MessageContentWithMentions
@@ -1740,7 +1766,7 @@ export default forwardRef(function ChatWindow(
         )}
       </div>
 
-      <div className="flex-shrink-0 px-6 pb-6">
+      <div className="flex-shrink-0 px-6">
         {permissionError && (
           <div className="mx-6 mb-2 px-4 py-3 bg-red-900/50 border border-red-500 rounded-lg flex items-center gap-3">
             <span className="text-red-400 text-xl">🔒</span>

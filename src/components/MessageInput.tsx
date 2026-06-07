@@ -196,7 +196,7 @@ export default function MessageInput({
       {/* Input Bar */}
       <div
         className="bg-white/10 backdrop-blur-lg border border-white/20 
-                   rounded-2xl flex items-end px-3 py-2 gap-2 text-white"
+                   rounded-2xl flex items-center px-3 py-2 gap-2 text-white"
       >
         {/* Hidden File Input */}
         <input
@@ -238,7 +238,7 @@ export default function MessageInput({
                      text-white caret-white 
                      placeholder-white/60 
                      focus:outline-none 
-                     max-h-32 overflow-y-auto leading-6"
+                     max-h-32 min-h-6 overflow-y-auto py-0 leading-6"
         />
 
         {/* Send */}

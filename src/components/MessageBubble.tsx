@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import type { EmojiClickData } from "emoji-picker-react";
 import { Theme } from "emoji-picker-react";
-import { Smile } from "lucide-react";
+import { Paperclip, Smile } from "lucide-react";
 
 /* -------------------- TYPES -------------------- */
 
@@ -16,6 +16,8 @@ export interface ChatMessage {
     id: string | number;
     content: string;
     author?: string;
+    mediaUrl?: string | null;
+    mediaType?: string;
   } | null;
   status?: "pending" | "sent" | "failed";
 }
@@ -38,6 +40,7 @@ interface MessageBubbleProps {
   timestamp?: string;
   onProfileClick?: () => void;
   onReply?: () => void;
+  onReplyPreviewClick?: (messageId: string | number) => void;
   onRetry?: () => void;
   onReact?: (emoji: string) => void;
   reactions?: MessageReactionSummary[];
@@ -90,6 +93,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   timestamp,
   onProfileClick,
   onReply,
+  onReplyPreviewClick,
   onRetry,
   onReact,
   reactions = [],
@@ -109,6 +113,19 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const reactionPickerRef = useRef<HTMLDivElement>(null);
   const reactionButtonRef = useRef<HTMLButtonElement>(null);
   const quickReactions = ["👍", "❤️", "😂", "😮", "😢", "🙏", "👏"];
+
+  const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
+    if (!mediaUrl) return false;
+
+    const ext = mediaUrl.split("?")[0].split(".").pop()?.toLowerCase() || "";
+    const imageExts = ["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"];
+
+    return (
+      mediaUrl.startsWith("blob:") ||
+      imageExts.includes(ext) ||
+      Boolean(mediaType?.startsWith("image/"))
+    );
+  };
 
   useEffect(() => {
     if (!showReactionPicker) return;
@@ -301,12 +318,41 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
         {/* Reply Preview */}
         {message.replyTo && (
-          <div className="px-3 py-2 text-xs text-[#dbdee1] bg-[#1e1f22] rounded-md border-l-4 border-[#5865f2]">
-            <span className="font-semibold">
+          <button
+            type="button"
+            onClick={() => onReplyPreviewClick?.(message.replyTo!.id)}
+            className={`max-w-full px-3 py-2 text-left text-xs text-[#dbdee1] bg-[#1e1f22] rounded-md border-l-4 border-[#5865f2] transition ${
+              onReplyPreviewClick
+                ? "cursor-pointer hover:bg-[#26282d] hover:border-[#7b83ff]"
+                : "cursor-default"
+            }`}
+          >
+            <span className="block font-semibold">
               {message.replyTo.author || "User"}
             </span>
-            : {message.replyTo.content}
-          </div>
+            <span className="mt-1 flex min-w-0 items-center gap-2">
+              {message.replyTo.mediaUrl &&
+                (isReplyImage(
+                  message.replyTo.mediaUrl,
+                  message.replyTo.mediaType
+                ) ? (
+                  <img
+                    src={message.replyTo.mediaUrl}
+                    alt="Reply attachment"
+                    className="h-9 w-9 flex-shrink-0 rounded object-cover border border-slate-600"
+                    loading="lazy"
+                  />
+                ) : (
+                  <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded border border-slate-600 bg-slate-800 text-slate-300">
+                    <Paperclip className="h-4 w-4" />
+                  </span>
+                ))}
+              <span className="min-w-0 truncate">
+                {message.replyTo.content ||
+                  (message.replyTo.mediaUrl ? "Attachment" : "")}
+              </span>
+            </span>
+          </button>
         )}
 
         {/* Message Bubble */}
