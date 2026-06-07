@@ -367,7 +367,7 @@ export default function MessageInputWithMentions({
   };
 
   return (
-    <div className="relative p-4">
+    <div className="relative pt-6">
       {/* Emoji Picker */}
       {showEmojiPicker && (
         <div ref={emojiPickerRef} className="absolute bottom-20 left-4 z-50">
@@ -506,7 +506,7 @@ export default function MessageInputWithMentions({
       )}
 
       {/* Input Bar */}
-      <div className="flex items-end gap-2 bg-gray-800 rounded-lg p-3">
+      <div className="flex items-center gap-2 bg-gray-800 rounded-lg p-3">
         <textarea
           ref={textInputRef}
           rows={1}
@@ -514,7 +514,7 @@ export default function MessageInputWithMentions({
           onChange={handleTextChange}
           onKeyDown={handleKeyDown}
           placeholder="Type a message…"
-          className="max-h-32 flex-1 resize-none overflow-y-auto bg-transparent leading-6 text-white outline-none placeholder:text-gray-400"
+          className="max-h-32 min-h-6 flex-1 resize-none overflow-y-auto bg-transparent py-0 leading-6 text-white outline-none placeholder:text-gray-400"
         />
 
         <input

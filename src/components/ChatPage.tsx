@@ -58,7 +58,22 @@ interface DirectMessage {
   thread_id?: string;
   media_url?: string | null;
   media_type?: string;
+  replyTo?: {
+    id: string | number;
+    content: string;
+    author?: string;
+    mediaUrl?: string | null;
+    mediaType?: string;
+  } | null;
 }
+
+type DMReplyTarget = {
+  id: string | number;
+  content: string;
+  author?: string;
+  mediaUrl?: string | null;
+  mediaType?: string;
+} | null;
 interface SelectedFile {
   file: File;
   valid: boolean;
@@ -239,7 +254,11 @@ interface ChatWindowProps {
   currentUser: User | null;
   partnerId: string | null;
   allUsers: User[];
-  onSendMessage: (message: string, files: File[]) => void;
+  onSendMessage: (
+    message: string,
+    files: File[],
+    replyTo?: DMReplyTarget
+  ) => void;
   onFileError: (msg: string) => void;
   onOpenProfile: (
     userId: string,
@@ -273,6 +292,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   const { showToast } = useToast();
   const [draft, setDraft] = useState("");
+  const [replyingTo, setReplyingTo] = useState<DMReplyTarget>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   interface SelectedFile {
@@ -282,6 +302,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   }
   const [files, setFiles] = useState<SelectedFile[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const messageRefs = useRef<Record<string | number, HTMLDivElement | null>>(
+    {}
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const draftInputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -372,13 +395,25 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     resizeDraftInput();
   }, [draft]);
 
+  useEffect(() => {
+    setReplyingTo(null);
+  }, [partnerId]);
+
   const canSend = draft.trim().length > 0 || files.some((f) => f.valid);
+  const scrollToMessage = (messageId: string | number) => {
+    const el = messageRefs.current[messageId];
+    if (!el) return;
+
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
   const handleSend = (value: string) => {
     const validFiles = files.filter((f) => f.valid).map((f) => f.file);
     if (value.trim().length === 0 && validFiles.length === 0) return;
-    onSendMessage(value, validFiles);
+    onSendMessage(value, validFiles, replyingTo);
     setDraft("");
     setFiles([]);
+    setReplyingTo(null);
     requestAnimationFrame(() => {
       if (draftInputRef.current) {
         draftInputRef.current.style.height = "auto";
@@ -560,40 +595,59 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 {section.groups.map((group) => (
                   <div key={group.key} className="space-y-2">
                     {group.messages.map((msg, index) => (
-                      <MessageBubble
+                      <div
                         key={msg.id}
-                        isSender={group.isSender}
-                        message={msg}
-                        reactions={getReactionsForMessage(msg.id)}
-                        onReact={(emoji) =>
-                          currentUser?.id &&
-                          toggleReaction(msg.id, emoji, currentUser.id)
-                        }
-                        timestamp={msg.timeLabel}
-                        name={
-                          !group.isSender && index === 0
-                            ? group.name
-                            : undefined
-                        }
-                        avatarUrl={group.avatarUrl}
-                        onProfileClick={
-                          group.isSender
-                            ? undefined
-                            : () =>
-                                onOpenProfile(
-                                  group.senderId,
-                                  group.name,
-                                  group.avatarUrl
-                                )
-                        }
+                        ref={(el) => {
+                          messageRefs.current[msg.id] = el;
+                        }}
                       >
-                        {msg.media_url && (
-                          <MessageAttachment
-                            media_url={msg.media_url}
-                            media_type={msg.media_type}
-                          />
-                        )}
-                      </MessageBubble>
+                        <MessageBubble
+                          isSender={group.isSender}
+                          message={{
+                            ...msg,
+                            replyTo: msg.replyTo || null,
+                          }}
+                          reactions={getReactionsForMessage(msg.id)}
+                          onReact={(emoji) =>
+                            currentUser?.id &&
+                            toggleReaction(msg.id, emoji, currentUser.id)
+                          }
+                          onReply={() =>
+                            setReplyingTo({
+                              id: msg.id,
+                              content: msg.content,
+                              author: group.isSender ? "You" : group.name,
+                              mediaUrl: msg.media_url,
+                              mediaType: msg.media_type,
+                            })
+                          }
+                          onReplyPreviewClick={scrollToMessage}
+                          timestamp={msg.timeLabel}
+                          name={
+                            !group.isSender && index === 0
+                              ? group.name
+                              : undefined
+                          }
+                          avatarUrl={group.avatarUrl}
+                          onProfileClick={
+                            group.isSender
+                              ? undefined
+                              : () =>
+                                  onOpenProfile(
+                                    group.senderId,
+                                    group.name,
+                                    group.avatarUrl
+                                  )
+                          }
+                        >
+                          {msg.media_url && (
+                            <MessageAttachment
+                              media_url={msg.media_url}
+                              media_type={msg.media_type}
+                            />
+                          )}
+                        </MessageBubble>
+                      </div>
                     ))}
                   </div>
                 ))}
@@ -645,7 +699,28 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
         )}
 
-        <div className="flex items-end gap-3 rounded-2xl border border-slate-800/70 bg-slate-950/70 px-4 py-3">
+        {replyingTo && (
+          <div className="mb-2 rounded-lg border-l-4 border-blue-500 bg-slate-800 px-4 py-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0 truncate text-sm text-slate-300">
+                Replying to{" "}
+                <span className="font-semibold">
+                  {replyingTo.author || "User"}
+                </span>
+                : <span className="italic">{replyingTo.content}</span>
+              </div>
+              <button
+                onClick={() => setReplyingTo(null)}
+                className="text-slate-400 transition hover:text-white"
+                aria-label="Cancel reply"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 rounded-2xl border border-slate-800/70 bg-slate-950/70 px-4 py-3">
           <input
             type="file"
             ref={fileInputRef}
@@ -690,7 +765,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               }
             }}
             placeholder={`Message @${recipientFirstName}`}
-            className="max-h-32 flex-1 resize-none overflow-y-auto bg-transparent text-sm leading-6 text-slate-100 outline-none placeholder:text-slate-500"
+            className="max-h-32 min-h-6 flex-1 resize-none overflow-y-auto bg-transparent py-0 text-sm leading-6 text-slate-100 outline-none placeholder:text-slate-500"
           />
           {showEmojiPicker && (
             <div
@@ -809,6 +884,9 @@ function MessagesPageContentInner() {
         );
 
         const rawMediaUrl = incoming.media_url ?? incoming.mediaUrl ?? null;
+        const replySource =
+          incoming.reply_to_message ?? incoming.replyTo ?? incoming.reply_to;
+
         const incomingMsg: DirectMessage = {
           id: String(
             incoming.id ??
@@ -822,6 +900,23 @@ function MessagesPageContentInner() {
           timestamp: String(incoming.timestamp ?? new Date().toISOString()),
           media_url: rawMediaUrl?.startsWith("blob:") ? null : rawMediaUrl,
           media_type: incoming.media_type,
+          replyTo:
+            replySource && typeof replySource === "object"
+              ? {
+                  id: String(replySource.id ?? replySource.message_id ?? ""),
+                  content: String(
+                    replySource.content ?? replySource.message ?? ""
+                  ),
+                  author:
+                    replySource.users?.username ??
+                    replySource.user?.username ??
+                    replySource.author ??
+                    "User",
+                  mediaUrl:
+                    replySource.media_url ?? replySource.mediaUrl ?? null,
+                  mediaType: replySource.media_type,
+                }
+              : null,
         };
 
         const selfId = currentUser?.id;
@@ -1004,6 +1099,21 @@ function MessagesPageContentInner() {
                     thread_id: m.thread_id,
                     media_url: m.media_url ?? m.mediaUrl ?? null,
                     media_type: m.media_type,
+                    replyTo: m.reply_to_message
+                      ? {
+                          id: String(m.reply_to_message.id),
+                          content: String(m.reply_to_message.content ?? ""),
+                          author:
+                            m.reply_to_message.users?.username ??
+                            m.reply_to_message.user?.username ??
+                            "User",
+                          mediaUrl:
+                            m.reply_to_message.media_url ??
+                            m.reply_to_message.mediaUrl ??
+                            null,
+                          mediaType: m.reply_to_message.media_type,
+                        }
+                      : null,
                   }))
                   .sort(
                     (a: DirectMessage, b: DirectMessage) =>
@@ -1029,6 +1139,21 @@ function MessagesPageContentInner() {
                     thread_id: m.thread_id,
                     media_url: m.media_url ?? m.mediaUrl ?? null,
                     media_type: m.media_type,
+                    replyTo: m.reply_to_message
+                      ? {
+                          id: String(m.reply_to_message.id),
+                          content: String(m.reply_to_message.content ?? ""),
+                          author:
+                            m.reply_to_message.users?.username ??
+                            m.reply_to_message.user?.username ??
+                            "User",
+                          mediaUrl:
+                            m.reply_to_message.media_url ??
+                            m.reply_to_message.mediaUrl ??
+                            null,
+                          mediaType: m.reply_to_message.media_type,
+                        }
+                      : null,
                   }))
                   .sort(
                     (a: DirectMessage, b: DirectMessage) =>
@@ -1139,7 +1264,11 @@ function MessagesPageContentInner() {
   }, [selectedDM, currentUser?.id, allUsers.length]); // Use allUsers.length instead of allUsers
   // Empty dependency array is okay here due to the functional updates.
   // Effect for handling incoming socket events
-  const handleSendMessage = async (content: string, files: File[]) => {
+  const handleSendMessage = async (
+    content: string,
+    files: File[],
+    replyTo?: DMReplyTarget
+  ) => {
     if (!currentUser || !activeDmId) return;
     if (!content.trim() && files.length === 0) return;
 
@@ -1154,6 +1283,7 @@ function MessagesPageContentInner() {
         tempId: `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         optimisticContent: contentForFile,
         blobUrl,
+        replyTo: index === 0 ? replyTo : null,
       };
     });
     setMessages((prev) => {
@@ -1170,6 +1300,7 @@ function MessagesPageContentInner() {
           timestamp: new Date().toISOString(),
           media_url: upload.blobUrl,
           media_type: upload.file?.type ?? undefined,
+          replyTo: upload.replyTo,
         });
       });
 
@@ -1184,6 +1315,7 @@ function MessagesPageContentInner() {
           receiver_id: activeDmId,
           message: upload.content,
           mediaurl: upload.file ?? undefined,
+          reply_to: upload.replyTo?.id,
         };
 
         const saved = await uploaddm(dmPayload);
@@ -1207,6 +1339,21 @@ function MessagesPageContentInner() {
                 media_type: saved.media_type ?? next[idx].media_type,
                 content: saved.content ?? saved.message ?? next[idx].content,
                 timestamp: String(saved.timestamp ?? next[idx].timestamp),
+                replyTo: saved.reply_to_message
+                  ? {
+                      id: String(saved.reply_to_message.id),
+                      content: String(saved.reply_to_message.content ?? ""),
+                      author:
+                        saved.reply_to_message.users?.username ??
+                        saved.reply_to_message.user?.username ??
+                        "User",
+                      mediaUrl:
+                        saved.reply_to_message.media_url ??
+                        saved.reply_to_message.mediaUrl ??
+                        null,
+                      mediaType: saved.reply_to_message.media_type,
+                    }
+                  : next[idx].replyTo,
               } as DirectMessage;
               newMap.set(activeDmId, next);
             }

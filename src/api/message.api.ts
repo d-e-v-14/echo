@@ -77,6 +77,7 @@ export const uploaddm = async (payload: {
   message?: string;
   sender_id?: string;
   receiver_id: string;
+  reply_to?: string | number;
 }) => {
   try {
     const formData = new FormData();
@@ -89,6 +90,10 @@ export const uploaddm = async (payload: {
 
     if (payload.message?.trim()) {
       formData.append("content", payload.message);
+    }
+
+    if (payload.reply_to !== undefined && payload.reply_to !== null) {
+      formData.append("reply_to", String(payload.reply_to));
     }
 
     if (payload.mediaurl) {
