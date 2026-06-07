@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { VoiceVideoManager } from "@/lib/VoiceVideoManager";
-import { callStateManager } from "@/lib/CallStateManager";
+
 import {
   FaMicrophone,
   FaMicrophoneSlash,
@@ -247,21 +247,7 @@ const VoiceChannel = ({
 
   // Handle minimize - keeps call active in background
   const handleMinimize = () => {
-    if (managerRef.current && serverId && channelName) {
-      // Register the manager with CallStateManager so it persists
-      callStateManager.setManager(managerRef.current);
-      callStateManager.startCall(
-        channelId,
-        serverId,
-        channelName,
-        isCameraOn ? "video" : "voice"
-      );
-      callStateManager.minimizeCall();
-      onMinimize?.();
-    } else if (onMinimize) {
-      // Fallback if serverId/channelName not provided
-      onMinimize();
-    }
+    onMinimize?.();
   };
 
   // Initialize manager

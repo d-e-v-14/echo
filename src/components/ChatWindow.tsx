@@ -1613,48 +1613,21 @@ export default forwardRef(function ChatWindow(
     }
   };
   return (
-    <div className="flex flex-col flex-1 h-full w-full overflow-hidden">
-      {toast && (
-        <div className="fixed top-6 right-6 z-[9999]">
-          <Toast
-            key={toast.key}
-            message={toast.message}
-            type={toast.type}
-            duration={4000}
-            onClose={() => setToast(null)}
-          />
-        </div>
-      )}
-      {(localStream || (remoteStreams && remoteStreams.length > 0)) && (
-        <div className="p-4 pb-0 h-96 flex-shrink-0">
-          <div className="relative w-full h-full">
-            <VideoPanel
-              localStream={localStream || undefined}
-              remotes={remoteStreams}
-            />
-            <div className="absolute bottom-3 right-3 flex gap-2 z-10">
-              <button
-                onClick={() => setMicOn((v) => !v)}
-                className={`px-3 py-1 rounded-md text-sm ${
-                  micOn ? "bg-green-600/80" : "bg-red-600/80"
-                }`}
-                title={micOn ? "Mute mic" : "Unmute mic"}
-              >
-                {micOn ? "Mic On" : "Mic Off"}
-              </button>
-              <button
-                onClick={() => setCamOn((v) => !v)}
-                className={`px-3 py-1 rounded-md text-sm ${
-                  camOn ? "bg-green-600/80" : "bg-red-600/80"
-                }`}
-                title={camOn ? "Turn camera off" : "Turn camera on"}
-              >
-                {camOn ? "Cam On" : "Cam Off"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+  <div className="flex flex-col flex-1 h-full w-full overflow-hidden">
+    {toast && (
+      <div className="fixed top-6 right-6 z-[9999]">
+        <Toast
+          key={toast.key}
+          message={toast.message}
+          type={toast.type}
+          duration={4000}
+          onClose={() => setToast(null)}
+        />
+      </div>
+    )}
+
+    {/* ✅ Always mounted, hidden via CSS when no streams */}
+   
       <div
         ref={messagesContainerRef}
         onScroll={handleScroll}
