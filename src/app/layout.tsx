@@ -5,6 +5,7 @@ import { MobileBlocker } from "@/components/MobileBlocker";
 import { TokenRefreshProvider } from "@/components/TokenRefreshProvider";
 import { ToastProvider } from "@/contexts/ToastContext";
 
+
 export const metadata: Metadata = {
   title: {
     default: "Echo",
@@ -54,7 +55,7 @@ export default function RootLayout({
         <TokenRefreshProvider>
           <MobileBlocker>
             <ToastProvider>{children}</ToastProvider>
-            <MinimizedCallBar />
+            {/* MinimizedCallBar returns null now, keep for safety or just remove */}
           </MobileBlocker>
         </TokenRefreshProvider>
       </body>

@@ -421,10 +421,10 @@ const ServersPageContent: React.FC = () => {
   );
 
   // Handle hang up
-  const handleHangUp = () => {
-    leaveCall();
-    setViewMode("chat"); // Switch back to chat view after hanging up
-  };
+ const handleHangUp = () => {
+   leaveCall();
+   setViewMode("chat");
+ };
 
   const handleJoinVoiceChannel = async (channel: Channel) => {
     if (!selectedServerId) return;
@@ -1278,29 +1278,69 @@ const ServersPageContent: React.FC = () => {
               </button>
 
               {/* Show voice UI when in voice view mode AND connected to this server's voice channel */}
-              {showVoiceUI ? (
-                // Voice layout: main VoiceChannel area + right-side member list (Discord-like)
-                <div className="flex-1 w-full h-full">
-                  <div className="flex h-full">
-                    {/* Main voice area */}
-                    <div className="flex-1 p-4">
-                      <VoiceChannel
-                        channelId={activeCall.channelId}
-                        userId={user.id}
-                        onHangUp={handleHangUp}
-                        debug={process.env.NODE_ENV === "development"}
-                        currentUser={{ username: user.username }}
-                        // Pass external manager from context
-                        externalManager={manager}
-                        externalState={externalState}
-                        useExternalManager={true}
-                      />
+              <>
+                {/* Voice UI — always mounted when call is active, hidden when in chat mode */}
+                <div
+                  className={`flex-1 w-full h-full ${
+                    showVoiceUI ? "flex" : "hidden"
+                  }`}
+                >
+                  {isVoiceActiveForCurrentServer && activeCall && (
+                    <div className="flex h-full w-full">
+                      <div className="flex-1 p-4">
+                        <VoiceChannel
+                          channelId={activeCall.channelId}
+                          userId={user.id}
+                          onHangUp={handleHangUp}
+                          debug={process.env.NODE_ENV === "development"}
+                          currentUser={{ username: user.username }}
+                          externalManager={manager}
+                          externalState={externalState}
+                          useExternalManager={true}
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Inside your main content area, after the chat/voice divs */}
+                  {activeCall && viewMode === "chat" && (
+                    <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-[#1a1b1e] border-t border-gray-800">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-yellow-500 animate-pulse"}`}
+                        />
+                        <span className="text-sm text-gray-300">
+                          Voice connected:{" "}
+                          <span className="text-white font-medium">
+                            {activeCall.channelName}
+                          </span>
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setViewMode("voice")}
+                          className="px-3 py-1 text-xs rounded bg-gray-700 hover:bg-gray-600 text-white"
+                        >
+                          Open
+                        </button>
+                        <button
+                          onClick={handleHangUp}
+                          className="px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500 text-white"
+                        >
+                          Hang up
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ) : activeChannel ? (
-                <>
-                  <div className="flex-1 overflow-y-auto px-6 pb-6 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900 rounded-lg">
+
+                {/* Chat UI — always mounted when channel is active, hidden when in voice mode */}
+                <div
+                  className={`flex-1 overflow-y-auto px-6 pb-6 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900 rounded-lg ${
+                    !showVoiceUI && activeChannel ? "flex flex-col" : "hidden"
+                  }`}
+                >
+                  {activeChannel && (
                     <Chatwindow
                       ref={chatWindowRef}
                       channelId={activeChannel.id}
@@ -1310,13 +1350,16 @@ const ServersPageContent: React.FC = () => {
                       remoteStreams={[]}
                       serverId={selectedServerId ?? undefined}
                     />
-                  </div>
-                </>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full">
-                  <h2 className="text-2xl text-gray-400"></h2>
+                  )}
                 </div>
-              )}
+
+                {/* Empty state */}
+                {!showVoiceUI && !activeChannel && (
+                  <div className="flex flex-col items-center justify-center h-full">
+                    <h2 className="text-2xl text-gray-400"></h2>
+                  </div>
+                )}
+              </>
             </div>
           </>
         )}
