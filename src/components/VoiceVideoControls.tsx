@@ -174,6 +174,7 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
       } else {
         await manager.startScreenShare();
       }
+      setMediaState(manager.getMediaState());
     } catch (e: any) {
       // Only show error for non-cancellation errors
       // NotAllowedError (user cancelled) is handled silently in VoiceVideoManager

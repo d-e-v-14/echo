@@ -54,6 +54,8 @@ interface ExternalVoiceState {
   participants: VoiceRosterMember[];
   localMediaState: ManagerMediaState;
   localVideoTileId: number | null;
+  localScreenTileId: number | null;
+  localScreenStream?: MediaStream | null;
   videoTiles: Map<number, VideoTileInfo>;
   isConnected: boolean;
   isConnecting?: boolean;
@@ -156,6 +158,9 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
     new Map()
   );
   const [localVideoTileId, setLocalVideoTileId] = useState<number | null>(null);
+  const [localScreenTileId, setLocalScreenTileId] = useState<number | null>(
+    null
+  );
 
   // Refs
   const managerRef = useRef<VoiceVideoManager | null>(null);
@@ -589,17 +594,25 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
             return newMap;
           });
 
-          // Track local video tile ID
+          // Track local tile IDs (camera + screen share)
           if (tile.isLocal) {
-            setLocalVideoTileId(tile.tileId);
+            if (tile.isContent) {
+              setLocalScreenTileId(tile.tileId);
+            } else {
+              setLocalVideoTileId(tile.tileId);
+            }
           }
 
-          // Update participants with tile info (for remote participants only)
+          // Update participants with tile info
           // IMPORTANT: Don't wait for tile.active - assign tileId immediately so UI can bind
           // The tile may not be "active" yet but we need the tileId for binding
           // Screen share tiles (isContent=true) have attendeeId like "abc123#content-share"
           // We need to extract the base attendeeId for matching
-          if (tile.attendeeId && !tile.isLocal) {
+          if (tile.attendeeId) {
+            if (tile.isLocal) {
+              // Local user screen share is rendered via localScreenTileId in EnhancedVideoPanel
+              return;
+            }
             // For content share tiles, the attendeeId is "baseId#content-share"
             // Extract the base ID for participant matching
             const baseAttendeeId = tile.isContent
@@ -720,8 +733,9 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
             return newMap;
           });
 
-          // Clear local tile ID if it was the local tile
+          // Clear local tile IDs if removed
           setLocalVideoTileId((prev) => (prev === tileId ? null : prev));
+          setLocalScreenTileId((prev) => (prev === tileId ? null : prev));
         }
       });
     };
@@ -807,22 +821,24 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
     };
   }, [channelId, onLocalStreamChange, hasAnyPermissions, useExternalManager]);
 
-  // Update local media state periodically
+  // Update local media state + screen capture stream periodically
   useEffect(() => {
-    // Skip periodic update if using external manager (state comes from context)
-    if (useExternalManager) return;
-
     const manager = managerRef.current;
     if (!manager) return;
 
-    const interval = setInterval(() => {
-      setLocalMediaState(manager.getMediaState());
-      setLocalStream(manager.getLocalStream());
+    const syncLocalMedia = () => {
+      if (!useExternalManager) {
+        setLocalMediaState(manager.getMediaState());
+        setLocalStream(manager.getLocalStream());
+      }
       setLocalScreenStream(manager.getLocalScreenStream());
-    }, 1000);
+    };
+
+    syncLocalMedia();
+    const interval = setInterval(syncLocalMedia, 200);
 
     return () => clearInterval(interval);
-  }, [useExternalManager]);
+  }, [useExternalManager, externalManager]);
 
   // Sync state from externalState when using external manager
   useEffect(() => {
@@ -897,7 +913,8 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
             muted: !!member.muted,
             speaking: !!member.speaking,
             video: !!member.video,
-            screenSharing: !!member.screenSharing,
+            screenSharing:
+              !!member.screenSharing || screenTileId !== undefined,
           },
         };
       }
@@ -906,6 +923,12 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
     setParticipants(mappedParticipants);
     setVideoTiles(externalState.videoTiles);
     setLocalVideoTileId(externalState.localVideoTileId);
+    setLocalScreenTileId(externalState.localScreenTileId);
+    if (externalState.localScreenStream !== undefined) {
+      setLocalScreenStream(externalState.localScreenStream);
+    } else {
+      setLocalScreenStream(managerRef.current?.getLocalScreenStream() ?? null);
+    }
     setIsConnected(externalState.isConnected);
     setIsVoiceChannelConnected(externalState.isConnected);
     setConnectionStatus(
@@ -1193,6 +1216,8 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
           manager={managerRef.current}
           participants={panelParticipants}
           localVideoTileId={localVideoTileId}
+          localScreenTileId={localScreenTileId}
+          localScreenStream={localScreenStream}
           localMediaState={localMediaState}
           currentUser={currentUser}
           collapsed={false}
