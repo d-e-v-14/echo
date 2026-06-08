@@ -96,12 +96,12 @@ const VideoPlayer = ({
     }
   }, [stream, tileId]);
 
-  useEffect(() => {
-    if (voiceState) {
-      setHasVideo(voiceState.video);
-    }
-  }, [voiceState]);
-
+useEffect(() => {
+  if (tileId !== undefined && tileId !== null) return; 
+  if (voiceState) {
+    setHasVideo(voiceState.video);
+  }
+}, [voiceState, tileId]);
   return (
     <div className="bg-gray-800 rounded-lg overflow-hidden relative aspect-video">
       {hasVideo || tileId ? (
@@ -562,7 +562,7 @@ Find this site (${window.location.origin}) and set permissions to "Allow"`;
     );
   }
 
-  // Show loading state while initializing
+
   if (isInitializing) {
     return (
       <div className="p-6 bg-gray-900 rounded-lg flex flex-col items-center justify-center h-full">
@@ -585,174 +585,106 @@ Find this site (${window.location.origin}) and set permissions to "Allow"`;
     return currentUser?.username || currentUser?.fullname || "You";
   };
 
-  return (
-    <div className="p-2 bg-gray-900 rounded-lg flex flex-col h-full">
-      {/* Connection Status Bar */}
-      {connectionError && (
-        <div className="mb-2 p-2 bg-red-600 rounded text-center text-white text-sm">
-          {connectionError} - Click the reconnect button below
-        </div>
-      )}
-      {(!isConnected || !isVoiceChannelConnected) &&
-        !connectionError &&
-        hasPermissions && (
-          <div className="mb-2 p-2 bg-yellow-600 rounded text-center text-white text-sm">
-            {!isConnected
-              ? "Reconnecting to server..."
-              : "Connecting to voice channel..."}
-          </div>
-        )}
+return (
+  <div className="p-2 bg-gray-900 rounded-lg flex flex-col h-full">
+    {connectionError && (
+      <div className="mb-2 p-2 bg-red-600 rounded text-center text-white text-sm">
+        {connectionError}
+      </div>
+    )}
+    {(!isConnected || !isVoiceChannelConnected) && !connectionError && hasPermissions && (
+      <div className="mb-2 p-2 bg-yellow-600 rounded text-center text-white text-sm">
+        {!isConnected ? "Reconnecting to server..." : "Connecting to voice channel..."}
+      </div>
+    )}
 
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto">
-        {/* Local Stream */}
-        <VideoPlayer
-          stream={localStream}
-          isMuted={true}
-          isLocal={true}
-          username={getCurrentUsername()}
-          voiceState={getCurrentUserVoiceState()}
-          manager={managerRef.current}
-          tileId={managerRef.current?.getLocalVideoTileId()}
-        />
+    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto">
 
-        {/* Remote Streams */}
-        {Array.from(remoteStreams.entries()).map(([odattendeeId, stream]) => {
-          const member = voiceMembers.find(
-            (m) => m.odattendeeId === odattendeeId
-          );
-          const voiceState = voiceStates.get(odattendeeId);
+      <VideoPlayer
+        stream={localStream}
+        isMuted={true}
+        isLocal={true}
+        username={getCurrentUsername()}
+        voiceState={getCurrentUserVoiceState()}
+        manager={managerRef.current}
+        tileId={managerRef.current?.getLocalVideoTileId()}
+      />
+
+
+      {voiceMembers
+        .filter((member) => member.oduserId !== userId) 
+        .map((member) => {
+          const stream = remoteStreams.get(member.odattendeeId);
+          const voiceState = voiceStates.get(member.odattendeeId);
           return (
             <VideoPlayer
-              key={odattendeeId}
+              key={member.odattendeeId}
               stream={stream}
-              username={member?.username || `User ${odattendeeId.slice(0, 8)}`}
-              voiceState={voiceState}
+              username={member.username || `User ${member.odattendeeId.slice(0, 8)}`}
+              voiceState={
+                voiceState || {
+                  muted: member.muted,
+                  speaking: member.speaking,
+                  video: member.video,
+                }
+              }
               manager={managerRef.current}
             />
           );
         })}
+    </div>
 
-        {/* Members without video streams (audio-only) */}
-        {voiceMembers
-          .filter((member) => !remoteStreams.has(member.odattendeeId))
-          .map((member) => {
-            const voiceState = voiceStates.get(member.odattendeeId);
-            return (
-              <VideoPlayer
-                key={member.odattendeeId}
-                username={member.username}
-                voiceState={
-                  voiceState || {
-                    muted: member.muted,
-                    speaking: member.speaking,
-                    video: member.video,
-                  }
-                }
-                manager={managerRef.current}
-              />
-            );
-          })}
-      </div>
+    {/* Control Bar */}
+    <div className="flex items-center justify-center space-x-4 mt-4 p-3 bg-gray-800 rounded-md">
+      <button
+        onClick={handleToggleMute}
+        className={`p-3 rounded-full transition ${isMuted ? "bg-red-600 hover:bg-red-500" : "bg-gray-700 hover:bg-gray-600"}`}
+      >
+        {isMuted ? <FaMicrophoneSlash size={20} className="text-white" /> : <FaMicrophone size={20} className="text-white" />}
+      </button>
 
-      {/* Control Bar */}
-      <div className="flex items-center justify-center space-x-4 mt-4 p-3 bg-gray-800 rounded-md">
+      <button
+        onClick={handleToggleCamera}
+        className={`p-3 rounded-full transition ${!isCameraOn ? "bg-red-600 hover:bg-red-500" : "bg-gray-700 hover:bg-gray-600"}`}
+      >
+        {isCameraOn ? <FaVideo size={20} className="text-white" /> : <FaVideoSlash size={20} className="text-white" />}
+      </button>
+
+      <button
+        onClick={onHangUp}
+        className="p-3 rounded-full bg-red-600 hover:bg-red-500 transition"
+      >
+        <FaPhoneSlash size={20} className="text-white" />
+      </button>
+
+      {serverId && channelName && (
         <button
-          onClick={handleToggleMute}
-          className={`p-3 rounded-full transition ${
-            isMuted
-              ? "bg-red-600 hover:bg-red-500"
-              : "bg-gray-700 hover:bg-gray-600"
-          }`}
+          onClick={handleMinimize}
+          className="p-3 rounded-full bg-blue-600 hover:bg-blue-500 transition"
         >
-          {isMuted ? (
-            <FaMicrophoneSlash size={20} className="text-white" />
-          ) : (
-            <FaMicrophone size={20} className="text-white" />
-          )}
+          <FaMinus size={20} className="text-white" />
         </button>
+      )}
+    </div>
 
-        <button
-          onClick={handleToggleCamera}
-          className={`p-3 rounded-full transition ${
-            !isCameraOn
-              ? "bg-red-600 hover:bg-red-500"
-              : "bg-gray-700 hover:bg-gray-600"
-          }`}
-          title={isCameraOn ? "Turn off camera" : "Turn on camera"}
-        >
-          {isCameraOn ? (
-            <FaVideo size={20} className="text-white" />
-          ) : (
-            <FaVideoSlash size={20} className="text-white" />
-          )}
-        </button>
-
-        <button
-          onClick={onHangUp}
-          className="p-3 rounded-full bg-red-600 hover:bg-red-500 transition"
-          title="Leave voice channel"
-        >
-          <FaPhoneSlash size={20} className="text-white" />
-        </button>
-
-        {/* Minimize button - keep call active in background */}
-        {serverId && channelName && (
-          <button
-            onClick={handleMinimize}
-            className="p-3 rounded-full bg-blue-600 hover:bg-blue-500 transition"
-            title="Minimize call - navigate while staying connected"
-          >
-            <FaMinus size={20} className="text-white" />
-          </button>
-        )}
-
-        {/* Permission status indicator */}
-        {!hasPermissions && (
-          <button
-            onClick={retryMediaAccess}
-            className="p-3 rounded-full bg-yellow-600 hover:bg-yellow-500 transition"
-            title="Retry media access"
-          >
-            <FaRedo size={20} className="text-white" />
-          </button>
-        )}
-      </div>
-
-      {/* Voice Members List - always visible under channel name */}
-      <div className="mt-2 p-2 bg-gray-800 rounded-md">
-        <h4 className="text-sm font-medium text-gray-300 mb-2">
-          Voice Members ({voiceMembers.length})
-        </h4>
-        {isFetchingRoster ? (
-          <div className="text-xs text-gray-400">Loading members...</div>
-        ) : (
-          <div className="flex flex-wrap gap-1">
-            {voiceMembers.map((member) => {
-              const voiceState = voiceStates.get(member.odattendeeId);
-              return (
-                <div
-                  key={member.odattendeeId}
-                  className="flex items-center space-x-1 bg-gray-700 rounded px-2 py-1"
-                >
-                  <span className="text-xs text-white">{member.username}</span>
-                  {(voiceState?.muted ?? member.muted) && (
-                    <FaMicrophoneSlash size={10} className="text-red-400" />
-                  )}
-                  {(voiceState?.speaking ?? member.speaking) &&
-                    !(voiceState?.muted ?? member.muted) && (
-                      <FaMicrophone size={10} className="text-green-400" />
-                    )}
-                  {!(voiceState?.video ?? member.video) && (
-                    <FaVideoSlash size={10} className="text-gray-400" />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+    <div className="mt-2 p-2 bg-gray-800 rounded-md">
+      <h4 className="text-sm font-medium text-gray-300 mb-2">
+        Voice Members ({voiceMembers.length})
+      </h4>
+      <div className="flex flex-wrap gap-1">
+        {voiceMembers.map((member) => {
+          const voiceState = voiceStates.get(member.odattendeeId);
+          return (
+            <div key={member.odattendeeId} className="flex items-center space-x-1 bg-gray-700 rounded px-2 py-1">
+              <span className="text-xs text-white">{member.username}</span>
+              {(voiceState?.muted ?? member.muted) && <FaMicrophoneSlash size={10} className="text-red-400" />}
+              {(voiceState?.speaking ?? member.speaking) && !(voiceState?.muted ?? member.muted) && <FaMicrophone size={10} className="text-green-400" />}
+              {!(voiceState?.video ?? member.video) && <FaVideoSlash size={10} className="text-gray-400" />}
+            </div>
+          );
+        })}
       </div>
     </div>
-  );
-};
-
-export default VoiceChannel;
+  </div>
+);
+}
