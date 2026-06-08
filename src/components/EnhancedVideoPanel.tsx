@@ -211,6 +211,7 @@ interface EnhancedVideoPanelProps {
   manager?: VoiceVideoManager | null;
   participants?: Participant[];
   localVideoTileId?: number | null;
+  localScreenTileId?: number | null;
   localMediaState?: MediaState;
   currentUser?: { username: string };
   collapsed?: boolean;
@@ -228,6 +229,7 @@ const ParticipantVideo = memo(
     manager,
     isLocal = false,
     isFullscreen = false,
+    variant = "default",
     onToggleFullscreen,
     onVolumeChange,
   }: {
@@ -235,6 +237,7 @@ const ParticipantVideo = memo(
     manager?: VoiceVideoManager | null;
     isLocal?: boolean;
     isFullscreen?: boolean;
+    variant?: "default" | "stage" | "thumbnail";
     onToggleFullscreen?: () => void;
     onVolumeChange?: (volume: number) => void;
   }) {
@@ -267,13 +270,29 @@ const ParticipantVideo = memo(
       participant.screenTileId !== undefined &&
       participant.screenTileId !== null;
 
-    const shouldShowScreenShare = hasScreenShareStream || hasScreenShareState;
-    // Show video element if:
-    // 1. Video state is ON (camera enabled), OR
-    // 2. We have a valid tileId (Chime needs the element to bind to even before state updates)
-    // This fixes black screen issue when minimizing/maximizing calls - the video element
-    // must exist for Chime SDK to bind the tile to it.
+    // Local sharer must use the capture MediaStream — Chime tile bind shows black locally
+    const useLocalScreenStream =
+      isLocal &&
+      (hasScreenShareState ||
+        (!!participant.screenStream &&
+          participant.screenStream.getVideoTracks().length > 0));
+    const hasLocalScreenStreamReady =
+      isLocal &&
+      !!participant.screenStream &&
+      participant.screenStream.getVideoTracks().length > 0;
+    // Never tile-bind local screen share (always black); remote viewers use tiles
+    const useRemoteScreenTile = !isLocal && hasScreenTileId && !!manager;
+
+    const shouldShowScreenShare =
+      hasScreenShareStream ||
+      hasScreenShareState ||
+      useRemoteScreenTile ||
+      useLocalScreenStream;
+    const shouldShowCameraPiP =
+      hasVideoState && (hasActiveVideoTrack || hasTileId) && shouldShowScreenShare;
     const shouldShowVideo = hasVideoState && !shouldShowScreenShare;
+    const shouldBindVideoTile =
+      hasVideoState && hasTileId && (shouldShowVideo || shouldShowCameraPiP);
 
     // Bind Chime video tile to video element
     // This effect handles binding the Chime SDK video tile to the HTML video element
@@ -346,17 +365,16 @@ const ParticipantVideo = memo(
       participant.tileId,
       participant.username,
       isLocal,
-      shouldShowVideo,
+      shouldBindVideoTile,
+      shouldShowCameraPiP,
       hasVideoState,
     ]);
 
-    // Bind Chime SCREEN SHARE tile to screen video element
-    // Similar to video tile binding but for screen share content
+    // Bind Chime SCREEN SHARE tile to screen video element (remote participants only)
     useEffect(() => {
       const screenTileId = participant.screenTileId;
 
-      // Early return if we don't have what we need
-      if (!manager || screenTileId === undefined || screenTileId === null) {
+      if (!useRemoteScreenTile || screenTileId === undefined || screenTileId === null) {
         return;
       }
 
@@ -418,8 +436,52 @@ const ParticipantVideo = memo(
       manager,
       participant.screenTileId,
       participant.username,
+      useRemoteScreenTile,
       shouldShowScreenShare,
       hasScreenShareState,
+    ]);
+
+    // Local screen share preview via capture stream (Chime SDK requirement)
+    useEffect(() => {
+      const screenStream = participant.screenStream;
+      if (!hasLocalScreenStreamReady || !screenStream) {
+        return;
+      }
+
+      const bindLocalScreen = (retryCount = 0) => {
+        const screenEl = screenRef.current;
+        if (!screenEl) {
+          if (retryCount < 5) {
+            setTimeout(() => bindLocalScreen(retryCount + 1), 100);
+          }
+          return;
+        }
+
+        if (screenEl.srcObject !== screenStream) {
+          screenEl.srcObject = screenStream;
+        }
+        screenEl.play().catch((err) => {
+          console.warn(
+            `[ParticipantVideo] Local screen preview play failed:`,
+            err.message
+          );
+        });
+      };
+
+      const bindTimeout = setTimeout(() => bindLocalScreen(0), 50);
+
+      return () => {
+        clearTimeout(bindTimeout);
+        if (screenRef.current) {
+          screenRef.current.pause();
+          screenRef.current.srcObject = null;
+        }
+      };
+    }, [
+      hasLocalScreenStreamReady,
+      participant.screenStream,
+      participant.username,
+      isLocal,
     ]);
 
     // Legacy: track video stream changes (for non-Chime usage)
@@ -473,10 +535,9 @@ const ParticipantVideo = memo(
       manager,
     ]);
 
-    // Legacy: bind screen stream to screen element (fallback if no Chime screen tile)
+    // Legacy: bind screen stream to screen element (non-Chime fallback)
     useEffect(() => {
-      // Skip if we're using Chime screen tile binding
-      if (hasScreenTileId && manager) return;
+      if (useLocalScreenStream || useRemoteScreenTile) return;
 
       if (
         screenRef.current &&
@@ -499,7 +560,8 @@ const ParticipantVideo = memo(
       shouldShowScreenShare,
       isMuted,
       volume,
-      hasScreenTileId,
+      useLocalScreenStream,
+      useRemoteScreenTile,
       manager,
     ]);
 
@@ -544,13 +606,22 @@ const ParticipantVideo = memo(
       handleVolumeChange(newMuted ? 0 : volume);
     };
 
+    const containerClass =
+      variant === "stage"
+        ? "w-full h-full"
+        : variant === "thumbnail"
+          ? "w-full h-full min-w-[9rem]"
+          : isFullscreen
+            ? "fixed inset-0 z-50"
+            : "aspect-video";
+
     return (
       <div
         className={`relative group bg-gray-900 rounded-lg overflow-hidden border-2 ${
           participant.mediaState.speaking && !participant.mediaState.muted
             ? "border-green-500"
             : "border-gray-700"
-        } ${isFullscreen ? "fixed inset-0 z-50" : "aspect-video"}`}
+        } ${containerClass}`}
         onMouseEnter={() => setShowControls(true)}
         onMouseLeave={() => setShowControls(false)}
       >
@@ -567,8 +638,8 @@ const ParticipantVideo = memo(
               <IconDesktop size={12} className="text-white" />
               <span className="text-xs text-white">Screen</span>
             </div>
-            {hasVideoState && hasActiveVideoTrack && (
-              <div className="absolute bottom-4 right-4 w-32 h-24 bg-gray-800 rounded border border-gray-600 overflow-hidden">
+            {shouldShowCameraPiP && (
+              <div className="absolute bottom-4 right-4 w-32 h-24 bg-gray-800 rounded border border-gray-600 overflow-hidden z-10">
                 <video
                   ref={videoRef}
                   autoPlay
@@ -704,10 +775,20 @@ const ParticipantVideo = memo(
       a.mediaState.screenSharing === b.mediaState.screenSharing &&
       prev.isLocal === next.isLocal &&
       prev.isFullscreen === next.isFullscreen &&
+      prev.variant === next.variant &&
       prev.manager === next.manager;
     return same;
   }
 );
+
+const isParticipantScreenSharing = (participant: Participant): boolean =>
+  !!participant.mediaState.screenSharing ||
+  (participant.screenTileId !== undefined &&
+    participant.screenTileId !== null) ||
+  !!(
+    participant.screenStream &&
+    participant.screenStream.getVideoTracks().length > 0
+  );
 
 /* ----------------------------- VIDEO PANEL UI ----------------------------- */
 
@@ -715,6 +796,7 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
   manager,
   participants = [],
   localVideoTileId,
+  localScreenTileId,
   localMediaState = {
     muted: false,
     speaking: false,
@@ -735,6 +817,7 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
   const [fullscreenParticipant, setFullscreenParticipant] = useState<
     string | null
   >(null);
+  const [focusedStageId, setFocusedStageId] = useState<string | null>(null);
 
   const togglePanelFullscreen = async () => {
     if (!panelRef.current) return;
@@ -768,6 +851,8 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
       stream: localStream || null,
       screenStream: localScreenStream || null,
       tileId: localVideoTileId !== null ? localVideoTileId : undefined,
+      screenTileId:
+        localScreenTileId !== null ? localScreenTileId : undefined,
       isLocal: true,
       mediaState: localMediaState,
     }),
@@ -776,6 +861,7 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
       localStream,
       localScreenStream,
       localVideoTileId,
+      localScreenTileId,
       localMediaState,
     ]
   );
@@ -815,6 +901,32 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
 
   const totalParticipants = allParticipants.length;
 
+  const screenSharers = useMemo(
+    () => allParticipants.filter(isParticipantScreenSharing),
+    [allParticipants]
+  );
+
+  const hasStageLayout = screenSharers.length > 0;
+
+  useEffect(() => {
+    if (!hasStageLayout) {
+      setFocusedStageId(null);
+      return;
+    }
+
+    setFocusedStageId((current) => {
+      if (current && allParticipants.some((p) => p.id === current)) {
+        return current;
+      }
+      return screenSharers[screenSharers.length - 1]?.id ?? null;
+    });
+  }, [hasStageLayout, screenSharers, allParticipants]);
+
+  const stageParticipant = useMemo(() => {
+    if (!hasStageLayout || !focusedStageId) return null;
+    return allParticipants.find((p) => p.id === focusedStageId) ?? null;
+  }, [hasStageLayout, focusedStageId, allParticipants]);
+
   const getGridLayout = (count: number, hasFullscreen: boolean) => {
     if (hasFullscreen) return { cols: "grid-cols-1", rows: "grid-rows-1" };
     if (count === 1) return { cols: "grid-cols-1", rows: "grid-rows-1" };
@@ -852,25 +964,79 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
       ref={panelRef}
       className="w-full h-full bg-black relative overflow-hidden"
     >
-      <div
-        className={`grid ${layout.cols} ${layout.rows} gap-2 w-full h-full p-2`}
-      >
-        {allParticipants
-          .filter((p) => !isFullscreenMode || p.id === fullscreenParticipant)
-          .map((participant) => (
+      {hasStageLayout && stageParticipant && !isFullscreenMode ? (
+        <div className="flex flex-col w-full h-full">
+          <div className="flex-1 min-h-0 p-2 pb-1">
             <ParticipantVideo
-              key={participant.id}
-              participant={participant}
+              key={`stage-${stageParticipant.id}`}
+              participant={stageParticipant}
               manager={manager}
-              isLocal={participant.id === "local" || participant.isLocal}
-              isFullscreen={participant.id === fullscreenParticipant}
-              onToggleFullscreen={() => toggleFullscreen(participant.id)}
+              isLocal={
+                stageParticipant.id === "local" || stageParticipant.isLocal
+              }
+              variant="stage"
+              onToggleFullscreen={() => toggleFullscreen(stageParticipant.id)}
               onVolumeChange={(v) =>
-                handleParticipantVolumeChange(participant.id, v)
+                handleParticipantVolumeChange(stageParticipant.id, v)
               }
             />
-          ))}
-      </div>
+          </div>
+          <div className="shrink-0 px-2 pb-2">
+            <div className="flex gap-2 overflow-x-auto py-1">
+              {allParticipants.map((participant) => (
+                <button
+                  key={`thumb-${participant.id}`}
+                  type="button"
+                  onClick={() => setFocusedStageId(participant.id)}
+                  className={`shrink-0 w-36 h-20 rounded-lg overflow-hidden border-2 transition-colors ${
+                    participant.id === stageParticipant.id
+                      ? "border-blue-500"
+                      : "border-gray-700 hover:border-gray-500"
+                  }`}
+                  title={
+                    isParticipantScreenSharing(participant)
+                      ? `${participant.username || "User"} — screen sharing`
+                      : participant.username || "User"
+                  }
+                >
+                  <ParticipantVideo
+                    participant={participant}
+                    manager={manager}
+                    isLocal={
+                      participant.id === "local" || participant.isLocal
+                    }
+                    variant="thumbnail"
+                    onVolumeChange={(v) =>
+                      handleParticipantVolumeChange(participant.id, v)
+                    }
+                  />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div
+          className={`grid ${layout.cols} ${layout.rows} gap-2 w-full h-full p-2`}
+        >
+          {allParticipants
+            .filter((p) => !isFullscreenMode || p.id === fullscreenParticipant)
+            .map((participant) => (
+              <ParticipantVideo
+                key={participant.id}
+                participant={participant}
+                manager={manager}
+                isLocal={participant.id === "local" || participant.isLocal}
+                isFullscreen={participant.id === fullscreenParticipant}
+                onToggleFullscreen={() => toggleFullscreen(participant.id)}
+                onVolumeChange={(v) =>
+                  handleParticipantVolumeChange(participant.id, v)
+                }
+              />
+            ))}
+        </div>
+      )}
+
       <button
         onClick={togglePanelFullscreen}
         className="absolute bottom-4 right-4 bg-black/80 text-white px-4 py-2 rounded-lg text-sm hover:bg-black transition z-50"
@@ -879,15 +1045,17 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
       </button>
 
       {!isFullscreenMode && totalParticipants > 1 && (
-        <div className="absolute top-4 left-4 bg-black bg-opacity-70 rounded px-3 py-1">
+        <div className="absolute top-4 left-4 bg-black bg-opacity-70 rounded px-3 py-1 z-40">
           <span className="text-white text-sm">
             {totalParticipants} participant{totalParticipants !== 1 ? "s" : ""}
+            {screenSharers.length > 0 &&
+              ` · ${screenSharers.length} sharing screen`}
           </span>
         </div>
       )}
 
-      {!isFullscreenMode && totalParticipants > 12 && (
-        <div className="absolute bottom-4 right-4 bg-black bg-opacity-70 rounded px-3 py-1">
+      {!isFullscreenMode && !hasStageLayout && totalParticipants > 12 && (
+        <div className="absolute bottom-16 right-4 bg-black bg-opacity-70 rounded px-3 py-1">
           <span className="text-white text-sm">
             +{totalParticipants - 12} more
           </span>
