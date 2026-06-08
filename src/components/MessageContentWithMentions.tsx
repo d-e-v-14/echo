@@ -271,7 +271,7 @@ export default function MessageContentWithMentions({
   const renderContent = () => {
     if (!content) return null;
 
-    const codeFenceRegex = /```([\s\S]*?)```/g;
+    const codeFenceRegex = /```(?:\w+)?\n?([\s\S]*?)```/g;
     const segments: Array<{ type: "text" | "code"; value: string }> = [];
     let lastIndex = 0;
     let match: RegExpExecArray | null;
@@ -286,7 +286,7 @@ export default function MessageContentWithMentions({
 
       segments.push({
         type: "code",
-        value: match[1].replace(/^\n/, "").replace(/\n$/, ""),
+        value: match[1].trim(),
       });
 
       lastIndex = match.index + match[0].length;

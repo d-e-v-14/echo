@@ -1441,6 +1441,11 @@ export default forwardRef(function ChatWindow(
 
     return { valid: true };
   };
+const isCodeBlock = (content?: string) => {
+  if (!content) return false;
+
+  return /```(?:\w+)?\n?[\s\S]*?```/.test(content);
+};
 
   const validateRoleMentions = (message: string) => {
     const roleMentionRegex = /@&([^\s@]+)/g;
@@ -1968,6 +1973,7 @@ export default forwardRef(function ChatWindow(
     </span>
     :
   </span>
+  
 
   {replyingTo.content?.startsWith("[GIF]") ? (
     <img
@@ -1975,12 +1981,15 @@ export default forwardRef(function ChatWindow(
       alt="GIF preview"
       className="h-10 w-10 rounded object-cover border border-slate-600 flex-shrink-0"
     />
-  ) : replyingTo.content?.trim().startsWith("```") ? (
-    <div className="max-w-xs truncate rounded bg-slate-900 border border-slate-700 px-2 py-1 font-mono text-xs text-green-400">
-      {replyingTo.content
-        .replace(/^```[\w]*\n?/, "")
-        .replace(/```$/, "")
-        .split("\n")[0]}
+  ) : isCodeBlock(replyingTo.content) ? (
+    <div className="max-w-xs truncate rounded bg-slate-900 border border-slate-700 px-2 font-mono text-xs text-green-400">
+    {(
+  replyingTo.content.match(
+    /```(?:\w+)?\n?([\s\S]*?)```/
+  )?.[1] || ""
+)
+  .trim()
+  .split("\n")[0]}
     </div>
   ) : (
     <span className="italic truncate">

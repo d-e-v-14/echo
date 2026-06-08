@@ -223,7 +223,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const renderPlainContent = (content: string) => {
     if (!content) return null;
 
-    const codeFenceRegex = /```([\s\S]*?)```/g;
+    const codeFenceRegex = /```(?:\w+)?\n?([\s\S]*?)```/g;
     const segments: Array<{ type: "text" | "code"; value: string }> = [];
     let lastIndex = 0;
     let match: RegExpExecArray | null;
@@ -238,7 +238,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
       segments.push({
         type: "code",
-        value: match[1].replace(/^\n/, "").replace(/\n$/, ""),
+        value: match[1].trim(),
       });
 
       lastIndex = match.index + match[0].length;
@@ -279,7 +279,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               {isCopied ? "Copied" : "Copy"}
             </button>
           </div>
-          <pre className="overflow-x-auto p-3 text-sm leading-6 text-slate-100">
+          <pre className="overflow-x-auto text-sm leading-6 text-slate-100">
             <code className="font-mono whitespace-pre-wrap break-words">
               {segment.value}
             </code>
@@ -367,12 +367,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   ) : message.replyTo.content?.trim().startsWith("```") ? (
     <div className="max-w-xs overflow-hidden rounded bg-slate-900 border border-slate-700 px-2 py-1">
       <pre className="text-xs font-mono text-slate-300 whitespace-pre-wrap">
-        {message.replyTo.content
-          .replace(/^```[\w]*\n?/, "")
-          .replace(/```$/, "")
-          .split("\n")
-          .slice(0, 3)
-          .join("\n")}
+       {message.replyTo.content
+  .replace(/^```[\w]*\n?/, "")
+  .replace(/```/g, "")
+  .trim()
+  .split("\n")
+  .slice(0, 3)
+  .join("\n")}
       </pre>
     </div>
   ) : (
