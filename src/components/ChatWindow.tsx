@@ -1958,13 +1958,27 @@ export default forwardRef(function ChatWindow(
         
         {replyingTo && (
           <div className="mx-6 mb-2 px-4 py-2 bg-slate-800 rounded-lg flex items-center justify-between border-l-4 border-blue-500">
-            <div className="text-sm text-slate-300 truncate">
-              Replying to{" "}
-              <span className="font-semibold">
-                {replyingTo.username || "User"}
-              </span>
-              : <span className="italic">{replyingTo.content}</span>
-            </div>
+            <div className="flex items-center gap-2 min-w-0 text-sm text-slate-300">
+  <span className="shrink-0">
+    Replying to{" "}
+    <span className="font-semibold">
+      {replyingTo.username || "User"}
+    </span>
+    :
+  </span>
+
+  {replyingTo.content?.startsWith("[GIF]") ? (
+    <img
+      src={replyingTo.content.replace("[GIF]", "")}
+      alt="GIF preview"
+      className="h-10 w-10 rounded object-cover border border-slate-600 flex-shrink-0"
+    />
+  ) : (
+    <span className="italic truncate">
+      {replyingTo.content}
+    </span>
+  )}
+</div>
             <button
               onClick={() => {
                 setReplyingTo(null);

@@ -354,10 +354,40 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                     <Paperclip className="h-4 w-4" />
                   </span>
                 ))}
-              <span className="min-w-0 truncate">
-                {message.replyTo.content ||
-                  (message.replyTo.mediaUrl ? "Attachment" : "")}
-              </span>
+   <span className="mt-1 flex min-w-0 items-center gap-2">
+  {message.replyTo.content?.startsWith("[GIF]") ? (
+    <>
+      <img
+        src={message.replyTo.content.replace("[GIF]", "")}
+        alt="GIF reply"
+        className="h-10 w-10 rounded object-cover border border-slate-600 flex-shrink-0"
+      />
+      <span className="truncate text-slate-400">GIF</span>
+    </>
+  ) : (
+    <>
+      {message.replyTo.mediaUrl &&
+        (isReplyImage(
+          message.replyTo.mediaUrl,
+          message.replyTo.mediaType
+        ) ? (
+          <img
+            src={message.replyTo.mediaUrl}
+            alt="Reply attachment"
+            className="h-9 w-9 flex-shrink-0 rounded object-cover border border-slate-600"
+          />
+        ) : (
+          <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded border border-slate-600 bg-slate-800 text-slate-300">
+            <Paperclip className="h-4 w-4" />
+          </span>
+        ))}
+      <span className="min-w-0 truncate">
+        {message.replyTo.content ||
+          (message.replyTo.mediaUrl ? "Attachment" : "")}
+      </span>
+    </>
+  )}
+</span>
             </span>
           </button>
         )}
