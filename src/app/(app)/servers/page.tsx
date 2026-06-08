@@ -1,6 +1,7 @@
 "use client";
 
 export const dynamic = "force-dynamic";
+import { createAuthSocket } from "@/socket";
 
 import React, {
   useState,
