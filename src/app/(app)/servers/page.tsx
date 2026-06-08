@@ -51,8 +51,34 @@ import NotificationBell from "@/components/NotificationBell";
 import { useSearchParams } from "next/navigation";
 import { useVoiceCall } from "@/contexts/VoiceCallContext";
 import { supabase } from "@/lib/supabaseClient";
-import Loader from "@/components/Loader";
 import Toast from "@/components/Toast";
+
+
+type ChannelRoster = {
+  id: string;
+  username: string;
+  muted: boolean;
+  video: boolean;
+};
+
+interface Channel {
+  id: string;
+  name: string;
+  type: string;
+  is_private: boolean;
+}
+
+interface User {
+  id: string;
+  email: string;
+  fullname: string;
+  username: string;
+  avatar_url: string | null;
+  bio: string;
+  created_at: string;
+  date_of_birth: string;
+  status: "online" | "offline" | "idle" | "dnd";
+}
 
 const serverIcons: string[] = [
   "/hackbattle.png",
@@ -63,13 +89,6 @@ const serverIcons: string[] = [
   "/hackbattle.png",
 ];
 
-interface Channel {
-  id: string;
-  name: string;
-  type: string;
-  is_private: boolean;
-}
-
 const ServersPageContent: React.FC = () => {
   const pageReady = usePageReady();
   const [isChannelSidebarCollapsed, setIsChannelSidebarCollapsed] =
@@ -78,9 +97,7 @@ const ServersPageContent: React.FC = () => {
   const refresh = searchParams.get("refresh");
   const serverIdFromQuery = searchParams.get("serverId");
   const viewModeFromQuery = searchParams.get("view");
-
   const [showAddMenu, setShowAddMenu] = useState(false);
-
   const router = useRouter();
   const [servers, setServers] = useState<any[]>([]);
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
@@ -90,14 +107,10 @@ const ServersPageContent: React.FC = () => {
   const chatWindowRef = useRef<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Self-assignable roles state
   const [selfAssignableRoles, setSelfAssignableRoles] = useState<Role[]>([]);
   const [myRoles, setMyRoles] = useState<Role[]>([]);
   const [rolesLoading, setRolesLoading] = useState(false);
   const [showRoles, setShowRoles] = useState(false);
-
-  // View mode: 'voice' shows full voice UI, 'chat' shows text chat (with floating window if in voice)
   const [viewMode, setViewMode] = useState<"voice" | "chat">("chat");
   const [toast, setToast] = useState<{
     message: string;
@@ -109,56 +122,67 @@ const ServersPageContent: React.FC = () => {
   } | null>(null);
   const [isSavingChannel, setIsSavingChannel] = useState(false);
   const [isDeletingChannel, setIsDeletingChannel] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  // ✅ All useState at top
+  // ✅ Also correct:
+  type ChannelRoster = {
+    id: string;
+    username: string;
+    muted: boolean;
+    video: boolean;
+  };
 
-  // Store viewMode in localStorage for FloatingVoiceWindow to read
-  useEffect(() => {
-    localStorage.setItem("currentViewMode", viewMode);
-    return () => {
-      localStorage.removeItem("currentViewMode");
-    };
-  }, [viewMode]);
+  const [channelRosters, setChannelRosters] = useState<
+    Record<string, ChannelRoster[]>
+  >({});
 
-  // Use the global voice call context
-  const {
-    activeCall,
-    isConnected,
-    isConnecting,
+const {
+  activeCall,
+  isConnected,
+  isConnecting,
+  participants,
+  localMediaState,
+  localVideoTileId,
+  localScreenTileId,
+  videoTiles,
+  manager,
+  joinCall,
+  leaveCall,
+  permissionError,
+  connectionError,
+} = useVoiceCall();
+const externalState = useMemo(
+  () => ({
     participants,
     localMediaState,
     localVideoTileId,
     localScreenTileId,
-    localScreenStream,
     videoTiles,
-    manager,
-    joinCall,
-    leaveCall,
+    isConnected,
+    isConnecting,
     permissionError,
     connectionError,
-  } = useVoiceCall();
-
-  // Check if this server's voice channel is active
+  }),
+  [
+    participants,
+    localMediaState,
+    localVideoTileId,
+    localScreenTileId,
+    videoTiles,
+    isConnected,
+    isConnecting,
+    permissionError,
+    connectionError,
+  ]
+);
   const isVoiceActiveForCurrentServer =
     activeCall?.serverId === selectedServerId;
 
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
-  // Should show voice UI: only when in voice view mode AND connected to this server's voice
   const showVoiceUI =
     voiceEnabled &&
     viewMode === "voice" &&
     isVoiceActiveForCurrentServer &&
     activeCall;
-
-  interface User {
-    id: string;
-    email: string;
-    fullname: string;
-    username: string;
-    avatar_url: string | null;
-    bio: string;
-    created_at: string;
-    date_of_birth: string;
-    status: "online" | "offline" | "idle" | "dnd";
-  }
 
   const user: User = useMemo(() => {
     if (typeof window === "undefined") {
@@ -174,7 +198,6 @@ const ServersPageContent: React.FC = () => {
         status: "offline",
       };
     }
-
     try {
       const stored = localStorage.getItem("user");
       const defaults: User = {
@@ -207,198 +230,7 @@ const ServersPageContent: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => {
-    const loadServers = async () => {
-      try {
-        setLoading(true);
-
-        const data = await fetchServers();
-        setServers(data);
-
-        if (data.length > 0) {
-          const cachedServerId = localStorage.getItem("currentServerId");
-
-          const preferredServer =
-            (serverIdFromQuery
-              ? data.find((s: any) => s.id === serverIdFromQuery)
-              : null) ||
-            (cachedServerId
-              ? data.find((s: any) => s.id === cachedServerId)
-              : null) ||
-            data[0];
-
-          setSelectedServerId(preferredServer.id);
-          setSelectedServerName(preferredServer.name);
-        }
-
-        setToast(null);
-      } catch (err) {
-        console.error("Error fetching servers", err);
-        setError("Failed to load servers.");
-        setToast({ message: "Failed to load servers", type: "error" });
-      } finally {
-        setLoading(false);
-        pageReady();
-      }
-    };
-
-    loadServers();
-  }, [serverIdFromQuery, pageReady]);
-
-  // Handle view mode from query params (when navigating from expand button)
-  useEffect(() => {
-    if (viewModeFromQuery === "voice") {
-      setViewMode("voice");
-    }
-  }, [viewModeFromQuery]);
-
-  // Also set view mode to voice when activeCall server matches selected server and view=voice was requested
-  useEffect(() => {
-    if (
-      viewModeFromQuery === "voice" &&
-      activeCall &&
-      selectedServerId === activeCall.serverId
-    ) {
-      setViewMode("voice");
-    }
-  }, [viewModeFromQuery, activeCall, selectedServerId]);
-
-  // Listen for expandVoiceView custom event from FloatingVoiceWindow
-  useEffect(() => {
-    const handleExpandVoiceView = (
-      event: CustomEvent<{ serverId: string }>
-    ) => {
-      const { serverId } = event.detail;
-
-      // If the server matches current selection or the active call, switch to voice view
-      if (serverId === selectedServerId || serverId === activeCall?.serverId) {
-        setViewMode("voice");
-
-        // Also ensure the correct server is selected
-        if (serverId !== selectedServerId) {
-          const targetServer = servers.find((s) => s.id === serverId);
-          if (targetServer) {
-            setSelectedServerId(targetServer.id);
-            setSelectedServerName(targetServer.name);
-          }
-        }
-      }
-    };
-
-    window.addEventListener(
-      "expandVoiceView",
-      handleExpandVoiceView as EventListener
-    );
-    return () => {
-      window.removeEventListener(
-        "expandVoiceView",
-        handleExpandVoiceView as EventListener
-      );
-    };
-  }, [selectedServerId, activeCall, servers]);
-
-  const loadChannelsForServer = useCallback(async (serverId: string) => {
-    const { data: controls } = await supabase
-      .from("admin_controls")
-      .select("voice_enabled")
-      .single();
-
-    const isVoiceEnabled = controls?.voice_enabled ?? true;
-    setVoiceEnabled(isVoiceEnabled);
-
-    const data: Channel[] = await fetchChannelsByServer(serverId);
-
-    const normalized = (data || []).map((c) => ({
-      ...c,
-      type: (c.type || "").toLowerCase(),
-    }));
-
-    const filteredChannels = isVoiceEnabled
-      ? normalized
-      : normalized.filter((c) => c.type === "text");
-
-    setChannels(filteredChannels);
-
-    const firstTextChannel = filteredChannels.find((c) => c.type === "text");
-    setActiveChannel((prev) => {
-      if (prev && filteredChannels.some((c) => c.id === prev.id)) {
-        return prev;
-      }
-      return firstTextChannel || null;
-    });
-
-    return filteredChannels;
-  }, []);
-
-  useEffect(() => {
-    if (!selectedServerId) return;
-    const loadChannels = async () => {
-      try {
-        await loadChannelsForServer(selectedServerId);
-      } catch (err) {
-        console.error("Error fetching channels", err);
-        setError("Failed to load channels");
-        setChannels([]);
-        setToast({ message: "Failed to load channels", type: "error" });
-      }
-    };
-    loadChannels();
-  }, [selectedServerId, myRoles, loadChannelsForServer]);
-
-  // Load self-assignable roles when server is selected
-  useEffect(() => {
-    const loadRoles = async () => {
-      if (!selectedServerId) return;
-
-      setRolesLoading(true);
-      try {
-        const [assignableRoles, userRoles] = await Promise.all([
-          getSelfAssignableRoles(selectedServerId),
-          getMyRoles(selectedServerId),
-        ]);
-        setSelfAssignableRoles(assignableRoles);
-        setMyRoles(userRoles);
-      } catch (err) {
-        console.error("Error loading roles:", err);
-      } finally {
-        setRolesLoading(false);
-      }
-    };
-    loadRoles();
-  }, [selectedServerId]);
-
-  // Update localStorage with current viewed server ID (for FloatingVoiceWindow)
-  useEffect(() => {
-    if (selectedServerId) {
-      localStorage.setItem("currentServerId", selectedServerId);
-      localStorage.setItem("currentViewedServerId", selectedServerId);
-    }
-    return () => {
-      // Clean up when leaving the page
-      localStorage.removeItem("currentViewedServerId");
-    };
-  }, [selectedServerId]);
-
-  // Reload servers when refresh param changes (e.g., after creating a new server)
-  useEffect(() => {
-    if (!refresh) return; // Only reload if refresh param is actually set
-    const reloadServers = async () => {
-      try {
-        setLoading(true);
-        const data = await fetchServers();
-        setServers(data);
-        // Don't reset server selection on refresh - keep current or use query param
-      } catch (err) {
-        console.error("Error fetching servers", err);
-        setError("Failed to load servers.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    reloadServers();
-  }, [refresh]);
-
-  // Derived channel lists
+  // Derived channel lists — must be before effects that use them
   const textChannels = useMemo(
     () => channels.filter((c) => c.type === "text"),
     [channels]
@@ -423,15 +255,229 @@ const ServersPageContent: React.FC = () => {
     [participants]
   );
 
-  // Handle hang up
- const handleHangUp = () => {
-   leaveCall();
-   setViewMode("chat");
- };
+  // ✅ Roster effect AFTER voiceChannels declaration
+  useEffect(() => {
+    if (!voiceChannels.length || !user?.id) return;
+
+    const socket = createAuthSocket(user.id);
+
+    const mapMember = (m: any): ChannelRoster => ({
+      id: m.userId || m.socketId || m.attendeeId || m.id,
+      username:
+        m.username ||
+        m.userId ||
+        `User ${(m.userId || m.socketId || "").slice(0, 8)}`,
+      muted: m.muted || false,
+      video: m.video || false,
+    });
+
+    const fetchAllRosters = () => {
+      voiceChannels.forEach((channel) => {
+        socket.emit("get_voice_channel_roster", channel.id, (data: any) => {
+          if (data && Array.isArray(data.members)) {
+            setChannelRosters((prev) => ({
+              ...prev,
+              [channel.id]: data.members.map(mapMember),
+            }));
+          }
+        });
+      });
+    };
+
+    fetchAllRosters();
+
+    const handleRoster = (data: any) => {
+      if (!data?.channelId || !Array.isArray(data.members)) return;
+      setChannelRosters((prev) => ({
+        ...prev,
+        [data.channelId]: data.members.map(mapMember),
+      }));
+    };
+
+    socket.on("voice_channel_roster", handleRoster);
+    const interval = setInterval(fetchAllRosters, 10000);
+
+    return () => {
+      socket.off("voice_channel_roster", handleRoster);
+      socket.disconnect();
+      clearInterval(interval);
+    };
+  }, [voiceChannels, user?.id]);
+
+  useEffect(() => {
+    localStorage.setItem("currentViewMode", viewMode);
+    return () => {
+      localStorage.removeItem("currentViewMode");
+    };
+  }, [viewMode]);
+
+  useEffect(() => {
+    const loadServers = async () => {
+      try {
+        setLoading(true);
+        const data = await fetchServers();
+        setServers(data);
+        if (data.length > 0) {
+          const cachedServerId = localStorage.getItem("currentServerId");
+          const preferredServer =
+            (serverIdFromQuery
+              ? data.find((s: any) => s.id === serverIdFromQuery)
+              : null) ||
+            (cachedServerId
+              ? data.find((s: any) => s.id === cachedServerId)
+              : null) ||
+            data[0];
+          setSelectedServerId(preferredServer.id);
+          setSelectedServerName(preferredServer.name);
+        }
+        setToast(null);
+      } catch (err) {
+        console.error("Error fetching servers", err);
+        setError("Failed to load servers.");
+        setToast({ message: "Failed to load servers", type: "error" });
+      } finally {
+        setLoading(false);
+        pageReady();
+      }
+    };
+    loadServers();
+  }, [serverIdFromQuery, pageReady]);
+
+  useEffect(() => {
+    if (viewModeFromQuery === "voice") setViewMode("voice");
+  }, [viewModeFromQuery]);
+
+  useEffect(() => {
+    if (
+      viewModeFromQuery === "voice" &&
+      activeCall &&
+      selectedServerId === activeCall.serverId
+    ) {
+      setViewMode("voice");
+    }
+  }, [viewModeFromQuery, activeCall, selectedServerId]);
+
+  useEffect(() => {
+    const handleExpandVoiceView = (
+      event: CustomEvent<{ serverId: string }>
+    ) => {
+      const { serverId } = event.detail;
+      if (serverId === selectedServerId || serverId === activeCall?.serverId) {
+        setViewMode("voice");
+        if (serverId !== selectedServerId) {
+          const targetServer = servers.find((s) => s.id === serverId);
+          if (targetServer) {
+            setSelectedServerId(targetServer.id);
+            setSelectedServerName(targetServer.name);
+          }
+        }
+      }
+    };
+    window.addEventListener(
+      "expandVoiceView",
+      handleExpandVoiceView as EventListener
+    );
+    return () => {
+      window.removeEventListener(
+        "expandVoiceView",
+        handleExpandVoiceView as EventListener
+      );
+    };
+  }, [selectedServerId, activeCall, servers]);
+
+  const loadChannelsForServer = useCallback(async (serverId: string) => {
+    const { data: controls } = await supabase
+      .from("admin_controls")
+      .select("voice_enabled")
+      .single();
+    const isVoiceEnabled = controls?.voice_enabled ?? true;
+    setVoiceEnabled(isVoiceEnabled);
+    const data: Channel[] = await fetchChannelsByServer(serverId);
+    const normalized = (data || []).map((c) => ({
+      ...c,
+      type: (c.type || "").toLowerCase(),
+    }));
+    const filteredChannels = isVoiceEnabled
+      ? normalized
+      : normalized.filter((c) => c.type === "text");
+    setChannels(filteredChannels);
+    const firstTextChannel = filteredChannels.find((c) => c.type === "text");
+    setActiveChannel((prev) => {
+      if (prev && filteredChannels.some((c) => c.id === prev.id)) return prev;
+      return firstTextChannel || null;
+    });
+    return filteredChannels;
+  }, []);
+
+  useEffect(() => {
+    if (!selectedServerId) return;
+    const loadChannels = async () => {
+      try {
+        await loadChannelsForServer(selectedServerId);
+      } catch (err) {
+        console.error("Error fetching channels", err);
+        setError("Failed to load channels");
+        setChannels([]);
+        setToast({ message: "Failed to load channels", type: "error" });
+      }
+    };
+    loadChannels();
+  }, [selectedServerId, myRoles, loadChannelsForServer]);
+
+  useEffect(() => {
+    const loadRoles = async () => {
+      if (!selectedServerId) return;
+      setRolesLoading(true);
+      try {
+        const [assignableRoles, userRoles] = await Promise.all([
+          getSelfAssignableRoles(selectedServerId),
+          getMyRoles(selectedServerId),
+        ]);
+        setSelfAssignableRoles(assignableRoles);
+        setMyRoles(userRoles);
+      } catch (err) {
+        console.error("Error loading roles:", err);
+      } finally {
+        setRolesLoading(false);
+      }
+    };
+    loadRoles();
+  }, [selectedServerId]);
+
+  useEffect(() => {
+    if (selectedServerId) {
+      localStorage.setItem("currentServerId", selectedServerId);
+      localStorage.setItem("currentViewedServerId", selectedServerId);
+    }
+    return () => {
+      localStorage.removeItem("currentViewedServerId");
+    };
+  }, [selectedServerId]);
+
+  useEffect(() => {
+    if (!refresh) return;
+    const reloadServers = async () => {
+      try {
+        setLoading(true);
+        const data = await fetchServers();
+        setServers(data);
+      } catch (err) {
+        console.error("Error fetching servers", err);
+        setError("Failed to load servers.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    reloadServers();
+  }, [refresh]);
+
+  const handleHangUp = () => {
+    leaveCall();
+    setViewMode("chat");
+  };
 
   const handleJoinVoiceChannel = async (channel: Channel) => {
     if (!selectedServerId) return;
-
     try {
       setActiveChannel(channel);
       setViewMode("voice");
@@ -452,19 +498,15 @@ const ServersPageContent: React.FC = () => {
     }
   };
 
-  // Handle role toggle (assign/unassign)
   const handleRoleToggle = async (roleId: string) => {
     if (!selectedServerId) return;
-
     try {
       const hasRole = myRoles.some((r) => r.id === roleId);
-
       if (hasRole) {
         await selfUnassignRole(selectedServerId, roleId);
         setMyRoles((prev) => prev.filter((r) => r.id !== roleId));
       } else {
         await selfAssignRole(selectedServerId, roleId);
-        // Refresh my roles to get the updated list
         const updatedRoles = await getMyRoles(selectedServerId);
         setMyRoles(updatedRoles);
       }
@@ -484,13 +526,11 @@ const ServersPageContent: React.FC = () => {
 
   const handleSaveChannel = async () => {
     if (!selectedServerId || !channelSettings) return;
-
     const nextName = channelSettings.name.trim();
     if (!nextName) {
       setToast({ message: "Channel name cannot be empty", type: "error" });
       return;
     }
-
     if (nextName.length > 20) {
       setToast({
         message: "Channel name cannot exceed 20 characters",
@@ -498,13 +538,11 @@ const ServersPageContent: React.FC = () => {
       });
       return;
     }
-
     setIsSavingChannel(true);
     try {
       await updateChannel(selectedServerId, channelSettings.channel.id, {
         name: nextName,
       });
-
       setChannels((prev) =>
         prev.map((channel) =>
           channel.id === channelSettings.channel.id
@@ -520,7 +558,6 @@ const ServersPageContent: React.FC = () => {
       setChannelSettings(null);
       setToast({ message: "Channel updated", type: "success" });
     } catch (err: any) {
-      console.error("Error updating channel:", err);
       setToast({
         message:
           err?.response?.data?.error ||
@@ -535,11 +572,9 @@ const ServersPageContent: React.FC = () => {
 
   const handleDeleteChannel = async () => {
     if (!selectedServerId || !channelSettings) return;
-
     setIsDeletingChannel(true);
     try {
       await deleteChannel(selectedServerId, channelSettings.channel.id);
-
       const remainingChannels = channels.filter(
         (channel) => channel.id !== channelSettings.channel.id
       );
@@ -553,7 +588,6 @@ const ServersPageContent: React.FC = () => {
       setChannelSettings(null);
       setToast({ message: "Channel deleted", type: "success" });
     } catch (err: any) {
-      console.error("Error deleting channel:", err);
       setToast({
         message:
           err?.response?.data?.error ||
@@ -566,33 +600,7 @@ const ServersPageContent: React.FC = () => {
     }
   };
 
-  // Build external state for EnhancedVoiceChannel
-  const externalState = useMemo(
-    () => ({
-      participants,
-      localMediaState,
-      localVideoTileId,
-      localScreenTileId,
-      localScreenStream,
-      videoTiles,
-      isConnected,
-      isConnecting,
-      permissionError,
-      connectionError,
-    }),
-    [
-      participants,
-      localMediaState,
-      localVideoTileId,
-      localScreenTileId,
-      localScreenStream,
-      videoTiles,
-      isConnected,
-      isConnecting,
-      permissionError,
-      connectionError,
-    ]
-  );
+  
 
   return (
     <>
@@ -606,6 +614,7 @@ const ServersPageContent: React.FC = () => {
           />
         </div>
       )}
+
       {channelSettings && (
         <div
           className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/70 px-4"
@@ -614,7 +623,7 @@ const ServersPageContent: React.FC = () => {
           <FocusLock>
             <div
               className="w-full max-w-md rounded-lg border border-gray-800 bg-[#1e1f22] p-5 text-white shadow-2xl"
-              onClick={(event) => event.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
             >
               <div className="mb-5 flex items-center justify-between">
                 <div>
@@ -627,27 +636,24 @@ const ServersPageContent: React.FC = () => {
                   type="button"
                   onClick={closeChannelSettings}
                   className="flex h-8 w-8 items-center justify-center rounded text-gray-400 hover:bg-[#2f3136] hover:text-white"
-                  aria-label="Close channel settings"
                 >
                   <FaTimes className="h-4 w-4" />
                 </button>
               </div>
-
               <label className="block text-xs font-bold uppercase text-gray-400">
                 Channel Name
               </label>
               <input
                 value={channelSettings.name}
-                onChange={(event) =>
+                onChange={(e) =>
                   setChannelSettings((prev) =>
-                    prev ? { ...prev, name: event.target.value } : prev
+                    prev ? { ...prev, name: e.target.value } : prev
                   )
                 }
                 className="mt-2 w-full rounded-md border border-gray-700 bg-black px-3 py-2 text-sm text-white outline-none transition focus:border-indigo-500"
                 placeholder="channel-name"
                 disabled={isSavingChannel || isDeletingChannel}
               />
-
               <div className="mt-6 border-t border-gray-800 pt-4">
                 <div className="mb-3">
                   <h3 className="text-sm font-semibold text-red-300">
@@ -661,19 +667,18 @@ const ServersPageContent: React.FC = () => {
                   type="button"
                   onClick={handleDeleteChannel}
                   disabled={isSavingChannel || isDeletingChannel}
-                  className="flex w-full items-center justify-center gap-2 rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex w-full items-center justify-center gap-2 rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-500 disabled:opacity-60"
                 >
                   <FaTrash className="h-3.5 w-3.5" />
                   {isDeletingChannel ? "Deleting..." : "Delete Channel"}
                 </button>
               </div>
-
               <div className="mt-5 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={closeChannelSettings}
                   disabled={isSavingChannel || isDeletingChannel}
-                  className="rounded-md px-4 py-2 text-sm font-medium text-gray-300 transition hover:bg-[#2f3136] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-md px-4 py-2 text-sm font-medium text-gray-300 transition hover:bg-[#2f3136] hover:text-white disabled:opacity-60"
                 >
                   Cancel
                 </button>
@@ -681,7 +686,7 @@ const ServersPageContent: React.FC = () => {
                   type="button"
                   onClick={handleSaveChannel}
                   disabled={isSavingChannel || isDeletingChannel}
-                  className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
                 >
                   {isSavingChannel ? "Saving..." : "Save Changes"}
                 </button>
@@ -690,6 +695,7 @@ const ServersPageContent: React.FC = () => {
           </FocusLock>
         </div>
       )}
+
       <div className="relative flex h-screen z-0 bg-black select-none">
         {/* Server Sidebar */}
         <div className="w-16 p-2 flex flex-col items-center bg-black space-y-3 relative">
@@ -701,7 +707,7 @@ const ServersPageContent: React.FC = () => {
               <div className="w-12 h-12 rounded-full bg-gray-800 animate-pulse" />
             </>
           ) : servers.length === 0 ? (
-            <div className="text-white text-xs text-center px-2"></div>
+            <div className="text-white text-xs text-center px-2" />
           ) : (
             servers.map((server, idx) => (
               <img
@@ -718,20 +724,8 @@ const ServersPageContent: React.FC = () => {
               />
             ))
           )}
-
           <div className="relative bottom-0">
             <div className="relative group">
-              {/* Add Server button hidden for now
-              <button
-                className="w-12 h-12 px-1 flex items-center justify-center rounded-full bg-gray-900 text-yellow-300 hover:bg-yellow-500 hover:text-white transition-all text-3xl font-bold"
-                onClick={() => setShowAddMenu((prev) => !prev)}
-                aria-label="Add server"
-              >
-                +
-              </button>
-              */}
-
-              {/* Popup Menu */}
               {showAddMenu && (
                 <div className="absolute left-14 bottom-0 bg-[#1e1f22] text-white text-sm rounded-lg shadow-lg p-2 w-36 z-10">
                   <button
@@ -743,15 +737,6 @@ const ServersPageContent: React.FC = () => {
                   >
                     Join Server
                   </button>
-                  {/*  <button
-                    onClick={() => {
-                      router.push("/create-server");
-                      setShowAddMenu(false);
-                    }}
-                    className="block w-full text-left px-3 py-2 rounded hover:bg-[#2f3136] transition"
-                  >
-                    Create Server
-                  </button> */}
                 </div>
               )}
             </div>
@@ -761,7 +746,6 @@ const ServersPageContent: React.FC = () => {
         {/* Main Content */}
         {loading ? (
           <div className="relative flex-1 flex">
-            {/* Channel sidebar skeleton */}
             <div className="w-60 shrink-0 flex flex-col border-r border-slate-800/50 p-3 bg-black">
               <div className="h-5 w-32 rounded bg-slate-800/70 animate-pulse mb-4" />
               <div className="space-y-1.5">
@@ -781,7 +765,6 @@ const ServersPageContent: React.FC = () => {
                 ))}
               </div>
             </div>
-            {/* Chat area skeleton */}
             <div className="flex-1 flex flex-col bg-black">
               <div className="h-14 border-b border-slate-800/50 flex items-center px-4 gap-3">
                 <div className="h-4 w-4 rounded bg-slate-800/50 animate-pulse" />
@@ -807,7 +790,6 @@ const ServersPageContent: React.FC = () => {
             </div>
           </div>
         ) : error ? (
-          // Error state
           <div className="flex-1 flex items-center justify-center text-white text-center px-4">
             <div>
               <h1 className="text-2xl font-semibold mb-2">
@@ -867,8 +849,6 @@ const ServersPageContent: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <NotificationBell
                       onNavigateToMessage={async (channelId, messageId) => {
-                        // Parent-level navigation handler
-                        // If target channel is different, switch to it
                         const targetChannel = channels.find(
                           (c) => c.id === channelId
                         );
@@ -876,15 +856,10 @@ const ServersPageContent: React.FC = () => {
                           setActiveChannel(targetChannel);
                           setViewMode("chat");
                         }
-
-                        // Wait a tick for chat window to mount and load initial messages
                         await new Promise((r) => setTimeout(r, 250));
-
-                        // Try to scroll to message; if not found, paginate older messages up to a limit
                         const MAX_PAGES = 8;
                         let found = false;
                         for (let i = 0; i <= MAX_PAGES && !found; i++) {
-                          // Attempt to scroll
                           if (chatWindowRef.current) {
                             const scrolled =
                               await chatWindowRef.current.scrollToMessage(
@@ -895,23 +870,14 @@ const ServersPageContent: React.FC = () => {
                               break;
                             }
                           }
-
-                          // If not found, load older messages if available
                           if (chatWindowRef.current) {
                             const loaded =
                               await chatWindowRef.current.loadOlderPages(1);
-                            if (!loaded) break; // no more pages
-                          } else {
-                            break;
-                          }
-
-                          // small delay to allow DOM update
+                            if (!loaded) break;
+                          } else break;
                           await new Promise((r) => setTimeout(r, 200));
                         }
-
                         if (!found) {
-                          // fallback: open channel and scroll to bottom
-                          // ensure chat window is visible
                           setViewMode("chat");
                           setTimeout(() => {
                             if (chatWindowRef.current)
@@ -930,12 +896,10 @@ const ServersPageContent: React.FC = () => {
                           selectedServerId ||
                           searchParams.get("serverId") ||
                           (servers.length > 0 ? servers[0].id : null);
-
                         if (targetId) {
                           localStorage.setItem("currentServerId", targetId);
                           router.push(`/server-settings?serverId=${targetId}`);
                         } else {
-                          // This will now only show if the 'servers' array is literally empty
                           alert("Please select a server first");
                         }
                       }}
@@ -944,17 +908,19 @@ const ServersPageContent: React.FC = () => {
                     </button>
                   </div>
                 </div>
+
+                {/* Self-assignable roles */}
                 {selfAssignableRoles.length > 0 && (
                   <div className="px-2 mt-4 transition-all duration-300 ease-out">
                     <div
-                      className="flex items-center justify-between cursor-pointer hover:bg-[#2f3136] rounded-md p-2 transition-all duration-500 ease-out"
+                      className="flex items-center justify-between cursor-pointer hover:bg-[#2f3136] rounded-md p-2"
                       onClick={() => setShowRoles(!showRoles)}
                     >
                       <h3 className="text-xs font-bold uppercase text-gray-400 flex items-center gap-2">
                         <FaShieldAlt size={12} />
                         Self Assign Roles
                       </h3>
-                      <span className="text-gray-400 text-xs flex items-center gap-1 transition-all duration-500 ease-out">
+                      <span className="text-gray-400 text-xs">
                         {showRoles ? (
                           <FaChevronDown className="w-3 h-3" />
                         ) : (
@@ -962,7 +928,6 @@ const ServersPageContent: React.FC = () => {
                         )}
                       </span>
                     </div>
-
                     <div
                       className={`mt-2 space-y-2 overflow-hidden transition-all duration-500 ease-in-out ${
                         showRoles
@@ -976,7 +941,6 @@ const ServersPageContent: React.FC = () => {
                         </div>
                       ) : (
                         <>
-                          {/* My Active Roles Section */}
                           {myRoles.filter((r) =>
                             selfAssignableRoles.some((sr) => sr.id === r.id)
                           ).length > 0 && (
@@ -1001,7 +965,7 @@ const ServersPageContent: React.FC = () => {
                                   .map((role) => (
                                     <div
                                       key={role.id}
-                                      className="flex items-center justify-between p-2 rounded-md cursor-pointer transition-all duration-200 ease-out bg-[#2f3136] hover:bg-[#36393f] border border-green-500/20 hover:translate-x-0.5"
+                                      className="flex items-center justify-between p-2 rounded-md cursor-pointer bg-[#2f3136] hover:bg-[#36393f] border border-green-500/20"
                                       onClick={() => handleRoleToggle(role.id)}
                                     >
                                       <span className="flex items-center gap-2 flex-1 min-w-0">
@@ -1022,8 +986,6 @@ const ServersPageContent: React.FC = () => {
                               </div>
                             </div>
                           )}
-
-                          {/* Available Roles Section */}
                           {selfAssignableRoles.filter(
                             (role) => !myRoles.some((r) => r.id === role.id)
                           ).length > 0 && (
@@ -1048,7 +1010,7 @@ const ServersPageContent: React.FC = () => {
                                   .map((role) => (
                                     <div
                                       key={role.id}
-                                      className="flex items-center justify-between p-2 rounded-md cursor-pointer transition-all duration-200 ease-out text-gray-400 hover:bg-[#2f3136] hover:text-white border border-transparent hover:border-gray-600 hover:translate-x-0.5"
+                                      className="flex items-center justify-between p-2 rounded-md cursor-pointer text-gray-400 hover:bg-[#2f3136] hover:text-white border border-transparent hover:border-gray-600"
                                       onClick={() => handleRoleToggle(role.id)}
                                     >
                                       <span className="flex items-center gap-2 flex-1 min-w-0">
@@ -1069,8 +1031,6 @@ const ServersPageContent: React.FC = () => {
                               </div>
                             </div>
                           )}
-
-                          {/* Help text */}
                           <div className="text-[10px] text-gray-500 px-1 pt-2 border-t border-gray-700">
                             Click any role to add or remove it
                           </div>
@@ -1079,6 +1039,8 @@ const ServersPageContent: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Text Channels */}
                 <div className="px-2">
                   <h3 className="text-xs font-bold uppercase text-gray-400 mb-2">
                     Text Channels
@@ -1115,15 +1077,11 @@ const ServersPageContent: React.FC = () => {
                       <button
                         type="button"
                         title="Channel Settings"
-                        aria-label={`Settings for ${channel.name}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setChannelSettings({
-                            channel,
-                            name: channel.name,
-                          });
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setChannelSettings({ channel, name: channel.name });
                         }}
-                        className={`ml-2 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded text-gray-400 transition hover:bg-[#1e1f22] hover:text-white focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                        className={`ml-2 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded text-gray-400 transition hover:bg-[#1e1f22] hover:text-white focus:opacity-100 focus:outline-none ${
                           activeChannel?.id === channel.id &&
                           viewMode === "chat"
                             ? "opacity-100"
@@ -1136,12 +1094,14 @@ const ServersPageContent: React.FC = () => {
                   ))}
                 </div>
 
+                {/* Voice Channels */}
                 <div className="px-2">
                   <h3 className="text-xs font-bold uppercase text-gray-400 mt-4 mb-2">
                     Voice Channels
                   </h3>
                   {voiceChannels.map((channel) => {
                     const isActive = activeCall?.channelId === channel.id;
+                    const roster = channelRosters[channel.id] || [];
 
                     return (
                       <div key={channel.id} className="space-y-1">
@@ -1159,7 +1119,11 @@ const ServersPageContent: React.FC = () => {
                           <span className="flex items-center gap-2">
                             <FaVolumeUp size={12} />
                             {channel.name}
-
+                            {roster.length > 0 && (
+                              <span className="text-xs text-gray-500">
+                                {roster.length}
+                              </span>
+                            )}
                             {isActive && (
                               <span
                                 className={`w-2 h-2 rounded-full ${
@@ -1173,15 +1137,14 @@ const ServersPageContent: React.FC = () => {
                           <button
                             type="button"
                             title="Channel Settings"
-                            aria-label={`Settings for ${channel.name}`}
-                            onClick={(event) => {
-                              event.stopPropagation();
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setChannelSettings({
                                 channel,
                                 name: channel.name,
                               });
                             }}
-                            className={`ml-2 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded text-gray-400 transition hover:bg-[#1e1f22] hover:text-white focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            className={`ml-2 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded text-gray-400 transition hover:bg-[#1e1f22] hover:text-white focus:opacity-100 focus:outline-none ${
                               isActive && viewMode === "voice"
                                 ? "opacity-100"
                                 : "opacity-0 group-hover/channel:opacity-100"
@@ -1190,37 +1153,37 @@ const ServersPageContent: React.FC = () => {
                             <FaCog className="h-3.5 w-3.5" />
                           </button>
                         </div>
-                        {isActive && (
+
+                        {/* ✅ Roster visible to everyone */}
+                        {roster.length > 0 && (
                           <div className="ml-6 space-y-1">
-                            {voiceMembers.length === 0 ? (
-                              <div className="text-xs text-gray-500 px-2">
-                                {isConnecting ? "Connecting…" : "No one here"}
-                              </div>
-                            ) : (
-                              voiceMembers.map((m) => (
-                                <div
-                                  key={m.id}
-                                  className="flex items-center justify-between px-2 py-1 rounded hover:bg-[#2f3136]"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs text-gray-300 truncate">
-                                      {m.username}
+                            {roster.map((member) => (
+                              <div
+                                key={member.id}
+                                className="flex items-center justify-between px-2 py-1 rounded hover:bg-[#2f3136]"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <div className="w-5 h-5 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0">
+                                    <span className="text-[10px] text-white font-bold">
+                                      {member.username.charAt(0).toUpperCase()}
                                     </span>
                                   </div>
-
-                                  <div className="flex items-center gap-1">
-                                    {m.muted ? (
-                                      <FaMicrophoneSlash className="w-3 h-3 text-red-500" />
-                                    ) : (
-                                      <FaMicrophone className="w-3 h-3 text-gray-400" />
-                                    )}
-                                    {!m.video && (
-                                      <FaVideoSlash className="w-3 h-3 text-gray-500" />
-                                    )}
-                                  </div>
+                                  <span className="text-xs text-gray-300 truncate max-w-[100px]">
+                                    {member.username}
+                                  </span>
                                 </div>
-                              ))
-                            )}
+                                <div className="flex items-center gap-1">
+                                  {member.muted ? (
+                                    <FaMicrophoneSlash className="w-3 h-3 text-red-500" />
+                                  ) : (
+                                    <FaMicrophone className="w-3 h-3 text-gray-400" />
+                                  )}
+                                  {!member.video && (
+                                    <FaVideoSlash className="w-3 h-3 text-gray-500" />
+                                  )}
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>
@@ -1228,6 +1191,7 @@ const ServersPageContent: React.FC = () => {
                   })}
                 </div>
 
+                {/* In-call status bar */}
                 {isVoiceActiveForCurrentServer && activeCall && (
                   <div className="mt-auto p-2">
                     <div className="flex items-center justify-between bg-gray-900 rounded-md p-2 mt-2">
@@ -1265,6 +1229,7 @@ const ServersPageContent: React.FC = () => {
               </div>
             </div>
 
+            {/* Main area */}
             <div className="flex-1 min-w-0 relative text-white bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.12)_0%,rgba(0,0,0,1)_65%)] flex flex-col">
               <button
                 onClick={() => setIsChannelSidebarCollapsed((prev) => !prev)}
@@ -1284,13 +1249,10 @@ const ServersPageContent: React.FC = () => {
                 )}
               </button>
 
-              {/* Show voice UI when in voice view mode AND connected to this server's voice channel */}
               <>
-                {/* Voice UI — always mounted when call is active, hidden when in chat mode */}
+                {/* Voice UI */}
                 <div
-                  className={`flex-1 w-full h-full ${
-                    showVoiceUI ? "flex" : "hidden"
-                  }`}
+                  className={`flex-1 w-full h-full ${showVoiceUI ? "flex" : "hidden"}`}
                 >
                   {isVoiceActiveForCurrentServer && activeCall && (
                     <div className="flex h-full w-full">
@@ -1308,40 +1270,44 @@ const ServersPageContent: React.FC = () => {
                       </div>
                     </div>
                   )}
-
-                  {/* Inside your main content area, after the chat/voice divs */}
-                  {activeCall && viewMode === "chat" && (
-                    <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-[#1a1b1e] border-t border-gray-800">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-yellow-500 animate-pulse"}`}
-                        />
-                        <span className="text-sm text-gray-300">
-                          Voice connected:{" "}
-                          <span className="text-white font-medium">
-                            {activeCall.channelName}
-                          </span>
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setViewMode("voice")}
-                          className="px-3 py-1 text-xs rounded bg-gray-700 hover:bg-gray-600 text-white"
-                        >
-                          Open
-                        </button>
-                        <button
-                          onClick={handleHangUp}
-                          className="px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500 text-white"
-                        >
-                          Hang up
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </div>
 
-                {/* Chat UI — always mounted when channel is active, hidden when in voice mode */}
+                {/* Bottom bar when in call but viewing chat */}
+                {activeCall && viewMode === "chat" && (
+                  <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-[#1a1b1e] border-t border-gray-800">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`w-2 h-2 rounded-full ${
+                          isConnected
+                            ? "bg-green-500"
+                            : "bg-yellow-500 animate-pulse"
+                        }`}
+                      />
+                      <span className="text-sm text-gray-300">
+                        Voice connected:{" "}
+                        <span className="text-white font-medium">
+                          {activeCall.channelName}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setViewMode("voice")}
+                        className="px-3 py-1 text-xs rounded bg-gray-700 hover:bg-gray-600 text-white"
+                      >
+                        Open
+                      </button>
+                      <button
+                        onClick={handleHangUp}
+                        className="px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500 text-white"
+                      >
+                        Hang up
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Chat UI */}
                 <div
                   className={`flex-1 overflow-y-auto px-6 pb-6 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900 rounded-lg ${
                     !showVoiceUI && activeChannel ? "flex flex-col" : "hidden"
@@ -1356,7 +1322,6 @@ const ServersPageContent: React.FC = () => {
                       localStream={null}
                       remoteStreams={[]}
                       serverId={selectedServerId ?? undefined}
-                      channelName={activeChannel.name}
                     />
                   )}
                 </div>
@@ -1364,7 +1329,7 @@ const ServersPageContent: React.FC = () => {
                 {/* Empty state */}
                 {!showVoiceUI && !activeChannel && (
                   <div className="flex flex-col items-center justify-center h-full">
-                    <h2 className="text-2xl text-gray-400"></h2>
+                    <h2 className="text-2xl text-gray-400" />
                   </div>
                 )}
               </>
@@ -1374,7 +1339,7 @@ const ServersPageContent: React.FC = () => {
       </div>
     </>
   );
-};
+};;
 
 const ServersPage: React.FC = () => {
   return (
