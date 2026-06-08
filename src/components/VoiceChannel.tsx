@@ -502,20 +502,119 @@ const VoiceChannel = ({
 
   // ── Join voice channel ───────────────────────────────────────────────────
   useEffect(() => {
-    if (useExternalManager) return; // context handles joining
+    if (useExternalManager) return;
 
     const manager = managerRef.current;
     if (!manager || !isManagerInitialized.current || !hasPermissions) return;
 
     let cancelled = false;
 
+    const setupListeners = () => {
+      manager.onVoiceRoster((members) => {
+        if (!isMountedRef.current) return;
+        const mapped: VoiceMember[] = members.map((m) => ({
+          odattendeeId: m.attendeeId,
+          oduserId: m.oduserId || m.attendeeId,
+          username:
+            (m as any).odName ||
+            (m as any).name ||
+            m.oduserId ||
+            `User ${m.attendeeId.slice(0, 8)}`,
+          muted: m.muted ?? false,
+          speaking: m.speaking ?? false,
+          video: m.video ?? false,
+        }));
+        setVoiceMembers(mapped);
+        setIsVoiceChannelConnected(true);
+        onVoiceRosterRef.current?.(members);
+      });
+
+      manager.onUserJoined((attendeeId) => {
+        if (!isMountedRef.current) return;
+        setVoiceStates((prev) =>
+          new Map(prev).set(attendeeId, {
+            muted: false,
+            speaking: false,
+            video: false,
+          })
+        );
+      });
+
+      manager.onUserLeft((attendeeId) => {
+        if (!isMountedRef.current) return;
+        setVoiceStates((prev) => {
+          const next = new Map(prev);
+          next.delete(attendeeId);
+          return next;
+        });
+        setVoiceMembers((prev) =>
+          prev.filter((m) => m.odattendeeId !== attendeeId)
+        );
+      });
+
+      manager.onMediaState((attendeeId, state) => {
+        if (!isMountedRef.current) return;
+        setVoiceStates((prev) =>
+          new Map(prev).set(attendeeId, {
+            muted: state.muted ?? false,
+            speaking: state.speaking ?? false,
+            video: state.video ?? false,
+          })
+        );
+        setVoiceMembers((prev) =>
+          prev.map((m) =>
+            m.odattendeeId === attendeeId ? { ...m, ...state } : m
+          )
+        );
+      });
+
+    
+      manager.onVideoTileUpdated((tile) => {
+        if (!isMountedRef.current) return;
+        setVideoTiles((prev) => new Map(prev).set(tile.tileId, tile));
+        if (tile.isLocal && !tile.isContent) {
+          setLocalVideoTileId(tile.tileId);
+        }
+      });
+
+      manager.onVideoTileRemoved((tileId) => {
+        if (!isMountedRef.current) return;
+        setVideoTiles((prev) => {
+          const next = new Map(prev);
+          next.delete(tileId);
+          return next;
+        });
+        setLocalVideoTileId((prev) => (prev === tileId ? null : prev));
+      });
+
+      manager.onConnectionStateChange((connected) => {
+        if (!isMountedRef.current) return;
+        setIsConnected(connected);
+        if (!connected) setIsVoiceChannelConnected(false);
+      });
+
+      manager.onError((error) => {
+        if (!isMountedRef.current) return;
+        setConnectionError(error.message);
+      });
+    };
+
     const join = async () => {
       try {
+     
+        setVideoTiles(new Map());
+        setLocalVideoTileId(null);
+        setVoiceMembers([]);
+        setVoiceStates(new Map());
         setIsVoiceChannelConnected(false);
+        setConnectionError(null);
+        setupListeners();
+
         await manager.joinVoiceChannel(channelId);
         if (cancelled) return;
-        onLocalStreamChangeRef.current?.(null);
+
         setIsVoiceChannelConnected(true);
+        onLocalStreamChangeRef.current?.(null);
       } catch (error: any) {
         if (cancelled) return;
         setPermissionError("Failed to connect to voice channel.");
@@ -528,6 +627,9 @@ const VoiceChannel = ({
       cancelled = true;
       manager.leaveVoiceChannel();
       setIsVoiceChannelConnected(false);
+    
+      setVideoTiles(new Map());
+      setLocalVideoTileId(null);
     };
   }, [channelId, hasPermissions, useExternalManager]);
 

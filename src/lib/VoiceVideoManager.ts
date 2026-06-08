@@ -485,35 +485,32 @@ export class VoiceVideoManager
     console.log("[VoiceVideoManager] Leaving channel:", this.currentChannelId);
 
     if (this.audioVideo) {
-      // Stop local video
       if (this.mediaState.video) {
         this.audioVideo.stopVideoInput();
         this.audioVideo.stopLocalVideoTile();
       }
-
-      // Stop screen share
       if (this.mediaState.screenSharing) {
         this.audioVideo.stopContentShare();
         this.clearLocalScreenStream();
       }
-
-      // Remove observers
       this.audioVideo.removeObserver(this);
       this.audioVideo.removeContentShareObserver(this);
       this.deviceController?.removeDeviceChangeObserver(this);
-
-      // Stop the session
       this.audioVideo.stop();
     }
 
-    // Clean up audio element
     if (this.audioElement) {
       this.audioElement.remove();
       this.audioElement = null;
     }
 
-    // Clear state
     this.roster.clear();
+
+    // ✅ Fire removal callbacks BEFORE clearing so UI can clean up
+    this.videoTiles.forEach((_, tileId) => {
+      this.callbacks.onVideoTileRemoved?.(tileId);
+    });
+
     this.videoTiles.clear();
     this.localVideoTileId = null;
     this.localScreenTileId = null;
@@ -521,7 +518,6 @@ export class VoiceVideoManager
     this.meetingSession = null;
     this.audioVideo = null;
 
-    // Reset media state
     this.mediaState = {
       ...this.mediaState,
       video: false,
@@ -530,9 +526,9 @@ export class VoiceVideoManager
       activeStreams: { audio: false, video: false, screen: false },
     };
 
+   
     this.callbacks.onConnectionStateChange?.(false);
   }
-
   // ==================== AUDIO/VIDEO CONTROLS ====================
 
   /**
