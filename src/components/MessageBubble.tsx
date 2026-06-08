@@ -354,7 +354,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                     <Paperclip className="h-4 w-4" />
                   </span>
                 ))}
-   <span className="mt-1 flex min-w-0 items-center gap-2">
+  <span className="mt-1 flex min-w-0 items-center gap-2">
   {message.replyTo.content?.startsWith("[GIF]") ? (
     <>
       <img
@@ -364,6 +364,17 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       />
       <span className="truncate text-slate-400">GIF</span>
     </>
+  ) : message.replyTo.content?.trim().startsWith("```") ? (
+    <div className="max-w-xs overflow-hidden rounded bg-slate-900 border border-slate-700 px-2 py-1">
+      <pre className="text-xs font-mono text-slate-300 whitespace-pre-wrap">
+        {message.replyTo.content
+          .replace(/^```[\w]*\n?/, "")
+          .replace(/```$/, "")
+          .split("\n")
+          .slice(0, 3)
+          .join("\n")}
+      </pre>
+    </div>
   ) : (
     <>
       {message.replyTo.mediaUrl &&
@@ -381,10 +392,20 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             <Paperclip className="h-4 w-4" />
           </span>
         ))}
+
       <span className="min-w-0 truncate">
-        {message.replyTo.content ||
-          (message.replyTo.mediaUrl ? "Attachment" : "")}
-      </span>
+  {(() => {
+    const text =
+      message.replyTo.content ||
+      (message.replyTo.mediaUrl ? "Attachment" : "");
+
+    const words = text.split(/\s+/);
+
+    return words.length > 100
+      ? words.slice(0, 100).join(" ") + "..."
+      : text;
+  })()}
+</span>
     </>
   )}
 </span>

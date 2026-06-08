@@ -44,6 +44,10 @@ export default function MessageInput({
     });
   };
 
+  const MAX_WORDS = 250;
+
+const getWordCount = (text: string) =>
+  text.trim().split(/\s+/).filter(Boolean).length;
   /* -------------------- FILE -------------------- */
   const ALLOWED_TYPES = [
     "image/jpeg",
@@ -91,23 +95,33 @@ export default function MessageInput({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
   /* -------------------- SEND -------------------- */
-  const handleSend = () => {
-    if (!text.trim() && files.length === 0) return;
+ const handleSend = () => {
+  const wordCount = getWordCount(text);
 
-    sendMessage(text, files);
+  if (wordCount > MAX_WORDS) {
+    const msg = `Messages cannot exceed ${MAX_WORDS} words. You currently have ${wordCount} words.`;
 
-    setText("");
-    setFiles([]);
-    setShowEmojiPicker(false);
+    if (onToast) onToast(msg, "error");
+    else showToast(msg, "error");
 
-    requestAnimationFrame(() => {
-      if (inputRef.current) {
-        inputRef.current.style.height = "auto";
-        inputRef.current.focus();
-      }
-    });
-  };
+    return;
+  }
 
+  if (!text.trim() && files.length === 0) return;
+
+  sendMessage(text, files);
+
+  setText("");
+  setFiles([]);
+  setShowEmojiPicker(false);
+
+  requestAnimationFrame(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+      inputRef.current.focus();
+    }
+  });
+};
   /* -------------------- KEEP FOCUS AFTER SEND -------------------- */
   useEffect(() => {
     if (!isSending) {
@@ -147,10 +161,23 @@ export default function MessageInput({
   }, []);
   /* -------------------- TEXTAREA -------------------- */
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setText(e.target.value);
-    e.target.style.height = "auto";
-    e.target.style.height = `${e.target.scrollHeight}px`;
-  };
+  const value = e.target.value;
+
+  const wordCount = value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+
+  if (wordCount > 250) {
+    showToast("Maximum 250 words allowed.", "error");
+    return;
+  }
+
+  setText(value);
+
+  e.target.style.height = "auto";
+  e.target.style.height = `${e.target.scrollHeight}px`;
+};
 const searchGifs = async (query: string) => {
   try {
     const res = await fetch(

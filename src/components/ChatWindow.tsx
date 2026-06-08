@@ -1959,6 +1959,8 @@ export default forwardRef(function ChatWindow(
         {replyingTo && (
           <div className="mx-6 mb-2 px-4 py-2 bg-slate-800 rounded-lg flex items-center justify-between border-l-4 border-blue-500">
             <div className="flex items-center gap-2 min-w-0 text-sm text-slate-300">
+  
+<div className="flex items-center gap-2 min-w-0 text-sm text-slate-300">
   <span className="shrink-0">
     Replying to{" "}
     <span className="font-semibold">
@@ -1973,11 +1975,19 @@ export default forwardRef(function ChatWindow(
       alt="GIF preview"
       className="h-10 w-10 rounded object-cover border border-slate-600 flex-shrink-0"
     />
+  ) : replyingTo.content?.trim().startsWith("```") ? (
+    <div className="max-w-xs truncate rounded bg-slate-900 border border-slate-700 px-2 py-1 font-mono text-xs text-green-400">
+      {replyingTo.content
+        .replace(/^```[\w]*\n?/, "")
+        .replace(/```$/, "")
+        .split("\n")[0]}
+    </div>
   ) : (
     <span className="italic truncate">
       {replyingTo.content}
     </span>
   )}
+</div>
 </div>
             <button
               onClick={() => {

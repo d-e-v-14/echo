@@ -108,6 +108,10 @@ export default function MessageInputWithMentions({
     textArea.style.height = "auto";
     textArea.style.height = `${textArea.scrollHeight}px`;
   };
+  const MAX_WORDS = 250;
+
+const getWordCount = (text: string) =>
+  text.trim().split(/\s+/).filter(Boolean).length;
 
   useEffect(() => {
     resizeTextArea();
@@ -224,31 +228,44 @@ export default function MessageInputWithMentions({
 
     return { valid: true };
   };
+const handleSend = () => {
+  if (text.trim() === "" && files.length === 0) return;
 
-  const handleSend = () => {
-    if (text.trim() === "" && files.length === 0) return;
+  const wordCount = getWordCount(text);
 
-    const validation = validateRoleMentions(text);
-    if (!validation.valid) {
-      alert(`Role "${validation.invalidRole}" does not exist in this server.`);
-      return;
+  if (wordCount > MAX_WORDS) {
+    showToast(
+      `Messages cannot exceed ${MAX_WORDS} words. You currently have ${wordCount} words.`,
+      "error"
+    );
+    return;
+  }
+
+  const validation = validateRoleMentions(text);
+
+  if (!validation.valid) {
+    showToast(
+      `Role "${validation.invalidRole}" does not exist in this server.`,
+      "error"
+    );
+    return;
+  }
+
+  sendMessage(text, files);
+
+  setShowEmojiPicker(false);
+  setShowMentionDropdown(false);
+
+  setText("");
+  setFiles([]);
+
+  requestAnimationFrame(() => {
+    if (textInputRef.current) {
+      textInputRef.current.style.height = "auto";
+      textInputRef.current.focus();
     }
-
-    sendMessage(text, files);
-
-    setShowEmojiPicker(false);
-    setShowMentionDropdown(false);
-
-    setText("");
-    setFiles([]);
-
-    requestAnimationFrame(() => {
-      if (textInputRef.current) {
-        textInputRef.current.style.height = "auto";
-        textInputRef.current.focus();
-      }
-    });
-  };
+  });
+};
 
   const searchMentionable = async (query: string) => {
     if (!serverId) {
@@ -270,13 +287,35 @@ export default function MessageInputWithMentions({
     }
   };
 
-  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
-    const cursor = e.target.selectionStart || 0;
+ const MAX_CHARS = 950;
+const handleTextChange = (
+  e: React.ChangeEvent<HTMLTextAreaElement>
+) => {
+  const value = e.target.value;
 
-    setText(value);
-    e.target.style.height = "auto";
-    e.target.style.height = `${e.target.scrollHeight}px`;
+  const wordCount = value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+
+  if (wordCount > MAX_WORDS) {
+    showToast(
+      `Maximum ${MAX_WORDS} words allowed.`,
+      "error"
+    );
+    return;
+  }
+
+if (value.length > MAX_CHARS) {
+  showToast("Maximum 950 characters allowed.", "error");
+  return;
+}
+
+  setText(value);
+
+  e.target.style.height = "auto";
+  e.target.style.height = `${e.target.scrollHeight}px`;
+  const cursor = e.target.selectionStart || 0;
 
     const beforeCursor = value.slice(0, cursor);
 
