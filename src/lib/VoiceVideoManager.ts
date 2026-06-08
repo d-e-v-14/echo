@@ -34,6 +34,7 @@ import {
   MeetingSessionStatus,
   DeviceChangeObserver,
   VideoSource,
+  DefaultModality,
 } from "amazon-chime-sdk-js";
 
 import axios from "axios";
@@ -184,9 +185,14 @@ export class VoiceVideoManager
   // Audio element for playback (hidden in DOM)
   private audioElement: HTMLAudioElement | null = null;
 
+  // Local screen capture stream (Chime requires this for sharer preview — tile bind won't work)
+  private localScreenStream: MediaStream | null = null;
+  private screenShareTrackEndedHandler: (() => void) | null = null;
+
   // Video tiles tracking
   private videoTiles: Map<number, VideoTileInfo> = new Map();
   private localVideoTileId: number | null = null;
+  private localScreenTileId: number | null = null;
 
   // Roster (list of participants)
   private roster: Map<string, VoiceRosterMember> = new Map();
@@ -488,6 +494,7 @@ export class VoiceVideoManager
       // Stop screen share
       if (this.mediaState.screenSharing) {
         this.audioVideo.stopContentShare();
+        this.clearLocalScreenStream();
       }
 
       // Remove observers
@@ -509,6 +516,7 @@ export class VoiceVideoManager
     this.roster.clear();
     this.videoTiles.clear();
     this.localVideoTileId = null;
+    this.localScreenTileId = null;
     this.currentChannelId = null;
     this.meetingSession = null;
     this.audioVideo = null;
@@ -630,7 +638,11 @@ export class VoiceVideoManager
     if (!this.audioVideo) return;
 
     try {
-      await this.audioVideo.startContentShareFromScreenCapture();
+      // Capture screen/window/tab — browser shows native picker (screen/window/tab).
+      // The returned stream is required to preview your own share locally (Chime SDK docs).
+      const screenStream =
+        await this.audioVideo.startContentShareFromScreenCapture(undefined, 15);
+      this.attachLocalScreenStream(screenStream);
       this.mediaState.screenSharing = true;
       this.mediaState.activeStreams.screen = true;
       this.broadcastLocalState();
@@ -665,15 +677,64 @@ export class VoiceVideoManager
     if (!this.audioVideo) return;
 
     this.audioVideo.stopContentShare();
+    this.clearLocalScreenStream();
     this.mediaState.screenSharing = false;
     this.mediaState.activeStreams.screen = false;
     this.broadcastLocalState();
   }
 
+  private getBaseAttendeeId(attendeeId: string): string {
+    return new DefaultModality(attendeeId).base();
+  }
+
+  private attachLocalScreenStream(stream: MediaStream): void {
+    this.detachLocalScreenStreamListeners();
+    this.localScreenStream = stream;
+
+    const videoTrack = stream.getVideoTracks()[0];
+    if (!videoTrack) return;
+
+    this.screenShareTrackEndedHandler = () => {
+      console.log(
+        "[VoiceVideoManager] Screen share track ended (browser stop button)"
+      );
+      if (this.mediaState.screenSharing) {
+        this.mediaState.screenSharing = false;
+        this.mediaState.activeStreams.screen = false;
+        this.localScreenStream = null;
+        this.detachLocalScreenStreamListeners();
+        this.broadcastLocalState();
+      }
+    };
+    videoTrack.addEventListener("ended", this.screenShareTrackEndedHandler);
+  }
+
+  private detachLocalScreenStreamListeners(): void {
+    if (this.localScreenStream && this.screenShareTrackEndedHandler) {
+      this.localScreenStream
+        .getVideoTracks()
+        .forEach((track) =>
+          track.removeEventListener("ended", this.screenShareTrackEndedHandler!)
+        );
+    }
+    this.screenShareTrackEndedHandler = null;
+  }
+
+  /** Drop local preview reference — Chime owns stopping the capture tracks */
+  private clearLocalScreenStream(): void {
+    this.detachLocalScreenStreamListeners();
+    this.localScreenStream = null;
+  }
+
   // ContentShareObserver implementation
-  contentShareDidStart(): void {}
+  contentShareDidStart(): void {
+    this.mediaState.screenSharing = true;
+    this.mediaState.activeStreams.screen = true;
+    this.broadcastLocalState();
+  }
 
   contentShareDidStop(): void {
+    this.clearLocalScreenStream();
     this.mediaState.screenSharing = false;
     this.mediaState.activeStreams.screen = false;
     this.broadcastLocalState();
@@ -818,7 +879,11 @@ export class VoiceVideoManager
     this.videoTiles.set(tileState.tileId, tileInfo);
 
     if (tileState.localTile) {
-      this.localVideoTileId = tileState.tileId;
+      if (tileState.isContent) {
+        this.localScreenTileId = tileState.tileId;
+      } else {
+        this.localVideoTileId = tileState.tileId;
+      }
     }
 
     console.log("[VoiceVideoManager] Video tile updated:", tileInfo);
@@ -843,10 +908,18 @@ export class VoiceVideoManager
 
     this.callbacks.onVideoTileUpdated?.(tileInfo);
 
-    // If this is a content share, update screen sharing state
+    // If this is a content share, update screen sharing state in roster + notify UI
     if (tileState.isContent && tileState.boundAttendeeId) {
-      const baseAttendeeId = tileState.boundAttendeeId.split("#")[0];
-      this.callbacks.onScreenSharing?.(baseAttendeeId, true);
+      const baseAttendeeId = this.getBaseAttendeeId(tileState.boundAttendeeId);
+      const rosterMember = this.roster.get(baseAttendeeId);
+      if (rosterMember) {
+        rosterMember.screenSharing = tileState.active !== false;
+        this.broadcastRoster();
+      }
+      this.callbacks.onScreenSharing?.(
+        baseAttendeeId,
+        tileState.active !== false
+      );
     }
   }
 
@@ -861,7 +934,12 @@ export class VoiceVideoManager
 
     // Handle content share (screen sharing) removal
     if (tileInfo?.isContent && tileInfo.attendeeId) {
-      const baseAttendeeId = tileInfo.attendeeId.split("#")[0];
+      const baseAttendeeId = this.getBaseAttendeeId(tileInfo.attendeeId);
+      const rosterMember = this.roster.get(baseAttendeeId);
+      if (rosterMember) {
+        rosterMember.screenSharing = false;
+        this.broadcastRoster();
+      }
       this.callbacks.onScreenSharing?.(baseAttendeeId, false);
     }
 
@@ -882,6 +960,9 @@ export class VoiceVideoManager
 
     if (tileId === this.localVideoTileId) {
       this.localVideoTileId = null;
+    }
+    if (tileId === this.localScreenTileId) {
+      this.localScreenTileId = null;
     }
 
     console.log("[VoiceVideoManager] Video tile removed:", tileId);
@@ -1304,6 +1385,10 @@ export class VoiceVideoManager
     return this.localVideoTileId;
   }
 
+  getLocalScreenTileId(): number | null {
+    return this.localScreenTileId;
+  }
+
   getVideoTiles(): Map<number, VideoTileInfo> {
     return new Map(this.videoTiles);
   }
@@ -1360,7 +1445,7 @@ export class VoiceVideoManager
   }
 
   getLocalScreenStream(): MediaStream | null {
-    return null;
+    return this.localScreenStream;
   }
 
   async ensureConnection(): Promise<void> {

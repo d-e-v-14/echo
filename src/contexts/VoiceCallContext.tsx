@@ -39,6 +39,8 @@ export interface VoiceCallContextValue {
   participants: VoiceRosterMember[];
   localMediaState: MediaState;
   localVideoTileId: number | null;
+  localScreenTileId: number | null;
+  localScreenStream: MediaStream | null;
   videoTiles: Map<number, VideoTileInfo>;
   permissionError: string | null;
   connectionError: string | null;
@@ -77,6 +79,8 @@ const defaultContextValue: VoiceCallContextValue = {
     availablePermissions: { audio: false, video: false },
   },
   localVideoTileId: null,
+  localScreenTileId: null,
+  localScreenStream: null,
   videoTiles: new Map(),
   permissionError: null,
   connectionError: null,
@@ -115,6 +119,11 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
     defaultContextValue.localMediaState
   );
   const [localVideoTileId, setLocalVideoTileId] = useState<number | null>(null);
+  const [localScreenTileId, setLocalScreenTileId] = useState<number | null>(
+    null
+  );
+  const [localScreenStream, setLocalScreenStream] =
+    useState<MediaStream | null>(null);
   const [videoTiles, setVideoTiles] = useState<Map<number, VideoTileInfo>>(
     new Map()
   );
@@ -168,8 +177,12 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
         return newMap;
       });
 
-      if (tile.isLocal && !tile.isContent) {
-        setLocalVideoTileId(tile.tileId);
+      if (tile.isLocal) {
+        if (tile.isContent) {
+          setLocalScreenTileId(tile.tileId);
+        } else {
+          setLocalVideoTileId(tile.tileId);
+        }
       }
     });
 
@@ -183,6 +196,7 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
       });
 
       setLocalVideoTileId((prev) => (prev === tileId ? null : prev));
+      setLocalScreenTileId((prev) => (prev === tileId ? null : prev));
     });
 
     // Connection state changes
@@ -211,6 +225,10 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
 
     manager.onUserLeft((attendeeId) => {
       console.log("[VoiceCallContext] User left:", attendeeId);
+    });
+
+    manager.onScreenSharing(() => {
+      setParticipants(manager.getRoster());
     });
   }, []);
 
@@ -309,6 +327,8 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
           setParticipants([]);
           setVideoTiles(new Map());
           setLocalVideoTileId(null);
+          setLocalScreenTileId(null);
+          setLocalScreenStream(null);
         }
 
         // Initialize if not done yet
@@ -369,6 +389,8 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
     setParticipants([]);
     setVideoTiles(new Map());
     setLocalVideoTileId(null);
+    setLocalScreenTileId(null);
+    setLocalScreenStream(null);
     setConnectionError(null);
   }, []);
 
@@ -403,8 +425,10 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
       const currentState = manager.getMediaState();
       if (currentState.screenSharing) {
         manager.stopScreenShare();
+        setLocalScreenStream(null);
       } else {
         await manager.startScreenShare();
+        setLocalScreenStream(manager.getLocalScreenStream());
       }
       setLocalMediaState(manager.getMediaState());
     } catch (error: any) {
@@ -442,8 +466,9 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
       const manager = managerRef.current;
       if (manager) {
         setLocalMediaState(manager.getMediaState());
+        setLocalScreenStream(manager.getLocalScreenStream());
       }
-    }, 1000);
+    }, 500);
 
     return () => clearInterval(interval);
   }, [activeCall]);
@@ -473,6 +498,8 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
       participants,
       localMediaState,
       localVideoTileId,
+      localScreenTileId,
+      localScreenStream,
       videoTiles,
       permissionError,
       connectionError,
@@ -492,6 +519,8 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
       participants,
       localMediaState,
       localVideoTileId,
+      localScreenTileId,
+      localScreenStream,
       videoTiles,
       permissionError,
       connectionError,
