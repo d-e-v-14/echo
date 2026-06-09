@@ -892,7 +892,7 @@ const externalState = useMemo(
                 <div className="flex items-center justify-between px-2 mb-2">
                   <h2 className="text-xl font-bold">{selectedServerName}</h2>
                   <div className="flex items-center gap-2">
-                    <NotificationBell
+                    {/* <NotificationBell
                       onNavigateToMessage={async (channelId, messageId) => {
                         const targetChannel = channels.find(
                           (c) => c.id === channelId
@@ -930,7 +930,7 @@ const externalState = useMemo(
                           }, 300);
                         }
                       }}
-                    />
+                    /> */}
                     <button
                       className={`p-2 rounded-full transition ${
                         !selectedServerId ? "opacity-50" : "hover:bg-[#23272a]"
