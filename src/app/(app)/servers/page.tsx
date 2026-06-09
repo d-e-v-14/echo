@@ -2,7 +2,12 @@
 
 export const dynamic = "force-dynamic";
 import { getVoicePresenceSocket } from "@/lib/voicePresenceSocket";
-
+import {
+  PhoneCall,
+  PhoneOff,
+  Users,
+  PanelRightOpen,
+} from "lucide-react";
 import React, {
   useState,
   useEffect,
@@ -1256,37 +1261,51 @@ const externalState = useMemo(
                 {/* In-call status bar */}
                 {isVoiceActiveForCurrentServer && activeCall && (
                   <div className="mt-auto p-2">
-                    <div className="flex items-center justify-between bg-gray-900 rounded-md p-2 mt-2">
-                      <div className="text-xs text-gray-300 truncate mr-2">
-                        <div className="flex items-center gap-1">
-                          <div
-                            className={`w-2 h-2 rounded-full ${
-                              isConnected
-                                ? "bg-green-500"
-                                : "bg-yellow-500 animate-pulse"
-                            }`}
-                          />
-                          <span>In voice: {activeCall.channelName}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {viewMode === "chat" && (
-                          <button
-                            onClick={() => setViewMode("voice")}
-                            className="px-2 py-1 text-xs rounded bg-gray-700 hover:bg-gray-600"
-                          >
-                            Open
-                          </button>
-                        )}
-                        <button
-                          onClick={handleHangUp}
-                          className="px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500"
-                        >
-                          Hang up
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+  <div className="flex items-center justify-between rounded-lg bg-[#111214] border border-[#2b2d31] px-3 py-2">
+    
+    {/* Left */}
+    <div className="flex items-center gap-2 min-w-0">
+      
+
+      <PhoneCall
+        size={14}
+        className="text-[#3ba55c] shrink-0"
+      />
+
+      <span className="truncate text-xs font-medium text-white">
+        {activeCall.channelName}
+      </span>
+
+      <div className="flex items-center gap-1 text-[#949ba4]">
+        <Users size={12} />
+        <span className="text-[11px]">
+          {participants.length}
+        </span>
+      </div>
+    </div>
+
+    {/* Right */}
+    <div className="flex items-center gap-1">
+      {viewMode === "chat" && (
+        <button
+          onClick={() => setViewMode("voice")}
+          className="rounded p-1.5 text-[#b5bac1] hover:bg-[#3f4248] hover:text-white transition"
+          title="Open Voice"
+        >
+          <PanelRightOpen size={14} />
+        </button>
+      )}
+
+      <button
+        onClick={handleHangUp}
+        className="rounded p-1.5 text-[#ed4245] hover:bg-[#ed4245]/15 transition"
+        title="Leave Call"
+      >
+        <PhoneOff size={14} />
+      </button>
+    </div>
+  </div>
+</div>
                 )}
               </div>
             </div>

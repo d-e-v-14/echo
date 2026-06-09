@@ -1707,7 +1707,7 @@ const isCodeBlock = (content?: string) => {
         
 
 
-<div className="h-12 flex items-center justify-between px-4 border-b border-[#1f2124] bg-[#313338] shadow-sm">
+<div className="h-12 flex items-center justify-between px-4 border-b border-[#1f2124] bg-[#313338] ">
   {/* Left Section */}
   <div className="flex items-center min-w-0">
     <Hash className="w-6 h-6 text-[#80848e] mr-2 flex-shrink-0" />

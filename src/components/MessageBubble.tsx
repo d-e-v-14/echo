@@ -298,7 +298,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     >
       {/* Left Avatar (receiver) */}
       {!isSender && (
-        <div className="mr-3">
+        <div className="mx-3 mr-3">
           <MessageAvatar
             name={name}
             avatarUrl={avatarUrl}
