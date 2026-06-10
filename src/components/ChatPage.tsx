@@ -255,7 +255,8 @@ const ChatList: React.FC<ChatListProps> = ({
 // 2. ChatWindow Component (No changes needed)
 
 interface ChatWindowProps {
-  onLoadOlderMessages?:()=> void;
+  onLoadOlderMessages?: (container: HTMLDivElement) => void;
+  isLoadingOlderMessages?: boolean;
   activeUser: User | null;
   messages: DirectMessage[];
   currentUser: User | null;
@@ -278,6 +279,7 @@ interface ChatWindowProps {
 
 const ChatWindow: React.FC<ChatWindowProps> = ({
   onLoadOlderMessages,
+  isLoadingOlderMessages,
   activeUser,
   messages,
   currentUser,
@@ -343,15 +345,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
-const handleDmScroll = (
-  e: React.UIEvent<HTMLDivElement>
-) => {
-  const container = e.currentTarget;
+  const handleDmScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const container = e.currentTarget;
 
-  if (container.scrollTop < 100) {
-    onLoadOlderMessages?.();
-  }
-};
+    if (container.scrollTop < 100) {
+      onLoadOlderMessages?.(container);
+    }
+  };
 
   const groupedMessages = useMemo<GroupedSection[]>(() => {
     if (!messages.length) return [];
@@ -640,7 +640,15 @@ const handleDmScroll = (
       <div
         ref={messagesContainerRef}
         onScroll={handleDmScroll}
-        className="chat-scroll flex-1 space-y-8 overflow-y-auto px-6 py-8">
+        className="chat-scroll flex-1 space-y-8 overflow-y-auto px-6 py-8 pr-3 scrollbar-thin scrollbar-thumb-slate-500 scrollbar-track-slate-900">
+        {isLoadingOlderMessages && (
+          <div className="flex justify-center py-2">
+            <div className="flex items-center gap-2 rounded-full border border-slate-800/60 bg-slate-900/70 px-3 py-2 text-sm text-slate-300 shadow-lg shadow-black/20">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-500 border-t-indigo-400" />
+              Loading older messages...
+            </div>
+          </div>
+        )}
         {groupedMessages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center text-slate-400">
             <p>No messages yet.</p>
@@ -885,10 +893,18 @@ function MessagesPageContentInner() {
   const [dmHasMore, setDmHasMore] = useState<Map<string, boolean>>(
     new Map()
   );
+  const [dmSummaries, setDmSummaries] = useState<
+    Map<
+      string,
+      { lastMessage: string; timestamp: string; unreadCount: number }
+    >
+  >(new Map());
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingOlderDm, setIsLoadingOlderDm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const lastAutoScrollDmRef = useRef<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<{
     id: string;
     username: string;
@@ -1141,6 +1157,10 @@ function MessagesPageContentInner() {
 
           const users: User[] = [];
           const threadMap = new Map<string, string>();
+          const summaryMap = new Map<
+            string,
+            { lastMessage: string; timestamp: string; unreadCount: number }
+          >();
 
           threads.forEach((thread: any) => {
             const threadId = thread.thread_id
@@ -1154,6 +1174,7 @@ function MessagesPageContentInner() {
             const other = thread.other_user;
 
             if (other && other.id) {
+              const otherId = String(other.id);
               const name =
                 other.fullname ||
                 other.username ||
@@ -1162,13 +1183,39 @@ function MessagesPageContentInner() {
                 "Unknown User";
 
               users.push({
-                id: String(other.id),
+                id: otherId,
                 fullname: name,
                 avatar_url: other.avatar_url ?? null,
               });
 
+              const threadMessages = Array.isArray(thread.messages)
+                ? thread.messages
+                : [];
+              const lastMessageObj =
+                threadMessages.length > 0
+                  ? threadMessages[threadMessages.length - 1]
+                  : thread.last_message ?? thread.lastMessage ?? null;
+              const content = lastMessageObj
+                ? lastMessageObj.media_url || lastMessageObj.mediaUrl
+                  ? "Sent an attachment"
+                  : String(lastMessageObj.content ?? lastMessageObj.message ?? "")
+                : "No messages yet.";
+              const isSender = lastMessageObj?.sender_id === currentUser.id;
+              summaryMap.set(otherId, {
+                lastMessage: lastMessageObj
+                  ? `${isSender ? "You: " : `${name}: `}${content}`.trim()
+                  : "No messages yet.",
+                timestamp: String(
+                  lastMessageObj?.timestamp ??
+                    thread.updated_at ??
+                    thread.updatedAt ??
+                    new Date(0).toISOString()
+                ),
+                unreadCount: Number(thread.unread_count ?? thread.unreadCount ?? 0),
+              });
+
               if (threadId) {
-                threadMap.set(String(other.id), threadId);
+                threadMap.set(otherId, threadId);
               }
             } else if (thread.recipientId) {
               const rid = String(thread.recipientId);
@@ -1187,6 +1234,7 @@ function MessagesPageContentInner() {
 
           setAllUsers(users);
           setThreadIds(threadMap);
+          setDmSummaries(summaryMap);
 
         } catch (error: any) {
           console.error("--- DETAILED FETCH ERROR ---");
@@ -1274,7 +1322,7 @@ const isLoadingOlderDmRef = useRef(false);
 
 
 
-const loadOlderMessages = async () => {
+const loadOlderMessages = async (container?: HTMLDivElement | null) => {
   if (isLoadingOlderDmRef.current) return;
 
   if (!activeDmId) return;
@@ -1288,11 +1336,12 @@ const loadOlderMessages = async () => {
   if (!hasMore) return;
 
   isLoadingOlderDmRef.current = true;
+  setIsLoadingOlderDm(true);
 
   try {
-
-    const container = messagesContainerRef.current;
-    const previousHeight = container?.scrollHeight ?? 0;
+    const scrollContainer = container ?? messagesContainerRef.current;
+    const previousHeight = scrollContainer?.scrollHeight ?? 0;
+    const previousScrollTop = scrollContainer?.scrollTop ?? 0;
 
     const result = await getDmThreadMessages(threadId, offset);
 
@@ -1324,12 +1373,12 @@ const loadOlderMessages = async () => {
     });
 
     requestAnimationFrame(() => {
-  if (!container) return;
+      const node = scrollContainer ?? messagesContainerRef.current;
+      if (!node) return;
 
-  const newHeight = container.scrollHeight;
-
-  container.scrollTop += newHeight - previousHeight;
-});
+      const newHeight = node.scrollHeight;
+      node.scrollTop = previousScrollTop + (newHeight - previousHeight);
+    });
 
     setDmOffsets((prev) => {
       const next = new Map(prev);
@@ -1346,6 +1395,7 @@ const loadOlderMessages = async () => {
     console.error(err);
   } finally {
     isLoadingOlderDmRef.current = false;
+    setIsLoadingOlderDm(false);
   }
 };
 
@@ -1640,22 +1690,23 @@ const loadOlderMessages = async () => {
           userMessages.length > 0
             ? userMessages[userMessages.length - 1]
             : null;
-        let lastMessage = "No messages yet.";
-        let timestamp = new Date(0).toISOString(); // Default to epoch
+        const fallbackSummary = dmSummaries.get(user.id);
+        const lastMessage = lastMessageObj
+          ? `${
+              lastMessageObj.sender_id === currentUser?.id
+                ? "You: "
+                : `${user.fullname}: `
+            }${lastMessageObj.media_url ? "Sent an attachment" : lastMessageObj.content || ""}`.trim()
+          : fallbackSummary?.lastMessage || "No messages yet.";
+        const timestamp =
+          lastMessageObj?.timestamp ||
+          fallbackSummary?.timestamp ||
+          new Date(0).toISOString();
 
-        if (lastMessageObj) {
-          const isSender = lastMessageObj.sender_id === currentUser?.id;
-          const content = lastMessageObj.media_url
-            ? "Sent an attachment"
-            : lastMessageObj.content || "";
-          const prefix = isSender ? "You: " : `${user.fullname}: `;
-          lastMessage = `${prefix}${content}`.trim();
-          timestamp = lastMessageObj.timestamp;
-        }
-
-        // Get unread count from context
         const threadId = lastMessageObj?.thread_id;
-        const unreadCount = threadId ? unreadPerThread[threadId] || 0 : 0;
+        const unreadCount = threadId
+          ? unreadPerThread[threadId] || fallbackSummary?.unreadCount || 0
+          : fallbackSummary?.unreadCount || 0;
 
         return {
           user,
@@ -1670,7 +1721,7 @@ const loadOlderMessages = async () => {
         const timeB = new Date(b.timestamp).getTime();
         return timeB - timeA;
       });
-  }, [allUsers, messages, currentUser?.id, unreadPerThread]);
+  }, [allUsers, messages, currentUser?.id, unreadPerThread, dmSummaries]);
 
   const activeUser = useMemo(() => {
     return allUsers.find((u) => u.id === activeDmId) || null;
@@ -1678,6 +1729,26 @@ const loadOlderMessages = async () => {
 
   const activeMessages = activeDmId ? messages.get(activeDmId) || [] : [];
   const activeThreadId = activeDmId ? threadIds.get(activeDmId) ?? null : null;
+
+  useEffect(() => {
+    lastAutoScrollDmRef.current = null;
+  }, [activeDmId]);
+
+  useEffect(() => {
+    if (!activeDmId || !activeThreadId || activeMessages.length === 0) return;
+    if (lastAutoScrollDmRef.current === activeDmId) return;
+
+    requestAnimationFrame(() => {
+      const container = messagesContainerRef.current;
+      if (!container) return;
+
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: "auto",
+      });
+      lastAutoScrollDmRef.current = activeDmId;
+    });
+  }, [activeDmId, activeThreadId, activeMessages.length]);
 
   return (
     <div className="flex h-screen min-h-0 w-full bg-slate-950 text-slate-100">
@@ -1747,7 +1818,8 @@ const loadOlderMessages = async () => {
         </div>
         <div className="flex flex-1 overflow-hidden">
           <ChatWindow
-            onLoadOlderMessages = {loadOlderMessages}
+            onLoadOlderMessages={loadOlderMessages}
+            isLoadingOlderMessages={isLoadingOlderDm}
             activeUser={activeUser}
             messages={activeMessages}
             currentUser={currentUser}
