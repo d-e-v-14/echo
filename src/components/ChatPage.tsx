@@ -1265,37 +1265,41 @@ function MessagesPageContentInner() {
       const result = await getDmThreadMessages(threadId, 0);
 
 
-      const parsed = result.data.map((m: any) => ({
-        id: String(m.id),
-        content: m.content ?? "",
-        sender_id: String(m.sender_id ?? ""),
-        receiver_id: String(m.receiver_id ?? ""),
-        timestamp: String(m.timestamp),
-        thread_id: String(m.thread_id),
-        media_url: m.media_url ?? null,
-        media_type: m.media_type,
-        replyTo: m.reply_to_message
-          ? {
-              id: String(m.reply_to_message.id),
-              content: String(m.reply_to_message.content ?? ""),
-              author:
-                m.reply_to_message.users?.username ??
-                m.reply_to_message.user?.username ??
-                "User",
-              mediaUrl:
-                m.reply_to_message.media_url ??
-                null,
-              mediaType:
-                m.reply_to_message.media_type,
-            }
-          : null,
-      }));
+      const parsed = result.data
+        .map((m: any) => ({
+          id: String(m.id),
+          content: m.content ?? "",
+          sender_id: String(m.sender_id ?? ""),
+          receiver_id: String(m.receiver_id ?? ""),
+          timestamp: String(m.timestamp),
+          thread_id: String(m.thread_id),
+          media_url: m.media_url ?? null,
+          media_type: m.media_type,
+          replyTo: m.reply_to_message
+            ? {
+                id: String(m.reply_to_message.id),
+                content: String(m.reply_to_message.content ?? ""),
+                author:
+                  m.reply_to_message.users?.username ??
+                  m.reply_to_message.user?.username ??
+                  "User",
+                mediaUrl: m.reply_to_message.media_url ?? null,
+                mediaType: m.reply_to_message.media_type,
+              }
+            : null,
+        }))
+        .sort(
+          (a: DirectMessage, b: DirectMessage) =>
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
 
-      setMessages(prev => {
-        const next = new Map(prev);
-        next.set(activeDmId, parsed);
-        return next;
-      });
+       setMessages((prev) => {
+         const next = new Map(prev);
+
+         next.set(activeDmId, [...parsed, ...(next.get(activeDmId) || [])]);
+
+         return next;
+       });
 
       setDmOffsets(prev => {
         const next = new Map(prev);
@@ -1355,14 +1359,20 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
         thread_id: String(m.thread_id),
         media_url: m.media_url ?? null,
         media_type: m.media_type,
-        replyTo: null,
+        replyTo: m.reply_to_message
+          ? {
+              id: String(m.reply_to_message.id),
+              content: String(m.reply_to_message.content ?? ""),
+              author: m.reply_to_message.users?.username ?? "User",
+              mediaUrl: m.reply_to_message.media_url ?? null,
+              mediaType: m.reply_to_message.media_type,
+            }
+          : null,
       }))
       .sort(
         (a: DirectMessage, b: DirectMessage) =>
-          new Date(a.timestamp).getTime() -
-          new Date(b.timestamp).getTime()
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
       );
-
     setMessages((prev) => {
       const next = new Map(prev);
       const current = next.get(activeDmId) || [];
