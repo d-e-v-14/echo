@@ -262,6 +262,7 @@ interface ChatWindowProps {
   currentUser: User | null;
   partnerId: string | null;
   threadId: string | null;
+  messagesContainerRef: React.RefObject<HTMLDivElement>;
   allUsers: User[];
   onSendMessage: (
     message: string,
@@ -287,6 +288,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   threadId,
   allUsers,
   onSendMessage,
+  messagesContainerRef,
   onFileError,
   onToast,
   onOpenProfile,
@@ -321,7 +323,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   }
   const [files, setFiles] = useState<SelectedFile[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const draftInputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -342,8 +344,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       }),
     []
   );
-
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const handleDmScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const container = e.currentTarget;
@@ -640,7 +640,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       <div
         ref={messagesContainerRef}
         onScroll={handleDmScroll}
-        className="chat-scroll flex-1 space-y-8 overflow-y-auto px-6 py-8 pr-3 scrollbar-thin scrollbar-thumb-slate-500 scrollbar-track-slate-900">
+        className="chat-scroll flex-1 space-y-8 overflow-y-auto px-6 py-8 pr-3 scrollbar-thin scrollbar-thumb-slate-500 scrollbar-track-slate-900"
+      >
         {isLoadingOlderMessages && (
           <div className="flex justify-center py-2">
             <div className="flex items-center gap-2 rounded-full border border-slate-800/60 bg-slate-900/70 px-3 py-2 text-sm text-slate-300 shadow-lg shadow-black/20">
@@ -675,46 +676,50 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                         }}
                       >
                         <MessageBubble
-                        isSender={group.isSender}
-                        message={msg}
-                        reactions={getReactionsForMessage(msg.id)}
-                        onReact={(emoji) => {
-                          if (currentUser?.id) {
-                            void toggleReaction(msg.id, emoji, currentUser.id);
+                          isSender={group.isSender}
+                          message={msg}
+                          reactions={getReactionsForMessage(msg.id)}
+                          onReact={(emoji) => {
+                            if (currentUser?.id) {
+                              void toggleReaction(
+                                msg.id,
+                                emoji,
+                                currentUser.id
+                              );
+                            }
+                          }}
+                          showPinAction={
+                            !!msg.id && !String(msg.id).startsWith("temp-")
                           }
-                        }}
-                        showPinAction={
-                          !!msg.id && !String(msg.id).startsWith("temp-")
-                        }
-                        // isPinned={isPinned(msg.id)}
-                        // onPin={() => {
-                        //   void togglePin(msg.id, true);
-                        // }}
-                        timestamp={msg.timeLabel}
-                        name={
-                          !group.isSender && index === 0
-                            ? group.name
-                            : undefined
-                        }
-                        avatarUrl={group.avatarUrl}
-                        onProfileClick={
-                          group.isSender
-                            ? undefined
-                            : () =>
-                                onOpenProfile(
-                                  group.senderId,
-                                  group.name,
-                                  group.avatarUrl
-                                )
-                        }
-                      >
-                        {msg.media_url && (
-                          <MessageAttachment
-                            media_url={msg.media_url}
-                            media_type={msg.media_type}
-                          />
-                        )}
-                      </MessageBubble>
+                          // isPinned={isPinned(msg.id)}
+                          // onPin={() => {
+                          //   void togglePin(msg.id, true);
+                          // }}
+                          timestamp={msg.timeLabel}
+                          name={
+                            !group.isSender && index === 0
+                              ? group.name
+                              : undefined
+                          }
+                          avatarUrl={group.avatarUrl}
+                          onProfileClick={
+                            group.isSender
+                              ? undefined
+                              : () =>
+                                  onOpenProfile(
+                                    group.senderId,
+                                    group.name,
+                                    group.avatarUrl
+                                  )
+                          }
+                        >
+                          {msg.media_url && (
+                            <MessageAttachment
+                              media_url={msg.media_url}
+                              media_type={msg.media_type}
+                            />
+                          )}
+                        </MessageBubble>
                       </div>
                     ))}
                   </div>
@@ -939,122 +944,169 @@ function MessagesPageContentInner() {
 
     const socket = socketRef.current!;
 
-    const handleNewMessage = (raw: any) => {
-      try {
-        if (!raw) return;
-        invalidateDmCacheForCurrentUser();
-        // Unwrap common envelope shapes
-        const incoming = (raw as any)?.data ?? (raw as any)?.message ?? raw;
-        if (!incoming) return;
-        if (Array.isArray(incoming)) {
-          incoming.forEach(handleNewMessage);
-          return;
-        }
+   const handleNewMessage = (raw: any) => {
+     try {
+       if (!raw) return;
+       invalidateDmCacheForCurrentUser();
+       // Unwrap common envelope shapes
+       const incoming = (raw as any)?.data ?? (raw as any)?.message ?? raw;
+       if (!incoming) return;
+       if (Array.isArray(incoming)) {
+         incoming.forEach(handleNewMessage);
+         return;
+       }
 
-        // Normalize fields from various possible keys
-        // Standardize to canonical DM shape
-        const sender = String(
-          incoming.sender_id ??
-            incoming.senderId ??
-            incoming.from ??
-            incoming.userId ??
-            incoming.user ??
-            ""
-        );
+       // Normalize fields from various possible keys
+       const sender = String(
+         incoming.sender_id ??
+           incoming.senderId ??
+           incoming.from ??
+           incoming.userId ??
+           incoming.user ??
+           ""
+       );
 
-        const receiver = String(
-          incoming.receiver_id ??
-            incoming.receiverId ??
-            incoming.to ??
-            incoming.targetId ??
-            ""
-        );
+       const receiver = String(
+         incoming.receiver_id ??
+           incoming.receiverId ??
+           incoming.to ??
+           incoming.targetId ??
+           ""
+       );
 
-        const rawMediaUrl = incoming.media_url ?? incoming.mediaUrl ?? null;
-        const replySource =
-          incoming.reply_to_message ?? incoming.replyTo ?? incoming.reply_to;
+       const rawMediaUrl = incoming.media_url ?? incoming.mediaUrl ?? null;
+       const replySource =
+         incoming.reply_to_message ?? incoming.replyTo ?? incoming.reply_to;
 
-        const incomingMsg: DirectMessage = {
-          id: String(
-            incoming.id ??
-              incoming.message_id ??
-              incoming.clientMessageId ??
-              `sock-${Date.now()}`
-          ),
-          content: String(incoming.content ?? incoming.message ?? ""),
-          sender_id: sender,
-          receiver_id: receiver,
-          timestamp: String(incoming.timestamp ?? new Date().toISOString()),
-          thread_id: incoming.thread_id
-            ? String(incoming.thread_id)
-            : undefined,
-          media_url: rawMediaUrl?.startsWith("blob:") ? null : rawMediaUrl,
-          media_type: incoming.media_type,
-          replyTo:
-            replySource && typeof replySource === "object"
-              ? {
-                  id: String(replySource.id ?? replySource.message_id ?? ""),
-                  content: String(
-                    replySource.content ?? replySource.message ?? ""
-                  ),
-                  author:
-                    replySource.users?.username ??
-                    replySource.user?.username ??
-                    replySource.author ??
-                    "User",
-                  mediaUrl:
-                    replySource.media_url ?? replySource.mediaUrl ?? null,
-                  mediaType: replySource.media_type,
-                }
-              : null,
-        };
+       const incomingMsg: DirectMessage = {
+         id: String(
+           incoming.id ??
+             incoming.message_id ??
+             incoming.clientMessageId ??
+             `sock-${Date.now()}`
+         ),
+         content: String(incoming.content ?? incoming.message ?? ""),
+         sender_id: sender,
+         receiver_id: receiver,
+         timestamp: String(incoming.timestamp ?? new Date().toISOString()),
+         thread_id: incoming.thread_id ? String(incoming.thread_id) : undefined,
+         media_url: rawMediaUrl?.startsWith("blob:") ? null : rawMediaUrl,
+         media_type: incoming.media_type,
+         replyTo:
+           replySource && typeof replySource === "object"
+             ? {
+                 id: String(replySource.id ?? replySource.message_id ?? ""),
+                 content: String(
+                   replySource.content ?? replySource.message ?? ""
+                 ),
+                 author:
+                   replySource.users?.username ??
+                   replySource.user?.username ??
+                   replySource.author ??
+                   "User",
+                 mediaUrl:
+                   replySource.media_url ?? replySource.mediaUrl ?? null,
+                 mediaType: replySource.media_type,
+               }
+             : null,
+       };
 
-        const selfId = currentUser?.id;
-        let partnerId = incomingMsg.sender_id;
-        if (partnerId === selfId) partnerId = incomingMsg.receiver_id;
-        if (!partnerId)
-          return console.warn("Missing partner for DM:", incomingMsg);
+       const selfId = currentUser?.id;
+       let partnerId = incomingMsg.sender_id;
+       if (partnerId === selfId) partnerId = incomingMsg.receiver_id;
 
-        if (!partnerId) {
-          console.warn("Incoming DM missing partner id", incoming);
-          return;
-        }
+       if (!partnerId) {
+         console.warn("Incoming DM missing partner id", incoming);
+         return;
+       }
 
-        setMessages((prevMap) => {
-          const newMap = new Map(prevMap);
-          const currentDms = newMap.get(partnerId) || [];
+       // ==========================================
+       // NEW CODE ADDED HERE: Add new users to list
+       // ==========================================
+       setAllUsers((prev) => {
+         if (prev.some((u) => u.id === partnerId)) return prev;
 
-          // De-duplicate: remove optimistic message with same sender+content close in time
-          const thresholdMs = 60_000; // 60s window
-          const incTime = Date.parse(incomingMsg.timestamp);
-          // Always remove any blob optimistic messages first
-          let updated = currentDms.filter((m) => {
-            if (m.media_url?.startsWith("blob:")) return false;
-            if (m.id.toString().startsWith("temp-")) return false;
-            const sameSender = m.sender_id === incomingMsg.sender_id;
-            const sameContent =
-              (m.content || "") === (incomingMsg.content || "");
-            const mTime = Date.parse(m.timestamp);
-            const incTime2 = Date.parse(incomingMsg.timestamp);
-            const nearInTime =
-              Number.isFinite(incTime2) && Number.isFinite(mTime)
-                ? Math.abs(mTime - incTime2) < 60_000
-                : false;
-            return !(sameSender && sameContent && nearInTime);
-          });
+         // Asynchronously fetch their real profile data
+         fetchUserProfile(partnerId)
+           .then((profile) => {
+             if (profile) {
+               setAllUsers((users) =>
+                 users.map((u) =>
+                   u.id === partnerId
+                     ? {
+                         ...u,
+                         fullname:
+                           profile.fullname || profile.username || "Unknown",
+                         avatar_url: profile.avatar_url,
+                       }
+                     : u
+                 )
+               );
+             }
+           })
+           .catch(console.error);
 
-          // If exact id exists, avoid duplicate; otherwise append to the end (arrival order)
-          if (!updated.some((m) => m.id === incomingMsg.id)) {
-            updated = [...updated, incomingMsg];
-          }
+     
+         return [...prev, { id: partnerId, fullname: "Loading..." }];
+       });
+       // ==========================================
 
-          newMap.set(partnerId, updated);
-          return newMap;
-        });
-      } catch (e) {
-        console.error("Failed to handle incoming DM:", e, raw);
-      }
-    };
+       setMessages((prevMap) => {
+         const newMap = new Map(prevMap);
+         const currentDms = newMap.get(partnerId) || [];
+
+         // De-duplicate: remove optimistic message with same sender+content close in time
+         const thresholdMs = 60_000; // 60s window
+         const incTime = Date.parse(incomingMsg.timestamp);
+
+         let updated = currentDms.filter((m) => {
+           if (m.media_url?.startsWith("blob:")) return false;
+           if (m.id.toString().startsWith("temp-")) return false;
+           const sameSender = m.sender_id === incomingMsg.sender_id;
+           const sameContent =
+             (m.content || "") === (incomingMsg.content || "");
+           const mTime = Date.parse(m.timestamp);
+           const incTime2 = Date.parse(incomingMsg.timestamp);
+           const nearInTime =
+             Number.isFinite(incTime2) && Number.isFinite(mTime)
+               ? Math.abs(mTime - incTime2) < 60_000
+               : false;
+           return !(sameSender && sameContent && nearInTime);
+         });
+
+         setDmSummaries((prev) => {
+           const next = new Map(prev);
+           const existing = next.get(partnerId) ?? {
+             lastMessage: "",
+             timestamp: new Date(0).toISOString(),
+             unreadCount: 0,
+           };
+           next.set(partnerId, {
+             lastMessage:
+               incomingMsg.sender_id === currentUser?.id
+                 ? `You: ${incomingMsg.content}`
+                 : incomingMsg.content || "Sent an attachment",
+             timestamp: incomingMsg.timestamp,
+             unreadCount:
+               incomingMsg.sender_id !== currentUser?.id
+                 ? existing.unreadCount + 1
+                 : existing.unreadCount,
+           });
+           return next;
+         });
+
+         // If exact id exists, avoid duplicate; otherwise append to the end
+         if (!updated.some((m) => m.id === incomingMsg.id)) {
+           updated = [...updated, incomingMsg];
+         }
+
+         newMap.set(partnerId, updated);
+         return newMap;
+       });
+     } catch (e) {
+       console.error("Failed to handle incoming DM:", e, raw);
+     }
+   };
 
     const handleError = (errorMessage: any) => {
       console.error("Socket DM Error:", errorMessage);
@@ -1447,11 +1499,10 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
           };
 
           // Add user to allUsers if not already present
-          setAllUsers((prev) => {
-            if (prev.some((u) => u.id === selectedDM)) return prev;
-            return [...prev, newUser];
-          });
-
+        setAllUsers((prev) => {
+          if (prev.some((u) => u.id === selectedDM)) return prev;
+          return [...prev, newUser];
+        });
           // Initialize empty messages for this user
           setMessages((prev) => {
             if (prev.has(selectedDM)) return prev;
@@ -1726,13 +1777,12 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
         };
       })
       .sort((a, b) => {
-        // Sort by timestamp descending (newest first)
-        const timeA = new Date(a.timestamp).getTime();
-        const timeB = new Date(b.timestamp).getTime();
+        
+        const timeA = new Date(a.timestamp).getTime() || 0;
+        const timeB = new Date(b.timestamp).getTime() || 0;
         return timeB - timeA;
       });
   }, [allUsers, messages, currentUser?.id, unreadPerThread, dmSummaries]);
-
   const activeUser = useMemo(() => {
     return allUsers.find((u) => u.id === activeDmId) || null;
   }, [allUsers, activeDmId]);
@@ -1740,25 +1790,36 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
   const activeMessages = activeDmId ? messages.get(activeDmId) || [] : [];
   const activeThreadId = activeDmId ? threadIds.get(activeDmId) ?? null : null;
 
-  useEffect(() => {
-    lastAutoScrollDmRef.current = null;
-  }, [activeDmId]);
+ const lastMessageId = activeMessages[activeMessages.length - 1]?.id;
 
-  useEffect(() => {
-    if (!activeDmId || !activeThreadId || activeMessages.length === 0) return;
-    if (lastAutoScrollDmRef.current === activeDmId) return;
+useEffect(() => {
+  lastAutoScrollDmRef.current = null;
+}, [activeDmId]);
 
-    requestAnimationFrame(() => {
-      const container = messagesContainerRef.current;
-      if (!container) return;
+useEffect(() => {
+  if (!activeDmId || !lastMessageId) return;
 
+  const container = messagesContainerRef.current;
+  if (!container) return;
+
+  // A small timeout ensures the DOM has actually painted the new message
+  setTimeout(() => {
+    const isInitialLoad = lastAutoScrollDmRef.current !== activeDmId;
+
+    // Increased threshold to 400px to better catch multi-line texts or attachments
+    const isNearBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight <
+      400;
+
+    if (isInitialLoad || isNearBottom) {
       container.scrollTo({
         top: container.scrollHeight,
-        behavior: "auto",
+        behavior: isInitialLoad ? "auto" : "smooth",
       });
       lastAutoScrollDmRef.current = activeDmId;
-    });
-  }, [activeDmId, activeThreadId, activeMessages.length]);
+    }
+  }, 100);
+}, [activeDmId, lastMessageId]);
 
   return (
     <div className="flex h-screen min-h-0 w-full bg-slate-950 text-slate-100">
@@ -1835,6 +1896,7 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
             currentUser={currentUser}
             partnerId={activeDmId}
             threadId={activeThreadId}
+            messagesContainerRef={messagesContainerRef} 
             allUsers={allUsers}
             onSendMessage={handleSendMessage}
             onFileError={(msg) => setFileError(msg)}
