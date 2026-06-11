@@ -458,7 +458,7 @@ export default function Home() {
           <h1 className="text-white text-center font-bold text-4xl mb-2">
             CONTACT US
           </h1>
-          <div className="w-24 h-1 flex-center bg-[#FFAF00] rounded-full" />
+          <div className="w-24 h-1 mx-auto bg-[#FFAF00] rounded-full" />
 
           <form className="max-w-md mx-auto mt-5 p-8 space-y-6">
             <div>
@@ -539,7 +539,7 @@ export default function Home() {
       {/* FOOTER */}
       <footer className="mt-20 relative border-t border-white/10 bg-[#020617]/80 backdrop-blur-md">
         {/* Decorative Divider */}
-        <div className="flex items-center justify-center -translate-y-1/2">
+        <div className="flex items-center justify-center pt-8 pb-4">
           <div className="flex items-center w-full px-4 max-w-7xl">
             <div className="flex-grow h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
             <span className="px-6 text-xs font-black tracking-[0.3em] text-white uppercase">
