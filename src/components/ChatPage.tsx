@@ -86,6 +86,71 @@ interface SelectedFile {
   errorReason?: string;
 }
 
+const parseDmTimestamp = (timestamp: string) => {
+  const parsed = Date.parse(timestamp);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const normalizeDmMessage = (message: any): DirectMessage => ({
+  id: String(
+    message.id ?? message.message_id ?? `dm-${Math.random().toString(36).slice(2)}`
+  ),
+  content: String(message.content ?? message.message ?? ""),
+  sender_id: String(message.sender_id ?? ""),
+  receiver_id: String(message.receiver_id ?? ""),
+  timestamp: String(message.timestamp ?? new Date(0).toISOString()),
+  thread_id: message.thread_id ? String(message.thread_id) : undefined,
+  media_url: message.media_url ?? message.mediaUrl ?? null,
+  media_type: message.media_type,
+  replyTo: message.reply_to_message
+    ? {
+        id: String(
+          message.reply_to_message.id ?? message.reply_to_message.message_id ?? ""
+        ),
+        content: String(message.reply_to_message.content ?? ""),
+        author:
+          message.reply_to_message.users?.username ??
+          message.reply_to_message.user?.username ??
+          message.reply_to_message.author ??
+          "User",
+        mediaUrl:
+          message.reply_to_message.media_url ??
+          message.reply_to_message.mediaUrl ??
+          null,
+        mediaType: message.reply_to_message.media_type,
+      }
+    : message.replyTo && typeof message.replyTo === "object"
+      ? {
+          id: String(message.replyTo.id ?? message.replyTo.message_id ?? ""),
+          content: String(message.replyTo.content ?? ""),
+          author:
+            message.replyTo.users?.username ??
+            message.replyTo.user?.username ??
+            message.replyTo.author ??
+            "User",
+          mediaUrl: message.replyTo.media_url ?? message.replyTo.mediaUrl ?? null,
+          mediaType: message.replyTo.media_type,
+        }
+      : null,
+});
+
+const sortDmMessages = (messages: DirectMessage[]) =>
+  [...messages].sort(
+    (a, b) => parseDmTimestamp(a.timestamp) - parseDmTimestamp(b.timestamp)
+  );
+
+const mergeDmMessages = (...messageGroups: DirectMessage[][]) => {
+  const mergedById = new Map<string, DirectMessage>();
+
+  messageGroups.forEach((group) => {
+    group.forEach((message) => {
+      mergedById.set(message.id, message);
+    });
+  });
+
+  return sortDmMessages(Array.from(mergedById.values()));
+};
+
 const getInitials = (name: string = "") => {
   return (
     name
@@ -909,6 +974,7 @@ function MessagesPageContentInner() {
   const [error, setError] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const hydratedThreadIdsRef = useRef<Set<string>>(new Set());
   const lastAutoScrollDmRef = useRef<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<{
     id: string;
@@ -1096,13 +1162,24 @@ function MessagesPageContentInner() {
          });
 
          // If exact id exists, avoid duplicate; otherwise append to the end
-         if (!updated.some((m) => m.id === incomingMsg.id)) {
-           updated = [...updated, incomingMsg];
-         }
+          if (!updated.some((m) => m.id === incomingMsg.id)) {
+            updated = [...updated, incomingMsg];
+          }
 
-         newMap.set(partnerId, updated);
-         return newMap;
-       });
+          const nextMessages = sortDmMessages(updated);
+          const delta = nextMessages.length - currentDms.length;
+
+          if (delta !== 0) {
+            setDmOffsets((prev) => {
+              const next = new Map(prev);
+              next.set(partnerId, Math.max(0, (next.get(partnerId) ?? 0) + delta));
+              return next;
+            });
+          }
+
+          newMap.set(partnerId, nextMessages);
+          return newMap;
+        });
      } catch (e) {
        console.error("Failed to handle incoming DM:", e, raw);
      }
@@ -1117,12 +1194,14 @@ function MessagesPageContentInner() {
     };
 
     socket.on("connect", onConnect);
+    socket.on("new_message", handleNewMessage);
     socket.on("dm_sent_confirmation", handleNewMessage);
     socket.on("receive_dm", handleNewMessage);
     socket.on("dm_error", handleError);
 
     return () => {
       socket.off("connect", onConnect);
+      socket.off("new_message", handleNewMessage);
       socket.off("dm_sent_confirmation", handleNewMessage);
       socket.off("receive_dm", handleNewMessage);
       socket.off("dm_error", handleError);
@@ -1213,6 +1292,9 @@ function MessagesPageContentInner() {
             string,
             { lastMessage: string; timestamp: string; unreadCount: number }
           >();
+          const initialMessages = new Map<string, DirectMessage[]>();
+          const initialOffsets = new Map<string, number>();
+          const initialHasMore = new Map<string, boolean>();
 
           threads.forEach((thread: any) => {
             const threadId = thread.thread_id
@@ -1241,11 +1323,29 @@ function MessagesPageContentInner() {
               });
 
               const threadMessages = Array.isArray(thread.messages)
+                ? sortDmMessages(
+                    thread.messages.map((message: any) =>
+                      normalizeDmMessage(message)
+                    )
+                  )
+                : [];
+
+              if (threadMessages.length > 0) {
+                initialMessages.set(otherId, threadMessages);
+                initialOffsets.set(otherId, threadMessages.length);
+                initialHasMore.set(
+                  otherId,
+                  Boolean(thread.has_more_messages)
+                );
+                hydratedThreadIdsRef.current.add(otherId);
+              }
+
+              const rawThreadMessages = Array.isArray(thread.messages)
                 ? thread.messages
                 : [];
               const lastMessageObj =
-                threadMessages.length > 0
-                  ? threadMessages[threadMessages.length - 1]
+                rawThreadMessages.length > 0
+                  ? rawThreadMessages[rawThreadMessages.length - 1]
                   : thread.last_message ?? thread.lastMessage ?? null;
               const content = lastMessageObj
                 ? lastMessageObj.media_url || lastMessageObj.mediaUrl
@@ -1287,6 +1387,35 @@ function MessagesPageContentInner() {
           setAllUsers(users);
           setThreadIds(threadMap);
           setDmSummaries(summaryMap);
+          setMessages((prev) => {
+            const next = new Map(prev);
+            const mergedLengths = new Map<string, number>();
+
+            initialMessages.forEach((value, key) => {
+              const existing = next.get(key) ?? [];
+              const merged = mergeDmMessages(existing, value);
+              next.set(key, merged);
+              mergedLengths.set(key, merged.length);
+            });
+
+            setDmOffsets((prevOffsets) => {
+              const nextOffsets = new Map(prevOffsets);
+              mergedLengths.forEach((value, key) => {
+                nextOffsets.set(key, value);
+              });
+              return nextOffsets;
+            });
+
+            setDmHasMore((prevHasMore) => {
+              const nextHasMore = new Map(prevHasMore);
+              initialHasMore.forEach((value, key) => {
+                nextHasMore.set(key, (nextHasMore.get(key) ?? false) || value);
+              });
+              return nextHasMore;
+            });
+
+            return next;
+          });
 
         } catch (error: any) {
           console.error("--- DETAILED FETCH ERROR ---");
@@ -1312,38 +1441,17 @@ function MessagesPageContentInner() {
 
   if (!threadId) return;
 
+  if (hydratedThreadIdsRef.current.has(activeDmId)) {
+    return;
+  }
+
   const loadMessages = async () => {
     try {
       const result = await getDmThreadMessages(threadId, 0);
 
-
-      const parsed = result.data
-        .map((m: any) => ({
-          id: String(m.id),
-          content: m.content ?? "",
-          sender_id: String(m.sender_id ?? ""),
-          receiver_id: String(m.receiver_id ?? ""),
-          timestamp: String(m.timestamp),
-          thread_id: String(m.thread_id),
-          media_url: m.media_url ?? null,
-          media_type: m.media_type,
-          replyTo: m.reply_to_message
-            ? {
-                id: String(m.reply_to_message.id),
-                content: String(m.reply_to_message.content ?? ""),
-                author:
-                  m.reply_to_message.users?.username ??
-                  m.reply_to_message.user?.username ??
-                  "User",
-                mediaUrl: m.reply_to_message.media_url ?? null,
-                mediaType: m.reply_to_message.media_type,
-              }
-            : null,
-        }))
-        .sort(
-          (a: DirectMessage, b: DirectMessage) =>
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-        );
+      const parsed = sortDmMessages(
+        (result.data || []).map((m: any) => normalizeDmMessage(m))
+      );
 
         setMessages((prev) => {
           const next = new Map(prev);
@@ -1364,6 +1472,7 @@ function MessagesPageContentInner() {
         next.set(activeDmId, result.hasMore);
         return next;
       });
+      hydratedThreadIdsRef.current.add(activeDmId);
             
     } catch (err) {
       console.error(err);
@@ -1401,30 +1510,9 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
 
     const result = await getDmThreadMessages(threadId, offset);
 
-    const parsed = result.data
-      .map((m: any) => ({
-        id: String(m.id),
-        content: m.content ?? "",
-        sender_id: String(m.sender_id ?? ""),
-        receiver_id: String(m.receiver_id ?? ""),
-        timestamp: String(m.timestamp),
-        thread_id: String(m.thread_id),
-        media_url: m.media_url ?? null,
-        media_type: m.media_type,
-        replyTo: m.reply_to_message
-          ? {
-              id: String(m.reply_to_message.id),
-              content: String(m.reply_to_message.content ?? ""),
-              author: m.reply_to_message.users?.username ?? "User",
-              mediaUrl: m.reply_to_message.media_url ?? null,
-              mediaType: m.reply_to_message.media_type,
-            }
-          : null,
-      }))
-      .sort(
-        (a: DirectMessage, b: DirectMessage) =>
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-      );
+    const parsed = sortDmMessages(
+      (result.data || []).map((m: any) => normalizeDmMessage(m))
+    );
     setMessages((prev) => {
       const next = new Map(prev);
       const current = next.get(activeDmId) || [];
@@ -1555,6 +1643,7 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
       const newMap = new Map(prev);
       const list = newMap.get(activeDmId) || [];
       const updated = [...list];
+      const optimisticTimestamp = new Date().toISOString();
 
       uploads.forEach((upload) => {
         updated.push({
@@ -1562,7 +1651,7 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
           content: upload.optimisticContent,
           sender_id: currentUser.id,
           receiver_id: activeDmId,
-          timestamp: new Date().toISOString(),
+          timestamp: optimisticTimestamp,
           media_url: upload.blobUrl,
           media_type: upload.file?.type ?? undefined,
           replyTo: upload.replyTo,
@@ -1571,6 +1660,26 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
 
       newMap.set(activeDmId, updated);
       return newMap;
+    });
+
+    setDmSummaries((prev) => {
+      const next = new Map(prev);
+      const existing = next.get(activeDmId) ?? {
+        lastMessage: "",
+        timestamp: new Date(0).toISOString(),
+        unreadCount: 0,
+      };
+
+      const previewText =
+        files.length > 0 ? "You: Sent an attachment" : `You: ${content}`;
+
+      next.set(activeDmId, {
+        lastMessage: previewText.trim(),
+        timestamp: new Date().toISOString(),
+        unreadCount: existing.unreadCount,
+      });
+
+      return next;
     });
 
     try {
@@ -1590,6 +1699,28 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
         invalidateDmCacheForCurrentUser();
 
         if (saved && (saved.id || saved.media_url || saved.mediaUrl)) {
+          setDmSummaries((prev) => {
+            const next = new Map(prev);
+            const existing = next.get(activeDmId) ?? {
+              lastMessage: "",
+              timestamp: new Date(0).toISOString(),
+              unreadCount: 0,
+            };
+
+            const savedContent =
+              saved.media_url || saved.mediaUrl
+                ? "You: Sent an attachment"
+                : `You: ${String(saved.content ?? saved.message ?? upload.content ?? "")}`;
+
+            next.set(activeDmId, {
+              lastMessage: savedContent.trim(),
+              timestamp: String(saved.timestamp ?? new Date().toISOString()),
+              unreadCount: existing.unreadCount,
+            });
+
+            return next;
+          });
+
           setMessages((prev) => {
             const newMap = new Map(prev);
             const list = newMap.get(activeDmId) || [];
@@ -1743,7 +1874,26 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
     return () => clearTimeout(timeoutId);
   }, [activeDmId, currentUser?.id]);
 
+  console.log(
+  allUsers.map((user) => {
+    const userMessages = messages.get(user.id) || [];
+    const lastMessageObj =
+      userMessages.length > 0
+        ? userMessages[userMessages.length - 1]
+        : null;
+
+    return {
+      user: user.fullname,
+      timestamp: lastMessageObj?.timestamp,
+      lastMessage: lastMessageObj?.content,
+    };
+  })
+);
+
   const conversations = useMemo(() => {
+
+
+    
     return allUsers
       .map((user) => {
         const userMessages = messages.get(user.id) || [];
@@ -1766,8 +1916,8 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
 
         const threadId = lastMessageObj?.thread_id;
         const unreadCount = threadId
-          ? unreadPerThread[threadId] || fallbackSummary?.unreadCount || 0
-          : fallbackSummary?.unreadCount || 0;
+          ? unreadPerThread[threadId] ?? fallbackSummary?.unreadCount ?? 0
+          : fallbackSummary?.unreadCount ?? 0;
 
         return {
           user,
