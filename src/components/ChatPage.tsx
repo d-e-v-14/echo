@@ -1956,6 +1956,7 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
         roles: [],
       });
       setIsProfileOpen(true);
+      
 
       try {
         const profile = await fetchUserProfile(userId);

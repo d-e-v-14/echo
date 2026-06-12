@@ -19,6 +19,7 @@ interface UserProfileModalProps {
     isLoadingRoles?: boolean;
   } | null;
   currentUserId?: string;
+   currentUsername?: string;
   relationshipStatus?: RelationshipStatus;
   friendActionLoading?: boolean;
   onAddFriend?: (userId: string) => void | Promise<void>;
@@ -30,6 +31,7 @@ export default function UserProfileModal({
   onClose,
   user,
   currentUserId,
+  currentUsername,
   relationshipStatus,
   friendActionLoading = false,
   onAddFriend,
@@ -45,7 +47,12 @@ export default function UserProfileModal({
   const activeRelationshipStatus =
     relationshipStatus ?? internalRelationshipStatus;
   const isFriendActionLoading = friendActionLoading || internalActionLoading;
-  const isOwnProfile = Boolean(user?.id && user.id === currentUserId);
+  const isOwnProfile = Boolean(
+  (user?.id && user.id === currentUserId) ||
+  (user?.username &&
+    currentUsername &&
+    user.username.toLowerCase() === currentUsername.toLowerCase())
+);
   const bioText = (user?.about || "No bio yet...").slice(0, 160);
 
   useEffect(() => {

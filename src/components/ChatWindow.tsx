@@ -2215,6 +2215,7 @@ const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
         onClose={() => setIsProfileOpen(false)}
         user={selectedUser}
         currentUserId={currentUserId}
+        currentUsername={currentUsername}
       />
     </div>
   );
