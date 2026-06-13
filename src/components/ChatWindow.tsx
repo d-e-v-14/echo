@@ -32,7 +32,7 @@ import { ChevronDown, Search , Hash} from "lucide-react";
 import { getServerMembers } from "@/api/server.api";
 import { getAllRoles } from "@/api/roles.api";
 import { useNotifications } from "@/hooks/useNotifications";
-import { useMessageReactions } from "@/hooks/useMessageReactions";
+// import { useMessageReactions } from "@/hooks/useMessageReactions";
 // import { usePinnedMessages } from "@/hooks/usePinnedMessages";
 import MessageSearchPanel from "./MessageSearchPanel";
 // import PinnedMessagesBar from "./PinnedMessagesBar";
@@ -183,18 +183,18 @@ export default forwardRef(function ChatWindow(
 
   const [showSearch, setShowSearch] = useState(false);
 
-  const messageIds = useMemo(
-    () => messages.map((msg) => msg.id).filter(Boolean),
-    [messages]
-  );
+  // const messageIds = useMemo(
+  //   () => messages.map((msg) => msg.id).filter(Boolean),
+  //   [messages]
+  // );
 
   const reactionMode = threadId && !serverId ? "dm" : "channel";
 
-  const { getReactionsForMessage, toggleReaction } = useMessageReactions({
-    mode: reactionMode,
-    currentUserId,
-    messageIds,
-  });
+  // const { getReactionsForMessage, toggleReaction } = useMessageReactions({
+  //   mode: reactionMode,
+  //   currentUserId,
+  //   messageIds,
+  // });
 
   // const {
   //   pins,
@@ -2006,10 +2006,10 @@ const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
                         replyTo: msg.replyTo || null,
                         status: msg.status,
                       }}
-                      reactions={getReactionsForMessage(msg.id)}
-                      onReact={(emoji) => {
-                        void toggleReaction(msg.id, emoji, currentUserId);
-                      }}
+                      // reactions={getReactionsForMessage(msg.id)}
+                      // onReact={(emoji) => {
+                      //   void toggleReaction(msg.id, emoji, currentUserId);
+                      // }}
                       showPinAction={!!msg.id && !String(msg.id).startsWith("temp-")}
                       // isPinned={isPinned(msg.id)}
                       // onPin={() => {
