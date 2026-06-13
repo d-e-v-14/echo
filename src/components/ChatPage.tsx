@@ -39,7 +39,7 @@ import { useToast } from "@/contexts/ToastContext";
 import dynamic from "next/dynamic";
 import { Theme } from "emoji-picker-react";
 import UserProfileModal from "./UserProfileModal";
-import { useMessageReactions } from "@/hooks/useMessageReactions";
+// import { useMessageReactions } from "@/hooks/useMessageReactions";
 // import { usePinnedMessages } from "@/hooks/usePinnedMessages";
 import MessageSearchPanel from "./MessageSearchPanel";
 // import PinnedMessagesBar from "./PinnedMessagesBar";
@@ -441,16 +441,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   onToast,
   onOpenProfile,
 }) => {
-  const messageIds = useMemo(
-    () => messages.map((msg) => msg.id).filter(Boolean),
-    [messages]
-  );
+  // const messageIds = useMemo(
+  //   () => messages.map((msg) => msg.id).filter(Boolean),
+  //   [messages]
+  // );
 
-  const { getReactionsForMessage, toggleReaction } = useMessageReactions({
-    mode: "dm",
-    currentUserId: currentUser?.id ?? null,
-    messageIds,
-  });
+  // const { getReactionsForMessage, toggleReaction } = useMessageReactions({
+  //   mode: "dm",
+  //   currentUserId: currentUser?.id ?? null,
+  //   messageIds,
+  // });
 
   // const { pins, isPinned, togglePin, unpin, canPinMore } = usePinnedMessages({
   //   threadId,
@@ -827,16 +827,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                         <MessageBubble
                           isSender={group.isSender}
                           message={msg}
-                          reactions={getReactionsForMessage(msg.id)}
-                          onReact={(emoji) => {
-                            if (currentUser?.id) {
-                              void toggleReaction(
-                                msg.id,
-                                emoji,
-                                currentUser.id
-                              );
-                            }
-                          }}
+                          // reactions={getReactionsForMessage(msg.id)}
+                          // onReact={(emoji) => {
+                          //   if (currentUser?.id) {
+                          //     void toggleReaction(
+                          //       msg.id,
+                          //       emoji,
+                          //       currentUser.id
+                          //     );
+                          //   }
+                          // }}
                           showPinAction={
                             !!msg.id && !String(msg.id).startsWith("temp-")
                           }
