@@ -55,6 +55,29 @@ const UserProfileModal = dynamic(() => import("./UserProfileModal"), {
   ssr: false,
 });
 
+const formatDayLabel = (timestamp: string): string => {
+  const date = new Date(timestamp);
+  const now = new Date();
+
+  const isToday = date.toDateString() === now.toDateString();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday = date.toDateString() === yesterday.toDateString();
+
+  if (isToday) return "Today";
+  if (isYesterday) return "Yesterday";
+
+  return date.toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+  });
+};
+
+const getDayLabel = (msg: { timestamp: string }) =>
+  formatDayLabel(msg.timestamp);
+
 interface Message {
   id: string | number;
   content: string;
@@ -1982,8 +2005,23 @@ const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
                 (index === 0 ||
                   new Date(messages[index - 1].timestamp).getTime() <=
                     lastReadTime);
+
+              const currentDayLabel = getDayLabel(msg);
+              const prevDayLabel =
+                index > 0 ? getDayLabel(messages[index - 1]) : null;
+              const showDayDivider = currentDayLabel !== prevDayLabel;
+
               return (
                 <React.Fragment key={msg.id}>
+                  {showDayDivider && (
+                    <div className="flex items-center gap-4 my-4 px-4">
+                      <div className="flex-1 h-px bg-[#3f4248]" />
+                      <span className="text-xs font-semibold text-[#949ba4] whitespace-nowrap">
+                        {currentDayLabel}
+                      </span>
+                      <div className="flex-1 h-px bg-[#3f4248]" />
+                    </div>
+                  )}
                   {isUnreadDividerHere && (
                     <div className="flex items-center my-4">
                       <div className="flex-1 h-px bg-red-500" />
