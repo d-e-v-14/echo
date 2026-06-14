@@ -1,7 +1,10 @@
 "use client";
 
 export const dynamic = "force-dynamic";
-import { getVoicePresenceSocket } from "@/lib/voicePresenceSocket";
+import {
+  disconnectVoicePresenceSocket,
+  getVoicePresenceSocket,
+} from "@/lib/voicePresenceSocket";
 import {
   PhoneCall,
   PhoneOff,
@@ -304,11 +307,9 @@ const externalState = useMemo(
     [participants]
   );
 
-  // ✅ Roster effect AFTER voiceChannels declaration
+  // Voice roster: poll while in a call; one-shot fetch when browsing servers offline
   useEffect(() => {
     if (!voiceChannels.length || !user?.id) return;
-
-    const socket = getVoicePresenceSocket(user.id);
 
     const mapMember = (m: any): ChannelRoster => ({
       id: m.userId || m.socketId || m.attendeeId || m.id,
@@ -322,7 +323,16 @@ const externalState = useMemo(
       speaking: m.speaking || false,
     });
 
+    const handleRoster = (data: any) => {
+      if (!data?.channelId || !Array.isArray(data.members)) return;
+      setChannelRosters((prev) => ({
+        ...prev,
+        [data.channelId]: data.members.map(mapMember),
+      }));
+    };
+
     const fetchAllRosters = () => {
+      const socket = getVoicePresenceSocket(user.id);
       voiceChannels.forEach((channel) => {
         socket.emit("get_voice_channel_roster", channel.id, (data: any) => {
           if (data && Array.isArray(data.members)) {
@@ -337,22 +347,26 @@ const externalState = useMemo(
 
     fetchAllRosters();
 
-    const handleRoster = (data: any) => {
-      if (!data?.channelId || !Array.isArray(data.members)) return;
-      setChannelRosters((prev) => ({
-        ...prev,
-        [data.channelId]: data.members.map(mapMember),
-      }));
-    };
+    if (!activeCall) {
+      const teardownTimer = window.setTimeout(() => {
+        disconnectVoicePresenceSocket();
+      }, 500);
+      return () => {
+        window.clearTimeout(teardownTimer);
+        disconnectVoicePresenceSocket();
+      };
+    }
 
+    const socket = getVoicePresenceSocket(user.id);
     socket.on("voice_channel_roster", handleRoster);
     const interval = setInterval(fetchAllRosters, 5000);
 
     return () => {
       socket.off("voice_channel_roster", handleRoster);
       clearInterval(interval);
+      disconnectVoicePresenceSocket();
     };
-  }, [voiceChannels, user?.id]);
+  }, [voiceChannels, user?.id, activeCall?.channelId]);
 
   useEffect(() => {
     localStorage.setItem("currentViewMode", viewMode);
@@ -522,6 +536,14 @@ const externalState = useMemo(
   }, [refresh]);
 
   const handleHangUp = () => {
+    if (activeCall && user?.id) {
+      setChannelRosters((prev) => ({
+        ...prev,
+        [activeCall.channelId]: (prev[activeCall.channelId] || []).filter(
+          (member) => member.id !== user.id
+        ),
+      }));
+    }
     leaveCall();
     setViewMode("chat");
   };
@@ -1330,7 +1352,19 @@ const externalState = useMemo(
                   className={`flex-1 w-full h-full ${showVoiceUI ? "flex" : "hidden"}`}
                 >
                   {isVoiceActiveForCurrentServer && activeCall && (
-                    <div className="flex h-full w-full">
+                    <div className="relative flex h-full w-full">
+                      {(isConnecting ||
+                        (!isConnected && !connectionError)) && (
+                        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm">
+                          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-gray-700 border-t-[#5865f2]" />
+                          <h3 className="text-lg font-semibold text-white">
+                            Connecting to voice...
+                          </h3>
+                          <p className="mt-2 text-sm text-gray-400">
+                            Setting up audio and video
+                          </p>
+                        </div>
+                      )}
                       <div className="flex-1 p-4">
                         <VoiceChannel
                           channelId={activeCall.channelId}

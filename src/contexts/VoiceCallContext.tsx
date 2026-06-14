@@ -24,6 +24,7 @@ import {
   emitLeaveVoiceChannel,
   emitVoiceStateUpdate,
   getVoicePresenceSocket,
+  disconnectVoicePresenceSocket,
 } from "@/lib/voicePresenceSocket";
 
 // ==================== TYPES ====================
@@ -235,7 +236,9 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
     // Connection state changes
     manager.onConnectionStateChange((connected) => {
       setIsConnected(connected);
-      if (!connected) {
+      if (connected) {
+        setIsConnecting(false);
+      } else if (!activeCallRef.current) {
         setIsConnecting(false);
       }
     });
@@ -397,7 +400,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
 
         const mediaState = manager.getMediaState();
         setLocalMediaState(mediaState);
-        setIsConnecting(false);
 
         emitJoinVoiceChannel({
           channelId,
@@ -408,6 +410,10 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
           video: mediaState.video,
         });
         broadcastVoicePresence(mediaState);
+
+        if (manager.isConnected()) {
+          setIsConnecting(false);
+        }
 
         console.log("[VoiceCallContext] Successfully joined call:", channelId);
       } catch (error: any) {
@@ -445,9 +451,12 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
       manager.leaveVoiceChannel();
     }
 
+    disconnectVoicePresenceSocket();
+
     // Clear state
     setActiveCall(null);
     setIsConnected(false);
+    setIsConnecting(false);
     setParticipants([]);
     setVideoTiles(new Map());
     setLocalVideoTileId(null);
@@ -550,6 +559,7 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
       if (manager) {
         manager.disconnect();
       }
+      disconnectVoicePresenceSocket();
     };
   }, []);
 

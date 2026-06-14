@@ -5,7 +5,12 @@ let presenceSocket: Socket | null = null;
 let presenceUserId: string | null = null;
 
 export const getVoicePresenceSocket = (userId: string): Socket => {
-  if (!presenceSocket || presenceUserId !== userId) {
+  if (
+    !presenceSocket ||
+    presenceUserId !== userId ||
+    !presenceSocket.connected
+  ) {
+    presenceSocket?.removeAllListeners();
     presenceSocket?.disconnect();
     presenceSocket = createAuthSocket(userId);
     presenceUserId = userId;
@@ -42,7 +47,10 @@ export const emitVoiceStateUpdate = (payload: {
 };
 
 export const disconnectVoicePresenceSocket = () => {
-  presenceSocket?.disconnect();
+  if (presenceSocket) {
+    presenceSocket.removeAllListeners();
+    presenceSocket.disconnect();
+  }
   presenceSocket = null;
   presenceUserId = null;
 };

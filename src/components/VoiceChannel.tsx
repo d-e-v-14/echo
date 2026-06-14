@@ -216,12 +216,18 @@ const VoiceChannel = ({
 
     setIsConnected(externalState.isConnected);
     setIsVoiceChannelConnected(externalState.isConnected);
+    setIsInitializing(
+      externalState.isConnecting ||
+        (!externalState.isConnected && !externalState.connectionError)
+    );
     setConnectionError(externalState.connectionError);
     setPermissionError(externalState.permissionError);
     setVideoTiles(externalState.videoTiles);
     setLocalVideoTileId(externalState.localVideoTileId);
 
-    if (externalState.localMediaState) {
+    if (externalState.localMediaState || externalState.isConnecting) {
+      setHasPermissions(true);
+    }
       setIsMuted(externalState.localMediaState.muted);
       setIsCameraOn(externalState.localMediaState.video);
     }
@@ -264,8 +270,9 @@ const VoiceChannel = ({
     }
   }, [channelId, useExternalManager]);
 
-  // ── Socket: roster sync ──────────────────────────────────────────────────
+  // ── Socket: roster sync (skip when parent manages voice state) ───────────
   useEffect(() => {
+    if (useExternalManager) return;
     if (!userId || !channelId) return;
 
     if (!socketRef.current) {
@@ -306,16 +313,17 @@ const VoiceChannel = ({
 
     return () => {
       socket.off("voice_channel_roster", handleRoster);
-      // Don't disconnect socket on channel change — only on full unmount
     };
-  }, [userId, channelId]);
+  }, [userId, channelId, useExternalManager]);
 
   // Disconnect socket only on full unmount
   useEffect(() => {
+    if (useExternalManager) return;
     return () => {
       socketRef.current?.disconnect();
+      socketRef.current = null;
     };
-  }, []);
+  }, [useExternalManager]);
 
   // ── Manager init + event listeners ──────────────────────────────────────
   useEffect(() => {

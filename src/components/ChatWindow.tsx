@@ -57,21 +57,34 @@ const UserProfileModal = dynamic(() => import("./UserProfileModal"), {
 
 const formatDayLabel = (timestamp: string): string => {
   const date = new Date(timestamp);
-  const now = new Date();
-
-  const isToday = date.toDateString() === now.toDateString();
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  const isYesterday = date.toDateString() === yesterday.toDateString();
-
-  if (isToday) return "Today";
-  if (isYesterday) return "Yesterday";
+  if (Number.isNaN(date.getTime())) return "Recent";
 
   return date.toLocaleDateString(undefined, {
-    weekday: "long",
-    month: "long",
+    weekday: "short",
+    month: "short",
     day: "numeric",
-    year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+  });
+};
+
+const formatMessageTime = (timestamp: string): string => {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+
+  if (isToday) {
+    return date.toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
+  return date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
   });
 };
 
@@ -2016,7 +2029,7 @@ const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
                   {showDayDivider && (
                     <div className="flex items-center gap-4 my-4 px-4">
                       <div className="flex-1 h-px bg-[#3f4248]" />
-                      <span className="text-xs font-semibold text-[#949ba4] whitespace-nowrap">
+                      <span className="rounded-full border border-[#3f4248] bg-[#2b2d31] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#949ba4] whitespace-nowrap">
                         {currentDayLabel}
                       </span>
                       <div className="flex-1 h-px bg-[#3f4248]" />
@@ -2055,13 +2068,7 @@ const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
                       // }}
                       avatarUrl={msg.avatarUrl}
                       isSender={msg.senderId === currentUserId}
-                      timestamp={new Date(msg.timestamp).toLocaleTimeString(
-                        [],
-                        {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        }
-                      )}
+                      timestamp={formatMessageTime(msg.timestamp)}
                       onReply={() => handleReply(msg)}
                       onReplyPreviewClick={scrollToMessage}
                       onProfileClick={() => openProfile(msg.senderId, msg.username, msg.avatarUrl)}

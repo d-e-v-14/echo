@@ -75,18 +75,16 @@ export function MessageNotificationProvider({
         const socket = createAuthSocket(user.id);
         socketRef.current = socket;
 
-        const handleDmEvent = () => {
+        const handleIncomingDm = () => {
           void refreshCount();
         };
 
-        socket.on("new_message", handleDmEvent);
-        socket.on("receive_dm", handleDmEvent);
-        socket.on("dm_sent_confirmation", handleDmEvent);
+        socket.on("receive_dm", handleIncomingDm);
+        socket.on("new_message", handleIncomingDm);
 
         return () => {
-          socket.off("new_message", handleDmEvent);
-          socket.off("receive_dm", handleDmEvent);
-          socket.off("dm_sent_confirmation", handleDmEvent);
+          socket.off("receive_dm", handleIncomingDm);
+          socket.off("new_message", handleIncomingDm);
           socket.disconnect();
           if (socketRef.current === socket) {
             socketRef.current = null;

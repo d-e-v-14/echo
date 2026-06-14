@@ -1132,11 +1132,16 @@ function MessagesPageContentInner() {
   } | null>(null);
 
   const socketRef = useRef<Socket | null>(null);
+  const activeDmIdRef = useRef<string | null>(null);
   const invalidateDmCacheForCurrentUser = () => {
     if (currentUser?.id) {
       invalidateUserDmCache(currentUser.id);
     }
   };
+
+  useEffect(() => {
+    activeDmIdRef.current = activeDmId;
+  }, [activeDmId]);
 
   // Single socket setup and event wiring
   useEffect(() => {
@@ -1291,16 +1296,24 @@ function MessagesPageContentInner() {
              timestamp: new Date(0).toISOString(),
              unreadCount: 0,
            };
+
+           const isFromSelf = incomingMsg.sender_id === selfId;
+           const isActiveConversation = partnerId === activeDmIdRef.current;
+           const shouldIncrementUnread = !isFromSelf && !isActiveConversation;
+
            next.set(partnerId, {
              lastMessage:
-               incomingMsg.sender_id === currentUser?.id
-                 ? `You: ${incomingMsg.content}`
+               isFromSelf
+                 ? `You: ${incomingMsg.content || "Sent an attachment"}`
                  : incomingMsg.content || "Sent an attachment",
              timestamp: incomingMsg.timestamp,
-             unreadCount:
-               incomingMsg.sender_id !== currentUser?.id
+             unreadCount: isFromSelf
+               ? 0
+               : shouldIncrementUnread
                  ? existing.unreadCount + 1
-                 : existing.unreadCount,
+                 : isActiveConversation
+                   ? 0
+                   : existing.unreadCount,
            });
            return next;
          });
@@ -1829,13 +1842,16 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
       next.set(activeDmId, {
         lastMessage: previewText.trim(),
         timestamp: new Date().toISOString(),
-        unreadCount: existing.unreadCount,
+        unreadCount: 0,
       });
 
       return next;
     });
 
     try {
+      let lastSavedThreadId: string | undefined =
+        threadIds.get(activeDmId) || undefined;
+
       for (const upload of uploads) {
         const dmPayload = {
           sender_id: currentUser.id,
@@ -1852,6 +1868,9 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
         invalidateDmCacheForCurrentUser();
 
         if (saved && (saved.id || saved.media_url || saved.mediaUrl)) {
+          if (saved.thread_id) {
+            lastSavedThreadId = String(saved.thread_id);
+          }
           setDmSummaries((prev) => {
             const next = new Map(prev);
             const existing = next.get(activeDmId) ?? {
@@ -1868,7 +1887,7 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
             next.set(activeDmId, {
               lastMessage: savedContent.trim(),
               timestamp: String(saved.timestamp ?? new Date().toISOString()),
-              unreadCount: existing.unreadCount,
+              unreadCount: 0,
             });
 
             return next;
@@ -1912,6 +1931,11 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
             return newMap;
           });
         }
+      }
+
+      if (lastSavedThreadId) {
+        await markThreadAsRead(lastSavedThreadId);
+        await refreshMessageNotifications();
       }
     } catch (e: any) {
       console.error("Failed to send DM via API:", e);
@@ -2052,7 +2076,15 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
         // Mark thread as read
         await markThreadAsRead(threadId);
 
-        // Immediately refresh unread counts to update badges
+        setDmSummaries((prev) => {
+          const next = new Map(prev);
+          const existing = next.get(activeDmId);
+          if (existing) {
+            next.set(activeDmId, { ...existing, unreadCount: 0 });
+          }
+          return next;
+        });
+
         await refreshMessageNotifications();
       } catch (error) {
         console.error("Failed to mark thread as read:", error);
@@ -2062,28 +2094,9 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
     // Small delay to ensure messages are loaded
     const timeoutId = setTimeout(markAsRead, 100);
     return () => clearTimeout(timeoutId);
-  }, [activeDmId, currentUser?.id]);
-
-  console.log(
-  allUsers.map((user) => {
-    const userMessages = messages.get(user.id) || [];
-    const lastMessageObj =
-      userMessages.length > 0
-        ? userMessages[userMessages.length - 1]
-        : null;
-
-    return {
-      user: user.fullname,
-      timestamp: lastMessageObj?.timestamp,
-      lastMessage: lastMessageObj?.content,
-    };
-  })
-);
+  }, [activeDmId, currentUser?.id, messages, threadIds, refreshMessageNotifications]);
 
   const conversations = useMemo(() => {
-
-
-    
     return allUsers
       .map((user) => {
         const userMessages = messages.get(user.id) || [];
@@ -2104,10 +2117,17 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
           fallbackSummary?.timestamp ||
           new Date(0).toISOString();
 
-        const threadId = lastMessageObj?.thread_id;
-        const unreadCount = threadId
-          ? unreadPerThread[threadId] ?? fallbackSummary?.unreadCount ?? 0
-          : fallbackSummary?.unreadCount ?? 0;
+        const threadId =
+          threadIds.get(user.id) || lastMessageObj?.thread_id;
+        const isActiveConversation = activeDmId === user.id;
+        const lastMessageFromSelf =
+          lastMessageObj?.sender_id === currentUser?.id;
+        const unreadCount =
+          isActiveConversation || lastMessageFromSelf
+            ? 0
+            : threadId
+              ? unreadPerThread[threadId] ?? 0
+              : fallbackSummary?.unreadCount ?? 0;
 
         return {
           user,
@@ -2117,12 +2137,19 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
         };
       })
       .sort((a, b) => {
-        
         const timeA = new Date(a.timestamp).getTime() || 0;
         const timeB = new Date(b.timestamp).getTime() || 0;
         return timeB - timeA;
       });
-  }, [allUsers, messages, currentUser?.id, unreadPerThread, dmSummaries]);
+  }, [
+    allUsers,
+    messages,
+    currentUser?.id,
+    unreadPerThread,
+    dmSummaries,
+    activeDmId,
+    threadIds,
+  ]);
   const activeUser = useMemo(() => {
     return allUsers.find((u) => u.id === activeDmId) || null;
   }, [allUsers, activeDmId]);
