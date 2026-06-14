@@ -81,8 +81,7 @@ const formatMessageTime = (timestamp: string): string => {
   }
 
   return date.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
+   
     hour: "numeric",
     minute: "2-digit",
   });
