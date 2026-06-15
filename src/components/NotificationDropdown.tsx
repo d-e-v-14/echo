@@ -34,7 +34,7 @@ interface Notification {
 
 interface NotificationDropdownProps {
   onClose: () => void;
-  onNavigateToMessage?: (channelId: string, messageId: string) => void;
+  onNavigateToMessage?: (channelId: string, messageId: string, serverId?: string) => void;
   anchorRect: {
     top: number;
     left: number;
@@ -234,14 +234,13 @@ export default function NotificationDropdown({
                   }`}
                   onClick={() => {
                     if (!notification.is_read) markAsRead(notification.id);
-                    // If navigation handler is provided, call it with channelId and messageId
-                    const channelId =
-                      notification.message?.channel_id ||
-                      notification.message?.channels?.server_id;
+                    const channelId = notification.message?.channel_id;
                     const messageId =
                       notification.message_id || notification.message?.id;
+                    const serverId =
+                      notification.message?.channels?.server_id;
                     if (onNavigateToMessage && channelId && messageId) {
-                      onNavigateToMessage(channelId, messageId);
+                      onNavigateToMessage(channelId, messageId, serverId);
                       onClose();
                     }
                   }}

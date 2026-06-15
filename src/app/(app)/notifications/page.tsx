@@ -5,6 +5,7 @@ import { Bell, CheckCheck, Check, Loader2 } from "lucide-react";
 import { getUser } from "@/api";
 import { useNotifications } from "../../../hooks/useNotifications";
 import { apiClient } from "@/utils/apiClient";
+import { useRouter } from "next/navigation";
 
 import Loader from "@/components/Loader";
 import Toast from "@/components/Toast";
@@ -36,6 +37,7 @@ interface Notification {
 
 export default function NotificationsPage() {
   const pageReady = usePageReady();
+  const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -289,11 +291,24 @@ export default function NotificationsPage() {
               {filteredNotifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-4 rounded-lg border transition-all hover:shadow-lg ${
+                  className={`p-4 rounded-lg border transition-all hover:shadow-lg cursor-pointer ${
                     notification.is_read
-                      ? "bg-[#2f3136] border-[#4f545c]"
-                      : "bg-blue-600/10 border-blue-500/30 border-l-4 border-l-blue-500"
+                      ? "bg-[#2f3136] border-[#4f545c] hover:bg-[#36393f]"
+                      : "bg-blue-600/10 border-blue-500/30 border-l-4 border-l-blue-500 hover:bg-blue-600/15"
                   }`}
+                  onClick={() => {
+                    if (!notification.is_read) {
+                      handleMarkAsRead(notification.id);
+                    }
+                    const channelId = notification.message?.channel_id;
+                    const messageId = notification.message_id || notification.message?.id;
+                    const serverId = notification.message?.channels?.server_id;
+                    if (channelId && messageId) {
+                      sessionStorage.setItem("pendingChannelId", channelId);
+                      sessionStorage.setItem("pendingMessageId", messageId);
+                      router.push(`/servers?serverId=${serverId || ""}`);
+                    }
+                  }}
                 >
                   <div className="flex items-start gap-4">
                     <img
@@ -347,7 +362,10 @@ export default function NotificationsPage() {
 
                         {!notification.is_read && (
                           <button
-                            onClick={() => handleMarkAsRead(notification.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMarkAsRead(notification.id);
+                            }}
                             className="text-gray-400 hover:text-white p-2 rounded hover:bg-[#4f545c]"
                             title="Mark as read"
                           >

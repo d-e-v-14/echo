@@ -27,7 +27,7 @@ interface MentionNotification {
 interface MentionNotificationsProps {
   isOpen: boolean;
   onClose: () => void;
-  onNavigateToMessage?: (channelId: string, messageId: string) => void;
+  onNavigateToMessage?: (channelId: string, messageId: string, serverId?: string) => void;
 }
 
 export default function MentionNotifications({
@@ -92,7 +92,7 @@ export default function MentionNotifications({
 
   const handleMentionClick = (mention: MentionNotification) => {
     markAsRead(mention.id);
-    onNavigateToMessage?.(mention.messages.channel_id, mention.message_id);
+    onNavigateToMessage?.(mention.messages.channel_id, mention.message_id, mention.messages.channels.server_id);
     onClose();
   };
 

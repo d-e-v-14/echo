@@ -57,6 +57,7 @@ import {
 import { type Role } from "@/api/types/roles.types";
 import Chatwindow from "@/components/ChatWindow";
 import NotificationBell from "@/components/NotificationBell";
+import { useNotifications } from "@/hooks/useNotifications";
 import { useSearchParams } from "next/navigation";
 import { useVoiceCall } from "@/contexts/VoiceCallContext";
 import { supabase } from "@/lib/supabaseClient";
@@ -107,6 +108,7 @@ const ServersPageContent: React.FC = () => {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
   const chatWindowRef = useRef<any>(null);
+  const { notifications: mentionNotifications } = useNotifications();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selfAssignableRoles, setSelfAssignableRoles] = useState<Role[]>([]);
@@ -281,6 +283,17 @@ const externalState = useMemo(
       };
     }
   }, []);
+
+  // Unread mention count per channel
+  const unreadMentionsByChannel = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const n of mentionNotifications) {
+      if (!n.isRead && n.channelId) {
+        map.set(n.channelId, (map.get(n.channelId) || 0) + 1);
+      }
+    }
+    return map;
+  }, [mentionNotifications]);
 
   // Derived channel lists — must be before effects that use them
   const textChannels = useMemo(
@@ -517,6 +530,49 @@ const externalState = useMemo(
       localStorage.removeItem("currentViewedServerId");
     };
   }, [selectedServerId]);
+
+  // Handle pending navigation from notifications page
+  useEffect(() => {
+    if (!channels.length) return;
+
+    const pendingChannelId = sessionStorage.getItem("pendingChannelId");
+    const pendingMessageId = sessionStorage.getItem("pendingMessageId");
+    if (!pendingChannelId || !pendingMessageId) return;
+
+    // Find the target channel and switch to it
+    const targetChannel = channels.find((c) => c.id === pendingChannelId);
+    if (targetChannel && targetChannel.id !== activeChannel?.id) {
+      setActiveChannel(targetChannel);
+      setViewMode("chat");
+      // Keep the pending items in storage for the next effect run
+      return;
+    }
+
+    // If we're already on the right channel, scroll to the message
+    if (activeChannel?.id === pendingChannelId) {
+      sessionStorage.removeItem("pendingChannelId");
+      sessionStorage.removeItem("pendingMessageId");
+
+      setTimeout(async () => {
+        const MAX_PAGES = 8;
+        let found = false;
+        for (let i = 0; i <= MAX_PAGES && !found; i++) {
+          if (chatWindowRef.current) {
+            const scrolled = await chatWindowRef.current.scrollToMessage(pendingMessageId);
+            if (scrolled) {
+              found = true;
+              break;
+            }
+          }
+          if (chatWindowRef.current) {
+            const loaded = await chatWindowRef.current.loadOlderPages(1);
+            if (!loaded) break;
+          } else break;
+          await new Promise((r) => setTimeout(r, 200));
+        }
+      }, 500);
+    }
+  }, [channels, activeChannel]);
 
   useEffect(() => {
     if (!refresh) return;
@@ -913,16 +969,29 @@ const externalState = useMemo(
                 <div className="flex items-center justify-between px-2 mb-2">
                   <h2 className="text-xl font-bold">{selectedServerName}</h2>
                   <div className="flex items-center gap-2">
-                    {/* <NotificationBell
-                      onNavigateToMessage={async (channelId, messageId) => {
-                        const targetChannel = channels.find(
+                    <NotificationBell
+                      onNavigateToMessage={async (channelId, messageId, serverId) => {
+                        // Switch server if needed
+                        if (serverId && serverId !== selectedServerId) {
+                          setSelectedServerId(serverId);
+                          const server = servers.find((s) => s.id === serverId);
+                          if (server) {
+                            setSelectedServerName(server.name);
+                          }
+                        }
+                        // Wait for channels to load if we switched servers
+                        let targetChannels = channels;
+                        if (serverId && serverId !== selectedServerId) {
+                          targetChannels = await loadChannelsForServer(serverId);
+                        }
+                        const targetChannel = targetChannels.find(
                           (c) => c.id === channelId
                         );
                         if (targetChannel) {
                           setActiveChannel(targetChannel);
                           setViewMode("chat");
                         }
-                        await new Promise((r) => setTimeout(r, 250));
+                        await new Promise((r) => setTimeout(r, 300));
                         const MAX_PAGES = 8;
                         let found = false;
                         for (let i = 0; i <= MAX_PAGES && !found; i++) {
@@ -951,7 +1020,7 @@ const externalState = useMemo(
                           }, 300);
                         }
                       }}
-                    /> */}
+                    />
                     <button
                       className={`p-2 rounded-full transition ${
                         !selectedServerId ? "opacity-50" : "hover:bg-[#23272a]"
@@ -1108,12 +1177,14 @@ const externalState = useMemo(
                   </div>
                 )}
 
-                {/* Text Channels */}
+                  {/* Text Channels */}
                 <div className="px-2">
                   <h3 className="text-xs font-bold uppercase text-gray-400 mb-2">
                     Text Channels
                   </h3>
-                  {textChannels.map((channel) => (
+                  {textChannels.map((channel) => {
+                    const mentionCount = unreadMentionsByChannel.get(channel.id) || 0;
+                    return (
                     <div
                       key={channel.id}
                       className={`group/channel flex items-center justify-between p-2 text-sm rounded-md cursor-pointer transition-all min-w-0 ${
@@ -1142,24 +1213,32 @@ const externalState = useMemo(
                           {channel.name}
                         </span>
                       </span>
-                      <button
-                        type="button"
-                        title="Channel Settings"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setChannelSettings({ channel, name: channel.name });
-                        }}
-                        className={`ml-2 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded text-gray-400 transition hover:bg-[#1e1f22] hover:text-white focus:opacity-100 focus:outline-none ${
-                          activeChannel?.id === channel.id &&
-                          viewMode === "chat"
-                            ? "opacity-100"
-                            : "opacity-0 group-hover/channel:opacity-100"
-                        }`}
-                      >
-                        <FaCog className="h-3.5 w-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        {mentionCount > 0 && (
+                          <span className="bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1">
+                            {mentionCount > 99 ? "99+" : mentionCount}
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          title="Channel Settings"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setChannelSettings({ channel, name: channel.name });
+                          }}
+                          className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded text-gray-400 transition hover:bg-[#1e1f22] hover:text-white focus:opacity-100 focus:outline-none ${
+                            activeChannel?.id === channel.id &&
+                            viewMode === "chat"
+                              ? "opacity-100"
+                              : "opacity-0 group-hover/channel:opacity-100"
+                          }`}
+                        >
+                          <FaCog className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Voice Channels */}
