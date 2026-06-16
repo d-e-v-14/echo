@@ -65,13 +65,13 @@ export default function JoinServerPage() {
           );
         })()}
 
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-gray-950 via-black to-gray-900 text-white px-6">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white px-6">
         <div className="w-full max-w-md bg-[#111214] rounded-2xl shadow-2xl p-8 border border-gray-800">
           {loading ? (
             <Loader size="md" />
           ) : (
             <>
-              <h1 className="text-3xl font-bold mb-3 text-center bg-white bg-clip-text text-yellow-300 text-transparent">
+              <h1 className="text-3xl font-bold mb-3 text-center bg-white bg-clip-text text-white text-transparent">
                 Join a Server
               </h1>
 
@@ -103,22 +103,22 @@ export default function JoinServerPage() {
 
                 <button
                   type="submit"
-                  className="w-full py-3 rounded-lg text-black font-semibold bg-yellow-400 hover:opacity-90 transition-all"
+                  className="w-full py-3 rounded-lg text-white font-semibold bg-blue-600 hover:opacity-90 transition-all"
                 >
-                  Join Server
+                  Submit
                 </button>
               </form>
 
-              <button
+              {/* <button
                 onClick={() => router.push("/servers")}
                 className="mt-6 w-full py-2 text-sm rounded-md bg-gray-800 hover:bg-gray-700 transition-all"
               >
                 ← Back to Servers
-              </button>
+              </button> */}
             </>
           )}
         </div>
-
+{/* 
         {!loading && (
           <p className="mt-8 text-gray-500 text-sm">
             Don’t have an invite?{" "}
@@ -129,7 +129,7 @@ export default function JoinServerPage() {
               Create your own server
             </button>
           </p>
-        )}
+        )} */}
       </div>
     </>
   );

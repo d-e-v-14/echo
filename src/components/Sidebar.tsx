@@ -15,6 +15,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   LogOut,
+  Cross
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -30,6 +31,7 @@ const navItems = [
   { label: "Messages", icon: MessageSquareText, path: "/messages" },
   { label: "Friends", icon: UserIcon, path: "/friends" },
   { label: "Notifications", icon: Bell, path: "/notifications" },
+  { label: "Join Server", icon: Cross, path: "/join-server" },
 ];
 
 export default function Sidebar() {
