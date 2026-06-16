@@ -225,12 +225,13 @@ const VoiceChannel = ({
     setVideoTiles(externalState.videoTiles);
     setLocalVideoTileId(externalState.localVideoTileId);
 
-    if (externalState.localMediaState || externalState.isConnecting) {
-      setHasPermissions(true);
-    }
+  if (externalState.localMediaState || externalState.isConnecting) {
+    setHasPermissions(true);
+    if (externalState.localMediaState) {
       setIsMuted(externalState.localMediaState.muted);
       setIsCameraOn(externalState.localMediaState.video);
     }
+  }
 
     if (externalState.participants?.length > 0) {
       setHasPermissions(true);

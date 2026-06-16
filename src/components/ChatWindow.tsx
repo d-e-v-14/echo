@@ -212,6 +212,7 @@ export default forwardRef(function ChatWindow(
   const [lastReadTimestamp, setLastReadTimestamp] = useState<string | null>(
     null
   );
+  const dividerTimestampRef = useRef<string | null>(null);
 
   const { notifications: mentionNotifications, markAsRead: markMentionAsRead } =
     useNotifications();
@@ -348,6 +349,7 @@ export default forwardRef(function ChatWindow(
   useEffect(() => {
     if (!channelId || !currentUserId) {
       setLastReadTimestamp(null);
+      dividerTimestampRef.current = null; 
       return;
     }
 
@@ -355,9 +357,11 @@ export default forwardRef(function ChatWindow(
       const key = `channel_last_read_${channelId}_${currentUserId}`;
       const stored = localStorage.getItem(key);
       setLastReadTimestamp(stored || null);
+      dividerTimestampRef.current = stored || null;
     } catch (err) {
       console.error("Failed to load channel last-read timestamp", err);
       setLastReadTimestamp(null);
+      dividerTimestampRef.current = null; 
     }
   }, [channelId, currentUserId]);
 
@@ -2007,8 +2011,8 @@ const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
               </div>
             )}
             {messages.map((msg, index) => {
-              const lastReadTime = lastReadTimestamp
-                ? new Date(lastReadTimestamp).getTime()
+              const lastReadTime = dividerTimestampRef.current
+                ? new Date(dividerTimestampRef.current).getTime()
                 : null;
               const isUnreadDividerHere =
                 lastReadTime !== null &&
