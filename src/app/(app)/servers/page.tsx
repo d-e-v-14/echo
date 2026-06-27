@@ -187,48 +187,36 @@ const externalState = useMemo(
   const displayRosters = useMemo(() => {
     const merged = { ...channelRosters };
 
-    if (
-      activeCall &&
-      activeCall.serverId === selectedServerId &&
-      participants.length > 0
-    ) {
-      const fromCall: ChannelRoster[] = participants.map((member) => ({
-        id: member.oduserId || member.attendeeId,
-        username:
-          member.name ||
-          member.oduserId ||
-          `User ${member.attendeeId.slice(0, 8)}`,
-        muted: member.muted,
-        video: member.video,
-        speaking: member.speaking,
-      }));
+    if (activeCall && activeCall.serverId === selectedServerId) {
+   
+      const existingById = new Map(
+        (merged[activeCall.channelId] || []).map((m) => [m.id, m])
+      );
 
-      const existing = merged[activeCall.channelId] || [];
-      const byId = new Map<string, ChannelRoster>();
-      for (const member of existing) byId.set(member.id, member);
-      for (const member of fromCall) {
-        const prev = byId.get(member.id);
-        byId.set(
-          member.id,
-          prev
-            ? {
-                ...prev,
-                ...member,
-                speaking: member.speaking || prev.speaking,
-              }
-            : member
-        );
-      }
-      merged[activeCall.channelId] = Array.from(byId.values());
+      const fromCall: ChannelRoster[] = participants.map((member) => {
+        const id = member.oduserId || member.attendeeId;
+        const base: ChannelRoster = {
+          id,
+          username:
+            member.name ||
+            member.oduserId ||
+            `User ${member.attendeeId.slice(0, 8)}`,
+          muted: member.muted,
+          video: member.video,
+          speaking: member.speaking,
+        };
+        const prev = existingById.get(id);
+        return prev
+          ? { ...prev, ...base, speaking: base.speaking || prev.speaking }
+          : base;
+      });
+
+     
+      merged[activeCall.channelId] = fromCall;
     }
 
     return merged;
-  }, [
-    channelRosters,
-    activeCall,
-    selectedServerId,
-    participants,
-  ]);
+  }, [channelRosters, activeCall, selectedServerId, participants]);
   const isVoiceActiveForCurrentServer =
     activeCall?.serverId === selectedServerId;
 
