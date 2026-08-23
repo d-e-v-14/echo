@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { getChannelPermissions } from "@/api/channel.api";
+import { queryKeys } from "@/lib/query/keys";
+import { policyForQueryKey } from "@/lib/query/cachePolicy";
 import { ChannelPermissions } from "@/lib/channels/types";
 
 const DEFAULT_PERMISSIONS: ChannelPermissions = {
@@ -22,34 +25,31 @@ export function useChannelPermissions(
   channelId: string,
   serverId?: string
 ): UseChannelPermissionsResult {
-  const [permissions, setPermissions] = useState<ChannelPermissions | null>(
-    null
-  );
   const [permissionError, setPermissionError] = useState<string | null>(null);
 
+  const key = channelId
+    ? queryKeys.channelPermissions(channelId)
+    : queryKeys.disabled;
+  const policy = policyForQueryKey(key);
+  const enabled = Boolean(channelId && serverId);
+
+  const { data, isError } = useQuery<ChannelPermissions>({
+    queryKey: key,
+    queryFn: () => getChannelPermissions(channelId),
+    enabled,
+    staleTime: policy.staleTimeMs,
+    gcTime: policy.gcTimeMs,
+  });
+
   useEffect(() => {
-    if (!channelId || !serverId) return;
+    if (data && !isError) {
+      setPermissionError(null);
+    }
+  }, [data, isError]);
 
-    let cancelled = false;
-
-    const load = async () => {
-      try {
-        const result = await getChannelPermissions(channelId);
-        if (cancelled) return;
-        setPermissions(result);
-        setPermissionError(null);
-      } catch {
-        if (cancelled) return;
-        setPermissions(DEFAULT_PERMISSIONS);
-      }
-    };
-
-    load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [channelId, serverId]);
+  const permissions = isError
+    ? DEFAULT_PERMISSIONS
+    : data ?? null;
 
   const setPermissionErrorSafe = useCallback((message: string | null) => {
     setPermissionError(message);

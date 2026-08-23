@@ -52,6 +52,7 @@ interface DirectMessage {
   thread_id?: string;
   media_url?: string | null;
   media_type?: string;
+  status?: "pending" | "sent" | "failed";
   replyTo?: {
     id: string | number;
     content: string;
@@ -99,6 +100,7 @@ const normalizeDmMessage = (message: any): DirectMessage => ({
   content: String(message.content ?? message.message ?? ""),
   sender_id: String(message.sender_id ?? ""),
   receiver_id: String(message.receiver_id ?? ""),
+  status: "sent",
   timestamp: String(message.timestamp ?? new Date(0).toISOString()),
   thread_id: message.thread_id ? String(message.thread_id) : undefined,
   media_url: message.media_url ?? message.mediaUrl ?? null,
@@ -1184,6 +1186,8 @@ function MessagesPageContentInner() {
             : undefined,
           media_url: rawMediaUrl?.startsWith("blob:") ? null : rawMediaUrl,
           media_type: incoming.media_type,
+          status:
+            sender === currentUser?.id ? "sent" : undefined,
           replyTo:
             replySource && typeof replySource === "object"
               ? {
@@ -1798,6 +1802,7 @@ function MessagesPageContentInner() {
           media_url: upload.blobUrl,
           media_type: upload.file?.type ?? undefined,
           replyTo: upload.replyTo,
+          status: "pending",
         });
       });
 
@@ -1833,23 +1838,33 @@ function MessagesPageContentInner() {
           reply_to: upload.replyTo?.id,
         };
 
-        const saved = await uploaddm(dmPayload);
+        const savedRaw = await uploaddm(dmPayload);
+        const saved = savedRaw?.message ?? savedRaw?.data ?? savedRaw;
         if (!saved) {
           console.warn("DM upload returned no data");
         }
         invalidateDmCacheForCurrentUser();
 
-        if (saved && (saved.id || saved.media_url || saved.mediaUrl)) {
-          if (saved.thread_id) {
-            lastSavedThreadId = String(saved.thread_id);
+        const savedId = saved
+          ? (saved.id ?? saved.message_id ?? saved.clientMessageId)
+          : undefined;
+        const savedMediaUrl = saved?.media_url ?? saved?.mediaUrl ?? null;
+        const savedThreadId = saved?.thread_id
+          ? String(saved.thread_id)
+          : saved?.threadId
+            ? String(saved.threadId)
+            : undefined;
+
+        if (saved && (savedId || savedMediaUrl)) {
+          if (savedThreadId) {
+            lastSavedThreadId = savedThreadId;
           }
           setDmSummaries((prev) => {
             const next = new Map(prev);
 
-            const savedContent =
-              saved.media_url || saved.mediaUrl
-                ? "You: Sent an attachment"
-                : `You: ${String(saved.content ?? saved.message ?? upload.content ?? "")}`;
+            const savedContent = savedMediaUrl
+              ? "You: Sent an attachment"
+              : `You: ${String(saved.content ?? saved.message ?? upload.content ?? "")}`;
 
             next.set(activeDmId, {
               lastMessage: savedContent.trim(),
@@ -1869,14 +1884,13 @@ function MessagesPageContentInner() {
               if (upload.blobUrl) URL.revokeObjectURL(upload.blobUrl);
               next[idx] = {
                 ...next[idx],
-                id: String(saved.id ?? upload.tempId),
-                thread_id: saved.thread_id
-                  ? String(saved.thread_id)
-                  : next[idx].thread_id,
-                media_url: saved.media_url ?? saved.mediaUrl ?? null,
+                id: savedId ? String(savedId) : upload.tempId,
+                thread_id: savedThreadId ?? next[idx].thread_id,
+                media_url: savedMediaUrl,
                 media_type: saved.media_type ?? next[idx].media_type,
                 content: saved.content ?? saved.message ?? next[idx].content,
                 timestamp: String(saved.timestamp ?? next[idx].timestamp),
+                status: "sent",
                 replyTo: saved.reply_to_message
                   ? {
                       id: String(saved.reply_to_message.id),
@@ -1906,19 +1920,17 @@ function MessagesPageContentInner() {
       }
     } catch (e: any) {
       console.error("Failed to send DM via API:", e);
-      // Revoke blob URLs
-      uploads.forEach((upload) => {
-        if (upload.blobUrl) URL.revokeObjectURL(upload.blobUrl);
-      });
-      // Roll back optimistic messages on error
       setMessages((prev) => {
         const newMap = new Map(prev);
         const tempIds = new Set(uploads.map((upload) => upload.tempId));
-        const list = (newMap.get(activeDmId) || []).filter(
-          (m) => !tempIds.has(m.id)
+        const list = (newMap.get(activeDmId) || []).map((m) =>
+          tempIds.has(m.id) ? { ...m, status: "failed" as const } : m
         );
         newMap.set(activeDmId, list);
         return newMap;
+      });
+      uploads.forEach((upload) => {
+        if (upload.blobUrl) URL.revokeObjectURL(upload.blobUrl);
       });
       setToast({
         message: "file size excceded",
