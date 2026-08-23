@@ -411,14 +411,32 @@ export default forwardRef(function ChatWindow(
         const lastReadMs = lastReadTimestamp
           ? new Date(lastReadTimestamp).getTime()
           : 0;
-        const firstUnreadIndex = messages.findIndex(
-          (msg) =>
-            new Date(msg.timestamp).getTime() > lastReadMs &&
-            msg.senderId !== currentUserId
-        );
-        const hasUnread = firstUnreadIndex !== -1;
 
-        if (hasUnread) {
+        // Resume from where the user explicitly scrolled up to.
+        const anchor = channelScrollAnchors.get(channelId);
+        if (anchor && container) {
+          const idx = messages.findIndex(
+            (m) => String(m.id) === String(anchor.messageId)
+          );
+          const el = idx !== -1 ? messageRefs.current[messages[idx].id] : null;
+          if (el) {
+            el.scrollIntoView({ behavior: "auto", block: "start" });
+            container.scrollTop += anchor.offset;
+            done();
+            return;
+          }
+        }
+
+        const firstUnreadIndex =
+          lastReadMs > 0
+            ? messages.findIndex(
+                (msg) =>
+                  new Date(msg.timestamp).getTime() > lastReadMs &&
+                  msg.senderId !== currentUserId
+              )
+            : -1;
+
+        if (firstUnreadIndex !== -1) {
           const firstUnread = messages[firstUnreadIndex];
           const el = messageRefs.current[firstUnread.id];
           if (el) {
@@ -433,20 +451,6 @@ export default forwardRef(function ChatWindow(
             });
           }
           return;
-        }
-
-        const anchor = channelScrollAnchors.get(channelId);
-        if (anchor && container) {
-          const idx = messages.findIndex(
-            (m) => String(m.id) === String(anchor.messageId)
-          );
-          const el = idx !== -1 ? messageRefs.current[messages[idx].id] : null;
-          if (el) {
-            el.scrollIntoView({ behavior: "auto", block: "start" });
-            container.scrollTop += anchor.offset;
-            done();
-            return;
-          }
         }
 
         messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
