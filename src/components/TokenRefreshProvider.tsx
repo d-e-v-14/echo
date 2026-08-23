@@ -18,14 +18,12 @@ export function TokenRefreshProvider({
     "/forgot-password",
     "/invite",
   ];
-  const isPublicRoute = publicRoutes.some((route) =>
-    pathname.startsWith(route)
+  const isPublicRoute = publicRoutes.some(
+    (route) => pathname === route || pathname.startsWith(route + "/")
   );
 
   // Only run token refresh on authenticated routes
-  if (!isPublicRoute) {
-    useTokenRefresh();
-  }
+  useTokenRefresh(!isPublicRoute);
 
   return <>{children}</>;
 }
