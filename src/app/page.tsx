@@ -32,7 +32,6 @@ export default function Home() {
       options: {
         redirectTo: `${window.location.origin}/oauth-callback`,
         queryParams: {
-          hd: "vitstudent.ac.in",
           prompt: "select_account",
         },
       },
