@@ -254,7 +254,7 @@ export default function SelfAssignRoles({
       {/* Info text */}
       <div className="mt-6 p-4 bg-[#36393f] rounded-lg">
         <p className="text-xs text-gray-400">
-          💡 <strong>Tip:</strong> Click a role to add or remove it.
+          <strong>Tip:</strong> Click a role to add or remove it.
           Self-assignable roles help you access specific channels and show your
           interests to other members.
         </p>

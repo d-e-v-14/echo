@@ -70,7 +70,7 @@ export const createAuthSocket = (
 
   // Minimal, consistent logging
   socket.on("connect", () => {
-    console.log("✅ Socket connected", {
+    console.log("Socket connected", {
       id: socket.id,
       url: API_URL,
       path: SOCKET_PATH,
@@ -79,14 +79,14 @@ export const createAuthSocket = (
   });
 
   socket.on("connect_error", (err) => {
-    console.error("❌ Socket connect_error:", {
+    console.error("Socket connect_error:", {
       message: err?.message,
       data: err,
     });
   });
 
   socket.on("disconnect", (reason) => {
-    console.warn("⚠️ Socket disconnected:", reason);
+    console.warn("Socket disconnected:", reason);
     stopHeartbeat();
     // server-initiated disconnects need an explicit reconnect
     if (reason === "io server disconnect") socket.connect();

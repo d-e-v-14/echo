@@ -1,15 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  getPinnedMessages,
-  pinMessage,
-  unpinMessage,
-} from "@/api/message.api";
-import {
-  MAX_PINNED_MESSAGES,
-  PinnedMessage,
-} from "@/api/types/message.types";
+import { getPinnedMessages, pinMessage, unpinMessage } from "@/api/message.api";
+import { MAX_PINNED_MESSAGES, PinnedMessage } from "@/api/types/message.types";
 
 type UsePinnedMessagesOptions = {
   channelId?: string | null;
@@ -60,7 +53,8 @@ export const usePinnedMessages = ({
     (messageId: string | number) => {
       const id = String(messageId);
       return pins.some(
-        (pin) => pin.message_id === id || pin.dm_message_id === id || pin.id === id
+        (pin) =>
+          pin.message_id === id || pin.dm_message_id === id || pin.id === id
       );
     },
     [pins]

@@ -23,7 +23,7 @@ export default function VoiceInviteProvider({
 }: VoiceInviteProviderProps) {
   const [userId, setUserId] = useState<string | null>(null);
   const router = useRouter();
-  const { joinCall, activeCall } = useVoiceCall();
+  const { activeCall } = useVoiceCall();
 
   // Get user ID on mount
   useEffect(() => {

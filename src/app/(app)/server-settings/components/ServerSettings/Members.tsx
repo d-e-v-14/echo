@@ -354,7 +354,7 @@ export default function Members({
         <div className="text-center p-8 border border-[#72767d] rounded">
           <div className="text-[#b5bac1] text-lg mb-2">No members found</div>
           <div className="text-[#72767d] text-sm">
-            This server doesn't have any members yet, or there was an issue
+            This server doesn&apos;t have any members yet, or there was an issue
             loading them.
           </div>
         </div>
@@ -387,8 +387,8 @@ export default function Members({
                         style={{ backgroundColor: role.color || "#5865f2" }}
                       >
                         {role.name}
-                        {role.role_type === "owner" && " 👑"}
-                        {role.role_type === "admin" && " ⭐"}
+                        {role.role_type === "owner" && " "}
+                        {role.role_type === "admin" && " "}
                       </span>
                     ))}
                     {member.roles.length === 0 && (

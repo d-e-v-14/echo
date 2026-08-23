@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import type { EmojiClickData } from "emoji-picker-react";
 import { Theme } from "emoji-picker-react";
-import { Paperclip, Smile, Pin } from "lucide-react";
+import { Paperclip } from "lucide-react";
 
 /* -------------------- TYPES -------------------- */
 
@@ -99,9 +99,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   onReplyPreviewClick,
   onRetry,
   onReact,
-  onPin,
-  isPinned = false,
-  showPinAction = false,
   reactions = [],
   children,
   messageRenderer,
@@ -118,7 +115,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   } | null>(null);
   const reactionPickerRef = useRef<HTMLDivElement>(null);
   const reactionButtonRef = useRef<HTMLButtonElement>(null);
-  const quickReactions = ["👍", "❤️", "😂", "😮", "😢", "🙏", "👏"];
   const isGifMessage = message.content?.startsWith("[GIF]");
 
   const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
@@ -350,13 +346,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               ) : message.replyTo.content?.trim().startsWith("```") ? (
                 <div className="max-w-xs overflow-hidden rounded bg-slate-900 border mx-2  border-slate-700 px-4 py-2">
                   <pre className="text-xs font-mono text-slate-300 whitespace-pre-wrap">
-                   {message.replyTo.content
-              .replace(/^```[\w]*\n?/, "")
-              .replace(/```/g, "")
-              .trim()
-              .split("\n")
-              .slice(0, 3)
-              .join("\n")}
+                    {message.replyTo.content
+                      .replace(/^```[\w]*\n?/, "")
+                      .replace(/```/g, "")
+                      .trim()
+                      .split("\n")
+                      .slice(0, 3)
+                      .join("\n")}
                   </pre>
                 </div>
               ) : (
@@ -378,18 +374,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                     ))}
 
                   <span className="min-w-0 truncate">
-              {(() => {
-                const text =
-                  message.replyTo.content ||
-                  (message.replyTo.mediaUrl ? "Attachment" : "");
+                    {(() => {
+                      const text =
+                        message.replyTo.content ||
+                        (message.replyTo.mediaUrl ? "Attachment" : "");
 
-                const words = text.split(/\s+/);
+                      const words = text.split(/\s+/);
 
-                return words.length > 100
-                  ? words.slice(0, 100).join(" ") + "..."
-                  : text;
-              })()}
-            </span>
+                      return words.length > 100
+                        ? words.slice(0, 100).join(" ") + "..."
+                        : text;
+                    })()}
+                  </span>
                 </>
               )}
             </span>
@@ -398,19 +394,15 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
         {/* Message Bubble */}
         <div
-  className={`
+          className={`
     w-fit max-w-96
     ${isGifMessage ? "p-1" : "px-4 py-2.5"}
     ${bubbleStyles}
     rounded-lg
-    ${
-      isMentioned
-        ? "bg-[rgba(250,204,21,0.15)] ring-1 ring-[#facc15]"
-        : ""
-    }
+    ${isMentioned ? "bg-[rgba(250,204,21,0.15)] ring-1 ring-[#facc15]" : ""}
     ${isFailed ? "ring-1 ring-red-500 bg-red-900/20" : ""}
   `}
->
+        >
           <div className="text-sm leading-relaxed whitespace-pre-wrap break-words text-left">
             {messageRenderer
               ? messageRenderer(message.content)

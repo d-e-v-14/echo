@@ -139,8 +139,8 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
             </h3>
           </div>
           <p className="text-yellow-100 mb-4">
-            You don't have permission to view or manage server invites. Only
-            server admins and owners can access this feature.
+            You don&apos;t have permission to view or manage server invites.
+            Only server admins and owners can access this feature.
           </p>
           <p className="text-yellow-200 text-sm">
             Contact a server administrator if you need to invite someone to this

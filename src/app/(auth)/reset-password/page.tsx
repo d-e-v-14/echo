@@ -11,7 +11,7 @@ import Link from "next/link";
 import Loader from "@/components/Loader";
 
 function ResetPasswordContent() {
-  const searchParams = useSearchParams();
+  useSearchParams();
   const router = useRouter();
 
   const [password, setPassword] = useState("");

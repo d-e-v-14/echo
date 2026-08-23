@@ -200,7 +200,6 @@ export default function ProfilePage() {
                       (maxOpacity - minOpacity) * (i / (numPolygons - 1));
                     const points = [];
                     const baseRadius = 100 + i * 2;
-                    const sides = 5;
                     for (let j = 0; j < 6; j++) {
                       const angle = (Math.PI / 3) * j - Math.PI / 2;
                       const r = baseRadius + Math.sin(j * 2 + i) * 8;
@@ -263,9 +262,7 @@ export default function ProfilePage() {
                     <button
                       onClick={goToProfileSettings}
                       className="text-white/50 hover:text-white"
-                    >
-                      ✏️
-                    </button>
+                    ></button>
                   </div>
 
                   <p className="mt-4 text-white/70 border-t border-white/20 pt-4 text-[1.12rem]">

@@ -278,7 +278,7 @@ function MemberRoleView({ serverId }: { serverId: string }) {
                   style={{
                     backgroundColor: isSelected ? `${role.color}30` : "#36393f",
                     color: isSelected ? role.color : "#b5bac1",
-                    // @ts-ignore - ringColor works with CSS custom properties
+                    // @ts-expect-error - ringColor works with CSS custom properties
                     "--tw-ring-color": role.color,
                   }}
                   onClick={() => toggleRole(role.id)}
@@ -333,9 +333,9 @@ function MemberRoleView({ serverId }: { serverId: string }) {
       {/* Info */}
       <div className="mt-6 p-4 bg-[#36393f] rounded-lg">
         <p className="text-xs text-gray-400">
-          💡 <strong>Tip:</strong> Click roles to select/deselect them, then
-          click "Save Changes" to apply. Roles help you access specific channels
-          and show your interests to other members.
+          <strong>Tip:</strong> Click roles to select/deselect them, then click
+          &quot;Save Changes&quot; to apply. Roles help you access specific
+          channels and show your interests to other members.
         </p>
       </div>
     </div>
@@ -525,13 +525,13 @@ function AdminRoleView({
   const getRoleTypeLabel = (type: string) => {
     switch (type) {
       case "owner":
-        return "👑 Owner";
+        return "Owner";
       case "admin":
-        return "⚡ Admin";
+        return "Admin";
       case "self_assignable":
-        return "✋ Self-Assignable";
+        return "Self-Assignable";
       default:
-        return "📋 Custom";
+        return "Custom";
     }
   };
 
@@ -690,7 +690,7 @@ function AdminRoleView({
                 <span>{role.name}</span>
                 {role.is_self_assignable && (
                   <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">
-                    ✋ Self-Assign
+                    Self-Assign
                   </span>
                 )}
               </div>
@@ -735,7 +735,7 @@ function AdminRoleView({
                   <span>{role.name}</span>
                   {role.is_self_assignable && (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">
-                      ✋ Self-Assign
+                      Self-Assign
                     </span>
                   )}
                 </div>
@@ -943,8 +943,8 @@ function AdminRoleView({
               Create Role Category
             </h2>
             <p className="text-gray-400 text-sm mb-4">
-              Categories help organize self-assignable roles (e.g., "Interests",
-              "Pronouns", "Region")
+              Categories help organize self-assignable roles (e.g.,
+              &quot;Interests&quot;, &quot;Pronouns&quot;, &quot;Region&quot;)
             </p>
 
             <label className="block font-semibold mb-2 text-[#b5bac1]">

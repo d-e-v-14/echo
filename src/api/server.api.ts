@@ -1,10 +1,6 @@
 import { apiClient } from "./axios";
-import {
-  ServerDetails,
-  ServerMember,
-  ServerInvite,
-} from "./types/server.types";
-import { SearchUser, BannedUser, SearchUserResult } from "./types/user.types";
+import { ServerDetails, ServerInvite } from "./types/server.types";
+import { BannedUser, SearchUserResult } from "./types/user.types";
 import { getUser } from "./profile.api";
 import { Server } from "@/api/types/server.types";
 

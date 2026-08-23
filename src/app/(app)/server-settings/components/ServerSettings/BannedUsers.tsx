@@ -178,7 +178,7 @@ export default function BannedUsers({
       {/* Info Box */}
       <div className="mt-6 p-4 border border-yellow-900/30 rounded bg-yellow-950/10">
         <div className="flex items-start gap-2">
-          <span className="text-yellow-500 text-lg">⚠️</span>
+          <span className="text-yellow-500 text-lg"></span>
           <div className="text-sm text-gray-300">
             <p className="font-medium text-yellow-400 mb-1">About Bans</p>
             <ul className="list-disc list-inside space-y-1 text-gray-400">

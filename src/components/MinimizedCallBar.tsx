@@ -3,9 +3,8 @@
 import { useVoiceCall } from "@/contexts/VoiceCallContext";
 
 export function MinimizedCallBar() {
-  const { activeCall, isConnected, leaveCall } = useVoiceCall();
+  useVoiceCall();
 
-  
   return null;
 }
 

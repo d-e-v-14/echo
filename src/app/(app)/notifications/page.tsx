@@ -7,7 +7,6 @@ import { useNotifications } from "../../../hooks/useNotifications";
 import { apiClient } from "@/utils/apiClient";
 import { useRouter } from "next/navigation";
 
-import Loader from "@/components/Loader";
 import Toast from "@/components/Toast";
 
 interface Notification {
@@ -112,7 +111,7 @@ export default function NotificationsPage() {
       );
 
       setToast({ message: "Marked as read", type: "success" });
-    } catch (error) {
+    } catch {
       setToast({
         message: "Failed to mark notification as read",
         type: "error",
@@ -129,7 +128,7 @@ export default function NotificationsPage() {
         message: "All notifications marked as read",
         type: "success",
       });
-    } catch (error) {
+    } catch {
       setToast({
         message: "Failed to mark all as read",
         type: "error",
@@ -253,7 +252,7 @@ export default function NotificationsPage() {
                   <Loader2 size={14} className="animate-spin" />
                 )}
                 <span className="hidden sm:inline">Refresh</span>
-                <span className="sm:hidden">↻</span>
+                <span className="sm:hidden"></span>
               </button>
             </div>
           </div>
@@ -301,7 +300,8 @@ export default function NotificationsPage() {
                       handleMarkAsRead(notification.id);
                     }
                     const channelId = notification.message?.channel_id;
-                    const messageId = notification.message_id || notification.message?.id;
+                    const messageId =
+                      notification.message_id || notification.message?.id;
                     const serverId = notification.message?.channels?.server_id;
                     if (channelId && messageId) {
                       sessionStorage.setItem("pendingChannelId", channelId);
@@ -348,11 +348,11 @@ export default function NotificationsPage() {
                           </div>
 
                           <p className="text-gray-300 mb-2">
-                            "
+                            &quot;
                             {truncateContent(
                               notification.message?.content || ""
                             )}
-                            "
+                            &quot;
                           </p>
 
                           <span className="text-gray-500 text-sm">

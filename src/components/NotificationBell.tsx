@@ -6,7 +6,11 @@ import NotificationDropdown from "./NotificationDropdown";
 
 interface NotificationBellProps {
   className?: string;
-  onNavigateToMessage?: (channelId: string, messageId: string, serverId?: string) => void;
+  onNavigateToMessage?: (
+    channelId: string,
+    messageId: string,
+    serverId?: string
+  ) => void;
 }
 
 export default function NotificationBell({

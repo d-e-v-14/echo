@@ -8,40 +8,6 @@ interface Props {
   collapsed?: boolean;
 }
 
-// 1. Reusable Expand Icon
-const ExpandIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-  </svg>
-);
-
-// 2. Reusable Compress Icon (when already fullscreen)
-const CompressIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" />
-  </svg>
-);
-
 function VideoTile({
   stream,
   name,
@@ -62,29 +28,6 @@ function VideoTile({
       }
     }
   }, [stream]);
-
-  // Handle Fullscreen on the Container (NOT the video tag)
-const toggleFullscreen = async (e: React.MouseEvent) => {
-  e.preventDefault();
-  e.stopPropagation();
-
-  const container = containerRef.current;
-
-  if (!container) return;
-
-  try {
-    if (!document.fullscreenElement) {
-      // We use 'await' here to catch the exact Promise rejection
-      await container.requestFullscreen();
-    } else {
-      await document.exitFullscreen();
-    }
-  } catch (err: any) {
-    // THIS WILL TELL US EXACTLY WHY CHROME IS BLOCKING IT
-    console.error("Fullscreen failed:", err);
-    alert(`Chrome blocked fullscreen: ${err.message}`);
-  }
-};
 
   return (
     <div
@@ -117,7 +60,6 @@ const toggleFullscreen = async (e: React.MouseEvent) => {
       </div>
 
       {/* Expand Icon - Visible on hover */}
-      
     </div>
   );
 }

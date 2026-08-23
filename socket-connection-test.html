@@ -40,26 +40,26 @@
         });
 
         socket.on("connect", () => {
-          statusDiv.innerHTML = "✅ Connected";
+          statusDiv.innerHTML = "Connected";
           statusDiv.style.color = "green";
           log(`Connected with ID: ${socket.id}`);
           log(`Transport: ${socket.io.engine.transport.name}`);
         });
 
         socket.on("disconnect", (reason) => {
-          statusDiv.innerHTML = "❌ Disconnected";
+          statusDiv.innerHTML = "Disconnected";
           statusDiv.style.color = "red";
           log(`Disconnected: ${reason}`);
         });
 
         socket.on("connect_error", (error) => {
-          statusDiv.innerHTML = "❌ Connection Error";
+          statusDiv.innerHTML = "Connection Error";
           statusDiv.style.color = "red";
           log(`Connection error: ${error.message || error}`);
         });
 
         socket.on("reconnect", (attemptNumber) => {
-          statusDiv.innerHTML = "✅ Reconnected";
+          statusDiv.innerHTML = "Reconnected";
           statusDiv.style.color = "green";
           log(`Reconnected after ${attemptNumber} attempts`);
         });
@@ -69,7 +69,7 @@
         });
 
         socket.on("reconnect_failed", () => {
-          statusDiv.innerHTML = "❌ Reconnection Failed";
+          statusDiv.innerHTML = "Reconnection Failed";
           statusDiv.style.color = "red";
           log("Reconnection failed after all attempts");
         });

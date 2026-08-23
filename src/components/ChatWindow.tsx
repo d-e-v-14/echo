@@ -28,7 +28,7 @@ import { getChannelPermissions } from "@/api/channel.api";
 import { createAuthSocket } from "@/socket";
 import MessageBubble from "./MessageBubble";
 import Toast from "@/components/Toast";
-import { ChevronDown, Search , Hash} from "lucide-react";
+import { Search, Hash } from "lucide-react";
 import { getServerMembers } from "@/api/server.api";
 import { getAllRoles } from "@/api/roles.api";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -38,7 +38,6 @@ import MessageSearchPanel from "./MessageSearchPanel";
 // import PinnedMessagesBar from "./PinnedMessagesBar";
 import { MessageSearchResult } from "@/api/types/message.types";
 
-import { apiClient as mentionsApiClient } from "@/utils/apiClient";
 import { apiClient as profileApiClient } from "@/api/axios";
 
 // Dynamic imports for heavy components that are conditionally rendered
@@ -81,7 +80,6 @@ const formatMessageTime = (timestamp: string): string => {
   }
 
   return date.toLocaleString(undefined, {
-   
     hour: "numeric",
     minute: "2-digit",
   });
@@ -142,7 +140,6 @@ export default forwardRef(function ChatWindow(
     serverId,
     threadId,
     channelName,
-    onLoadOlderMessages,
   }: ChatWindowProps,
   ref
 ) {
@@ -152,7 +149,7 @@ export default forwardRef(function ChatWindow(
   const [messages, setMessages] = useState<Message[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const validUsernamesRef = useRef<Set<string>>(new Set());
-  const [offset, setOffset] = useState(0);
+  const [, setOffset] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const validRoleNamesRef = useRef<Set<string>>(new Set());
@@ -194,17 +191,17 @@ export default forwardRef(function ChatWindow(
   });
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [currentUsername, setCurrentUsername] = useState<string>("");
-  const [currentUserRoles, setCurrentUserRoles] = useState<string[]>([]);
-  const [showScrollButton, setShowScrollButton] = useState(false);
-  const isInitialLoadRef = useRef(true);
-  const lastProcessedMessageIdRef = useRef<string | number | null>(null);
+  useState<string[]>([]);
+  useState(false);
+  useRef(true);
+  useRef<string | number | null>(null);
 
   const hasUserScrolledRef = useRef(false);
 
   const initialScrollDoneRef = useRef<string | null>(null);
   const isAutoScrollingRef = useRef(false);
 
-  const hasMountedRef = useRef(false);
+  useRef(false);
   const hasScrolledForChannelRef = useRef<string | null>(null);
 
   const [currentMentionIndex, setCurrentMentionIndex] = useState(0);
@@ -259,21 +256,7 @@ export default forwardRef(function ChatWindow(
   const isManuallyScrollingRef = useRef(false);
 
   // Fetch unread mentions for a specific channel
-  const fetchChannelUnreadMentions = async (chId: string, userId: string) => {
-    const response = await mentionsApiClient.get(
-      `/api/mentions?userId=${userId}&unreadOnly=true&channelId=${chId}`
-    );
-    return response.data || [];
-  };
-
   // Mark all mentions as read for a channel
-  const markAllChannelMentionsAsRead = async (mentionIds: string[]) => {
-    await Promise.all(
-      mentionIds.map((id) =>
-        mentionsApiClient.patch(`/api/mentions/${id}/read`)
-      )
-    );
-  };
 
   // Update ref whenever channelId changes
   useEffect(() => {
@@ -281,7 +264,6 @@ export default forwardRef(function ChatWindow(
   }, [channelId]);
 
   const handleReply = (message: Message) => {
-
     setReplyingTo(message);
   };
 
@@ -296,7 +278,7 @@ export default forwardRef(function ChatWindow(
     {}
   );
 
-  const isMessageMentioningMe = useCallback(
+  useCallback(
     (content: string) => {
       if (!content) return false;
 
@@ -335,7 +317,7 @@ export default forwardRef(function ChatWindow(
   const isValidUsernameMention = (mention: string) => {
     const name = mention.replace("@", "").toLowerCase();
 
-    // ✅ Allow @everyone and @here
+    // Allow @everyone and @here
     if (name === "everyone") return true;
 
     return validUsernamesRef.current.has(name);
@@ -349,7 +331,7 @@ export default forwardRef(function ChatWindow(
   useEffect(() => {
     if (!channelId || !currentUserId) {
       setLastReadTimestamp(null);
-      dividerTimestampRef.current = null; 
+      dividerTimestampRef.current = null;
       return;
     }
 
@@ -358,10 +340,9 @@ export default forwardRef(function ChatWindow(
       const stored = localStorage.getItem(key);
       setLastReadTimestamp(stored || null);
       dividerTimestampRef.current = stored || null;
-    } catch (err) {
-
+    } catch {
       setLastReadTimestamp(null);
-      dividerTimestampRef.current = null; 
+      dividerTimestampRef.current = null;
     }
   }, [channelId, currentUserId]);
 
@@ -419,9 +400,7 @@ export default forwardRef(function ChatWindow(
         if (!cancelled) {
           validUsernamesRef.current = set;
         }
-      } catch (err) {
-
-      }
+      } catch {}
     };
 
     seedMentionableUsernames();
@@ -443,7 +422,6 @@ export default forwardRef(function ChatWindow(
     }
 
     validRoleNamesRef.current = set;
-
   }, [serverRoles]);
 
   // Track whether there are *unread* mentions in history
@@ -457,8 +435,7 @@ export default forwardRef(function ChatWindow(
         const permissions = await getChannelPermissions(channelId);
         setChannelPermissions(permissions);
         setPermissionError(null);
-      } catch (err: any) {
-
+      } catch {
         // If error, assume normal permissions
         setChannelPermissions({
           channelType: "normal",
@@ -479,7 +456,7 @@ export default forwardRef(function ChatWindow(
       try {
         const roles = await getAllRoles(serverId);
         setServerRoles(roles || []);
-      } catch (err) {
+      } catch {
         setServerRoles([]);
       }
     };
@@ -511,9 +488,7 @@ export default forwardRef(function ChatWindow(
               : msg
           )
         );
-      } catch (error) {
-
-      }
+      } catch {}
     };
 
     loadCurrentUserAvatar();
@@ -612,126 +587,123 @@ export default forwardRef(function ChatWindow(
   } | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
-const openProfile = useCallback(
-  async (userId: string, username?: string, fallbackAvatar?: string) => {
-    if (!userId) return;
+  const openProfile = useCallback(
+    async (userId: string, username?: string, fallbackAvatar?: string) => {
+      if (!userId) return;
 
-    console.log("openProfile called:", { userId, username }); // ← ADD
+      console.log("openProfile called:", { userId, username }); // ADD
 
-    const safeUsername = username || "Unknown";
-    const safeAvatar = fallbackAvatar || "/User_profil.png";
-
-    setSelectedUser({
-      id: userId,
-      username: safeUsername,
-      avatarUrl: safeAvatar,
-      about: "Loading bio...",
-      roles: [],
-    });
-    setIsProfileOpen(true);
-
-    try {
-      const token = localStorage.getItem("access_token");
-      if (!token || !serverId) {
-        console.log("No token or serverId:", { token: !!token, serverId }); // ← ADD
-        return;
-      }
-
-      const url = `${process.env.NEXT_PUBLIC_API_URL}/api/newserver/${serverId}/members/${userId}`;
-      console.log("Fetching:", url); // ← ADD
-
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      console.log("Response status:", res.status); // ← ADD
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      const data = await res.json();
-      console.log("Member data received:", data); // ← ADD
+      const safeUsername = username || "Unknown";
+      const safeAvatar = fallbackAvatar || "/User_profil.png";
 
       setSelectedUser({
         id: userId,
-        username:
-          data.user?.username ||
-          data.users?.username ||
-          data.username ||
-          safeUsername,
-        avatarUrl:
-          data.user?.avatar_url ||
-          data.users?.avatar_url ||
-          data.avatar_url ||
-          safeAvatar,
-        about: data.user?.bio || data.users?.bio || data.bio || "No bio yet...",
-        roles:
-          data.roles?.map((r: any) => ({
-            id: r.id || r.role_id,
-            name: r.name,
-            color: r.color || "#374151",
-          })) || [],
+        username: safeUsername,
+        avatarUrl: safeAvatar,
+        about: "Loading bio...",
+        roles: [],
       });
-    } catch (err) {
+      setIsProfileOpen(true);
 
-      setSelectedUser((prev) =>
-        prev ? { ...prev, about: "No bio available." } : null
-      );
-    }
-  },
-  [serverId, messages]
-);
-const handleUsernameClick = useCallback(
-  async (userId: string, username: string) => {
-    // Step 1: Check already-loaded messages for real UUID
-    const fromMessages = messages.find(
-      (msg) =>
-        msg.username?.toLowerCase() === username.toLowerCase() &&
-        msg.senderId &&
-        !String(msg.senderId).startsWith("temp-") &&
-        // Make sure senderId is a real UUID, not another username string
-        String(msg.senderId) !== msg.username
-    );
-
-    if (fromMessages?.senderId) {
-      const avatarUrl =
-        avatarCacheRef.current[String(fromMessages.senderId)]?.url ||
-        fromMessages.avatarUrl ||
-        "/User_profil.png";
-      await openProfile(String(fromMessages.senderId), username, avatarUrl);
-      return;
-    }
-
-    // Step 2: Resolve UUID from server members list
-    if (serverId) {
       try {
-        const members = await getServerMembers(serverId);
-        const match = members?.find(
-          (m: any) =>
-            m?.users?.username?.toLowerCase() === username.toLowerCase()
-        );
-
-        if (match) {
-          const realId =
-            match.user_id || match.userId || match.users?.id || match.id;
-
-          const avatarUrl =
-            match.users?.avatar_url || match.avatar_url || "/User_profil.png";
-
-          if (realId) {
-            await openProfile(String(realId), username, avatarUrl);
-            return;
-          }
+        const token = localStorage.getItem("access_token");
+        if (!token || !serverId) {
+          console.log("No token or serverId:", { token: !!token, serverId }); // ADD
+          return;
         }
-      } catch (err) {
 
+        const url = `${process.env.NEXT_PUBLIC_API_URL}/api/newserver/${serverId}/members/${userId}`;
+        console.log("Fetching:", url); // ADD
+
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        console.log("Response status:", res.status); // ADD
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const data = await res.json();
+        console.log("Member data received:", data); // ADD
+
+        setSelectedUser({
+          id: userId,
+          username:
+            data.user?.username ||
+            data.users?.username ||
+            data.username ||
+            safeUsername,
+          avatarUrl:
+            data.user?.avatar_url ||
+            data.users?.avatar_url ||
+            data.avatar_url ||
+            safeAvatar,
+          about:
+            data.user?.bio || data.users?.bio || data.bio || "No bio yet...",
+          roles:
+            data.roles?.map((r: any) => ({
+              id: r.id || r.role_id,
+              name: r.name,
+              color: r.color || "#374151",
+            })) || [],
+        });
+      } catch {
+        setSelectedUser((prev) =>
+          prev ? { ...prev, about: "No bio available." } : null
+        );
       }
-    }
+    },
+    [serverId, messages]
+  );
+  const handleUsernameClick = useCallback(
+    async (userId: string, username: string) => {
+      // Step 1: Check already-loaded messages for real UUID
+      const fromMessages = messages.find(
+        (msg) =>
+          msg.username?.toLowerCase() === username.toLowerCase() &&
+          msg.senderId &&
+          !String(msg.senderId).startsWith("temp-") &&
+          // Make sure senderId is a real UUID, not another username string
+          String(msg.senderId) !== msg.username
+      );
 
+      if (fromMessages?.senderId) {
+        const avatarUrl =
+          avatarCacheRef.current[String(fromMessages.senderId)]?.url ||
+          fromMessages.avatarUrl ||
+          "/User_profil.png";
+        await openProfile(String(fromMessages.senderId), username, avatarUrl);
+        return;
+      }
 
-    await openProfile(userId, username, "/User_profil.png");
-  },
-  [openProfile, messages, serverId]
-);
+      // Step 2: Resolve UUID from server members list
+      if (serverId) {
+        try {
+          const members = await getServerMembers(serverId);
+          const match = members?.find(
+            (m: any) =>
+              m?.users?.username?.toLowerCase() === username.toLowerCase()
+          );
+
+          if (match) {
+            const realId =
+              match.user_id || match.userId || match.users?.id || match.id;
+
+            const avatarUrl =
+              match.users?.avatar_url || match.avatar_url || "/User_profil.png";
+
+            if (realId) {
+              await openProfile(String(realId), username, avatarUrl);
+              return;
+            }
+          }
+        } catch {}
+      }
+
+      await openProfile(userId, username, "/User_profil.png");
+    },
+    [openProfile, messages, serverId]
+  );
   const handleRoleMentionClick = useCallback(
     async (roleName: string) => {
       if (!serverId) return;
@@ -759,8 +731,7 @@ const handleUsernameClick = useCallback(
           role: roleName,
           users: data.users || [],
         });
-      } catch (err) {
-
+      } catch {
         setRoleModal({
           open: true,
           role: roleName,
@@ -778,9 +749,7 @@ const handleUsernameClick = useCallback(
         if (user?.username) {
           setCurrentUsername(user.username);
         }
-      } catch (err) {
-
-      }
+      } catch {}
     };
 
     loadCurrentUser();
@@ -805,9 +774,7 @@ const handleUsernameClick = useCallback(
         const data = await res.json();
 
         setCurrentUserRoleIds(data.roles?.map((r: any) => r.id) || []);
-      } catch (err) {
-
-      }
+      } catch {}
     };
 
     loadMyServerRoles();
@@ -858,25 +825,46 @@ const handleUsernameClick = useCallback(
             const avatarUrl = await resolveAvatarUrl(senderId, msg);
 
             let replyTo = null;
-            if (msg.reply_to_message && typeof msg.reply_to_message === "object") {
+            if (
+              msg.reply_to_message &&
+              typeof msg.reply_to_message === "object"
+            ) {
               replyTo = {
-                id: String(msg.reply_to_message.id ?? msg.reply_to_message.message_id ?? ""),
-                content: String(msg.reply_to_message.content ?? msg.reply_to_message.message ?? ""),
+                id: String(
+                  msg.reply_to_message.id ??
+                    msg.reply_to_message.message_id ??
+                    ""
+                ),
+                content: String(
+                  msg.reply_to_message.content ??
+                    msg.reply_to_message.message ??
+                    ""
+                ),
                 author: msg.reply_to_message.users?.username || "Unknown",
-                avatarUrl: msg.reply_to_message.users?.avatar_url || "/User_profil.png",
-                mediaUrl: msg.reply_to_message.media_url || msg.reply_to_message.mediaUrl || null,
+                avatarUrl:
+                  msg.reply_to_message.users?.avatar_url || "/User_profil.png",
+                mediaUrl:
+                  msg.reply_to_message.media_url ||
+                  msg.reply_to_message.mediaUrl ||
+                  null,
                 mediaType: msg.reply_to_message.media_type,
               };
             } else if (msg.reply_to && typeof msg.reply_to === "object") {
               replyTo = {
                 id: String(msg.reply_to.id ?? msg.reply_to.message_id ?? ""),
-                content: String(msg.reply_to.content ?? msg.reply_to.message ?? ""),
+                content: String(
+                  msg.reply_to.content ?? msg.reply_to.message ?? ""
+                ),
                 author: msg.reply_to.users?.username || "Unknown",
                 avatarUrl: msg.reply_to.users?.avatar_url || "/User_profil.png",
-                mediaUrl: msg.reply_to.media_url || msg.reply_to.mediaUrl || null,
+                mediaUrl:
+                  msg.reply_to.media_url || msg.reply_to.mediaUrl || null,
                 mediaType: msg.reply_to.media_type,
               };
-            } else if (typeof msg.reply_to === "string" || typeof msg.reply_to === "number") {
+            } else if (
+              typeof msg.reply_to === "string" ||
+              typeof msg.reply_to === "number"
+            ) {
               replyTo = {
                 id: String(msg.reply_to),
                 content: "Loading...",
@@ -912,7 +900,9 @@ const handleUsernameClick = useCallback(
           return;
         }
 
-        const messageMap = new Map(formattedMessages.map((m) => [String(m.id), m]));
+        const messageMap = new Map(
+          formattedMessages.map((m) => [String(m.id), m])
+        );
         const resolvedMessages = formattedMessages.map((msg) => {
           if (msg.replyTo) {
             const parent = messageMap.get(String(msg.replyTo.id));
@@ -921,19 +911,29 @@ const handleUsernameClick = useCallback(
                 ...msg,
                 replyTo: {
                   ...msg.replyTo,
-                  content: msg.replyTo.content === "Loading..." || !msg.replyTo.content 
-                    ? parent.content 
-                    : msg.replyTo.content,
-                  author: msg.replyTo.author === "Unknown" ? (parent.username || "User") : msg.replyTo.author,
+                  content:
+                    msg.replyTo.content === "Loading..." || !msg.replyTo.content
+                      ? parent.content
+                      : msg.replyTo.content,
+                  author:
+                    msg.replyTo.author === "Unknown"
+                      ? parent.username || "User"
+                      : msg.replyTo.author,
                   mediaUrl: msg.replyTo.mediaUrl || parent.mediaUrl,
                   mediaType: msg.replyTo.mediaType || parent.mediaType,
-                  avatarUrl: msg.replyTo.avatarUrl === "/User_profil.png" ? parent.avatarUrl : msg.replyTo.avatarUrl,
+                  avatarUrl:
+                    msg.replyTo.avatarUrl === "/User_profil.png"
+                      ? parent.avatarUrl
+                      : msg.replyTo.avatarUrl,
                 },
               };
             } else if (msg.replyTo.content === "Loading...") {
               return {
                 ...msg,
-                replyTo: { ...msg.replyTo, content: "Original message unavailable" },
+                replyTo: {
+                  ...msg.replyTo,
+                  content: "Original message unavailable",
+                },
               };
             }
           }
@@ -966,8 +966,7 @@ const handleUsernameClick = useCallback(
         }
 
         setHasMore(res.hasMore ?? false);
-      } catch (err) {
-
+      } catch {
       } finally {
         if (abortSignal?.aborted || channelIdRef.current !== currentChannelId) {
           return;
@@ -1075,8 +1074,7 @@ const handleUsernameClick = useCallback(
             });
           }
         }
-      } catch (error) {
-
+      } catch {
         messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
         setTimeout(() => {
           isAutoScrollingRef.current = false;
@@ -1121,7 +1119,6 @@ const handleUsernameClick = useCallback(
       container.scrollHeight - container.scrollTop - container.clientHeight <
       50;
 
-
     if (
       isAtBottom &&
       hasUserScrolledRef.current &&
@@ -1135,9 +1132,7 @@ const handleUsernameClick = useCallback(
       try {
         const key = `channel_last_read_${channelId}_${currentUserId}`;
         localStorage.setItem(key, ts);
-      } catch (err) {
-
-      }
+      } catch {}
 
       void markUnreadMentionsAsRead();
     }
@@ -1163,9 +1158,7 @@ const handleUsernameClick = useCallback(
             try {
               const key = `channel_last_read_${channelId}_${currentUserId}`;
               localStorage.setItem(key, ts);
-            } catch (err) {
-
-            }
+            } catch {}
 
             void markUnreadMentionsAsRead();
           }
@@ -1198,18 +1191,6 @@ const handleUsernameClick = useCallback(
     lastReadTimestamp,
   ]);
 
-
-  const handleDmScroll = () => {
-         const container = messagesContainerRef.current;
-       
-         if (!container) return;
-       
-         if (container.scrollTop < 100) {
-           onLoadOlderMessages?.();
-         }
-  };
-
-
   const jumpToNextMention = useCallback(() => {
     if (unreadMentionsForChannel.length === 0) return;
 
@@ -1226,7 +1207,7 @@ const handleUsernameClick = useCallback(
       el.classList.add("mention-highlight");
       setTimeout(() => el.classList.remove("mention-highlight"), 2000);
 
-      // ✅ ADD: Clear flag after scroll completes
+      // ADD: Clear flag after scroll completes
       setTimeout(() => {
         isManuallyScrollingRef.current = false;
       }, 1000);
@@ -1314,7 +1295,6 @@ const handleUsernameClick = useCallback(
 
     return () => {
       socket.emit("leave_room", channelId);
-
     };
   }, [socket, channelId]);
 
@@ -1323,17 +1303,12 @@ const handleUsernameClick = useCallback(
     socket.on("connect", () => {
       if (channelId) {
         socket.emit("join_room", channelId);
-
       }
     });
 
-    socket.on("connect_error", (error: Error) => {
+    socket.on("connect_error", () => {});
 
-    });
-
-    socket.on("disconnect", (reason) => {
-
-    });
+    socket.on("disconnect", () => {});
 
     const pingInterval = setInterval(() => {
       if (!socket.connected) {
@@ -1356,7 +1331,6 @@ const handleUsernameClick = useCallback(
       const messageId = saved?.id || saved?.messageId;
 
       if (!messageId) {
-
         return;
       }
 
@@ -1368,7 +1342,6 @@ const handleUsernameClick = useCallback(
       }
 
       if (receivedMessageIdsRef.current.has(messageId)) {
-
         return;
       }
 
@@ -1435,20 +1408,19 @@ const handleUsernameClick = useCallback(
       setMessages((prev) => {
         const existsById = prev.some((msg) => msg.id === messageId);
         if (existsById) {
-
           return prev;
         }
 
         let tempReplyToFallback: any = null;
         const filtered = prev.filter((msg) => {
           const isDuplicate =
-              msg.senderId === currentUserId &&
-              msg.content === newMessage.content &&
-              Math.abs(
-                new Date(msg.timestamp).getTime() -
-                  new Date(newMessage.timestamp).getTime()
-              ) < 5000;
-          
+            msg.senderId === currentUserId &&
+            msg.content === newMessage.content &&
+            Math.abs(
+              new Date(msg.timestamp).getTime() -
+                new Date(newMessage.timestamp).getTime()
+            ) < 5000;
+
           if (isDuplicate && msg.replyTo) {
             tempReplyToFallback = msg.replyTo;
           }
@@ -1456,13 +1428,15 @@ const handleUsernameClick = useCallback(
         });
 
         if (tempReplyToFallback && newMessage.replyTo) {
-           newMessage.replyTo = {
-             ...newMessage.replyTo,
-             mediaUrl: newMessage.replyTo.mediaUrl || tempReplyToFallback.mediaUrl,
-             mediaType: newMessage.replyTo.mediaType || tempReplyToFallback.mediaType
-           };
+          newMessage.replyTo = {
+            ...newMessage.replyTo,
+            mediaUrl:
+              newMessage.replyTo.mediaUrl || tempReplyToFallback.mediaUrl,
+            mediaType:
+              newMessage.replyTo.mediaType || tempReplyToFallback.mediaType,
+          };
         } else if (tempReplyToFallback && !newMessage.replyTo) {
-           newMessage.replyTo = tempReplyToFallback;
+          newMessage.replyTo = tempReplyToFallback;
         }
 
         const updated = [...filtered, newMessage].sort(
@@ -1483,71 +1457,13 @@ const handleUsernameClick = useCallback(
       );
     };
 
-    // Handle message confirmation (for sender's optimistic UI)
-    const handleMessageConfirmed = async (saved: any) => {
-      const tempId = saved?.tempId;
-      const realId = saved?.id;
-
-      if (!tempId || !realId) {
-
-        return;
-      }
-
-      const senderId = saved?.sender_id || saved?.senderId || currentUserId;
-      const avatarUrl = await getAvatarUrl(senderId);
-
-      // Replace optimistic message with confirmed message
-      setMessages((prev) => {
-        const optimisticIndex = prev.findIndex((msg) => msg.tempId === tempId);
-
-        if (optimisticIndex === -1) {
-
-          return prev;
-        }
-
-        const confirmedMessage: Message = {
-          id: realId,
-          content: saved?.content || prev[optimisticIndex].content,
-          senderId,
-          timestamp: saved?.timestamp || new Date().toISOString(),
-          avatarUrl,
-          username: "You",
-          mediaUrl: saved?.media_url || saved?.mediaUrl,
-          mediaType: saved?.media_type,
-          replyTo: prev[optimisticIndex].replyTo,
-          status: "sent",
-        };
-
-        const updated = [...prev];
-        updated[optimisticIndex] = confirmedMessage;
-        return updated;
-      });
-
-      // Mark as received to prevent duplicate from socket
-      receivedMessageIdsRef.current.add(realId);
-    };
-
-    // Handle message error (for sender's optimistic UI)
-    const handleMessageError = (error: any) => {
-      const tempId = error?.tempId;
-      const errorMsg = error?.error || error;
-
-      if (tempId) {
-        // Mark the optimistic message as failed
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.tempId === tempId ? { ...msg, status: "failed" as const } : msg
-          )
-        );
-      }
-    };
     socket.on("new_message", handleIncomingMessage);
     socket.on("reconnect", async () => {
       await loadMessages();
     });
 
     return () => {
-      socket.off("new_message",handleIncomingMessage);
+      socket.off("new_message", handleIncomingMessage);
       socket.off("message_confirmed");
       socket.off("message_error");
       socket.off("reconnect");
@@ -1574,22 +1490,22 @@ const handleUsernameClick = useCallback(
 
     return { valid: true };
   };
-const isCodeBlock = (content?: string) => {
-  if (!content) return false;
+  const isCodeBlock = (content?: string) => {
+    if (!content) return false;
 
-  return /```(?:\w+)?\n?[\s\S]*?```/.test(content);
-};
+    return /```(?:\w+)?\n?[\s\S]*?```/.test(content);
+  };
 
-const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
-  if (!mediaUrl) return false;
-  const ext = mediaUrl.split("?")[0].split(".").pop()?.toLowerCase() || "";
-  const imageExts = ["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"];
-  return (
-    mediaUrl.startsWith("blob:") ||
-    imageExts.includes(ext) ||
-    Boolean(mediaType?.startsWith("image/"))
-  );
-};
+  const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
+    if (!mediaUrl) return false;
+    const ext = mediaUrl.split("?")[0].split(".").pop()?.toLowerCase() || "";
+    const imageExts = ["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"];
+    return (
+      mediaUrl.startsWith("blob:") ||
+      imageExts.includes(ext) ||
+      Boolean(mediaType?.startsWith("image/"))
+    );
+  };
 
   const validateRoleMentions = (message: string) => {
     const roleMentionRegex = /@&([^\s@]+)/g;
@@ -1648,7 +1564,7 @@ const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
 
     const optimisticMessage: Message = {
       id: tempId,
-      content: file ? `${text} 📎 Uploading ${file.name}...` : text,
+      content: file ? `${text} Uploading ${file.name}...` : text,
       senderId: currentUserId,
       timestamp: new Date().toISOString(),
       avatarUrl: resolvedAvatarUrl || "/User_profil.png",
@@ -1700,37 +1616,36 @@ const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
       });
 
-    setMessages((prev) => {
-      const realId = String(response.id || tempId);
+      setMessages((prev) => {
+        const realId = String(response.id || tempId);
 
-      // Socket already inserted the real message.
-      if (prev.some(m => String(m.id) === realId)) {
-          return prev.filter(m => m.id !== tempId);
-      }
+        // Socket already inserted the real message.
+        if (prev.some((m) => String(m.id) === realId)) {
+          return prev.filter((m) => m.id !== tempId);
+        }
 
-      const idx = prev.findIndex(m => m.id === tempId);
+        const idx = prev.findIndex((m) => m.id === tempId);
 
-      if (idx === -1) return prev;
+        if (idx === -1) return prev;
 
-      const next = [...prev];
+        const next = [...prev];
 
-      next[idx] = {
+        next[idx] = {
           ...next[idx],
           id: realId,
           content: response.content ?? next[idx].content,
           mediaUrl: response.media_url || response.mediaUrl,
           status: "sent",
           replyTo: next[idx].replyTo,
-      };
+        };
 
-      return next;
-});
+        return next;
+      });
 
       if (response.id) {
         receivedMessageIdsRef.current.add(String(response.id));
       }
     } catch (err: any) {
-
       const errorMessage =
         err?.response?.data?.error || err.message || "Unknown error";
 
@@ -1745,7 +1660,6 @@ const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
         });
       }
 
-      
       setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
     }
   };
@@ -1875,44 +1789,38 @@ const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
   return (
     <div className="flex flex-col flex-1 h-full w-full overflow-hidden">
       {(serverId || threadId) && (
+        <div className="h-12 flex items-center justify-between px-4 border-b border-[#1f2124] bg-[#313338] ">
+          {/* Left Section */}
+          <div className="flex items-center min-w-0">
+            <Hash className="w-6 h-6 text-[#80848e] mr-2 flex-shrink-0" />
 
+            <div className="min-w-0">
+              <h2 className="truncate text-white font-semibold text-[15px]">
+                {channelName}
+              </h2>
 
-<div className="h-12 flex items-center justify-between px-4 border-b border-[#1f2124] bg-[#313338] ">
-  {/* Left Section */}
-  <div className="flex items-center min-w-0">
-    <Hash className="w-6 h-6 text-[#80848e] mr-2 flex-shrink-0" />
+              <p className="truncate text-[12px] text-[#949ba4]">
+                {threadId ? "Private conversation" : "Channel discussion"}
+              </p>
+            </div>
+          </div>
 
-    <div className="min-w-0">
-      <h2 className="truncate text-white font-semibold text-[15px]">
-        {channelName}
-      </h2>
+          {/* Right Section */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowSearch(true)}
+              className="p-2 rounded-md text-[#b5bac1] hover:text-white hover:bg-[#3f4248] transition"
+            >
+              <Search className="w-5 h-5" />
+            </button>
 
-      <p className="truncate text-[12px] text-[#949ba4]">
-        {threadId
-          ? "Private conversation"
-          : "Channel discussion"}
-      </p>
-    </div>
-  </div>
-
-  {/* Right Section */}
-  <div className="flex items-center gap-1">
-    <button
-      onClick={() => setShowSearch(true)}
-      className="p-2 rounded-md text-[#b5bac1] hover:text-white hover:bg-[#3f4248] transition"
-    >
-      <Search className="w-5 h-5" />
-    </button>
-
-    <button
-      className="p-2 rounded-md text-[#b5bac1] hover:text-white hover:bg-[#3f4248] transition"
-    >
-      <MoreVertical className="w-5 h-5" />
-    </button>
-  </div>
-</div>
+            <button className="p-2 rounded-md text-[#b5bac1] hover:text-white hover:bg-[#3f4248] transition">
+              <MoreVertical className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
       )}
-{/* 
+      {/* 
       <PinnedMessagesBar
         pins={pins}
         onJumpTo={handleJumpToPinned}
@@ -1931,7 +1839,9 @@ const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
             : "Search messages in this server..."
         }
         title={
-          reactionMode === "dm" ? "Search Conversation" : "Search Server Messages"
+          reactionMode === "dm"
+            ? "Search Conversation"
+            : "Search Server Messages"
         }
         showChannelName={reactionMode === "channel"}
       />
@@ -1947,7 +1857,7 @@ const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
           />
         </div>
       )}
-      
+
       {(localStream || (remoteStreams && remoteStreams.length > 0)) && (
         <div className="p-4 pb-0 h-96 flex-shrink-0">
           <div className="relative w-full h-full">
@@ -1991,7 +1901,7 @@ const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
           </div>
         ) : isInitialLoadDone && !loadingMessages && messages.length === 0 ? (
           <div className="flex h-full items-center justify-center text-gray-500 text-sm">
-            No messages yet. Say hi 👋
+            No messages yet. Say hi
           </div>
         ) : (
           <>
@@ -2067,7 +1977,9 @@ const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
                       // onReact={(emoji) => {
                       //   void toggleReaction(msg.id, emoji, currentUserId);
                       // }}
-                      showPinAction={!!msg.id && !String(msg.id).startsWith("temp-")}
+                      showPinAction={
+                        !!msg.id && !String(msg.id).startsWith("temp-")
+                      }
                       // isPinned={isPinned(msg.id)}
                       // onPin={() => {
                       //   void togglePin(msg.id, reactionMode === "dm");
@@ -2077,38 +1989,39 @@ const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
                       timestamp={formatMessageTime(msg.timestamp)}
                       onReply={() => handleReply(msg)}
                       onReplyPreviewClick={scrollToMessage}
-                      onProfileClick={() => openProfile(msg.senderId, msg.username, msg.avatarUrl)}
-
-                      messageRenderer={(content: string) => {
-                      if (typeof content !== "string") {
-                        return null;
+                      onProfileClick={() =>
+                        openProfile(msg.senderId, msg.username, msg.avatarUrl)
                       }
+                      messageRenderer={(content: string) => {
+                        if (typeof content !== "string") {
+                          return null;
+                        }
 
-                      const gifMatch = content.match(/^\[GIF\](.+)$/);
+                        const gifMatch = content.match(/^\[GIF\](.+)$/);
 
-                      if (gifMatch) {
+                        if (gifMatch) {
+                          return (
+                            <img
+                              src={gifMatch[1]}
+                              alt="GIF"
+                              className="block max-w-full h-auto rounded-lg"
+                            />
+                          );
+                        }
+
                         return (
-                          <img
-                            src={gifMatch[1]}
-                            alt="GIF"
-                            className="block max-w-full h-auto rounded-lg"
+                          <MessageContentWithMentions
+                            content={content}
+                            currentUserId={currentUserId}
+                            currentUsername={currentUsername}
+                            serverRoles={serverRoles}
+                            isValidUsernameMention={isValidUsernameMention}
+                            currentUserRoleIds={currentUserRoleIds}
+                            onMentionClick={handleUsernameClick}
+                            onRoleMentionClick={handleRoleMentionClick}
                           />
                         );
-                      }
-
-                      return (
-                        <MessageContentWithMentions
-                          content={content}
-                          currentUserId={currentUserId}
-                          currentUsername={currentUsername}
-                          serverRoles={serverRoles}
-                          isValidUsernameMention={isValidUsernameMention}
-                          currentUserRoleIds={currentUserRoleIds}
-                          onMentionClick={handleUsernameClick}
-                          onRoleMentionClick={handleRoleMentionClick}
-                        />
-                      );
-                    }}
+                      }}
                     >
                       {msg.mediaUrl && (
                         <MessageAttachment media_url={msg.mediaUrl} />
@@ -2127,65 +2040,66 @@ const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
       <div className="flex-shrink-0 px-0">
         {permissionError && (
           <div className="mx-6 mb-2 px-4 py-3 bg-red-900/50 border border-red-500 rounded-lg flex items-center gap-3">
-            <span className="text-red-400 text-xl">🔒</span>
+            <span className="text-red-400 text-xl"></span>
             <div className="text-sm text-red-200 flex-1">{permissionError}</div>
           </div>
         )}
-        
+
         {replyingTo && (
           <div className="mx-6 mb-2 px-4 py-2 bg-slate-800 rounded-lg flex items-center justify-between border-l-4 border-blue-500">
             <div className="flex items-center gap-2 min-w-0 text-sm text-slate-300">
-  
-<div className="flex items-center gap-2 min-w-0 text-sm text-slate-300">
-  <span className="shrink-0">
-    Replying to{" "}
-    <span className="font-semibold">
-      {replyingTo.username || "User"}
-    </span>
-    :
-  </span>
+              <div className="flex items-center gap-2 min-w-0 text-sm text-slate-300">
+                <span className="shrink-0">
+                  Replying to{" "}
+                  <span className="font-semibold">
+                    {replyingTo.username || "User"}
+                  </span>
+                  :
+                </span>
 
-
-  {replyingTo.content?.startsWith("[GIF]") ? (
-    <img
-      src={replyingTo.content.replace("[GIF]", "")}
-      alt="GIF preview"
-      className="h-10 w-10 rounded object-cover border border-slate-600 flex-shrink-0"
-    />
-  ) : isCodeBlock(replyingTo.content) ? (
-    <div className="max-w-xs truncate rounded bg-slate-900 border border-slate-700 px-2 font-mono text-xs text-green-400">
-    {(
-  replyingTo.content.match(
-    /```(?:\w+)?\n?([\s\S]*?)```/
-  )?.[1] || ""
-)
-  .trim()
-  .split("\n")[0]}
-    </div>
-  ) : (
-    <>
-      {replyingTo.mediaUrl &&
-        (isReplyImage(
-          replyingTo.mediaUrl,
-          replyingTo.mediaType
-        ) ? (
-          <img
-            src={replyingTo.mediaUrl}
-            alt="Reply attachment"
-            className="h-9 w-9 flex-shrink-0 rounded object-cover border border-slate-600"
-          />
-        ) : (
-          <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded border border-slate-600 bg-slate-800 text-slate-300">
-            <Paperclip className="h-4 w-4" />
-          </span>
-        ))}
-      <span className="italic truncate">
-        {replyingTo.content || (replyingTo.mediaUrl ? "Attachment" : "")}
-      </span>
-    </>
-  )}
-</div>
-</div>
+                {replyingTo.content?.startsWith("[GIF]") ? (
+                  <img
+                    src={replyingTo.content.replace("[GIF]", "")}
+                    alt="GIF preview"
+                    className="h-10 w-10 rounded object-cover border border-slate-600 flex-shrink-0"
+                  />
+                ) : isCodeBlock(replyingTo.content) ? (
+                  <div className="max-w-xs truncate rounded bg-slate-900 border border-slate-700 px-2 font-mono text-xs text-green-400">
+                    {
+                      (
+                        replyingTo.content.match(
+                          /```(?:\w+)?\n?([\s\S]*?)```/
+                        )?.[1] || ""
+                      )
+                        .trim()
+                        .split("\n")[0]
+                    }
+                  </div>
+                ) : (
+                  <>
+                    {replyingTo.mediaUrl &&
+                      (isReplyImage(
+                        replyingTo.mediaUrl,
+                        replyingTo.mediaType
+                      ) ? (
+                        <img
+                          src={replyingTo.mediaUrl}
+                          alt="Reply attachment"
+                          className="h-9 w-9 flex-shrink-0 rounded object-cover border border-slate-600"
+                        />
+                      ) : (
+                        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded border border-slate-600 bg-slate-800 text-slate-300">
+                          <Paperclip className="h-4 w-4" />
+                        </span>
+                      ))}
+                    <span className="italic truncate">
+                      {replyingTo.content ||
+                        (replyingTo.mediaUrl ? "Attachment" : "")}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
             <button
               onClick={() => {
                 setReplyingTo(null);
@@ -2196,9 +2110,7 @@ const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
                 });
               }}
               className="ml-3 text-slate-400 hover:text-white"
-            >
-              ✕
-            </button>
+            ></button>
           </div>
         )}
         {unreadMentionCount > 0 && (
@@ -2217,12 +2129,11 @@ const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
           </div>
         )}
 
-
         {channelPermissions && !channelPermissions.canSend ? (
           <div className=" mb-3 p-4 bg-slate-800/70 border-2 border-slate-700 rounded-lg text-center">
             <div className="flex items-center justify-center gap-2 mb-2">
               <span className="text-2xl">
-                {channelPermissions.channelType === "read_only" ? "📢" : "🔒"}
+                {channelPermissions.channelType === "read_only" ? "" : ""}
               </span>
               <span className="text-slate-300 font-semibold">
                 {channelPermissions.channelType === "read_only"
@@ -2260,9 +2171,7 @@ const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
             <button
               className="absolute top-3 right-3 text-gray-400 hover:text-white"
               onClick={() => setRoleModal({ ...roleModal, open: false })}
-            >
-              ✖
-            </button>
+            ></button>
             <h2 className="text-xl font-semibold mb-2">
               Role: <span className="text-indigo-400">@{roleModal.role}</span>
             </h2>

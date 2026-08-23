@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { leaveServer } from "@/api";
 import { ServerDetails } from "@/api/types/server.types";
-import Toast from "@/components/Loader";
 
 interface LeaveProps {
   serverId: string;
@@ -16,7 +15,7 @@ export default function Leave({ serverId, serverDetails }: LeaveProps) {
   const [isLeaving, setIsLeaving] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
-  const [showToast, setShowToast] = useState(false);
+  const [, setShowToast] = useState(false);
 
   const serverName = serverDetails?.name || "Unknown Server";
 
@@ -42,7 +41,7 @@ export default function Leave({ serverId, serverDetails }: LeaveProps) {
       setTimeout(() => {
         router.push("/servers");
       }, 2000);
-    } catch (err) {
+    } catch {
       setError("Failed to leave server.");
       setIsLeaving(false);
     }
@@ -65,14 +64,15 @@ export default function Leave({ serverId, serverDetails }: LeaveProps) {
       )}
 
       <div className="flex items-center gap-4 mb-8 bg-[#23272a] p-4 rounded">
-        <span className="text-3xl">⚠️</span>
+        <span className="text-3xl"></span>
         <div>
           <h2 className="font-semibold text-lg mb-1 text-[#ed4245]">
             Are you sure you want to leave{" "}
             <span className="text-white">{serverName}</span>?
           </h2>
           <p className="text-[#b5bac1]">
-            You won't be able to rejoin this server unless you are re-invited.
+            You won&apos;t be able to rejoin this server unless you are
+            re-invited.
           </p>
         </div>
       </div>

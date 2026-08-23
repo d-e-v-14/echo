@@ -27,7 +27,11 @@ interface MentionNotification {
 interface MentionNotificationsProps {
   isOpen: boolean;
   onClose: () => void;
-  onNavigateToMessage?: (channelId: string, messageId: string, serverId?: string) => void;
+  onNavigateToMessage?: (
+    channelId: string,
+    messageId: string,
+    serverId?: string
+  ) => void;
 }
 
 export default function MentionNotifications({
@@ -92,7 +96,11 @@ export default function MentionNotifications({
 
   const handleMentionClick = (mention: MentionNotification) => {
     markAsRead(mention.id);
-    onNavigateToMessage?.(mention.messages.channel_id, mention.message_id, mention.messages.channels.server_id);
+    onNavigateToMessage?.(
+      mention.messages.channel_id,
+      mention.message_id,
+      mention.messages.channels.server_id
+    );
     onClose();
   };
 
@@ -199,7 +207,7 @@ export default function MentionNotifications({
             <div className="flex flex-col items-center justify-center py-12 text-gray-400">
               <Bell size={48} className="mb-4 opacity-50" />
               <p className="text-lg mb-2">No mentions found</p>
-              <p className="text-sm">You're all caught up!</p>
+              <p className="text-sm">You&apos;re all caught up!</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-700">

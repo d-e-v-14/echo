@@ -138,7 +138,9 @@ const MessageSearchPanel: React.FC<MessageSearchPanelProps> = ({
                     {displayName}
                   </span>
                   {timeLabel && (
-                    <span className="text-[10px] text-slate-500">{timeLabel}</span>
+                    <span className="text-[10px] text-slate-500">
+                      {timeLabel}
+                    </span>
                   )}
                 </div>
                 {showChannelName && result.channel_name && (

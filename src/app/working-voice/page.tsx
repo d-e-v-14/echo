@@ -15,7 +15,7 @@ import {
 const WorkingVoicePage = () => {
   const [isInCall, setIsInCall] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [, setLocalStream] = useState<MediaStream | null>(null);
   const [participants, setParticipants] = useState<any[]>([]);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOn, setIsVideoOn] = useState(true);
@@ -59,7 +59,7 @@ const WorkingVoicePage = () => {
         });
       });
 
-      manager.onUserJoined((attendeeId, externalUserId) => {});
+      manager.onUserJoined(() => {});
 
       manager.onUserLeft((peerId) => {
         setParticipants((prev) => prev.filter((p) => p.id !== peerId));

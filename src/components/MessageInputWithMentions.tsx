@@ -112,8 +112,8 @@ export default function MessageInputWithMentions({
   };
   const MAX_WORDS = 250;
 
-const getWordCount = (text: string) =>
-  text.trim().split(/\s+/).filter(Boolean).length;
+  const getWordCount = (text: string) =>
+    text.trim().split(/\s+/).filter(Boolean).length;
 
   useEffect(() => {
     resizeTextArea();
@@ -254,44 +254,44 @@ const getWordCount = (text: string) =>
 
     return { valid: true };
   };
-const handleSend = () => {
-  if (text.trim() === "" && files.length === 0) return;
+  const handleSend = () => {
+    if (text.trim() === "" && files.length === 0) return;
 
-  const wordCount = getWordCount(text);
+    const wordCount = getWordCount(text);
 
-  if (wordCount > MAX_WORDS) {
-    showToast(
-      `Messages cannot exceed ${MAX_WORDS} words. You currently have ${wordCount} words.`,
-      "error"
-    );
-    return;
-  }
-
-  const validation = validateRoleMentions(text);
-
-  if (!validation.valid) {
-    showToast(
-      `Role "${validation.invalidRole}" does not exist in this server.`,
-      "error"
-    );
-    return;
-  }
-
-  sendMessage(text, files);
-
-  setShowEmojiPicker(false);
-  setShowMentionDropdown(false);
-
-  setText("");
-  setFiles([]);
-
-  requestAnimationFrame(() => {
-    if (textInputRef.current) {
-      textInputRef.current.style.height = "auto";
-      textInputRef.current.focus();
+    if (wordCount > MAX_WORDS) {
+      showToast(
+        `Messages cannot exceed ${MAX_WORDS} words. You currently have ${wordCount} words.`,
+        "error"
+      );
+      return;
     }
-  });
-};
+
+    const validation = validateRoleMentions(text);
+
+    if (!validation.valid) {
+      showToast(
+        `Role "${validation.invalidRole}" does not exist in this server.`,
+        "error"
+      );
+      return;
+    }
+
+    sendMessage(text, files);
+
+    setShowEmojiPicker(false);
+    setShowMentionDropdown(false);
+
+    setText("");
+    setFiles([]);
+
+    requestAnimationFrame(() => {
+      if (textInputRef.current) {
+        textInputRef.current.style.height = "auto";
+        textInputRef.current.focus();
+      }
+    });
+  };
 
   const searchMentionable = async (query: string) => {
     if (!serverId) {
@@ -313,35 +313,27 @@ const handleSend = () => {
     }
   };
 
- const MAX_CHARS = 950;
-const handleTextChange = (
-  e: React.ChangeEvent<HTMLTextAreaElement>
-) => {
-  const value = e.target.value;
+  const MAX_CHARS = 950;
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
 
-  const wordCount = value
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean).length;
+    const wordCount = value.trim().split(/\s+/).filter(Boolean).length;
 
-  if (wordCount > MAX_WORDS) {
-    showToast(
-      `Maximum ${MAX_WORDS} words allowed.`,
-      "error"
-    );
-    return;
-  }
+    if (wordCount > MAX_WORDS) {
+      showToast(`Maximum ${MAX_WORDS} words allowed.`, "error");
+      return;
+    }
 
-if (value.length > MAX_CHARS) {
-  showToast("Maximum 950 characters allowed.", "error");
-  return;
-}
+    if (value.length > MAX_CHARS) {
+      showToast("Maximum 950 characters allowed.", "error");
+      return;
+    }
 
-  setText(value);
+    setText(value);
 
-  e.target.style.height = "auto";
-  e.target.style.height = `${e.target.scrollHeight}px`;
-  const cursor = e.target.selectionStart || 0;
+    e.target.style.height = "auto";
+    e.target.style.height = `${e.target.scrollHeight}px`;
+    const cursor = e.target.selectionStart || 0;
 
     const beforeCursor = value.slice(0, cursor);
 
@@ -433,31 +425,31 @@ if (value.length > MAX_CHARS) {
     }
   };
   const searchGifs = async (query: string) => {
-  try {
+    try {
+      const res = await fetch(
+        `https://api.giphy.com/v1/gifs/search?api_key=${process.env.NEXT_PUBLIC_GIPHY_API_KEY}&q=${encodeURIComponent(
+          query
+        )}&limit=20&rating=g`
+      );
+
+      const data = await res.json();
+      setGifs(data.data || []);
+    } catch (error) {
+      console.error("Failed to fetch GIFs:", error);
+      setGifs([]);
+    }
+  };
+  const sendGif = (url: string) => {
+    sendMessage(`[GIF]${url}`, []);
+  };
+  const loadTrendingGifs = async () => {
     const res = await fetch(
-      `https://api.giphy.com/v1/gifs/search?api_key=${process.env.NEXT_PUBLIC_GIPHY_API_KEY}&q=${encodeURIComponent(
-        query
-      )}&limit=20&rating=g`
+      `https://api.giphy.com/v1/gifs/trending?api_key=${process.env.NEXT_PUBLIC_GIPHY_API_KEY}&limit=20`
     );
 
     const data = await res.json();
     setGifs(data.data || []);
-  } catch (error) {
-    console.error("Failed to fetch GIFs:", error);
-    setGifs([]);
-  }
-};
-  const sendGif = (url: string) => {
-  sendMessage(`[GIF]${url}`, []);
-};
-const loadTrendingGifs = async () => {
-  const res = await fetch(
-    `https://api.giphy.com/v1/gifs/trending?api_key=${process.env.NEXT_PUBLIC_GIPHY_API_KEY}&limit=20`
-  );
-
-  const data = await res.json();
-  setGifs(data.data || []);
-};
+  };
 
   return (
     <div className="relative pt-6">

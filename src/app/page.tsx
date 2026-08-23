@@ -20,10 +20,10 @@ export default function Home() {
   const [faq, setfaq] = useState<number | null>(null);
   const [showNavbar, setShowNavbar] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
-  const [name, setname] = useState<string>();
-  const [email, setemail] = useState<string>();
-  const [message, setmessage] = useState<string>();
-  const [showPopup, setShowPopup] = useState(false);
+  const [, setname] = useState<string>();
+  const [, setemail] = useState<string>();
+  const [, setmessage] = useState<string>();
+  const [showPopup] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   const handleGoogleSignIn = async () => {

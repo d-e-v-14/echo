@@ -18,8 +18,6 @@ import {
 } from "react-icons/fa";
 import { createAuthSocket } from "../socket";
 
-
-
 interface VoiceChannelProps {
   channelId: string;
   userId: string;
@@ -62,8 +60,6 @@ interface VoiceState {
   speaking: boolean;
   video: boolean;
 }
-
-
 
 const VideoPlayer = ({
   isMuted = false,
@@ -149,8 +145,6 @@ const VideoPlayer = ({
   );
 };
 
-
-
 const VoiceChannel = ({
   channelId,
   userId,
@@ -196,7 +190,6 @@ const VoiceChannel = ({
   const onRemoteStreamRemovedRef = useRef(onRemoteStreamRemoved);
   const onVoiceRosterRef = useRef(onVoiceRoster);
 
-  
   useEffect(() => {
     onLocalStreamChangeRef.current = onLocalStreamChange;
   });
@@ -209,7 +202,6 @@ const VoiceChannel = ({
   useEffect(() => {
     onVoiceRosterRef.current = onVoiceRoster;
   });
-
 
   useEffect(() => {
     if (!externalState || !useExternalManager) return;
@@ -225,13 +217,13 @@ const VoiceChannel = ({
     setVideoTiles(externalState.videoTiles);
     setLocalVideoTileId(externalState.localVideoTileId);
 
-  if (externalState.localMediaState || externalState.isConnecting) {
-    setHasPermissions(true);
-    if (externalState.localMediaState) {
-      setIsMuted(externalState.localMediaState.muted);
-      setIsCameraOn(externalState.localMediaState.video);
+    if (externalState.localMediaState || externalState.isConnecting) {
+      setHasPermissions(true);
+      if (externalState.localMediaState) {
+        setIsMuted(externalState.localMediaState.muted);
+        setIsCameraOn(externalState.localMediaState.video);
+      }
     }
-  }
 
     if (externalState.participants?.length > 0) {
       setHasPermissions(true);
@@ -577,7 +569,6 @@ const VoiceChannel = ({
         );
       });
 
-    
       manager.onVideoTileUpdated((tile) => {
         if (!isMountedRef.current) return;
         setVideoTiles((prev) => new Map(prev).set(tile.tileId, tile));
@@ -610,7 +601,6 @@ const VoiceChannel = ({
 
     const join = async () => {
       try {
-     
         setVideoTiles(new Map());
         setLocalVideoTileId(null);
         setVoiceMembers([]);
@@ -624,7 +614,7 @@ const VoiceChannel = ({
 
         setIsVoiceChannelConnected(true);
         onLocalStreamChangeRef.current?.(null);
-      } catch (error: any) {
+      } catch {
         if (cancelled) return;
         setPermissionError("Failed to connect to voice channel.");
       }
@@ -636,7 +626,7 @@ const VoiceChannel = ({
       cancelled = true;
       manager.leaveVoiceChannel();
       setIsVoiceChannelConnected(false);
-    
+
       setVideoTiles(new Map());
       setLocalVideoTileId(null);
     };
@@ -678,18 +668,17 @@ const VoiceChannel = ({
     }
   }, []);
 
- 
- const getTileIdForAttendee = useCallback(
-   (attendeeId: string): number | null => {
-     const entries = Array.from(videoTiles.entries());
-     const found = entries.find(
-       ([_, tile]) =>
-         tile.attendeeId === attendeeId && !tile.isLocal && !tile.isContent
-     );
-     return found ? found[0] : null;
-   },
-   [videoTiles]
- );
+  const getTileIdForAttendee = useCallback(
+    (attendeeId: string): number | null => {
+      const entries = Array.from(videoTiles.entries());
+      const found = entries.find(
+        ([, tile]) =>
+          tile.attendeeId === attendeeId && !tile.isLocal && !tile.isContent
+      );
+      return found ? found[0] : null;
+    },
+    [videoTiles]
+  );
   const currentUserVoiceState = useMemo<VoiceState>(
     () => ({ muted: isMuted, speaking: false, video: isCameraOn }),
     [isMuted, isCameraOn]
@@ -709,7 +698,6 @@ const VoiceChannel = ({
     () => voiceMembers.filter((m) => m.oduserId !== userId),
     [voiceMembers, userId]
   );
-
 
   const total = 1 + remoteMembers.length;
   const getLayout = (count: number) => {
@@ -905,7 +893,9 @@ const VoiceChannel = ({
                   key={member.odattendeeId}
                   className="flex items-center space-x-1 bg-gray-700 rounded px-2 py-1"
                 >
-                  <span className="block truncate text-xs text-white">{member.username}</span>
+                  <span className="block truncate text-xs text-white">
+                    {member.username}
+                  </span>
                   {(vs?.muted ?? member.muted) && (
                     <FaMicrophoneSlash size={10} className="text-red-400" />
                   )}

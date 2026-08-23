@@ -22,7 +22,12 @@ type UseMessageReactionsOptions = {
 };
 
 const normalizeReactions = (
-  raw: Array<{ emoji: string; count?: number; user_ids?: string[]; reacted_by_me?: boolean }>,
+  raw: Array<{
+    emoji: string;
+    count?: number;
+    user_ids?: string[];
+    reacted_by_me?: boolean;
+  }>,
   currentUserId?: string | null
 ): Record<string, string[]> => {
   const result: Record<string, string[]> = {};
@@ -37,7 +42,11 @@ const normalizeReactions = (
         ? Array.from({ length: reaction.count }, (_, i) => `user-${i}`)
         : [];
 
-    if (reaction.reacted_by_me && currentUserId && !userIds.includes(currentUserId)) {
+    if (
+      reaction.reacted_by_me &&
+      currentUserId &&
+      !userIds.includes(currentUserId)
+    ) {
       userIds.push(currentUserId);
     }
 
@@ -62,9 +71,7 @@ export const useMessageReactions = ({
   const buildTarget = useCallback(
     (messageId: string | number) => {
       const id = String(messageId);
-      return mode === "dm"
-        ? { dm_message_id: id }
-        : { message_id: id };
+      return mode === "dm" ? { dm_message_id: id } : { message_id: id };
     },
     [mode]
   );
@@ -179,11 +186,7 @@ export const useMessageReactions = ({
         await fetchReactionsForMessage(messageId);
       }
     },
-    [
-      reactionsByMessageId,
-      buildTarget,
-      fetchReactionsForMessage,
-    ]
+    [reactionsByMessageId, buildTarget, fetchReactionsForMessage]
   );
 
   const getReactionsForMessage = useCallback(
@@ -193,8 +196,7 @@ export const useMessageReactions = ({
       return Object.entries(messageReactions).map(([emoji, userIds]) => ({
         emoji,
         count: userIds.length,
-        reactedByMe:
-          !!currentUserId && userIds.includes(currentUserId.trim()),
+        reactedByMe: !!currentUserId && userIds.includes(currentUserId.trim()),
       }));
     },
     [currentUserId, reactionsByMessageId]

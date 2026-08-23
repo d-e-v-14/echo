@@ -62,9 +62,7 @@ export default function Toast({
           onClick={onClose}
           className="relative ml-2 opacity-70 hover:opacity-100 transition"
           aria-label="Close"
-        >
-          ✕
-        </button>
+        ></button>
       </div>
     </div>
   );
