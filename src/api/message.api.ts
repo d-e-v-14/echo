@@ -151,7 +151,8 @@ export const uploaddm = async (payload: {
 //Used to fetch the messages in the channel of a server
 export const fetchMessages = async (
   channel_id: string,
-  offset: number = 0
+  offset: number = 0,
+  signal?: AbortSignal
 ): Promise<
   ApiResponse<Message[]> & {
     hasMore?: boolean;
@@ -169,6 +170,7 @@ export const fetchMessages = async (
         channel_id,
         offset,
       },
+      signal,
     });
 
     return {

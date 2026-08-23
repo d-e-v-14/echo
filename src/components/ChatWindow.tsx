@@ -35,6 +35,10 @@ import { ChatHeader } from "@/components/chat/ChatHeader";
 import { MessageVirtualizer } from "@/components/chat/MessageVirtualizer";
 import { ScrollToBottomButton } from "@/components/ScrollToBottomButton";
 import { isNearBottom } from "@/lib/scrollUtils";
+import {
+  resolveInitialScrollTarget,
+  type ScrollAnchor,
+} from "@/lib/channels/scrollBehavior";
 import { MessageList } from "@/components/chat/MessageList";
 import { MessageComposer } from "@/components/chat/MessageComposer";
 
@@ -57,11 +61,6 @@ const VideoPanel = dynamic(() => import("./VideoPanel"), {
 const UserProfileModal = dynamic(() => import("./UserProfileModal"), {
   ssr: false,
 });
-
-interface ScrollAnchor {
-  messageId: string | number;
-  offset: number;
-}
 
 const channelScrollAnchors = new Map<string, ScrollAnchor>();
 
@@ -135,6 +134,12 @@ export default forwardRef(function ChatWindow(
   const isAutoScrollingRef = useRef(false);
   const isManuallyScrollingRef = useRef(false);
   const initialScrollDoneRef = useRef<string | null>(null);
+  const autoScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const currentChannelIdRef = useRef(channelId);
+
+  useEffect(() => {
+    currentChannelIdRef.current = channelId;
+  }, [channelId]);
 
   const getAvatarUrl = useCallback(async (userId: string): Promise<string> => {
     const cached = avatarCacheRef.current[userId];
@@ -220,12 +225,39 @@ export default forwardRef(function ChatWindow(
     setShowScrollBtn(!isNearBottom(container));
   }, []);
 
+  const finishAutoScroll = useCallback(() => {
+    if (autoScrollTimerRef.current) {
+      clearTimeout(autoScrollTimerRef.current);
+      autoScrollTimerRef.current = null;
+    }
+    isAutoScrollingRef.current = false;
+    updateScrollButtonVisibility();
+  }, [updateScrollButtonVisibility]);
+
+  const scheduleAutoScrollFinish = useCallback(
+    (delay: number) => {
+      if (autoScrollTimerRef.current) {
+        clearTimeout(autoScrollTimerRef.current);
+      }
+      autoScrollTimerRef.current = setTimeout(finishAutoScroll, delay);
+    },
+    [finishAutoScroll]
+  );
+
   const scrollToBottom = useCallback(() => {
     isAutoScrollingRef.current = true;
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    setTimeout(() => {
+    scheduleAutoScrollFinish(700);
+  }, [scheduleAutoScrollFinish]);
+
+  useEffect(() => {
+    return () => {
+      if (autoScrollTimerRef.current) {
+        clearTimeout(autoScrollTimerRef.current);
+      }
+      autoScrollTimerRef.current = null;
       isAutoScrollingRef.current = false;
-    }, 1000);
+    };
   }, []);
 
   const { permissions, permissionError, setPermissionError } =
@@ -258,6 +290,11 @@ export default forwardRef(function ChatWindow(
     },
     []
   );
+
+  useEffect(() => {
+    messageRefs.current = {};
+    setShowScrollBtn(false);
+  }, [channelId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -375,16 +412,21 @@ export default forwardRef(function ChatWindow(
     if (!container) return;
 
     const replyBarHeight = replyingTo ? 52 : 0;
-    const isNearBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight <
-      150 + replyBarHeight;
+    const isNearLatest = isNearBottom(container, 150 + replyBarHeight);
 
-    if (isNearBottom) {
-      requestAnimationFrame(() => {
+    let frameId: number | null = null;
+
+    if (isNearLatest) {
+      frameId = requestAnimationFrame(() => {
+        if (currentChannelIdRef.current !== channelId) return;
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
       });
     }
-  }, [messages, loadingMessages, replyingTo]);
+
+    return () => {
+      if (frameId !== null) cancelAnimationFrame(frameId);
+    };
+  }, [messages, loadingMessages, replyingTo, channelId]);
 
   useEffect(() => {
     if (
@@ -395,55 +437,55 @@ export default forwardRef(function ChatWindow(
       return;
     }
 
-    initialScrollDoneRef.current = channelId;
-    isAutoScrollingRef.current = true;
-    hasUserScrolledRef.current = false;
+    let cancelled = false;
+    let started = false;
+    let frameId: number | null = null;
+    let retryFrameId: number | null = null;
 
     const performInitialScroll = () => {
-      const done = () =>
-        setTimeout(() => {
-          isAutoScrollingRef.current = false;
-          updateScrollButtonVisibility();
-        }, 500);
+      if (cancelled) return;
+
+      started = true;
+      initialScrollDoneRef.current = channelId;
+      isAutoScrollingRef.current = true;
+      hasUserScrolledRef.current = false;
+
+      const done = () => {
+        if (!cancelled) scheduleAutoScrollFinish(500);
+      };
 
       try {
         const container = messagesContainerRef.current;
-        const lastReadMs = lastReadTimestamp
-          ? new Date(lastReadTimestamp).getTime()
-          : 0;
+        const target = resolveInitialScrollTarget(
+          messages,
+          currentUserId,
+          lastReadTimestamp,
+          channelScrollAnchors.get(channelId) ?? null
+        );
 
-        // Resume from where the user explicitly scrolled up to.
-        const anchor = channelScrollAnchors.get(channelId);
-        if (anchor && container) {
+        if (target.kind === "anchor" && container) {
           const idx = messages.findIndex(
-            (m) => String(m.id) === String(anchor.messageId)
+            (message) =>
+              String(message.id) === String(target.anchor.messageId)
           );
           const el = idx !== -1 ? messageRefs.current[messages[idx].id] : null;
           if (el) {
             el.scrollIntoView({ behavior: "auto", block: "start" });
-            container.scrollTop += anchor.offset;
+            container.scrollTop += target.anchor.offset;
             done();
             return;
           }
         }
 
-        const firstUnreadIndex =
-          lastReadMs > 0
-            ? messages.findIndex(
-                (msg) =>
-                  new Date(msg.timestamp).getTime() > lastReadMs &&
-                  msg.senderId !== currentUserId
-              )
-            : -1;
-
-        if (firstUnreadIndex !== -1) {
-          const firstUnread = messages[firstUnreadIndex];
+        if (target.kind === "first-unread") {
+          const firstUnread = messages[target.index];
           const el = messageRefs.current[firstUnread.id];
           if (el) {
             el.scrollIntoView({ behavior: "auto", block: "start" });
             done();
           } else {
-            requestAnimationFrame(() => {
+            retryFrameId = requestAnimationFrame(() => {
+              if (cancelled) return;
               const retryEl = messageRefs.current[firstUnread.id];
               if (retryEl) retryEl.scrollIntoView({ behavior: "auto", block: "start" });
               else messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
@@ -464,7 +506,18 @@ export default forwardRef(function ChatWindow(
       }
     };
 
-    requestAnimationFrame(performInitialScroll);
+    frameId = requestAnimationFrame(performInitialScroll);
+
+    return () => {
+      cancelled = true;
+      if (frameId !== null) cancelAnimationFrame(frameId);
+      if (retryFrameId !== null) cancelAnimationFrame(retryFrameId);
+      if (autoScrollTimerRef.current) {
+        clearTimeout(autoScrollTimerRef.current);
+        autoScrollTimerRef.current = null;
+      }
+      if (started) isAutoScrollingRef.current = false;
+    };
   }, [
     loadingMessages,
     channelId,
@@ -474,11 +527,12 @@ export default forwardRef(function ChatWindow(
     markUnreadMentionsAsRead,
     updateLastRead,
     updateScrollButtonVisibility,
+    scheduleAutoScrollFinish,
   ]);
 
   const handleScroll = useCallback(() => {
     const container = messagesContainerRef.current;
-    if (!container || loadingMore || !hasMore) return;
+    if (!container || loadingMore) return;
 
     if (isAutoScrollingRef.current) return;
 
@@ -487,9 +541,7 @@ export default forwardRef(function ChatWindow(
     hasUserScrolledRef.current = true;
     isManuallyScrollingRef.current = false;
 
-    const isAtBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight <
-      50;
+    const isAtBottom = isNearBottom(container, 50);
 
     if (
       isAtBottom &&
@@ -530,13 +582,23 @@ export default forwardRef(function ChatWindow(
 
     saveScrollAnchor();
 
-    if (container.scrollTop < 100) {
+    if (hasMore && container.scrollTop < 100) {
       const previousScrollHeight = container.scrollHeight;
       const previousScrollTop = container.scrollTop;
+      const requestedChannelId = channelId;
 
-      loadMessages(true).then(() => {
+      loadMessages(true).then((loaded) => {
+        if (
+          !loaded ||
+          currentChannelIdRef.current !== requestedChannelId
+        ) {
+          return;
+        }
         requestAnimationFrame(() => {
-          if (messagesContainerRef.current) {
+          if (
+            messagesContainerRef.current &&
+            currentChannelIdRef.current === requestedChannelId
+          ) {
             const newScrollHeight = messagesContainerRef.current.scrollHeight;
             messagesContainerRef.current.scrollTop =
               previousScrollTop + (newScrollHeight - previousScrollHeight);

@@ -26,7 +26,7 @@ export interface UseChannelMessagesResult {
   loadingMore: boolean;
   hasMore: boolean;
   isInitialLoadDone: boolean;
-  loadMessages: (loadMore?: boolean, signal?: AbortSignal) => Promise<void>;
+  loadMessages: (loadMore?: boolean, signal?: AbortSignal) => Promise<boolean>;
   appendIncoming: (incoming: ChannelMessage) => void;
   addOptimistic: (optimistic: ChannelMessage) => void;
   reconcileTemp: (
@@ -52,6 +52,9 @@ export function useChannelMessages({
 
   const offsetRef = useRef(0);
   const channelIdRef = useRef(channelId);
+  const loadingMoreRef = useRef(false);
+  const requestGenerationRef = useRef(0);
+  const loadingMoreRequestRef = useRef(0);
 
   useEffect(() => {
     channelIdRef.current = channelId;
@@ -61,21 +64,38 @@ export function useChannelMessages({
     async (loadMore = false, abortSignal?: AbortSignal) => {
       const targetChannelId = channelIdRef.current;
 
+      if (loadMore && loadingMoreRef.current) return false;
+
+      const requestId = ++requestGenerationRef.current;
+
       try {
         if (loadMore) {
+          loadingMoreRef.current = true;
+          loadingMoreRequestRef.current = requestId;
           setLoadingMore(true);
         } else {
+          loadingMoreRef.current = false;
+          loadingMoreRequestRef.current = 0;
+          setLoadingMore(false);
           setLoadingMessages(true);
           setIsInitialLoadDone(false);
           offsetRef.current = 0;
         }
 
-        if (abortSignal?.aborted) return;
+        if (abortSignal?.aborted) return false;
 
-        const res = await fetchMessages(targetChannelId, offsetRef.current);
+        const res = await fetchMessages(
+          targetChannelId,
+          offsetRef.current,
+          abortSignal
+        );
 
-        if (abortSignal?.aborted || channelIdRef.current !== targetChannelId) {
-          return;
+        if (
+          abortSignal?.aborted ||
+          channelIdRef.current !== targetChannelId ||
+          requestGenerationRef.current !== requestId
+        ) {
+          return false;
         }
 
         const rawMessages = res.data ?? [];
@@ -86,6 +106,14 @@ export function useChannelMessages({
             return normalizeChannelMessage(raw, currentUserId, avatarUrl);
           })
         );
+
+        if (
+          abortSignal?.aborted ||
+          channelIdRef.current !== targetChannelId ||
+          requestGenerationRef.current !== requestId
+        ) {
+          return false;
+        }
 
         const resolved = resolveReplyTargets(formatted);
         const sorted = dedupeAndSortByTime(resolved);
@@ -98,17 +126,31 @@ export function useChannelMessages({
           offsetRef.current = rawMessages.length;
         }
 
-        setHasMore(res.hasMore ?? false);
+        setHasMore((res.hasMore ?? false) && rawMessages.length > 0);
+        return true;
       } catch {
+        return false;
       } finally {
-        if (abortSignal?.aborted || channelIdRef.current !== targetChannelId) {
-          return;
+        if (
+          loadMore &&
+          requestId === loadingMoreRequestRef.current
+        ) {
+          loadingMoreRef.current = false;
+          loadingMoreRequestRef.current = 0;
         }
 
-        setLoadingMessages(false);
-        setLoadingMore(false);
-        if (!loadMore) {
-          setIsInitialLoadDone(true);
+        const isCurrentRequest =
+          !abortSignal?.aborted &&
+          channelIdRef.current === targetChannelId &&
+          requestGenerationRef.current === requestId;
+
+        if (isCurrentRequest) {
+          if (loadMore) {
+            setLoadingMore(false);
+          } else {
+            setLoadingMessages(false);
+            setIsInitialLoadDone(true);
+          }
         }
       }
     },
@@ -117,8 +159,12 @@ export function useChannelMessages({
 
   useEffect(() => {
     offsetRef.current = 0;
+    loadingMoreRef.current = false;
+    requestGenerationRef.current += 1;
+    loadingMoreRequestRef.current = 0;
     setHasMore(true);
     setIsInitialLoadDone(false);
+    setLoadingMore(false);
 
     if (!channelId) {
       setMessages([]);
