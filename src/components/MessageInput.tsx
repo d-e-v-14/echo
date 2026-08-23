@@ -11,11 +11,13 @@ interface MessageInputProps {
   sendMessage: (text: string, files: File[]) => void;
   isSending: boolean;
   onToast?: (msg: string, type: "info" | "success" | "error") => void;
+  onTyping?: () => void;
 }
 export default function MessageInput({
   sendMessage,
   isSending,
   onToast,
+  onTyping,
 }: MessageInputProps) {
   const { showToast } = useToast();
   const [text, setText] = useState("");
@@ -196,6 +198,7 @@ export default function MessageInput({
     }
 
     setText(value);
+    onTyping?.();
 
     e.target.style.height = "auto";
     e.target.style.height = `${e.target.scrollHeight}px`;

@@ -34,6 +34,7 @@ interface MessageInputWithMentionsProps {
   isSending: boolean;
   serverId?: string;
   serverRoles: { id: string; name: string; color?: string }[];
+  onTyping?: () => void;
 }
 
 /* -------------------- COMPONENT -------------------- */
@@ -67,6 +68,7 @@ export default function MessageInputWithMentions({
   isSending,
   serverId,
   serverRoles,
+  onTyping,
 }: MessageInputWithMentionsProps) {
   const { showToast } = useToast();
   const [text, setText] = useState("");
@@ -330,6 +332,7 @@ export default function MessageInputWithMentions({
     }
 
     setText(value);
+    onTyping?.();
 
     e.target.style.height = "auto";
     e.target.style.height = `${e.target.scrollHeight}px`;
