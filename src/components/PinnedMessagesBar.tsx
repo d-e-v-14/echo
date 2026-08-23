@@ -28,8 +28,8 @@ const PinnedMessagesBar: React.FC<PinnedMessagesBarProps> = ({
       <div className="space-y-1">
         {pins.map((pin) => {
           const messageId = isDm
-            ? pin.dm_message_id ?? pin.id
-            : pin.message_id ?? pin.id;
+            ? (pin.dm_message_id ?? pin.id)
+            : (pin.message_id ?? pin.id);
           const preview = (pin.content || "").trim() || "Pinned message";
           const author = pin.username ?? pin.sender_name ?? "Unknown";
 
@@ -47,7 +47,9 @@ const PinnedMessagesBar: React.FC<PinnedMessagesBarProps> = ({
                 <span className="flex-shrink-0 text-xs font-medium text-indigo-300">
                   {author}:
                 </span>
-                <span className="truncate text-xs text-slate-300">{preview}</span>
+                <span className="truncate text-xs text-slate-300">
+                  {preview}
+                </span>
               </button>
               <button
                 type="button"

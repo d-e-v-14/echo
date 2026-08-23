@@ -134,7 +134,7 @@ const ensureInitialUnread = async () => {
         const data = response.data;
         setSharedUnreadCount(Array.isArray(data) ? data.length : 0);
       }
-    } catch (error) {
+    } catch {
       // Silently ignore errors - notifications will load when user is authenticated
     }
   })();

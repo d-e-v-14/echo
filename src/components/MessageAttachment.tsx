@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { useImageModal } from "@/contexts/ImageModalContext";
 
 interface MessageAttachmentProps {
@@ -50,30 +50,30 @@ export default function MessageAttachment({
   const getFileIcon = (extension: string) => {
     switch (extension) {
       case "pdf":
-        return "📄";
+        return "";
       case "doc":
       case "docx":
-        return "📝";
+        return "";
       case "xls":
       case "xlsx":
-        return "📊";
+        return "";
       case "ppt":
       case "pptx":
-        return "📋";
+        return "";
       case "zip":
       case "rar":
       case "7z":
-        return "🗜️";
+        return "";
       case "mp3":
       case "wav":
       case "ogg":
-        return "🎵";
+        return "";
       case "mp4":
       case "avi":
       case "mov":
-        return "🎬";
+        return "";
       default:
-        return "📎";
+        return "";
     }
   };
 

@@ -24,7 +24,7 @@ const SimpleVoicePage = () => {
   const step1_CreateManager = async () => {
     setStep(1);
     setStatus("Creating VoiceVideoManager...");
-    addLog("🎤 Step 1: Creating VoiceVideoManager (Chime SDK)");
+    addLog("Step 1: Creating VoiceVideoManager (Chime SDK)");
 
     try {
       const userId = "test-user-" + Math.random().toString(36).substr(2, 9);
@@ -32,24 +32,24 @@ const SimpleVoicePage = () => {
       managerRef.current = manager;
 
       setStatus("VoiceVideoManager created successfully!");
-      addLog(`✅ Step 1 completed - Manager created for user: ${userId}`);
+      addLog(`Step 1 completed - Manager created for user: ${userId}`);
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
       setStatus(`Manager creation failed: ${errorMessage}`);
-      addLog(`❌ Step 1 failed: ${errorMessage}`);
+      addLog(`Step 1 failed: ${errorMessage}`);
     }
   };
 
   const step2_GetMedia = async () => {
     if (!managerRef.current) {
-      addLog("❌ No manager available");
+      addLog("No manager available");
       return;
     }
 
     setStep(2);
     setStatus("Requesting camera and microphone...");
-    addLog("📷 Step 2: Requesting media permissions");
+    addLog("Step 2: Requesting media permissions");
 
     try {
       await managerRef.current.initialize(true, true);
@@ -61,47 +61,47 @@ const SimpleVoicePage = () => {
           videoRef.current.srcObject = stream;
         }
         addLog(
-          `✅ Media stream obtained with ${stream.getTracks().length} tracks`
+          `Media stream obtained with ${stream.getTracks().length} tracks`
         );
       }
 
       setStatus("Media access granted!");
-      addLog("✅ Step 2 completed - Media working");
+      addLog("Step 2 completed - Media working");
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
       const errorName = error instanceof Error ? error.name : "";
       setStatus(`Media access failed: ${errorMessage}`);
-      addLog(`❌ Step 2 failed: ${errorMessage}`);
+      addLog(`Step 2 failed: ${errorMessage}`);
 
       if (errorName === "NotAllowedError") {
-        addLog("💡 Please allow camera/microphone permissions and try again");
+        addLog("Please allow camera/microphone permissions and try again");
       }
     }
   };
 
   const step3_JoinChannel = async () => {
     if (!managerRef.current) {
-      addLog("❌ No manager available");
+      addLog("No manager available");
       return;
     }
 
     setStep(3);
     setStatus("Joining voice channel via Chime...");
-    addLog("🏠 Step 3: Joining voice channel (calls backend /api/chime/join)");
+    addLog("Step 3: Joining voice channel (calls backend /api/chime/join)");
 
     try {
       await managerRef.current.joinVoiceChannel("test-channel-123");
 
       setStatus("Successfully joined voice channel!");
-      addLog("✅ Step 3 completed - Joined Chime meeting");
-      addLog("🎉 All steps completed! Voice system is working!");
+      addLog("Step 3 completed - Joined Chime meeting");
+      addLog("All steps completed! Voice system is working!");
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
       setStatus(`Channel join failed: ${errorMessage}`);
-      addLog(`❌ Step 3 failed: ${errorMessage}`);
-      addLog("💡 Make sure your backend implements POST /api/chime/join");
+      addLog(`Step 3 failed: ${errorMessage}`);
+      addLog("Make sure your backend implements POST /api/chime/join");
     }
   };
 

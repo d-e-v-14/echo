@@ -11,12 +11,7 @@ import {
   FaVideoSlash,
   FaDesktop,
   FaStop,
-  FaRecordVinyl,
-  FaCog,
   FaPhoneSlash,
-  FaSignal,
-  FaChevronDown,
-  FaChevronUp,
 } from "react-icons/fa";
 import { VoiceVideoManager } from "@/lib/VoiceVideoManager";
 
@@ -67,7 +62,7 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
     mediaQuality: "auto",
   });
 
-  const [deviceInfo, setDeviceInfo] = useState<DeviceInfo>({
+  const [, setDeviceInfo] = useState<DeviceInfo>({
     audioInputs: [],
     videoInputs: [],
     audioOutputs: [],
@@ -76,9 +71,9 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
     activeAudioOutputDevice: undefined,
   });
 
-  const [networkStats, setNetworkStats] = useState<NetworkStats | null>(null);
+  const [, setNetworkStats] = useState<NetworkStats | null>(null);
 
-  const [showDeviceSelector, setShowDeviceSelector] = useState(false);
+  useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [hasVideoPerm, setHasVideoPerm] = useState(false);
@@ -140,15 +135,6 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
     }
   };
 
-  const toggleDeviceSelector = async () => {
-    const next = !showDeviceSelector;
-    setShowDeviceSelector(next);
-    if (next && manager) {
-      await manager.updateDeviceInfo();
-      setDeviceInfo(manager.getDeviceInfo());
-    }
-  };
-
   const handleToggleVideo = async () => {
     if (!manager) return;
     try {
@@ -189,81 +175,10 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
     }
   };
 
-  const handleToggleRecording = () => {
-    if (!manager) return;
-
-    if (mediaState.recording) {
-      manager.stopRecording();
-    } else {
-      manager.startRecording({
-        includeAudio: true,
-        includeVideo: mediaState.video,
-        includeScreenShare: mediaState.screenSharing,
-        quality: "high",
-      });
-    }
-  };
-
-  const handleDeviceChange = async (
-    deviceId: string,
-    type: "audio" | "video" | "speaker"
-  ) => {
-    if (!manager) return;
-
-    try {
-      if (type === "audio") {
-        await manager.switchMicrophone(deviceId);
-      } else if (type === "video") {
-        await manager.switchCamera(deviceId);
-      } else if (type === "speaker") {
-        await manager.switchSpeaker(deviceId);
-      }
-      // Refresh device info
-      await manager.updateDeviceInfo();
-      setDeviceInfo(manager.getDeviceInfo());
-    } catch (error) {
-      console.error(`Failed to switch ${type} device:`, error);
-    }
-  };
-
-  const handleQualityChange = (quality: "low" | "medium" | "high" | "auto") => {
-    if (!manager) return;
-    manager.adjustQuality(quality);
-  };
-
   const formatDuration = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
-  };
-
-  const getConnectionQualityColor = (stats: NetworkStats | null): string => {
-    if (!stats) return "text-gray-400";
-
-    switch (stats.connectionType) {
-      case "good":
-        return "text-green-400";
-      case "fair":
-        return "text-yellow-400";
-      case "poor":
-        return "text-red-400";
-      default:
-        return "text-gray-400";
-    }
-  };
-
-  const getConnectionQualityIcon = (stats: NetworkStats | null) => {
-    if (!stats) return <FaSignal className="opacity-50" />;
-
-    const quality = stats.connectionType;
-    return (
-      <div className="flex items-center space-x-1">
-        <FaSignal className={getConnectionQualityColor(stats)} />
-        <span className={`text-xs ${getConnectionQualityColor(stats)}`}>
-          {quality === "good" ? "●●●" : quality === "fair" ? "●●○" : "●○○"}
-        </span>
-      </div>
-    );
   };
 
   return (

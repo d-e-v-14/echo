@@ -8,13 +8,12 @@ import { supabase } from "../../../lib/supabaseClient";
 import { handleOAuthLogin } from "@/api";
 import { getToken } from "@/api";
 //@/app/api/auth.api
-import Toast from "@/components/Toast";
 
 export default function OAuthCallback() {
   const router = useRouter();
-  const [message, setMessage] = useState("Processing login...");
+  const [, setMessage] = useState("Processing login...");
   const [error, setError] = useState(false);
-  const [toast, setToast] = useState<{
+  const [, setToast] = useState<{
     message: string;
     type: "info" | "success" | "error";
   } | null>(null);

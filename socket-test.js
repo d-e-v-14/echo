@@ -11,7 +11,7 @@ const testSocket = io("http://localhost:5000", {
 testSocket.on("connect", () => {});
 
 testSocket.on("connect_error", (error) => {
-  console.error("❌ Test connection failed:", error);
+  console.error("Test connection failed:", error);
 });
 
 // Run this and see what happens

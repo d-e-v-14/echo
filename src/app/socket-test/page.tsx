@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { io, Socket } from "socket.io-client";
 
 const SocketTestPage = () => {
@@ -17,11 +17,11 @@ const SocketTestPage = () => {
   };
 
   const testConnection = () => {
-    addLog("🔌 Starting connection test...");
+    addLog("Starting connection test...");
     setConnectionStatus("Connecting...");
 
     const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-    addLog(`📡 Connecting to: ${API_URL}`);
+    addLog(`Connecting to: ${API_URL}`);
 
     const testSocket = io(API_URL, {
       withCredentials: false,
@@ -32,31 +32,31 @@ const SocketTestPage = () => {
     });
 
     testSocket.on("connect", () => {
-      addLog(`✅ Connected! Socket ID: ${testSocket.id}`);
-      addLog(`🔌 Transport: ${testSocket.io.engine.transport.name}`);
+      addLog(`Connected! Socket ID: ${testSocket.id}`);
+      addLog(`Transport: ${testSocket.io.engine.transport.name}`);
       setConnectionStatus("Connected");
     });
 
     testSocket.on("connect_error", (error) => {
-      addLog(`❌ Connection Error: ${error.message}`);
+      addLog(`Connection Error: ${error.message}`);
       setConnectionStatus("Connection Failed");
     });
 
     testSocket.on("disconnect", (reason) => {
-      addLog(`❌ Disconnected: ${reason}`);
+      addLog(`Disconnected: ${reason}`);
       setConnectionStatus("Disconnected");
     });
 
     testSocket.io.on("error", (error) => {
-      addLog(`🔥 Engine Error: ${error}`);
+      addLog(`Engine Error: ${error}`);
     });
 
     testSocket.io.on("open", () => {
-      addLog(`🔓 Engine Opened`);
+      addLog(`Engine Opened`);
     });
 
     testSocket.io.on("close", (reason) => {
-      addLog(`🔒 Engine Closed: ${reason}`);
+      addLog(`Engine Closed: ${reason}`);
     });
 
     setSocket(testSocket);
@@ -67,7 +67,7 @@ const SocketTestPage = () => {
       socket.disconnect();
       setSocket(null);
       setConnectionStatus("Disconnected");
-      addLog("🔌 Manually disconnected");
+      addLog("Manually disconnected");
     }
   };
 
@@ -131,7 +131,7 @@ const SocketTestPage = () => {
           <div className="bg-black rounded p-3 h-96 overflow-y-auto font-mono text-sm">
             {logs.length === 0 ? (
               <div className="text-gray-500">
-                No logs yet. Click "Test Connection" to start.
+                No logs yet. Click &quot;Test Connection&quot; to start.
               </div>
             ) : (
               logs.map((log, index) => (

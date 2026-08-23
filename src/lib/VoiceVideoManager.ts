@@ -510,7 +510,7 @@ export class VoiceVideoManager
 
     this.roster.clear();
 
-    // ✅ Fire removal callbacks BEFORE clearing so UI can clean up
+    // Fire removal callbacks BEFORE clearing so UI can clean up
     this.videoTiles.forEach((_, tileId) => {
       this.callbacks.onVideoTileRemoved?.(tileId);
     });
@@ -530,7 +530,6 @@ export class VoiceVideoManager
       activeStreams: { audio: false, video: false, screen: false },
     };
 
-   
     this.callbacks.onConnectionStateChange?.(false);
   }
   // ==================== AUDIO/VIDEO CONTROLS ====================
@@ -1334,6 +1333,7 @@ export class VoiceVideoManager
       type: "video" | "screen"
     ) => void
   ): void {
+    void callback;
     // This is now handled via video tiles instead of streams
     console.warn(
       "[VoiceVideoManager] onStream is deprecated, use onVideoTileUpdated instead"
@@ -1341,6 +1341,7 @@ export class VoiceVideoManager
   }
 
   onRecording(callback: (event: string, data: any) => void): void {
+    void callback;
     // Recording is handled server-side in Chime
     console.warn(
       "[VoiceVideoManager] Recording is managed server-side via Chime Media Capture Pipeline"
@@ -1421,6 +1422,7 @@ export class VoiceVideoManager
 
   /** Recording (managed server-side) */
   startRecording(config?: any): void {
+    void config;
     console.log(
       "[VoiceVideoManager] Recording is managed via Chime Media Capture Pipeline on the server"
     );

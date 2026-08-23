@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Send, UserMinus, UserPlus, X } from "lucide-react";
 import { addFriend, fetchAllFriends, removeFriend, searchUsers } from "@/api";
 
-
 const getInitials = (name: string) => {
   if (!name) return "?";
   const parts = name
@@ -32,7 +31,7 @@ interface UserProfileModalProps {
     isLoadingRoles?: boolean;
   } | null;
   currentUserId?: string;
-   currentUsername?: string;
+  currentUsername?: string;
   relationshipStatus?: RelationshipStatus;
   friendActionLoading?: boolean;
   onAddFriend?: (userId: string) => void | Promise<void>;
@@ -57,21 +56,19 @@ export default function UserProfileModal({
   const [internalActionLoading, setInternalActionLoading] = useState(false);
   const [actionError, setActionError] = useState("");
 
- 
   const [imageError, setImageError] = useState(false);
 
   const activeRelationshipStatus =
     relationshipStatus ?? internalRelationshipStatus;
   const isFriendActionLoading = friendActionLoading || internalActionLoading;
   const isOwnProfile = Boolean(
-  (user?.id && user.id === currentUserId) ||
-  (user?.username &&
-    currentUsername &&
-    user.username.toLowerCase() === currentUsername.toLowerCase())
-);
+    (user?.id && user.id === currentUserId) ||
+    (user?.username &&
+      currentUsername &&
+      user.username.toLowerCase() === currentUsername.toLowerCase())
+  );
   const bioText = (user?.about || "No bio yet...").slice(0, 160);
 
- 
   useEffect(() => {
     setImageError(false);
   }, [user?.id, user?.avatarUrl]);
@@ -176,10 +173,7 @@ export default function UserProfileModal({
 
   if (!isOpen || !user) return null;
 
- 
-  const hasRealAvatar =
-    user.avatarUrl &&
-    user.avatarUrl !== "/User_profil.png";
+  const hasRealAvatar = user.avatarUrl && user.avatarUrl !== "/User_profil.png";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/10 px-4 py-6 backdrop-blur-md">
@@ -203,7 +197,7 @@ export default function UserProfileModal({
                 src={user.avatarUrl}
                 alt={user.username}
                 className="relative h-24 w-24 rounded-full border-4 border-gray-600 bg-gray-800 object-cover shadow-xl"
-                onError={() => setImageError(true)} 
+                onError={() => setImageError(true)}
               />
             ) : (
               <div className="relative flex h-24 w-24 items-center justify-center rounded-full border-4 border-gray-600 bg-gray-600 shadow-xl">

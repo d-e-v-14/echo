@@ -5,15 +5,7 @@
 // Has two tabs: "In Call" (current participants) and "Server Members" (all server members with voice status)
 
 import React, { useEffect, useState } from "react";
-import {
-  X,
-  Phone,
-  Mic,
-  MicOff,
-  Search,
-  UserPlus,
-  Users,
-} from "lucide-react";
+import { X, Phone, Mic, MicOff, Search, Users } from "lucide-react";
 // TODO: These imports need to be implemented
 // import { getServerMembersWithVoicePresence, MemberWithVoicePresence } from '@/app/api';
 // import { VoiceParticipant } from '@/context/VoiceContext';
@@ -42,9 +34,9 @@ interface VoiceParticipant {
 }
 
 // Temporary stub function
-const getServerMembersWithVoicePresence = async (
-  serverId: string
-): Promise<MemberWithVoicePresence[]> => {
+const getServerMembersWithVoicePresence = async (): Promise<
+  MemberWithVoicePresence[]
+> => {
   console.warn("getServerMembersWithVoicePresence not implemented");
   return [];
 };
@@ -139,7 +131,7 @@ const VoiceInviteModal: React.FC<VoiceInviteModalProps> = ({
   const fetchServerMembers = async () => {
     setIsLoading(true);
     try {
-      const members = await getServerMembersWithVoicePresence(serverId);
+      const members = await getServerMembersWithVoicePresence();
       setServerMembers(members);
     } catch (error) {
       console.error("Failed to fetch server members:", error);
@@ -159,9 +151,7 @@ const VoiceInviteModal: React.FC<VoiceInviteModalProps> = ({
 
     // Check if already in this voice channel
     const alreadyInCall = participants.some(
-      (p) =>
-        p.oduserId === targetUserId ||
-        p.oduserId === targetUsername
+      (p) => p.oduserId === targetUserId || p.oduserId === targetUsername
     );
     if (alreadyInCall) return;
 
@@ -431,7 +421,6 @@ interface MemberItemProps {
 }
 
 const MemberItem: React.FC<MemberItemProps> = ({
-  userId,
   username,
   fullname,
   avatarUrl,

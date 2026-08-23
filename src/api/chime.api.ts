@@ -1,4 +1,4 @@
-import { api, apiClient } from "./axios";
+import { apiClient } from "./axios";
 import { ChimeMeetingResponse } from "./types/chime.types";
 
 /**

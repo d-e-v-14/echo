@@ -190,84 +190,87 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
   }, [getCurrentUser]);
 
   // Setup event listeners for the manager
-  const setupEventListeners = useCallback((manager: VoiceVideoManager) => {
-    console.log("[VoiceCallContext] Setting up event listeners");
+  const setupEventListeners = useCallback(
+    (manager: VoiceVideoManager) => {
+      console.log("[VoiceCallContext] Setting up event listeners");
 
-    // Voice roster updates
-    manager.onVoiceRoster((members) => {
-      console.log(
-        "[VoiceCallContext] Roster update:",
-        members.length,
-        "members"
-      );
-      setParticipants(members);
-    });
-
-    // Video tile updates
-    manager.onVideoTileUpdated((tile) => {
-      setVideoTiles((prev) => {
-        const newMap = new Map(prev);
-        newMap.set(tile.tileId, tile);
-        return newMap;
+      // Voice roster updates
+      manager.onVoiceRoster((members) => {
+        console.log(
+          "[VoiceCallContext] Roster update:",
+          members.length,
+          "members"
+        );
+        setParticipants(members);
       });
 
-      if (tile.isLocal) {
-        if (tile.isContent) {
-          setLocalScreenTileId(tile.tileId);
-        } else {
-          setLocalVideoTileId(tile.tileId);
+      // Video tile updates
+      manager.onVideoTileUpdated((tile) => {
+        setVideoTiles((prev) => {
+          const newMap = new Map(prev);
+          newMap.set(tile.tileId, tile);
+          return newMap;
+        });
+
+        if (tile.isLocal) {
+          if (tile.isContent) {
+            setLocalScreenTileId(tile.tileId);
+          } else {
+            setLocalVideoTileId(tile.tileId);
+          }
         }
-      }
-    });
-
-    // Video tile removed
-    manager.onVideoTileRemoved((tileId) => {
-      console.log("[VoiceCallContext] Video tile removed:", tileId);
-      setVideoTiles((prev) => {
-        const newMap = new Map(prev);
-        newMap.delete(tileId);
-        return newMap;
       });
 
-      setLocalVideoTileId((prev) => (prev === tileId ? null : prev));
-      setLocalScreenTileId((prev) => (prev === tileId ? null : prev));
-    });
+      // Video tile removed
+      manager.onVideoTileRemoved((tileId) => {
+        console.log("[VoiceCallContext] Video tile removed:", tileId);
+        setVideoTiles((prev) => {
+          const newMap = new Map(prev);
+          newMap.delete(tileId);
+          return newMap;
+        });
 
-    // Connection state changes
-    manager.onConnectionStateChange((connected) => {
-      setIsConnected(connected);
-      if (connected) {
+        setLocalVideoTileId((prev) => (prev === tileId ? null : prev));
+        setLocalScreenTileId((prev) => (prev === tileId ? null : prev));
+      });
+
+      // Connection state changes
+      manager.onConnectionStateChange((connected) => {
+        setIsConnected(connected);
+        if (connected) {
+          setIsConnecting(false);
+        } else if (!activeCallRef.current) {
+          setIsConnecting(false);
+        }
+      });
+
+      // Error handling
+      manager.onError((error) => {
+        console.error("[VoiceCallContext] Error:", error);
+        setConnectionError(error.message);
         setIsConnecting(false);
-      } else if (!activeCallRef.current) {
-        setIsConnecting(false);
-      }
-    });
+      });
 
-    // Error handling
-    manager.onError((error) => {
-      console.error("[VoiceCallContext] Error:", error);
-      setConnectionError(error.message);
-      setIsConnecting(false);
-    });
+      // User joined/left (for logging)
+      manager.onUserJoined((attendeeId, externalUserId) => {
+        console.log(
+          "[VoiceCallContext] User joined:",
+          attendeeId,
+          externalUserId
+        );
+      });
 
-    // User joined/left (for logging)
-    manager.onUserJoined((attendeeId, externalUserId) => {
-      console.log(
-        "[VoiceCallContext] User joined:",
-        attendeeId,
-        externalUserId
-      );
-    });
+      manager.onUserLeft((attendeeId) => {
+        console.log("[VoiceCallContext] User left:", attendeeId);
+      });
 
-    manager.onUserLeft((attendeeId) => {
-      console.log("[VoiceCallContext] User left:", attendeeId);
-    });
-
-    manager.onScreenSharing(() => {
-      setParticipants(manager.getRoster());
-      broadcastVoicePresence(manager.getMediaState());
-    });
-  }, [broadcastVoicePresence]);
+      manager.onScreenSharing(() => {
+        setParticipants(manager.getRoster());
+        broadcastVoicePresence(manager.getMediaState());
+      });
+    },
+    [broadcastVoicePresence]
+  );
 
   // Initialize manager (request permissions)
   const initializeManager = useCallback(
@@ -286,7 +289,7 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
         setLocalMediaState(manager.getMediaState());
         console.log("[VoiceCallContext] Full permissions granted");
         return true;
-      } catch (fullError: any) {
+      } catch {
         console.warn(
           "[VoiceCallContext] Full permissions failed, trying fallbacks"
         );
@@ -301,7 +304,7 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
           );
           console.log("[VoiceCallContext] Audio-only mode");
           return true;
-        } catch (audioError) {
+        } catch {
           // Try video-only
           try {
             await manager.initializeVideoOnly();
@@ -312,7 +315,7 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
             );
             console.log("[VoiceCallContext] Video-only mode");
             return true;
-          } catch (videoError) {
+          } catch {
             // All failed
             console.error("[VoiceCallContext] All permission requests failed");
             setPermissionError(
@@ -466,29 +469,35 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
   }, []);
 
   // Toggle audio (mute/unmute)
-  const toggleAudio = useCallback((enabled: boolean) => {
-    const manager = managerRef.current;
-    if (!manager) return;
+  const toggleAudio = useCallback(
+    (enabled: boolean) => {
+      const manager = managerRef.current;
+      if (!manager) return;
 
-    manager.toggleAudio(enabled);
-    const mediaState = manager.getMediaState();
-    setLocalMediaState(mediaState);
-    broadcastVoicePresence(mediaState);
-  }, [broadcastVoicePresence]);
-
-  const toggleVideo = useCallback(async (enabled: boolean) => {
-    const manager = managerRef.current;
-    if (!manager) return;
-
-    try {
-      await manager.toggleVideo(enabled);
+      manager.toggleAudio(enabled);
       const mediaState = manager.getMediaState();
       setLocalMediaState(mediaState);
       broadcastVoicePresence(mediaState);
-    } catch (error) {
-      console.error("[VoiceCallContext] Toggle video failed:", error);
-    }
-  }, [broadcastVoicePresence]);
+    },
+    [broadcastVoicePresence]
+  );
+
+  const toggleVideo = useCallback(
+    async (enabled: boolean) => {
+      const manager = managerRef.current;
+      if (!manager) return;
+
+      try {
+        await manager.toggleVideo(enabled);
+        const mediaState = manager.getMediaState();
+        setLocalMediaState(mediaState);
+        broadcastVoicePresence(mediaState);
+      } catch (error) {
+        console.error("[VoiceCallContext] Toggle video failed:", error);
+      }
+    },
+    [broadcastVoicePresence]
+  );
 
   // Toggle screen share
   const toggleScreenShare = useCallback(async () => {

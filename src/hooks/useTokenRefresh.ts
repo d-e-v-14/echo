@@ -10,11 +10,13 @@ interface TokenRefreshResponse {
   expiresIn: number;
 }
 
-export const useTokenRefresh = () => {
+export const useTokenRefresh = (enabled = true) => {
   const router = useRouter();
   const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    if (!enabled) return;
+
     const setupTokenRefresh = () => {
       const tokenExpiry = localStorage.getItem("tokenExpiry");
 
@@ -100,7 +102,7 @@ export const useTokenRefresh = () => {
         clearTimeout(refreshTimerRef.current);
       }
     };
-  }, [router]);
+  }, [router, enabled]);
 };
 
 // Optional: Hook to check if user is authenticated

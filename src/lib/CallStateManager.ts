@@ -1,11 +1,7 @@
 // src/lib/CallStateManager.ts
 // Manages call state globally to allow minimizing calls and navigating between channels
 
-import {
-  VoiceVideoManager,
-  VoiceRosterMember,
-  VideoTileInfo,
-} from "./VoiceVideoManager";
+import { VoiceVideoManager } from "./VoiceVideoManager";
 
 /**
  * Represents the state of an active call

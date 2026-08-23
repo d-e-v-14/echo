@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
@@ -11,7 +11,7 @@ import Loader from "@/components/Loader";
 const BIO_MAX_LENGTH = 100;
 
 export default function ProfilePage() {
-  const router = useRouter();
+  useRouter();
   const { setUser } = useUser();
 
   const [loading, setLoading] = useState(true);
@@ -26,7 +26,7 @@ export default function ProfilePage() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
   const [editing, setEditing] = useState({ name: false, about: false });
-  const [prevName, setPrevName] = useState("");
+  const [, setPrevName] = useState("");
   const [prevAbout, setPrevAbout] = useState("");
 
   const [changed, setChanged] = useState(false);

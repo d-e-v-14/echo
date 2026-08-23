@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState, useMemo } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+} from "react";
 import { usePageReady } from "@/components/RouteChangeLoader";
 import {
   FaUserFriends,
@@ -8,7 +14,6 @@ import {
   FaSearch,
   FaCommentAlt,
   FaUserMinus,
-  FaCircle,
 } from "react-icons/fa";
 import { useRouter } from "next/navigation";
 import {
@@ -18,14 +23,11 @@ import {
   removeFriend,
   respondToFriendRequest,
   searchUsers,
-  getUser,
 } from "@/api";
 import { fetchUserProfile } from "@/api/profile.api";
-import Loader from "@/components/Loader";
 import UserProfileModal from "@/components/UserProfileModal";
 import { useFriendNotifications } from "@/contexts/FriendNotificationContext";
 import { SearchUserResult } from "@/api/types/user.types";
-import { createAuthSocket } from "@/socket";
 import { Socket } from "socket.io-client";
 
 type RelationshipStatus = SearchUserResult["relationshipStatus"];
@@ -57,7 +59,7 @@ export default function FriendsPage() {
   const [requests, setRequests] = useState<FriendRequestData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchUserResult[]>([]);
-  const [initialLoading, setInitialLoading] = useState(true);
+  const [, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [removingFriendId, setRemovingFriendId] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
@@ -71,8 +73,8 @@ export default function FriendsPage() {
     roles?: string[];
   } | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const socketRef = useRef<Socket | null>(null);
-  const presenceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useRef<Socket | null>(null);
+  useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Sort friends: online first, then alphabetical
   const sortedFriends = useMemo(() => {
@@ -84,10 +86,7 @@ export default function FriendsPage() {
     });
   }, [friends]);
 
-  const onlineCount = useMemo(
-    () => friends.filter((f) => f.status === "online").length,
-    [friends]
-  );
+  useMemo(() => friends.filter((f) => f.status === "online").length, [friends]);
 
   useEffect(() => {
     Promise.all([loadFriends(), loadRequests()]).finally(() => {
@@ -286,7 +285,7 @@ export default function FriendsPage() {
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
-  const handleSendDM = async (friendId: string, friendUsername: string) => {
+  const handleSendDM = async (friendId: string) => {
     // Navigate directly to messages with the friend's user ID
     // The ChatPage component will handle finding/creating the DM thread
     router.push(`/messages?dm=${friendId}`);
@@ -594,7 +593,9 @@ export default function FriendsPage() {
                           src={f.avatar_url}
                           alt={f.username}
                           className={`h-12 w-12 cursor-pointer rounded-xl bg-gray-700 object-cover transition ${
-                            f.status !== "online" ? "opacity-60 grayscale-[30%]" : ""
+                            f.status !== "online"
+                              ? "opacity-60 grayscale-[30%]"
+                              : ""
                           }`}
                           onClick={() =>
                             openUserProfile(f.id, f.username, f.avatar_url)
@@ -619,9 +620,13 @@ export default function FriendsPage() {
                           openUserProfile(f.id, f.username, f.avatar_url)
                         }
                       >
-                        <div className={`truncate text-base font-semibold ${
-                          f.status !== "online" ? "text-gray-400" : "text-white"
-                        }`}>
+                        <div
+                          className={`truncate text-base font-semibold ${
+                            f.status !== "online"
+                              ? "text-gray-400"
+                              : "text-white"
+                          }`}
+                        >
                           {f.username}
                         </div>
                         <div className="truncate text-xs text-white/50">
@@ -636,7 +641,7 @@ export default function FriendsPage() {
                         </div> */}
                       </div>
                       <button
-                        onClick={() => handleSendDM(f.id, f.username)}
+                        onClick={() => handleSendDM(f.id)}
                         className="rounded-full bg-gray-800 p-2 text-white shadow-lg transition hover:bg-gray-700"
                         title="Send message"
                       >

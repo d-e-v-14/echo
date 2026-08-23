@@ -10,15 +10,7 @@ import React, {
 } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { usePageReady } from "@/components/RouteChangeLoader";
-import {
-  Bell,
-  MoreVertical,
-  Paperclip,
-  Search,
-  Send,
-  Smile,
-  X,
-} from "lucide-react";
+import { Paperclip, Search, Send, Smile, X } from "lucide-react";
 import {
   getUserDMs,
   uploaddm,
@@ -32,7 +24,6 @@ import { Socket } from "socket.io-client";
 import { createAuthSocket } from "@/socket";
 import MessageBubble from "./MessageBubble";
 import MessageAttachment from "./MessageAttachment";
-import Loader from "@/components/Loader";
 import { useMessageNotifications } from "@/contexts/MessageNotificationContext";
 import Toast from "@/components/Toast";
 import { useToast } from "@/contexts/ToastContext";
@@ -46,8 +37,6 @@ import MessageSearchPanel from "./MessageSearchPanel";
 import { MessageSearchResult } from "@/api/types/message.types";
 
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), { ssr: false });
-
-const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024;
 
 interface User {
   id: string;
@@ -80,11 +69,6 @@ type DMReplyTarget = {
   mediaUrl?: string | null;
   mediaType?: string;
 } | null;
-interface SelectedFile {
-  file: File;
-  valid: boolean;
-  errorReason?: string;
-}
 
 const isCodeBlock = (content?: string) => {
   if (!content) return false;
@@ -109,7 +93,9 @@ const parseDmTimestamp = (timestamp: string) => {
 
 const normalizeDmMessage = (message: any): DirectMessage => ({
   id: String(
-    message.id ?? message.message_id ?? `dm-${Math.random().toString(36).slice(2)}`
+    message.id ??
+      message.message_id ??
+      `dm-${Math.random().toString(36).slice(2)}`
   ),
   content: String(message.content ?? message.message ?? ""),
   sender_id: String(message.sender_id ?? ""),
@@ -121,9 +107,15 @@ const normalizeDmMessage = (message: any): DirectMessage => ({
   replyTo: message.reply_to_message
     ? {
         id: String(
-          message.reply_to_message.id ?? message.reply_to_message.message_id ?? ""
+          message.reply_to_message.id ??
+            message.reply_to_message.message_id ??
+            ""
         ),
-        content: String(message.reply_to_message.content ?? message.reply_to_message.message ?? ""),
+        content: String(
+          message.reply_to_message.content ??
+            message.reply_to_message.message ??
+            ""
+        ),
         author:
           message.reply_to_message.users?.username ??
           message.reply_to_message.user?.username ??
@@ -138,34 +130,42 @@ const normalizeDmMessage = (message: any): DirectMessage => ({
     : message.reply_to && typeof message.reply_to === "object"
       ? {
           id: String(message.reply_to.id ?? message.reply_to.message_id ?? ""),
-          content: String(message.reply_to.content ?? message.reply_to.message ?? ""),
+          content: String(
+            message.reply_to.content ?? message.reply_to.message ?? ""
+          ),
           author:
             message.reply_to.users?.username ??
             message.reply_to.user?.username ??
             message.reply_to.author ??
             "User",
-          mediaUrl: message.reply_to.media_url ?? message.reply_to.mediaUrl ?? null,
+          mediaUrl:
+            message.reply_to.media_url ?? message.reply_to.mediaUrl ?? null,
           mediaType: message.reply_to.media_type,
         }
       : message.replyTo && typeof message.replyTo === "object"
         ? {
             id: String(message.replyTo.id ?? message.replyTo.message_id ?? ""),
-            content: String(message.replyTo.content ?? message.replyTo.message ?? ""),
+            content: String(
+              message.replyTo.content ?? message.replyTo.message ?? ""
+            ),
             author:
               message.replyTo.users?.username ??
               message.replyTo.user?.username ??
               message.replyTo.author ??
               "User",
-            mediaUrl: message.replyTo.media_url ?? message.replyTo.mediaUrl ?? null,
+            mediaUrl:
+              message.replyTo.media_url ?? message.replyTo.mediaUrl ?? null,
             mediaType: message.replyTo.media_type,
           }
-        : typeof message.reply_to === "string" || typeof message.reply_to === "number"
+        : typeof message.reply_to === "string" ||
+            typeof message.reply_to === "number"
           ? {
               id: String(message.reply_to),
               content: "Loading...",
               author: "User",
             }
-          : typeof message.replyTo === "string" || typeof message.replyTo === "number"
+          : typeof message.replyTo === "string" ||
+              typeof message.replyTo === "number"
             ? {
                 id: String(message.replyTo),
                 content: "Loading...",
@@ -201,7 +201,7 @@ const resolveRepliesForThread = (
 
   return threadMessages.map((msg) => {
     if (msg.replyTo && msg.replyTo.content === "Loading...") {
-      // ✅ FIX: Wrap msg.replyTo.id in String() to satisfy the Map's string key requirement
+      // FIX: Wrap msg.replyTo.id in String() to satisfy the Map's string key requirement
       const parent = messageMap.get(String(msg.replyTo.id));
 
       if (parent) {
@@ -437,7 +437,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   allUsers,
   onSendMessage,
   messagesContainerRef,
-  onFileError,
   onToast,
   onOpenProfile,
 }) => {
@@ -457,7 +456,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   //   onError: (message) => onToast(message, "error"),
   // });
 
-  const { showToast } = useToast();
+  useToast();
   const [draft, setDraft] = useState("");
   const [replyingTo, setReplyingTo] = useState<DMReplyTarget>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -628,9 +627,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     "text/plain",
     "text/csv",
   ];
-
-  const ALLOWED_LABEL =
-    "Images, videos, PDFs, Word, Excel, CSV, and plain text (max 25 MB each)";
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(event.target.files || []);
@@ -942,7 +938,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   </span>
                   :
                 </span>
-                
+
                 {replyingTo.content?.startsWith("[GIF]") ? (
                   <img
                     src={replyingTo.content.replace("[GIF]", "")}
@@ -951,13 +947,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   />
                 ) : isCodeBlock(replyingTo.content) ? (
                   <div className="max-w-xs truncate rounded bg-slate-900 border border-slate-700 px-2 font-mono text-xs text-green-400">
-                  {(
-                replyingTo.content.match(
-                  /```(?:\w+)?\n?([\s\S]*?)```/
-                )?.[1] || ""
-              )
-                .trim()
-                .split("\n")[0]}
+                    {
+                      (
+                        replyingTo.content.match(
+                          /```(?:\w+)?\n?([\s\S]*?)```/
+                        )?.[1] || ""
+                      )
+                        .trim()
+                        .split("\n")[0]
+                    }
                   </div>
                 ) : (
                   <>
@@ -977,7 +975,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                         </span>
                       ))}
                     <span className="italic truncate">
-                      {replyingTo.content || (replyingTo.mediaUrl ? "Attachment" : "")}
+                      {replyingTo.content ||
+                        (replyingTo.mediaUrl ? "Attachment" : "")}
                     </span>
                   </>
                 )}
@@ -991,9 +990,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 }}
                 className="ml-3 text-slate-400 transition hover:text-white"
                 aria-label="Cancel reply"
-              >
-                ✕
-              </button>
+              ></button>
             </div>
           </div>
         )}
@@ -1094,25 +1091,16 @@ function MessagesPageContentInner() {
   const [messages, setMessages] = useState<Map<string, DirectMessage[]>>(
     new Map()
   );
-  const [threadIds, setThreadIds] = useState<Map<string, string>>(
-    new Map()
-  );
-  const [dmOffsets, setDmOffsets] = useState<Map<string, number>>(
-    new Map()
-  );
-  const [dmHasMore, setDmHasMore] = useState<Map<string, boolean>>(
-    new Map()
-  );
+  const [threadIds, setThreadIds] = useState<Map<string, string>>(new Map());
+  const [dmOffsets, setDmOffsets] = useState<Map<string, number>>(new Map());
+  const [dmHasMore, setDmHasMore] = useState<Map<string, boolean>>(new Map());
   const [dmSummaries, setDmSummaries] = useState<
-    Map<
-      string,
-      { lastMessage: string; timestamp: string; unreadCount: number }
-    >
+    Map<string, { lastMessage: string; timestamp: string; unreadCount: number }>
   >(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingOlderDm, setIsLoadingOlderDm] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fileError, setFileError] = useState<string | null>(null);
+  const [, setFileError] = useState<string | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const hydratedThreadIdsRef = useRef<Set<string>>(new Set());
   const lastAutoScrollDmRef = useRef<string | null>(null);
@@ -1155,191 +1143,194 @@ function MessagesPageContentInner() {
 
     const socket = socketRef.current!;
 
-   const handleNewMessage = (raw: any) => {
-     try {
-       if (!raw) return;
-       invalidateDmCacheForCurrentUser();
-       // Unwrap common envelope shapes
-       const incoming = (raw as any)?.data ?? (raw as any)?.message ?? raw;
-       if (!incoming) return;
-       if (Array.isArray(incoming)) {
-         incoming.forEach(handleNewMessage);
-         return;
-       }
+    const handleNewMessage = (raw: any) => {
+      try {
+        if (!raw) return;
+        invalidateDmCacheForCurrentUser();
+        // Unwrap common envelope shapes
+        const incoming = (raw as any)?.data ?? (raw as any)?.message ?? raw;
+        if (!incoming) return;
+        if (Array.isArray(incoming)) {
+          incoming.forEach(handleNewMessage);
+          return;
+        }
 
-       // Normalize fields from various possible keys
-       const sender = String(
-         incoming.sender_id ??
-           incoming.senderId ??
-           incoming.from ??
-           incoming.userId ??
-           incoming.user ??
-           ""
-       );
+        // Normalize fields from various possible keys
+        const sender = String(
+          incoming.sender_id ??
+            incoming.senderId ??
+            incoming.from ??
+            incoming.userId ??
+            incoming.user ??
+            ""
+        );
 
-       const receiver = String(
-         incoming.receiver_id ??
-           incoming.receiverId ??
-           incoming.to ??
-           incoming.targetId ??
-           ""
-       );
+        const receiver = String(
+          incoming.receiver_id ??
+            incoming.receiverId ??
+            incoming.to ??
+            incoming.targetId ??
+            ""
+        );
 
-       const rawMediaUrl = incoming.media_url ?? incoming.mediaUrl ?? null;
-       const replySource =
-         incoming.reply_to_message ?? incoming.replyTo ?? incoming.reply_to;
+        const rawMediaUrl = incoming.media_url ?? incoming.mediaUrl ?? null;
+        const replySource =
+          incoming.reply_to_message ?? incoming.replyTo ?? incoming.reply_to;
 
-       const incomingMsg: DirectMessage = {
-         id: String(
-           incoming.id ??
-             incoming.message_id ??
-             incoming.clientMessageId ??
-             `sock-${Date.now()}`
-         ),
-         content: String(incoming.content ?? incoming.message ?? ""),
-         sender_id: sender,
-         receiver_id: receiver,
-         timestamp: String(incoming.timestamp ?? new Date().toISOString()),
-         thread_id: incoming.thread_id ? String(incoming.thread_id) : undefined,
-         media_url: rawMediaUrl?.startsWith("blob:") ? null : rawMediaUrl,
-         media_type: incoming.media_type,
-         replyTo:
-           replySource && typeof replySource === "object"
-             ? {
-                 id: String(replySource.id ?? replySource.message_id ?? ""),
-                 content: String(
-                   replySource.content ?? replySource.message ?? ""
-                 ),
-                 author:
-                   replySource.users?.username ??
-                   replySource.user?.username ??
-                   replySource.author ??
-                   "User",
-                 mediaUrl:
-                   replySource.media_url ?? replySource.mediaUrl ?? null,
-                 mediaType: replySource.media_type,
-               }
-             : null,
-       };
+        const incomingMsg: DirectMessage = {
+          id: String(
+            incoming.id ??
+              incoming.message_id ??
+              incoming.clientMessageId ??
+              `sock-${Date.now()}`
+          ),
+          content: String(incoming.content ?? incoming.message ?? ""),
+          sender_id: sender,
+          receiver_id: receiver,
+          timestamp: String(incoming.timestamp ?? new Date().toISOString()),
+          thread_id: incoming.thread_id
+            ? String(incoming.thread_id)
+            : undefined,
+          media_url: rawMediaUrl?.startsWith("blob:") ? null : rawMediaUrl,
+          media_type: incoming.media_type,
+          replyTo:
+            replySource && typeof replySource === "object"
+              ? {
+                  id: String(replySource.id ?? replySource.message_id ?? ""),
+                  content: String(
+                    replySource.content ?? replySource.message ?? ""
+                  ),
+                  author:
+                    replySource.users?.username ??
+                    replySource.user?.username ??
+                    replySource.author ??
+                    "User",
+                  mediaUrl:
+                    replySource.media_url ?? replySource.mediaUrl ?? null,
+                  mediaType: replySource.media_type,
+                }
+              : null,
+        };
 
-       const selfId = currentUser?.id;
-       let partnerId = incomingMsg.sender_id;
-       if (partnerId === selfId) partnerId = incomingMsg.receiver_id;
+        const selfId = currentUser?.id;
+        let partnerId = incomingMsg.sender_id;
+        if (partnerId === selfId) partnerId = incomingMsg.receiver_id;
 
-       if (!partnerId) {
-         console.warn("Incoming DM missing partner id", incoming);
-         return;
-       }
+        if (!partnerId) {
+          console.warn("Incoming DM missing partner id", incoming);
+          return;
+        }
 
-       // ==========================================
-       // NEW CODE ADDED HERE: Add new users to list
-       // ==========================================
-       setAllUsers((prev) => {
-         if (prev.some((u) => u.id === partnerId)) return prev;
+        // ==========================================
+        // NEW CODE ADDED HERE: Add new users to list
+        // ==========================================
+        setAllUsers((prev) => {
+          if (prev.some((u) => u.id === partnerId)) return prev;
 
-         // Asynchronously fetch their real profile data
-         fetchUserProfile(partnerId)
-           .then((profile) => {
-             if (profile) {
-               setAllUsers((users) =>
-                 users.map((u) =>
-                   u.id === partnerId
-                     ? {
-                         ...u,
-                         fullname:
-                           profile.fullname || profile.username || "Unknown",
-                         avatar_url: profile.avatar_url,
-                       }
-                     : u
-                 )
-               );
-             }
-           })
-           .catch(console.error);
+          // Asynchronously fetch their real profile data
+          fetchUserProfile(partnerId)
+            .then((profile) => {
+              if (profile) {
+                setAllUsers((users) =>
+                  users.map((u) =>
+                    u.id === partnerId
+                      ? {
+                          ...u,
+                          fullname:
+                            profile.fullname || profile.username || "Unknown",
+                          avatar_url: profile.avatar_url,
+                        }
+                      : u
+                  )
+                );
+              }
+            })
+            .catch(console.error);
 
-     
-         return [...prev, { id: partnerId, fullname: "Loading..." }];
-       });
-       // ==========================================
-
-       setMessages((prevMap) => {
-         const newMap = new Map(prevMap);
-         const currentDms = newMap.get(partnerId) || [];
-
-         const incTime = Date.parse(incomingMsg.timestamp);
-
-         let replaced = false;
-         let updated = currentDms.filter((m) => {
-           if (!m.id.toString().startsWith("temp-") && !m.media_url?.startsWith("blob:")) {
-             return m.id !== incomingMsg.id;
-           }
-           if (replaced) return true;
-           const sameSender = m.sender_id === incomingMsg.sender_id;
-           const sameContent =
-             (m.content || "").trim() === (incomingMsg.content || "").trim();
-           const mTime = Date.parse(m.timestamp);
-           const nearInTime =
-             Number.isFinite(mTime) && Number.isFinite(incTime)
-               ? Math.abs(mTime - incTime) < 15_000
-               : true;
-           if (sameSender && sameContent && nearInTime) {
-             replaced = true;
-             return false;
-           }
-           return true;
-         });
-
-         setDmSummaries((prev) => {
-           const next = new Map(prev);
-           const existing = next.get(partnerId) ?? {
-             lastMessage: "",
-             timestamp: new Date(0).toISOString(),
-             unreadCount: 0,
-           };
-
-           const isFromSelf = incomingMsg.sender_id === selfId;
-           const isActiveConversation = partnerId === activeDmIdRef.current;
-           const shouldIncrementUnread = !isFromSelf && !isActiveConversation;
-
-           next.set(partnerId, {
-             lastMessage:
-               isFromSelf
-                 ? `You: ${incomingMsg.content || "Sent an attachment"}`
-                 : incomingMsg.content || "Sent an attachment",
-             timestamp: incomingMsg.timestamp,
-             unreadCount: isFromSelf
-               ? 0
-               : shouldIncrementUnread
-                 ? existing.unreadCount + 1
-                 : isActiveConversation
-                   ? 0
-                   : existing.unreadCount,
-           });
-           return next;
-         });
-
-         if (!updated.some((m) => m.id === incomingMsg.id)) {
-           updated = [...updated, incomingMsg];
-         }
-
-         const nextMessages = sortDmMessages(updated);
-
-         const netNew = nextMessages.length - currentDms.length;
-         if (netNew > 0) {
-           setDmOffsets((prev) => {
-             const next = new Map(prev);
-             next.set(partnerId, (next.get(partnerId) ?? 0) + netNew);
-             return next;
-           });
-         }
-
-         newMap.set(partnerId, nextMessages);
-         return newMap;
+          return [...prev, { id: partnerId, fullname: "Loading..." }];
         });
-     } catch (e) {
-       console.error("Failed to handle incoming DM:", e, raw);
-     }
-   };
+        // ==========================================
+
+        setMessages((prevMap) => {
+          const newMap = new Map(prevMap);
+          const currentDms = newMap.get(partnerId) || [];
+
+          const incTime = Date.parse(incomingMsg.timestamp);
+
+          let replaced = false;
+          let updated = currentDms.filter((m) => {
+            if (
+              !m.id.toString().startsWith("temp-") &&
+              !m.media_url?.startsWith("blob:")
+            ) {
+              return m.id !== incomingMsg.id;
+            }
+            if (replaced) return true;
+            const sameSender = m.sender_id === incomingMsg.sender_id;
+            const sameContent =
+              (m.content || "").trim() === (incomingMsg.content || "").trim();
+            const mTime = Date.parse(m.timestamp);
+            const nearInTime =
+              Number.isFinite(mTime) && Number.isFinite(incTime)
+                ? Math.abs(mTime - incTime) < 15_000
+                : true;
+            if (sameSender && sameContent && nearInTime) {
+              replaced = true;
+              return false;
+            }
+            return true;
+          });
+
+          setDmSummaries((prev) => {
+            const next = new Map(prev);
+            const existing = next.get(partnerId) ?? {
+              lastMessage: "",
+              timestamp: new Date(0).toISOString(),
+              unreadCount: 0,
+            };
+
+            const isFromSelf = incomingMsg.sender_id === selfId;
+            const isActiveConversation = partnerId === activeDmIdRef.current;
+            const shouldIncrementUnread = !isFromSelf && !isActiveConversation;
+
+            next.set(partnerId, {
+              lastMessage: isFromSelf
+                ? `You: ${incomingMsg.content || "Sent an attachment"}`
+                : incomingMsg.content || "Sent an attachment",
+              timestamp: incomingMsg.timestamp,
+              unreadCount: isFromSelf
+                ? 0
+                : shouldIncrementUnread
+                  ? existing.unreadCount + 1
+                  : isActiveConversation
+                    ? 0
+                    : existing.unreadCount,
+            });
+            return next;
+          });
+
+          if (!updated.some((m) => m.id === incomingMsg.id)) {
+            updated = [...updated, incomingMsg];
+          }
+
+          const nextMessages = sortDmMessages(updated);
+
+          const netNew = nextMessages.length - currentDms.length;
+          if (netNew > 0) {
+            setDmOffsets((prev) => {
+              const next = new Map(prev);
+              next.set(partnerId, (next.get(partnerId) ?? 0) + netNew);
+              return next;
+            });
+          }
+
+          newMap.set(partnerId, nextMessages);
+          return newMap;
+        });
+      } catch (e) {
+        console.error("Failed to handle incoming DM:", e, raw);
+      }
+    };
 
     const handleError = (errorMessage: any) => {
       console.error("Socket DM Error:", errorMessage);
@@ -1376,44 +1367,43 @@ function MessagesPageContentInner() {
       router.push("/");
     }
   }, [router]);
- useEffect(() => {
-   const handleProfileUpdate = () => {
-     const userItem = localStorage.getItem("user");
-     if (!userItem) return;
+  useEffect(() => {
+    const handleProfileUpdate = () => {
+      const userItem = localStorage.getItem("user");
+      if (!userItem) return;
 
-     const updatedUser = JSON.parse(userItem) as User;
-     setCurrentUser(updatedUser);
+      const updatedUser = JSON.parse(userItem) as User;
+      setCurrentUser(updatedUser);
 
-     setAllUsers((prev) =>
-       prev.map((u) =>
-         u.id === updatedUser.id
-           ? {
-               ...u,
-               fullname: updatedUser.fullname,
-              
-               avatar_url: updatedUser.avatar_url,
-             }
-           : u
-       )
-     );
-   };
+      setAllUsers((prev) =>
+        prev.map((u) =>
+          u.id === updatedUser.id
+            ? {
+                ...u,
+                fullname: updatedUser.fullname,
 
-   window.addEventListener("user-profile-updated", handleProfileUpdate);
-   return () =>
-     window.removeEventListener("user-profile-updated", handleProfileUpdate);
- }, []);
- useEffect(() => {
-   if (!currentUser?.id || !currentUser.avatar_url) return;
+                avatar_url: updatedUser.avatar_url,
+              }
+            : u
+        )
+      );
+    };
 
+    window.addEventListener("user-profile-updated", handleProfileUpdate);
+    return () =>
+      window.removeEventListener("user-profile-updated", handleProfileUpdate);
+  }, []);
+  useEffect(() => {
+    if (!currentUser?.id || !currentUser.avatar_url) return;
 
-   setAllUsers((prev) =>
-     prev.map((u) =>
-       u.id === currentUser?.id
-         ? { ...u, avatar_url: currentUser.avatar_url }
-         : u
-     )
-   );
- }, [currentUser?.avatar_url, currentUser?.id]);
+    setAllUsers((prev) =>
+      prev.map((u) =>
+        u.id === currentUser?.id
+          ? { ...u, avatar_url: currentUser.avatar_url }
+          : u
+      )
+    );
+  }, [currentUser?.avatar_url, currentUser?.id]);
 
   // Removed duplicate socket setup effect; handled in single effect above
 
@@ -1487,13 +1477,14 @@ function MessagesPageContentInner() {
                 : [];
 
               if (threadMessages.length > 0) {
-                threadMessages = resolveRepliesForThread(threadMessages, allUsers, currentUser.id);
+                threadMessages = resolveRepliesForThread(
+                  threadMessages,
+                  allUsers,
+                  currentUser.id
+                );
                 initialMessages.set(otherId, threadMessages);
                 initialOffsets.set(otherId, threadMessages.length);
-                initialHasMore.set(
-                  otherId,
-                  Boolean(thread.has_more_messages)
-                );
+                initialHasMore.set(otherId, Boolean(thread.has_more_messages));
                 hydratedThreadIdsRef.current.add(otherId);
               }
 
@@ -1503,11 +1494,13 @@ function MessagesPageContentInner() {
               const lastMessageObj =
                 rawThreadMessages.length > 0
                   ? rawThreadMessages[rawThreadMessages.length - 1]
-                  : thread.last_message ?? thread.lastMessage ?? null;
+                  : (thread.last_message ?? thread.lastMessage ?? null);
               const content = lastMessageObj
                 ? lastMessageObj.media_url || lastMessageObj.mediaUrl
                   ? "Sent an attachment"
-                  : String(lastMessageObj.content ?? lastMessageObj.message ?? "")
+                  : String(
+                      lastMessageObj.content ?? lastMessageObj.message ?? ""
+                    )
                 : "No messages yet.";
               const isSender = lastMessageObj?.sender_id === currentUser.id;
               summaryMap.set(otherId, {
@@ -1520,7 +1513,9 @@ function MessagesPageContentInner() {
                     thread.updatedAt ??
                     new Date(0).toISOString()
                 ),
-                unreadCount: Number(thread.unread_count ?? thread.unreadCount ?? 0),
+                unreadCount: Number(
+                  thread.unread_count ?? thread.unreadCount ?? 0
+                ),
               });
 
               if (threadId) {
@@ -1573,7 +1568,6 @@ function MessagesPageContentInner() {
 
             return next;
           });
-
         } catch (error: any) {
           console.error("--- DETAILED FETCH ERROR ---");
           console.error(error);
@@ -1590,29 +1584,28 @@ function MessagesPageContentInner() {
     }
   }, [currentUser]);
 
-
   useEffect(() => {
-  if (!activeDmId) return;
+    if (!activeDmId) return;
 
-  const threadId = threadIds.get(activeDmId);
+    const threadId = threadIds.get(activeDmId);
 
-  if (!threadId) return;
+    if (!threadId) return;
 
-  if (hydratedThreadIdsRef.current.has(activeDmId)) {
-    return;
-  }
+    if (hydratedThreadIdsRef.current.has(activeDmId)) {
+      return;
+    }
 
-  const loadMessages = async () => {
-    try {
-      const result = await getDmThreadMessages(threadId, 0);
+    const loadMessages = async () => {
+      try {
+        const result = await getDmThreadMessages(threadId, 0);
 
-      const parsed = resolveRepliesForThread(
-        sortDmMessages(
-          (result.data || []).map((m: any) => normalizeDmMessage(m))
-        ),
-        allUsers,
-        currentUser?.id
-      );
+        const parsed = resolveRepliesForThread(
+          sortDmMessages(
+            (result.data || []).map((m: any) => normalizeDmMessage(m))
+          ),
+          allUsers,
+          currentUser?.id
+        );
 
         setMessages((prev) => {
           const next = new Map(prev);
@@ -1622,98 +1615,94 @@ function MessagesPageContentInner() {
           return next;
         });
 
-      setDmOffsets(prev => {
+        setDmOffsets((prev) => {
+          const next = new Map(prev);
+          next.set(activeDmId, parsed.length);
+          return next;
+        });
+
+        setDmHasMore((prev) => {
+          const next = new Map(prev);
+          next.set(activeDmId, result.hasMore);
+          return next;
+        });
+        hydratedThreadIdsRef.current.add(activeDmId);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    loadMessages();
+  }, [activeDmId, threadIds]);
+
+  const isLoadingOlderDmRef = useRef(false);
+
+  const loadOlderMessages = async (container?: HTMLDivElement | null) => {
+    if (isLoadingOlderDmRef.current) return;
+
+    if (!activeDmId) return;
+
+    const threadId = threadIds.get(activeDmId);
+    if (!threadId) return;
+
+    const offset = dmOffsets.get(activeDmId) ?? 0;
+    const hasMore = dmHasMore.get(activeDmId);
+
+    if (!hasMore) return;
+
+    isLoadingOlderDmRef.current = true;
+    setIsLoadingOlderDm(true);
+
+    try {
+      const scrollContainer = container ?? messagesContainerRef.current;
+      const previousHeight = scrollContainer?.scrollHeight ?? 0;
+      const previousScrollTop = scrollContainer?.scrollTop ?? 0;
+
+      const result = await getDmThreadMessages(threadId, offset);
+
+      const parsed = resolveRepliesForThread(
+        sortDmMessages(
+          (result.data || []).map((m: any) => normalizeDmMessage(m))
+        ),
+        allUsers,
+        currentUser?.id
+      );
+
+      setMessages((prev) => {
         const next = new Map(prev);
-        next.set(activeDmId, parsed.length);
+        const current = next.get(activeDmId) || [];
+
+        next.set(activeDmId, mergeDmMessages(parsed, current));
+
         return next;
       });
 
-      setDmHasMore(prev => {
+      requestAnimationFrame(() => {
+        const node = scrollContainer ?? messagesContainerRef.current;
+        if (!node) return;
+
+        const newHeight = node.scrollHeight;
+        node.scrollTop = previousScrollTop + (newHeight - previousHeight);
+      });
+
+      setDmOffsets((prev) => {
+        const next = new Map(prev);
+        next.set(activeDmId, offset + parsed.length);
+        return next;
+      });
+
+      setDmHasMore((prev) => {
         const next = new Map(prev);
         next.set(activeDmId, result.hasMore);
         return next;
       });
-      hydratedThreadIdsRef.current.add(activeDmId);
-            
     } catch (err) {
       console.error(err);
+    } finally {
+      isLoadingOlderDmRef.current = false;
+      setIsLoadingOlderDm(false);
     }
   };
-
-  loadMessages();
-}, [activeDmId, threadIds]);
-
-const isLoadingOlderDmRef = useRef(false);
-
-
-
-
-const loadOlderMessages = async (container?: HTMLDivElement | null) => {
-  if (isLoadingOlderDmRef.current) return;
-
-  if (!activeDmId) return;
-
-  const threadId = threadIds.get(activeDmId);
-  if (!threadId) return;
-
-  const offset = dmOffsets.get(activeDmId) ?? 0;
-  const hasMore = dmHasMore.get(activeDmId);
-
-  if (!hasMore) return;
-
-  isLoadingOlderDmRef.current = true;
-  setIsLoadingOlderDm(true);
-
-  try {
-    const scrollContainer = container ?? messagesContainerRef.current;
-    const previousHeight = scrollContainer?.scrollHeight ?? 0;
-    const previousScrollTop = scrollContainer?.scrollTop ?? 0;
-
-    const result = await getDmThreadMessages(threadId, offset);
-
-    const parsed = resolveRepliesForThread(
-      sortDmMessages(
-        (result.data || []).map((m: any) => normalizeDmMessage(m))
-      ),
-      allUsers,
-      currentUser?.id
-    );
-    
-    setMessages((prev) => {
-      const next = new Map(prev);
-      const current = next.get(activeDmId) || [];
-
-      next.set(activeDmId, mergeDmMessages(parsed, current));
-
-      return next;
-    });
-
-    requestAnimationFrame(() => {
-      const node = scrollContainer ?? messagesContainerRef.current;
-      if (!node) return;
-
-      const newHeight = node.scrollHeight;
-      node.scrollTop = previousScrollTop + (newHeight - previousHeight);
-    });
-
-    setDmOffsets((prev) => {
-      const next = new Map(prev);
-      next.set(activeDmId, offset + parsed.length);
-      return next;
-    });
-
-    setDmHasMore((prev) => {
-      const next = new Map(prev);
-      next.set(activeDmId, result.hasMore);
-      return next;
-    });
-  } catch (err) {
-    console.error(err);
-  } finally {
-    isLoadingOlderDmRef.current = false;
-    setIsLoadingOlderDm(false);
-  }
-};
 
   // Effect to set the active DM based on the URL parameter
   // If user not in allUsers, fetch their profile and add them
@@ -1753,10 +1742,10 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
           };
 
           // Add user to allUsers if not already present
-        setAllUsers((prev) => {
-          if (prev.some((u) => u.id === selectedDM)) return prev;
-          return [...prev, newUser];
-        });
+          setAllUsers((prev) => {
+            if (prev.some((u) => u.id === selectedDM)) return prev;
+            return [...prev, newUser];
+          });
           // Initialize empty messages for this user
           setMessages((prev) => {
             if (prev.has(selectedDM)) return prev;
@@ -1792,8 +1781,7 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
     if (!content.trim() && files.length === 0) return;
 
     const uploads = (files.length > 0 ? files : [null]).map((file, index) => {
-      const contentForFile =
-        index === 0 ? content : `📎 ${file?.name ?? "file"}`;
+      const contentForFile = index === 0 ? content : `${file?.name ?? "file"}`;
       const blobUrl = file ? URL.createObjectURL(file) : null;
 
       return {
@@ -1830,11 +1818,6 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
 
     setDmSummaries((prev) => {
       const next = new Map(prev);
-      const existing = next.get(activeDmId) ?? {
-        lastMessage: "",
-        timestamp: new Date(0).toISOString(),
-        unreadCount: 0,
-      };
 
       const previewText =
         files.length > 0 ? "You: Sent an attachment" : `You: ${content}`;
@@ -1873,11 +1856,6 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
           }
           setDmSummaries((prev) => {
             const next = new Map(prev);
-            const existing = next.get(activeDmId) ?? {
-              lastMessage: "",
-              timestamp: new Date(0).toISOString(),
-              unreadCount: 0,
-            };
 
             const savedContent =
               saved.media_url || saved.mediaUrl
@@ -1953,10 +1931,6 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
         newMap.set(activeDmId, list);
         return newMap;
       });
-      const reason =
-        e?.response?.data?.message ??
-        e?.message ??
-        "Failed to send message. Please try again.";
       setToast({
         message: "file size excceded",
         type: "error",
@@ -1973,88 +1947,88 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
     [router]
   );
 
- const openUserProfile = useCallback(
-   async (userId: string, fallbackName?: string, fallbackAvatar?: string) => {
-     if (!userId) return;
+  const openUserProfile = useCallback(
+    async (userId: string, fallbackName?: string, fallbackAvatar?: string) => {
+      if (!userId) return;
 
-     setSelectedUser({
-       id: userId,
-       username: fallbackName || "Unknown User",
-       avatarUrl: fallbackAvatar || "/User_profil.png",
-       about: "Loading bio...",
-       roles: [],
-     });
-     setIsProfileOpen(true);
+      setSelectedUser({
+        id: userId,
+        username: fallbackName || "Unknown User",
+        avatarUrl: fallbackAvatar || "/User_profil.png",
+        about: "Loading bio...",
+        roles: [],
+      });
+      setIsProfileOpen(true);
 
-     try {
-       const token = localStorage.getItem("access_token");
+      try {
+        const token = localStorage.getItem("access_token");
 
-       // Try the generic profile endpoint with exhaustive field names
-       const url = `${process.env.NEXT_PUBLIC_API_URL}/api/profile/${userId}`;
-       const response = await fetch(url, {
-         headers: { Authorization: `Bearer ${token || ""}` },
-       });
+        // Try the generic profile endpoint with exhaustive field names
+        const url = `${process.env.NEXT_PUBLIC_API_URL}/api/profile/${userId}`;
+        const response = await fetch(url, {
+          headers: { Authorization: `Bearer ${token || ""}` },
+        });
 
-       let profile: any = null;
+        let profile: any = null;
 
-       if (response.ok) {
-         profile = await response.json();
-       } else {
-         // Fallback to the existing fetchUserProfile helper
-         profile = await fetchUserProfile(userId);
-       }
+        if (response.ok) {
+          profile = await response.json();
+        } else {
+          // Fallback to the existing fetchUserProfile helper
+          profile = await fetchUserProfile(userId);
+        }
 
-       if (!profile) throw new Error("Profile not found");
+        if (!profile) throw new Error("Profile not found");
 
-       // Exhaustive extraction — covers user/users nesting and flat shapes
-       const resolvedUsername =
-         profile.user?.username ||
-         profile.users?.username ||
-         profile.username ||
-         profile.fullname ||
-         profile.name ||
-         fallbackName ||
-         "Unknown User";
+        // Exhaustive extraction — covers user/users nesting and flat shapes
+        const resolvedUsername =
+          profile.user?.username ||
+          profile.users?.username ||
+          profile.username ||
+          profile.fullname ||
+          profile.name ||
+          fallbackName ||
+          "Unknown User";
 
-       const resolvedAvatar =
-         profile.user?.avatar_url ||
-         profile.users?.avatar_url ||
-         profile.avatar_url ||
-         fallbackAvatar ||
-         "/User_profil.png";
+        const resolvedAvatar =
+          profile.user?.avatar_url ||
+          profile.users?.avatar_url ||
+          profile.avatar_url ||
+          fallbackAvatar ||
+          "/User_profil.png";
 
-       const resolvedBio =
-         profile.user?.bio ||
-         profile.users?.bio ||
-         profile.bio ||
-         profile.about ||
-         "No bio yet...";
+        const resolvedBio =
+          profile.user?.bio ||
+          profile.users?.bio ||
+          profile.bio ||
+          profile.about ||
+          "No bio yet...";
 
-       setSelectedUser((prev) => {
-         if (!prev || prev.id !== userId) return prev;
-         return {
-           id: userId,
-           username: resolvedUsername,
-           avatarUrl: resolvedAvatar,
-           about: resolvedBio,
-           roles: Array.isArray(profile.roles)
-             ? profile.roles
-                 .map((role: any) =>
-                   typeof role === "string" ? role : role?.name
-                 )
-                 .filter(Boolean)
-             : [],
-         };
-       });
-     } catch (error) {
-       console.error("openUserProfile fetch failed:", error);
-       setSelectedUser((prev) =>
-         prev ? { ...prev, about: "No bio available." } : null
-       );
-     }
-   },
-   []
- );
+        setSelectedUser((prev) => {
+          if (!prev || prev.id !== userId) return prev;
+          return {
+            id: userId,
+            username: resolvedUsername,
+            avatarUrl: resolvedAvatar,
+            about: resolvedBio,
+            roles: Array.isArray(profile.roles)
+              ? profile.roles
+                  .map((role: any) =>
+                    typeof role === "string" ? role : role?.name
+                  )
+                  .filter(Boolean)
+              : [],
+          };
+        });
+      } catch (error) {
+        console.error("openUserProfile fetch failed:", error);
+        setSelectedUser((prev) =>
+          prev ? { ...prev, about: "No bio available." } : null
+        );
+      }
+    },
+    []
+  );
   // Mark thread as read when user opens a DM
   useEffect(() => {
     if (!activeDmId || !currentUser?.id) return;
@@ -2094,7 +2068,13 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
     // Small delay to ensure messages are loaded
     const timeoutId = setTimeout(markAsRead, 100);
     return () => clearTimeout(timeoutId);
-  }, [activeDmId, currentUser?.id, messages, threadIds, refreshMessageNotifications]);
+  }, [
+    activeDmId,
+    currentUser?.id,
+    messages,
+    threadIds,
+    refreshMessageNotifications,
+  ]);
 
   const conversations = useMemo(() => {
     return allUsers
@@ -2117,8 +2097,7 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
           fallbackSummary?.timestamp ||
           new Date(0).toISOString();
 
-        const threadId =
-          threadIds.get(user.id) || lastMessageObj?.thread_id;
+        const threadId = threadIds.get(user.id) || lastMessageObj?.thread_id;
         const isActiveConversation = activeDmId === user.id;
         const lastMessageFromSelf =
           lastMessageObj?.sender_id === currentUser?.id;
@@ -2126,8 +2105,8 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
           isActiveConversation || lastMessageFromSelf
             ? 0
             : threadId
-              ? unreadPerThread[threadId] ?? 0
-              : fallbackSummary?.unreadCount ?? 0;
+              ? (unreadPerThread[threadId] ?? 0)
+              : (fallbackSummary?.unreadCount ?? 0);
 
         return {
           user,
@@ -2155,38 +2134,40 @@ const loadOlderMessages = async (container?: HTMLDivElement | null) => {
   }, [allUsers, activeDmId]);
 
   const activeMessages = activeDmId ? messages.get(activeDmId) || [] : [];
-  const activeThreadId = activeDmId ? threadIds.get(activeDmId) ?? null : null;
+  const activeThreadId = activeDmId
+    ? (threadIds.get(activeDmId) ?? null)
+    : null;
 
- const lastMessageId = activeMessages[activeMessages.length - 1]?.id;
+  const lastMessageId = activeMessages[activeMessages.length - 1]?.id;
 
-useEffect(() => {
-  lastAutoScrollDmRef.current = null;
-}, [activeDmId]);
+  useEffect(() => {
+    lastAutoScrollDmRef.current = null;
+  }, [activeDmId]);
 
-useEffect(() => {
-  if (!activeDmId || !lastMessageId) return;
+  useEffect(() => {
+    if (!activeDmId || !lastMessageId) return;
 
-  const container = messagesContainerRef.current;
-  if (!container) return;
+    const container = messagesContainerRef.current;
+    if (!container) return;
 
-  // A small timeout ensures the DOM has actually painted the new message
-  setTimeout(() => {
-    const isInitialLoad = lastAutoScrollDmRef.current !== activeDmId;
+    // A small timeout ensures the DOM has actually painted the new message
+    setTimeout(() => {
+      const isInitialLoad = lastAutoScrollDmRef.current !== activeDmId;
 
-    // Increased threshold to 400px to better catch multi-line texts or attachments
-    const isNearBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight <
-      400;
+      // Increased threshold to 400px to better catch multi-line texts or attachments
+      const isNearBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight <
+        400;
 
-    if (isInitialLoad || isNearBottom) {
-      container.scrollTo({
-        top: container.scrollHeight,
-        behavior: isInitialLoad ? "auto" : "smooth",
-      });
-      lastAutoScrollDmRef.current = activeDmId;
-    }
-  }, 100);
-}, [activeDmId, lastMessageId]);
+      if (isInitialLoad || isNearBottom) {
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: isInitialLoad ? "auto" : "smooth",
+        });
+        lastAutoScrollDmRef.current = activeDmId;
+      }
+    }, 100);
+  }, [activeDmId, lastMessageId]);
 
   return (
     <div className="flex h-screen min-h-0 w-full bg-slate-950 text-slate-100">
@@ -2263,7 +2244,7 @@ useEffect(() => {
             currentUser={currentUser}
             partnerId={activeDmId}
             threadId={activeThreadId}
-            messagesContainerRef={messagesContainerRef} 
+            messagesContainerRef={messagesContainerRef}
             allUsers={allUsers}
             onSendMessage={handleSendMessage}
             onFileError={(msg) => setFileError(msg)}

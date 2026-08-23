@@ -20,7 +20,9 @@ export function MobileBlocker({ children }: { children: React.ReactNode }) {
       <div className="min-h-screen flex items-center justify-center bg-[url('/bg0.svg')] bg-no-repeat bg-center bg-cover text-white px-6">
         <div className="max-w-md text-center space-y-4">
           <h1 className="text-3xl font-semibold">Mobile App Coming Soon</h1>
-          <p className="text-xl">We're still building the mobile experience.</p>
+          <p className="text-xl">
+            We&apos;re still building the mobile experience.
+          </p>
           <p className="text-xl">
             For now, please use Echo on a laptop or desktop browser.
           </p>

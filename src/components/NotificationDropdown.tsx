@@ -34,7 +34,11 @@ interface Notification {
 
 interface NotificationDropdownProps {
   onClose: () => void;
-  onNavigateToMessage?: (channelId: string, messageId: string, serverId?: string) => void;
+  onNavigateToMessage?: (
+    channelId: string,
+    messageId: string,
+    serverId?: string
+  ) => void;
   anchorRect: {
     top: number;
     left: number;
@@ -219,7 +223,7 @@ export default function NotificationDropdown({
               </div>
               <p className="text-sm text-gray-300">No mentions yet</p>
               <p className="text-xs mt-1 text-gray-500">
-                You'll see mentions here when someone @mentions you.
+                You&apos;ll see mentions here when someone @mentions you.
               </p>
             </div>
           ) : (
@@ -237,8 +241,7 @@ export default function NotificationDropdown({
                     const channelId = notification.message?.channel_id;
                     const messageId =
                       notification.message_id || notification.message?.id;
-                    const serverId =
-                      notification.message?.channels?.server_id;
+                    const serverId = notification.message?.channels?.server_id;
                     if (onNavigateToMessage && channelId && messageId) {
                       onNavigateToMessage(channelId, messageId, serverId);
                       onClose();
@@ -271,7 +274,9 @@ export default function NotificationDropdown({
                       </div>
 
                       <p className="text-gray-300 text-sm mb-2">
-                        "{truncateContent(notification.message?.content || "")}"
+                        &quot;
+                        {truncateContent(notification.message?.content || "")}
+                        &quot;
                       </p>
 
                       <div className="flex items-center justify-between text-xs">

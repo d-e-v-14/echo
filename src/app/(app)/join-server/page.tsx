@@ -113,12 +113,12 @@ export default function JoinServerPage() {
                 onClick={() => router.push("/servers")}
                 className="mt-6 w-full py-2 text-sm rounded-md bg-gray-800 hover:bg-gray-700 transition-all"
               >
-                ← Back to Servers
+                Back to Servers
               </button> */}
             </>
           )}
         </div>
-{/* 
+        {/* 
         {!loading && (
           <p className="mt-8 text-gray-500 text-sm">
             Don’t have an invite?{" "}

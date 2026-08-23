@@ -104,48 +104,6 @@ const IconDesktop = ({ size = 16, className = "" }) => (
   </svg>
 );
 
-const IconExpand = ({ size = 16, className = "" }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-    aria-hidden="true"
-    focusable="false"
-  >
-    <path d="M15 3h6v6"></path>
-    <path d="M9 21H3v-6"></path>
-    <path d="M21 3l-7 7"></path>
-    <path d="M3 21l7-7"></path>
-  </svg>
-);
-
-const IconCompress = ({ size = 16, className = "" }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-    aria-hidden="true"
-    focusable="false"
-  >
-    <path d="M4 14h6v6"></path>
-    <path d="M20 10h-6V4"></path>
-    <path d="M14 10l7-7"></path>
-    <path d="M3 21l7-7"></path>
-  </svg>
-);
-
 /* --------------------------------- TYPES ---------------------------------- */
 
 interface MediaState {
@@ -190,7 +148,6 @@ const ParticipantVideo = memo(
     isFullscreen = false,
     variant = "default",
     cameraOnly = false,
-    onToggleFullscreen,
   }: {
     participant: Participant;
     manager?: VoiceVideoManager | null;
@@ -200,13 +157,13 @@ const ParticipantVideo = memo(
     cameraOnly?: boolean;
     onToggleFullscreen?: () => void;
   }) {
-    const containerRef = useRef<HTMLDivElement>(null); // Added container ref for native fullscreen
+    useRef<HTMLDivElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const screenRef = useRef<HTMLVideoElement>(null);
     const audioRef = useRef<HTMLAudioElement>(null);
 
-    const [isVideoBound, setIsVideoBound] = useState(false);
-    const [isScreenBound, setIsScreenBound] = useState(false);
+    const [, setIsVideoBound] = useState(false);
+    const [, setIsScreenBound] = useState(false);
 
     const hasTileId =
       participant.tileId !== undefined && participant.tileId !== null;
@@ -253,44 +210,10 @@ const ParticipantVideo = memo(
       hasTileId && !!manager && (shouldShowVideo || shouldShowCameraPiP);
 
     // Native Cross-Browser Fullscreen Logic
-    const handleNativeFullscreen = async (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      const container = containerRef.current as any;
-      const video = videoRef.current as any;
-      const screen = screenRef.current as any;
-      const doc = document as any;
-
-      if (!container) return;
-
-      const isFs = doc.fullscreenElement || doc.webkitFullscreenElement;
-
-      try {
-        if (!isFs) {
-          if (container.requestFullscreen) await container.requestFullscreen();
-          else if (container.webkitRequestFullscreen)
-            await container.webkitRequestFullscreen();
-          // Fallback for iOS Safari which only allows fullscreen directly on media elements
-          else if (video && video.webkitEnterFullscreen)
-            video.webkitEnterFullscreen();
-          else if (screen && screen.webkitEnterFullscreen)
-            screen.webkitEnterFullscreen();
-        } else {
-          if (doc.exitFullscreen) await doc.exitFullscreen();
-          else if (doc.webkitExitFullscreen) await doc.webkitExitFullscreen();
-        }
-      } catch (err: any) {
-        console.error("Fullscreen failed:", err);
-        alert(`Fullscreen blocked by browser: ${err.message}`);
-      }
-    };
-
     // Bind Chime video tile to video element
     // This effect handles binding the Chime SDK video tile to the HTML video element
     useEffect(() => {
       const tileId = participant.tileId;
-      const videoEl = videoRef.current;
 
       // Early return if we don't have what we need
       if (!manager || tileId === undefined || tileId === null) {
@@ -346,7 +269,7 @@ const ParticipantVideo = memo(
         if (manager && tileId !== undefined && tileId !== null) {
           try {
             manager.unbindVideoElement(tileId);
-          } catch (err) {
+          } catch {
             // Ignore errors on cleanup
           }
           setIsVideoBound(false);
@@ -422,7 +345,7 @@ const ParticipantVideo = memo(
         if (manager && screenTileId !== undefined && screenTileId !== null) {
           try {
             manager.unbindVideoElement(screenTileId);
-          } catch (err) {
+          } catch {
             // Ignore errors on cleanup
           }
           setIsScreenBound(false);
@@ -697,11 +620,9 @@ const ParticipantVideo = memo(
             {participant.username || "User"}
             {isLocal && " (You)"}
           </div>
-        )} 
+        )}
 
-       
-
-       { /* onToggleFullscreen && !isFullscreen && variant !== "thumbnail" && (
+        {/* onToggleFullscreen && !isFullscreen && variant !== "thumbnail" && (
     //      <button
     //        type="button"
     //</div>        onClick={onToggleFullscreen}
@@ -778,27 +699,13 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const [isPanelFullscreen, setIsPanelFullscreen] = useState(false);
+  const [, setIsPanelFullscreen] = useState(false);
 
   const [fullscreenParticipant, setFullscreenParticipant] = useState<
     string | null
   >(null);
   const [focusedStageId, setFocusedStageId] = useState<string | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
-
-  const togglePanelFullscreen = async () => {
-    if (!panelRef.current) return;
-
-    try {
-      if (!document.fullscreenElement) {
-        await panelRef.current.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
-      }
-    } catch (err) {
-      console.error("Fullscreen failed:", err);
-    }
-  };
 
   useEffect(() => {
     const onFullscreenChange = () => {
@@ -818,8 +725,7 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
       stream: localStream || null,
       screenStream: localScreenStream || null,
       tileId: localVideoTileId !== null ? localVideoTileId : undefined,
-      screenTileId:
-        localScreenTileId !== null ? localScreenTileId : undefined,
+      screenTileId: localScreenTileId !== null ? localScreenTileId : undefined,
       isLocal: true,
       mediaState: localMediaState,
     }),
@@ -940,9 +846,7 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
                   stageParticipant.id === "local" || stageParticipant.isLocal
                 }
                 variant="stage"
-                onToggleFullscreen={() =>
-                  toggleFullscreen(stageParticipant.id)
-                }
+                onToggleFullscreen={() => toggleFullscreen(stageParticipant.id)}
               />
             </div>
           </div>
@@ -1011,7 +915,9 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
             style={{ gridAutoRows: "minmax(140px, 1fr)" }}
           >
             {allParticipants
-              .filter((p) => !isFullscreenMode || p.id === fullscreenParticipant)
+              .filter(
+                (p) => !isFullscreenMode || p.id === fullscreenParticipant
+              )
               .map((participant) => (
                 <div
                   key={participant.id}
@@ -1020,14 +926,10 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
                   <ParticipantVideo
                     participant={participant}
                     manager={manager}
-                    isLocal={
-                      participant.id === "local" || participant.isLocal
-                    }
+                    isLocal={participant.id === "local" || participant.isLocal}
                     isFullscreen={participant.id === fullscreenParticipant}
                     variant="grid"
-                    onToggleFullscreen={() =>
-                      toggleFullscreen(participant.id)
-                    }
+                    onToggleFullscreen={() => toggleFullscreen(participant.id)}
                   />
                 </div>
               ))}

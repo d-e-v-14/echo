@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function Navbar() {
-  const router = useRouter();
+  useRouter();
   return (
     <nav className="w-screen px-6 py-4 ">
       <div className="flex items-center justify-between max-w-7xl mx-auto">

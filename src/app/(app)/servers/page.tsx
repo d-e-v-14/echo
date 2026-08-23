@@ -5,12 +5,7 @@ import {
   disconnectVoicePresenceSocket,
   getVoicePresenceSocket,
 } from "@/lib/voicePresenceSocket";
-import {
-  PhoneCall,
-  PhoneOff,
-  Users,
-  PanelRightOpen,
-} from "lucide-react";
+import { PhoneCall, PhoneOff, Users, PanelRightOpen } from "lucide-react";
 import React, {
   useState,
   useEffect,
@@ -31,8 +26,6 @@ import {
   FaChevronRight,
   FaCheckCircle,
   FaPlusCircle,
-  FaAngleLeft,
-  FaAngleRight,
   FaTrash,
   FaTimes,
   FaVolumeUp,
@@ -62,7 +55,6 @@ import { useSearchParams } from "next/navigation";
 import { useVoiceCall } from "@/contexts/VoiceCallContext";
 import { supabase } from "@/lib/supabaseClient";
 import Toast from "@/components/Toast";
-
 
 interface Channel {
   id: string;
@@ -94,8 +86,7 @@ const serverIcons: string[] = [
 
 const ServersPageContent: React.FC = () => {
   const pageReady = usePageReady();
-  const [isChannelSidebarCollapsed, setIsChannelSidebarCollapsed] =
-    useState(false);
+  const [isChannelSidebarCollapsed] = useState(false);
   const searchParams = useSearchParams();
   const refresh = searchParams.get("refresh");
   const serverIdFromQuery = searchParams.get("serverId");
@@ -127,8 +118,8 @@ const ServersPageContent: React.FC = () => {
   const [isSavingChannel, setIsSavingChannel] = useState(false);
   const [isDeletingChannel, setIsDeletingChannel] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
-  // ✅ All useState at top
-  // ✅ Also correct:
+  // All useState at top
+  // Also correct:
   type ChannelRoster = {
     id: string;
     username: string;
@@ -141,54 +132,53 @@ const ServersPageContent: React.FC = () => {
     Record<string, ChannelRoster[]>
   >({});
 
-const {
-  activeCall,
-  isConnected,
-  isConnecting,
-  participants,
-  localMediaState,
-  localVideoTileId,
-  localScreenTileId,
-  localScreenStream,
-  videoTiles,
-  manager,
-  joinCall,
-  leaveCall,
-  permissionError,
-  connectionError,
-} = useVoiceCall();
-const externalState = useMemo(
-  () => ({
+  const {
+    activeCall,
+    isConnected,
+    isConnecting,
     participants,
     localMediaState,
     localVideoTileId,
     localScreenTileId,
     localScreenStream,
     videoTiles,
-    isConnected,
-    isConnecting,
+    manager,
+    joinCall,
+    leaveCall,
     permissionError,
     connectionError,
-  }),
-  [
-    participants,
-    localMediaState,
-    localVideoTileId,
-    localScreenTileId,
-    localScreenStream,
-    videoTiles,
-    isConnected,
-    isConnecting,
-    permissionError,
-    connectionError,
-  ]
-);
+  } = useVoiceCall();
+  const externalState = useMemo(
+    () => ({
+      participants,
+      localMediaState,
+      localVideoTileId,
+      localScreenTileId,
+      localScreenStream,
+      videoTiles,
+      isConnected,
+      isConnecting,
+      permissionError,
+      connectionError,
+    }),
+    [
+      participants,
+      localMediaState,
+      localVideoTileId,
+      localScreenTileId,
+      localScreenStream,
+      videoTiles,
+      isConnected,
+      isConnecting,
+      permissionError,
+      connectionError,
+    ]
+  );
 
   const displayRosters = useMemo(() => {
     const merged = { ...channelRosters };
 
     if (activeCall && activeCall.serverId === selectedServerId) {
-   
       const existingById = new Map(
         (merged[activeCall.channelId] || []).map((m) => [m.id, m])
       );
@@ -211,7 +201,6 @@ const externalState = useMemo(
           : base;
       });
 
-     
       merged[activeCall.channelId] = fromCall;
     }
 
@@ -294,7 +283,7 @@ const externalState = useMemo(
     [channels]
   );
 
-  const voiceMembers = useMemo(
+  useMemo(
     () =>
       participants.map((member) => ({
         id: member.attendeeId,
@@ -396,8 +385,7 @@ const externalState = useMemo(
           setSelectedServerName(preferredServer.name);
         }
         setToast(null);
-      } catch (err) {
-
+      } catch {
         setError("Failed to load servers.");
         setToast({ message: "Failed to load servers", type: "error" });
       } finally {
@@ -479,8 +467,7 @@ const externalState = useMemo(
     const loadChannels = async () => {
       try {
         await loadChannelsForServer(selectedServerId);
-      } catch (err) {
-
+      } catch {
         setError("Failed to load channels");
         setChannels([]);
         setToast({ message: "Failed to load channels", type: "error" });
@@ -500,8 +487,7 @@ const externalState = useMemo(
         ]);
         setSelfAssignableRoles(assignableRoles);
         setMyRoles(userRoles);
-      } catch (err) {
-
+      } catch {
       } finally {
         setRolesLoading(false);
       }
@@ -546,7 +532,8 @@ const externalState = useMemo(
         let found = false;
         for (let i = 0; i <= MAX_PAGES && !found; i++) {
           if (chatWindowRef.current) {
-            const scrolled = await chatWindowRef.current.scrollToMessage(pendingMessageId);
+            const scrolled =
+              await chatWindowRef.current.scrollToMessage(pendingMessageId);
             if (scrolled) {
               found = true;
               break;
@@ -569,8 +556,7 @@ const externalState = useMemo(
         setLoading(true);
         const data = await fetchServers();
         setServers(data);
-      } catch (err) {
-
+      } catch {
         setError("Failed to load servers.");
       } finally {
         setLoading(false);
@@ -604,7 +590,6 @@ const externalState = useMemo(
         selectedServerName || "Server"
       );
     } catch (err: any) {
-
       setViewMode("chat");
       setToast({
         message:
@@ -627,7 +612,6 @@ const externalState = useMemo(
         setMyRoles(updatedRoles);
       }
     } catch (err: any) {
-
       setToast({
         message: err?.response?.data?.error || "Failed to toggle role",
         type: "error",
@@ -716,7 +700,6 @@ const externalState = useMemo(
     }
   };
 
-
   return (
     <>
       {toast && (
@@ -769,10 +752,8 @@ const externalState = useMemo(
                 placeholder="channel-name"
                 disabled={isSavingChannel || isDeletingChannel}
               />
-              
+
               <div className="mt-5 flex justify-end gap-2">
-           
-              
                 <button
                   type="button"
                   onClick={handleDeleteChannel}
@@ -782,7 +763,7 @@ const externalState = useMemo(
                   <FaTrash className="h-3.5 w-3.5" />
                   {isDeletingChannel ? "Deleting..." : "Delete"}
                 </button>
-              
+
                 <button
                   type="button"
                   onClick={closeChannelSettings}
@@ -917,7 +898,7 @@ const externalState = useMemo(
           <div className="flex-1 flex items-center justify-center text-white text-center px-4">
             <div>
               <h1 className="text-2xl font-semibold mb-2">
-                You're not part of any servers.
+                You&apos;re not part of any servers.
               </h1>
               <p className="text-gray-400 mb-4">
                 Join a server with an invite link or create your own!
@@ -957,7 +938,11 @@ const externalState = useMemo(
                   <h2 className="text-xl font-bold">{selectedServerName}</h2>
                   <div className="flex items-center gap-2">
                     <NotificationBell
-                      onNavigateToMessage={async (channelId, messageId, serverId) => {
+                      onNavigateToMessage={async (
+                        channelId,
+                        messageId,
+                        serverId
+                      ) => {
                         // Switch server if needed
                         if (serverId && serverId !== selectedServerId) {
                           setSelectedServerId(serverId);
@@ -969,7 +954,8 @@ const externalState = useMemo(
                         // Wait for channels to load if we switched servers
                         let targetChannels = channels;
                         if (serverId && serverId !== selectedServerId) {
-                          targetChannels = await loadChannelsForServer(serverId);
+                          targetChannels =
+                            await loadChannelsForServer(serverId);
                         }
                         const targetChannel = targetChannels.find(
                           (c) => c.id === channelId
@@ -1164,66 +1150,74 @@ const externalState = useMemo(
                   </div>
                 )}
 
-                  {/* Text Channels */}
+                {/* Text Channels */}
                 <div className="px-2">
                   <h3 className="text-xs font-bold uppercase text-gray-400 mb-2">
                     Text Channels
                   </h3>
                   {textChannels.map((channel) => {
-                    const mentionCount = unreadMentionsByChannel.get(channel.id) || 0;
+                    const mentionCount =
+                      unreadMentionsByChannel.get(channel.id) || 0;
                     return (
-                    <div
-                      key={channel.id}
-                      className={`group/channel flex items-center justify-between p-2 text-sm rounded-md cursor-pointer transition-all min-w-0 ${
-                        activeChannel?.id === channel.id && viewMode === "chat"
-                          ? "bg-[#2f3136] text-white"
-                          : "text-gray-400 hover:bg-[#2f3136] hover:text-white"
-                      }`}
-                      onClick={() => {
-                        setActiveChannel(channel);
-                        setViewMode("chat");
-                      }}
-                    >
-                      <span className="flex items-center gap-2 flex-1 min-w-0">
-                        {channel.is_private ? (
-                          <div className="relative w-4 h-4">
-                            <FaHashtag size={12} className="absolute inset-0" />
-                            <FaLock
-                              size={12}
-                              className="absolute -top-1 -right-1 text-gray-400 bg-[#111214] rounded-full"
-                            />
-                          </div>
-                        ) : (
-                          <FaHashtag size={12} />
-                        )}
-                        <span className="block min-w-0 break-all whitespace-pre-wrap [overflow-wrap:anywhere] leading-tight">
-                          {channel.name}
-                        </span>
-                      </span>
-                      <div className="flex items-center gap-1">
-                        {mentionCount > 0 && (
-                          <span className="bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1">
-                            {mentionCount > 99 ? "99+" : mentionCount}
+                      <div
+                        key={channel.id}
+                        className={`group/channel flex items-center justify-between p-2 text-sm rounded-md cursor-pointer transition-all min-w-0 ${
+                          activeChannel?.id === channel.id &&
+                          viewMode === "chat"
+                            ? "bg-[#2f3136] text-white"
+                            : "text-gray-400 hover:bg-[#2f3136] hover:text-white"
+                        }`}
+                        onClick={() => {
+                          setActiveChannel(channel);
+                          setViewMode("chat");
+                        }}
+                      >
+                        <span className="flex items-center gap-2 flex-1 min-w-0">
+                          {channel.is_private ? (
+                            <div className="relative w-4 h-4">
+                              <FaHashtag
+                                size={12}
+                                className="absolute inset-0"
+                              />
+                              <FaLock
+                                size={12}
+                                className="absolute -top-1 -right-1 text-gray-400 bg-[#111214] rounded-full"
+                              />
+                            </div>
+                          ) : (
+                            <FaHashtag size={12} />
+                          )}
+                          <span className="block min-w-0 break-all whitespace-pre-wrap [overflow-wrap:anywhere] leading-tight">
+                            {channel.name}
                           </span>
-                        )}
-                        <button
-                          type="button"
-                          title="Channel Settings"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setChannelSettings({ channel, name: channel.name });
-                          }}
-                          className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded text-gray-400 transition hover:bg-[#1e1f22] hover:text-white focus:opacity-100 focus:outline-none ${
-                            activeChannel?.id === channel.id &&
-                            viewMode === "chat"
-                              ? "opacity-100"
-                              : "opacity-0 group-hover/channel:opacity-100"
-                          }`}
-                        >
-                          <FaCog className="h-3.5 w-3.5" />
-                        </button>
+                        </span>
+                        <div className="flex items-center gap-1">
+                          {mentionCount > 0 && (
+                            <span className="bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1">
+                              {mentionCount > 99 ? "99+" : mentionCount}
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            title="Channel Settings"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setChannelSettings({
+                                channel,
+                                name: channel.name,
+                              });
+                            }}
+                            className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded text-gray-400 transition hover:bg-[#1e1f22] hover:text-white focus:opacity-100 focus:outline-none ${
+                              activeChannel?.id === channel.id &&
+                              viewMode === "chat"
+                                ? "opacity-100"
+                                : "opacity-0 group-hover/channel:opacity-100"
+                            }`}
+                          >
+                            <FaCog className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
                     );
                   })}
                 </div>
@@ -1343,51 +1337,48 @@ const externalState = useMemo(
                 {/* In-call status bar */}
                 {isVoiceActiveForCurrentServer && activeCall && (
                   <div className="mt-auto p-2">
-  <div className="flex items-center justify-between rounded-lg bg-[#111214] border border-[#2b2d31] px-3 py-2">
-    
-    {/* Left */}
-    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex items-center justify-between rounded-lg bg-[#111214] border border-[#2b2d31] px-3 py-2">
+                      {/* Left */}
+                      <div className="flex items-center gap-2 min-w-0">
+                        <PhoneCall
+                          size={14}
+                          className="text-[#3ba55c] shrink-0"
+                        />
 
+                        <span className="truncate text-xs font-medium text-white">
+                          {activeCall.channelName}
+                        </span>
 
-      <PhoneCall
-        size={14}
-        className="text-[#3ba55c] shrink-0"
-      />
+                        <div className="flex items-center gap-1 text-[#949ba4]">
+                          <Users size={12} />
+                          <span className="text-[11px]">
+                            {participants.length}
+                          </span>
+                        </div>
+                      </div>
 
-      <span className="truncate text-xs font-medium text-white">
-        {activeCall.channelName}
-      </span>
+                      {/* Right */}
+                      <div className="flex items-center gap-1">
+                        {viewMode === "chat" && (
+                          <button
+                            onClick={() => setViewMode("voice")}
+                            className="rounded p-1.5 text-[#b5bac1] hover:bg-[#3f4248] hover:text-white transition"
+                            title="Open Voice"
+                          >
+                            <PanelRightOpen size={14} />
+                          </button>
+                        )}
 
-      <div className="flex items-center gap-1 text-[#949ba4]">
-        <Users size={12} />
-        <span className="text-[11px]">
-          {participants.length}
-        </span>
-      </div>
-    </div>
-
-    {/* Right */}
-    <div className="flex items-center gap-1">
-      {viewMode === "chat" && (
-        <button
-          onClick={() => setViewMode("voice")}
-          className="rounded p-1.5 text-[#b5bac1] hover:bg-[#3f4248] hover:text-white transition"
-          title="Open Voice"
-        >
-          <PanelRightOpen size={14} />
-        </button>
-      )}
-
-      <button
-        onClick={handleHangUp}
-        className="rounded p-1.5 text-[#ed4245] hover:bg-[#ed4245]/15 transition"
-        title="Leave Call"
-      >
-        <PhoneOff size={14} />
-      </button>
-    </div>
-  </div>
-</div>
+                        <button
+                          onClick={handleHangUp}
+                          className="rounded p-1.5 text-[#ed4245] hover:bg-[#ed4245]/15 transition"
+                          title="Leave Call"
+                        >
+                          <PhoneOff size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -1419,8 +1410,7 @@ const externalState = useMemo(
                 >
                   {isVoiceActiveForCurrentServer && activeCall && (
                     <div className="relative flex h-full w-full">
-                      {(isConnecting ||
-                        (!isConnected && !connectionError)) && (
+                      {(isConnecting || (!isConnected && !connectionError)) && (
                         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/100 backdrop-blur-sm">
                           <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-gray-700 border-t-[#5865f2]" />
                           <h3 className="text-lg font-semibold text-white">
@@ -1515,7 +1505,7 @@ const externalState = useMemo(
       </div>
     </>
   );
-};;
+};
 
 const ServersPage: React.FC = () => {
   return (

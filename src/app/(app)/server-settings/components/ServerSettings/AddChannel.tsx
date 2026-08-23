@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, ChangeEvent, FormEvent } from "react";
-import { createChannel, getAllRoles, setChannelRoleAccess } from "@/api";
+import { createChannel, getAllRoles } from "@/api";
 import { ChannelData } from "@/api/types/channel.types";
 import { Role } from "@/api/types/roles.types";
 import { useSearchParams } from "next/navigation";
@@ -126,9 +126,9 @@ const AddChannel: React.FC = () => {
             : [],
       };
 
-      const response = await createChannel(serverId!, channelPayload);
+      await createChannel(serverId!, channelPayload);
 
-      setMessage("✓ Channel created successfully!");
+      setMessage("Channel created successfully!");
       setMessageType("success");
       setFormData({ name: "", type: "text", channel_type: "normal" });
       setSelectedRoleIds([]);
@@ -211,19 +211,19 @@ const AddChannel: React.FC = () => {
           <div className="mt-3 p-3 bg-[#2f3136] rounded-lg border-l-4 border-[#FFC341]">
             {formData.channel_type === "normal" && (
               <p className="text-sm text-[#b5bac1]">
-                📝 All members can view and send messages
+                All members can view and send messages
               </p>
             )}
             {formData.channel_type === "read_only" && (
               <p className="text-sm text-[#b5bac1]">
-                🔒 Perfect for announcements - all members can see messages, but
+                Perfect for announcements - all members can see messages, but
                 only admins and selected moderators can send
               </p>
             )}
             {formData.channel_type === "role_restricted" && (
               <p className="text-sm text-[#b5bac1]">
-                👥 Only members with selected roles can view this channel.
-                Admins and moderators can send messages
+                Only members with selected roles can view this channel. Admins
+                and moderators can send messages
               </p>
             )}
           </div>
@@ -271,7 +271,7 @@ const AddChannel: React.FC = () => {
             )}
             {selectedRoleIds.length > 0 && (
               <div className="mt-3 text-sm text-[#FFC341] font-medium">
-                ✓ {selectedRoleIds.length} role(s) can view this channel
+                {selectedRoleIds.length} role(s) can view this channel
               </div>
             )}
           </div>
@@ -319,7 +319,7 @@ const AddChannel: React.FC = () => {
             )}
             {selectedModeratorIds.length > 0 && (
               <div className="mt-3 text-sm text-[#FFC341] font-medium">
-                ✓ {selectedModeratorIds.length} moderator role(s) can send
+                {selectedModeratorIds.length} moderator role(s) can send
                 messages
               </div>
             )}

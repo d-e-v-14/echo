@@ -17,8 +17,8 @@ function ChangePasswordContent() {
   const [confirm, setConfirm] = useState("");
 
   const [submitted, setSubmitted] = useState(false);
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [, setMessage] = useState("");
+  const [, setLoading] = useState(false);
   const [toast, setToast] = useState<{
     message: string;
     type: "info" | "success" | "error";

@@ -1,21 +1,17 @@
 "use client";
-import { getUser } from "@/api/profile.api";
 import { logout } from "@/api/auth.api";
-import type { profile } from "@/api/types/profile.types";
 import { useUser } from "@/components/UserContext";
 
 import {
-  LayoutDashboard,
   Users,
   MessageSquareText,
   User as UserIcon,
-  Phone,
   Bell,
   Settings,
   ChevronsLeft,
   ChevronsRight,
   LogOut,
-  Cross
+  Cross,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -40,9 +36,9 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
-  const [error, setError] = useState<string | null>(null);
+  const [error] = useState<string | null>(null);
 
-  // ✅ Get values directly from hooks (no refreshCount needed)
+  // Get values directly from hooks (no refreshCount needed)
   const { unreadCount } = useNotifications();
   const { friendRequestCount, refreshCount: refreshFriendCount } =
     useFriendNotifications();
@@ -59,7 +55,7 @@ export default function Sidebar() {
     // Notifications page will handle its own refresh
   };
 
-  // ✅ Refresh counts when window regains focus
+  // Refresh counts when window regains focus
   useEffect(() => {
     const handleFocus = async () => {
       try {

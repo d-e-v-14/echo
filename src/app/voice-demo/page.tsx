@@ -59,7 +59,7 @@ const VoiceDemoPage = () => {
       <div className="max-w-4xl mx-auto p-8">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text text-transparent">
-            🎯 Enhanced Voice/Video Demo
+            Enhanced Voice/Video Demo
           </h1>
           <p className="text-xl text-gray-300 mb-8">
             Experience the full power of voice and video communication with
@@ -70,7 +70,7 @@ const VoiceDemoPage = () => {
         {/* Feature Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-            <div className="text-blue-400 mb-3">🎤</div>
+            <div className="text-blue-400 mb-3"></div>
             <h3 className="text-lg font-semibold mb-2">Voice Chat</h3>
             <p className="text-gray-400 text-sm">
               Crystal clear audio with noise suppression and adaptive quality
@@ -78,7 +78,7 @@ const VoiceDemoPage = () => {
           </div>
 
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-            <div className="text-green-400 mb-3">📹</div>
+            <div className="text-green-400 mb-3"></div>
             <h3 className="text-lg font-semibold mb-2">Video Calling</h3>
             <p className="text-gray-400 text-sm">
               HD video with multiple participants and smart grid layout
@@ -86,7 +86,7 @@ const VoiceDemoPage = () => {
           </div>
 
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-            <div className="text-purple-400 mb-3">🖥️</div>
+            <div className="text-purple-400 mb-3"></div>
             <h3 className="text-lg font-semibold mb-2">Screen Sharing</h3>
             <p className="text-gray-400 text-sm">
               Share your screen with picture-in-picture video support
@@ -94,7 +94,7 @@ const VoiceDemoPage = () => {
           </div>
 
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-            <div className="text-red-400 mb-3">⏺️</div>
+            <div className="text-red-400 mb-3"></div>
             <h3 className="text-lg font-semibold mb-2">Recording</h3>
             <p className="text-gray-400 text-sm">
               Record calls with audio, video, and screen sharing
@@ -102,7 +102,7 @@ const VoiceDemoPage = () => {
           </div>
 
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-            <div className="text-yellow-400 mb-3">🔧</div>
+            <div className="text-yellow-400 mb-3"></div>
             <h3 className="text-lg font-semibold mb-2">Device Control</h3>
             <p className="text-gray-400 text-sm">
               Switch cameras and microphones on the fly
@@ -110,7 +110,7 @@ const VoiceDemoPage = () => {
           </div>
 
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-            <div className="text-indigo-400 mb-3">📊</div>
+            <div className="text-indigo-400 mb-3"></div>
             <h3 className="text-lg font-semibold mb-2">Quality Control</h3>
             <p className="text-gray-400 text-sm">
               Adaptive quality with network monitoring and optimization
@@ -157,20 +157,20 @@ const VoiceDemoPage = () => {
             disabled={!channelId.trim() || !userId}
             className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:hover:scale-100"
           >
-            🚀 Start Enhanced Voice Call
+            Start Enhanced Voice Call
           </button>
         </div>
 
         {/* Instructions */}
         <div className="mt-12 bg-blue-900 bg-opacity-20 border border-blue-700 rounded-lg p-6">
           <h3 className="text-lg font-semibold mb-4 flex items-center">
-            <span className="mr-2">💡</span>
+            <span className="mr-2"></span>
             How to Test
           </h3>
           <ol className="list-decimal list-inside space-y-2 text-gray-300">
             <li>Open this page in multiple browser tabs or windows</li>
             <li>Use the same Channel ID in all tabs</li>
-            <li>Click "Start Enhanced Voice Call" in each tab</li>
+            <li>Click &quot;Start Enhanced Voice Call&quot; in each tab</li>
             <li>Grant camera and microphone permissions when prompted</li>
             <li>Test voice, video, screen sharing, and recording features</li>
             <li>Try switching devices and adjusting quality settings</li>
@@ -180,9 +180,7 @@ const VoiceDemoPage = () => {
         {/* Technical Features */}
         <div className="mt-8 grid md:grid-cols-2 gap-6">
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-            <h3 className="text-lg font-semibold mb-4">
-              🔧 Technical Features
-            </h3>
+            <h3 className="text-lg font-semibold mb-4">Technical Features</h3>
             <ul className="space-y-2 text-sm text-gray-300">
               <li>• WebRTC peer-to-peer connections</li>
               <li>• Socket.io real-time signaling</li>
@@ -194,7 +192,7 @@ const VoiceDemoPage = () => {
           </div>
 
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-            <h3 className="text-lg font-semibold mb-4">🎨 UI Features</h3>
+            <h3 className="text-lg font-semibold mb-4">UI Features</h3>
             <ul className="space-y-2 text-sm text-gray-300">
               <li>• Responsive video grid layout</li>
               <li>• Picture-in-picture screen share</li>
