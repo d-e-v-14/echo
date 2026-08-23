@@ -323,6 +323,7 @@ const ServersPageContent: React.FC = () => {
 
     const fetchAllRosters = () => {
       const socket = getVoicePresenceSocket(user.id);
+      if (!socket) return;
       voiceChannels.forEach((channel) => {
         socket.emit("get_voice_channel_roster", channel.id, (data: any) => {
           if (data && Array.isArray(data.members)) {
@@ -348,6 +349,7 @@ const ServersPageContent: React.FC = () => {
     }
 
     const socket = getVoicePresenceSocket(user.id);
+    if (!socket) return;
     socket.on("voice_channel_roster", handleRoster);
     const interval = setInterval(fetchAllRosters, 5000);
 

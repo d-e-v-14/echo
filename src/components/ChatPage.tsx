@@ -20,8 +20,7 @@ import {
   searchDmMessages,
 } from "@/api/message.api";
 import { fetchUserProfile } from "@/api/profile.api";
-import { Socket } from "socket.io-client";
-import { createAuthSocket } from "@/socket";
+import { useSocket } from "@/lib/socket/SocketProvider";
 import MessageBubble from "./MessageBubble";
 import MessageAttachment from "./MessageAttachment";
 import { useMessageNotifications } from "@/contexts/MessageNotificationContext";
@@ -1119,7 +1118,7 @@ function MessagesPageContentInner() {
     key: number;
   } | null>(null);
 
-  const socketRef = useRef<Socket | null>(null);
+  const { socket } = useSocket();
   const activeDmIdRef = useRef<string | null>(null);
   const invalidateDmCacheForCurrentUser = () => {
     if (currentUser?.id) {
@@ -1131,17 +1130,9 @@ function MessagesPageContentInner() {
     activeDmIdRef.current = activeDmId;
   }, [activeDmId]);
 
-  // Single socket setup and event wiring
+  // Socket event wiring on the application-level socket
   useEffect(() => {
-    if (!currentUser?.id) return;
-
-    // Create socket once
-    if (!socketRef.current) {
-      const newSocket = createAuthSocket(currentUser.id);
-      socketRef.current = newSocket;
-    }
-
-    const socket = socketRef.current!;
+    if (!socket) return;
 
     const handleNewMessage = (raw: any) => {
       try {
@@ -1352,10 +1343,8 @@ function MessagesPageContentInner() {
       socket.off("dm_sent_confirmation", handleNewMessage);
       socket.off("receive_dm", handleNewMessage);
       socket.off("dm_error", handleError);
-      socket.disconnect();
-      socketRef.current = null;
     };
-  }, [currentUser?.id]);
+  }, [socket]);
 
   // Effect to get user and initialize socket
   useEffect(() => {

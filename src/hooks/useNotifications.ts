@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Socket } from "socket.io-client";
 import { getUser } from "@/api";
-import { createAuthSocket } from "@/socket";
+import { useSocket } from "@/lib/socket/SocketProvider";
 import { apiClient } from "@/utils/apiClient";
 
 interface MentionNotification {
@@ -27,9 +27,10 @@ interface NotificationsState {
 
 let sharedState: NotificationsState = { notifications: [], unreadCount: 0 };
 const subscribers = new Set<(state: NotificationsState) => void>();
+
+// The single application socket the notification listeners are attached to.
 let sharedSocket: Socket | null = null;
-let socketRefCount = 0;
-let socketInitPromise: Promise<void> | null = null;
+let notificationSocketAttached: Socket | null = null;
 let initialUnreadPromise: Promise<void> | null = null;
 let permissionRequested = false;
 
@@ -69,54 +70,55 @@ const setSharedUnreadCount = (updater: ((prev: number) => number) | number) => {
   notifySubscribers();
 };
 
-const ensureSocket = async () => {
-  if (socketInitPromise) return socketInitPromise;
+const handleMentionNotification = (notification: MentionNotification) => {
+  setSharedNotifications((prev) => [notification, ...prev.slice(0, 49)]);
+  setSharedUnreadCount((prev) => prev + 1);
+  void fetchUnreadCountFromServer();
 
-  socketInitPromise = (async () => {
-    const user = await getUser();
-    if (!user?.id) {
-      socketInitPromise = null;
-      return;
-    }
-
-    sharedSocket = createAuthSocket(user.id);
-
-    sharedSocket.on(
-      "mention_notification",
-      (notification: MentionNotification) => {
-        setSharedNotifications((prev) => [notification, ...prev.slice(0, 49)]);
-        setSharedUnreadCount((prev) => prev + 1);
-        void fetchUnreadCountFromServer();
-
-        if ("Notification" in window && Notification.permission === "granted") {
-          new Notification(`${notification.senderUsername} mentioned you`, {
-            body: `"${notification.content.substring(0, 100)}..."`,
-            icon: notification.senderAvatar || "/avatar.png",
-            tag: notification.id,
-          });
-        }
-      }
-    );
-
-    sharedSocket.on("new_notification", (data?: { count?: number }) => {
-      if (data?.count !== undefined) {
-        setSharedUnreadCount(data.count);
-      } else {
-        setSharedUnreadCount((prev) => prev + 1);
-      }
-      void fetchUnreadCountFromServer();
+  if ("Notification" in window && Notification.permission === "granted") {
+    new Notification(`${notification.senderUsername} mentioned you`, {
+      body: `"${notification.content.substring(0, 100)}..."`,
+      icon: notification.senderAvatar || "/avatar.png",
+      tag: notification.id,
     });
+  }
+};
 
-    sharedSocket.on("mention_marked_read", (notificationId: string) => {
-      setSharedNotifications((prev) =>
-        prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n))
-      );
-      setSharedUnreadCount((prev) => Math.max(0, prev - 1));
-      void fetchUnreadCountFromServer();
-    });
-  })();
+const handleNewNotification = (data?: { count?: number }) => {
+  if (data?.count !== undefined) {
+    setSharedUnreadCount(data.count);
+  } else {
+    setSharedUnreadCount((prev) => prev + 1);
+  }
+  void fetchUnreadCountFromServer();
+};
 
-  return socketInitPromise;
+const handleMentionMarkedRead = (notificationId: string) => {
+  setSharedNotifications((prev) =>
+    prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n))
+  );
+  setSharedUnreadCount((prev) => Math.max(0, prev - 1));
+  void fetchUnreadCountFromServer();
+};
+
+// Attach notification listeners to the application-level socket. The provider
+// owns the socket lifecycle; we only (re)bind listeners when the instance
+// changes (e.g. a different user signs in).
+const attachNotificationsSocket = (socket: Socket) => {
+  if (socket === notificationSocketAttached) return;
+
+  if (notificationSocketAttached) {
+    notificationSocketAttached.off("mention_notification");
+    notificationSocketAttached.off("new_notification");
+    notificationSocketAttached.off("mention_marked_read");
+  }
+
+  sharedSocket = socket;
+  notificationSocketAttached = socket;
+
+  socket.on("mention_notification", handleMentionNotification);
+  socket.on("new_notification", handleNewNotification);
+  socket.on("mention_marked_read", handleMentionMarkedRead);
 };
 
 const ensureInitialUnread = async () => {
@@ -143,6 +145,7 @@ const ensureInitialUnread = async () => {
 };
 
 export function useNotifications() {
+  const { socket } = useSocket();
   const [notifications, setNotifications] = useState<MentionNotification[]>(
     sharedState.notifications
   );
@@ -157,21 +160,19 @@ export function useNotifications() {
     subscribers.add(handleUpdate);
     handleUpdate(sharedState);
 
-    socketRefCount += 1;
-    ensureSocket();
     ensureInitialUnread();
 
     return () => {
       subscribers.delete(handleUpdate);
-      socketRefCount = Math.max(0, socketRefCount - 1);
-
-      if (socketRefCount === 0 && sharedSocket) {
-        sharedSocket.disconnect();
-        sharedSocket = null;
-        socketInitPromise = null;
-      }
     };
   }, []);
+
+  // Bind notification listeners to the application-level socket when it is
+  // available (or changes). The socket lifecycle is owned by SocketProvider.
+  useEffect(() => {
+    if (!socket) return;
+    attachNotificationsSocket(socket);
+  }, [socket]);
 
   useEffect(() => {
     if (permissionRequested) return;

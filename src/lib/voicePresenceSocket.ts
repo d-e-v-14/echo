@@ -1,21 +1,12 @@
-import { Socket } from "socket.io-client";
-import { createAuthSocket } from "@/socket";
+import type { Socket } from "socket.io-client";
+import { getAppSocket } from "./socket/appSocket";
 
-let presenceSocket: Socket | null = null;
-let presenceUserId: string | null = null;
+// Voice presence emits go through the single application-level socket owned
+// by <SocketProvider>. No dedicated presence socket is created here.
 
 export const getVoicePresenceSocket = (userId: string): Socket => {
-  if (
-    !presenceSocket ||
-    presenceUserId !== userId ||
-    !presenceSocket.connected
-  ) {
-    presenceSocket?.removeAllListeners();
-    presenceSocket?.disconnect();
-    presenceSocket = createAuthSocket(userId);
-    presenceUserId = userId;
-  }
-  return presenceSocket;
+  void userId; // userId is retained for API compatibility; socket is app-level
+  return getAppSocket() as Socket;
 };
 
 export const emitJoinVoiceChannel = (payload: {
@@ -26,14 +17,14 @@ export const emitJoinVoiceChannel = (payload: {
   muted?: boolean;
   video?: boolean;
 }) => {
-  presenceSocket?.emit("join_voice_channel", payload);
+  getAppSocket()?.emit("join_voice_channel", payload);
 };
 
 export const emitLeaveVoiceChannel = (payload: {
   channelId: string;
   serverId?: string;
 }) => {
-  presenceSocket?.emit("leave_voice_channel", payload);
+  getAppSocket()?.emit("leave_voice_channel", payload);
 };
 
 export const emitVoiceStateUpdate = (payload: {
@@ -43,14 +34,11 @@ export const emitVoiceStateUpdate = (payload: {
   video: boolean;
   screenSharing?: boolean;
 }) => {
-  presenceSocket?.emit("voice_state_update", payload);
+  getAppSocket()?.emit("voice_state_update", payload);
 };
 
+// The app socket lifecycle is owned by <SocketProvider>, so presence teardown
+// must NOT disconnect the shared socket. Kept as a no-op for compat.
 export const disconnectVoicePresenceSocket = () => {
-  if (presenceSocket) {
-    presenceSocket.removeAllListeners();
-    presenceSocket.disconnect();
-  }
-  presenceSocket = null;
-  presenceUserId = null;
+  /* no-op: app socket owned by SocketProvider */
 };

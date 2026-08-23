@@ -9,25 +9,28 @@ import { ImageModalProvider } from "@/contexts/ImageModalContext";
 import RouteChangeLoader from "@/components/RouteChangeLoader";
 import "../globals.css";
 import { UserProvider } from "@/components/UserContext";
+import { SocketProvider } from "@/lib/socket/SocketProvider";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <UserProvider>
-      <FriendNotificationProvider>
-        <MessageNotificationProvider>
-          <VoiceCallProvider>
-            <ImageModalProvider>
-              <RouteChangeLoader>
-                <div className="flex h-screen bg-black overflow-hidden relative">
-                  <Sidebar />
-                  <main className="flex-1 overflow-y-auto">{children}</main>
-                  {/* FloatingVoiceWindow removed — call persists via VoiceCallContext */}
-                </div>
-              </RouteChangeLoader>
-            </ImageModalProvider>
-          </VoiceCallProvider>
-        </MessageNotificationProvider>
-      </FriendNotificationProvider>
+      <SocketProvider>
+        <FriendNotificationProvider>
+          <MessageNotificationProvider>
+            <VoiceCallProvider>
+              <ImageModalProvider>
+                <RouteChangeLoader>
+                  <div className="flex h-screen bg-black overflow-hidden relative">
+                    <Sidebar />
+                    <main className="flex-1 overflow-y-auto">{children}</main>
+                    {/* FloatingVoiceWindow removed — call persists via VoiceCallContext */}
+                  </div>
+                </RouteChangeLoader>
+              </ImageModalProvider>
+            </VoiceCallProvider>
+          </MessageNotificationProvider>
+        </FriendNotificationProvider>
+      </SocketProvider>
     </UserProvider>
   );
 }

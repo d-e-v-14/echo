@@ -1,26 +1,17 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { io, Socket } from "socket.io-client";
+import { useSocket } from "@/lib/socket/SocketProvider";
 
 export function useMentionNotifications() {
+  const { socket } = useSocket();
   const [unreadMentionsCount, setUnreadMentionsCount] = useState(0);
-  const [socket, setSocket] = useState<Socket | null>(null);
 
-  // Initialize socket connection
+  // Listen on the application-level socket for mention notifications
   useEffect(() => {
-    const socketConnection = io(
-      `${process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5000"}`,
-      {
-        withCredentials: true,
-        transports: ["websocket", "polling"],
-      }
-    );
+    if (!socket) return;
 
-    setSocket(socketConnection);
-
-    // Listen for mention notifications
-    socketConnection.on("mention_notification", (data) => {
+    socket.on("mention_notification", (data) => {
       console.log("Received mention notification:", data);
       setUnreadMentionsCount((prev) => prev + 1);
 
@@ -34,9 +25,9 @@ export function useMentionNotifications() {
     });
 
     return () => {
-      socketConnection.disconnect();
+      socket.off("mention_notification");
     };
-  }, []);
+  }, [socket]);
 
   // Fetch initial unread count
   const fetchUnreadCount = useCallback(async () => {

@@ -16,7 +16,7 @@ import {
   FaRedo,
   FaMinus,
 } from "react-icons/fa";
-import { createAuthSocket } from "../socket";
+import { getVoicePresenceSocket } from "@/lib/voicePresenceSocket";
 
 interface VoiceChannelProps {
   channelId: string;
@@ -269,9 +269,10 @@ const VoiceChannel = ({
     if (!userId || !channelId) return;
 
     if (!socketRef.current) {
-      socketRef.current = createAuthSocket(userId);
+      socketRef.current = getVoicePresenceSocket(userId);
     }
     const socket = socketRef.current;
+    if (!socket) return;
 
     const mapMember = (m: any): VoiceMember => ({
       odattendeeId: m.socketId || m.odattendeeId || m.attendeeId || m.id,
@@ -313,7 +314,7 @@ const VoiceChannel = ({
   useEffect(() => {
     if (useExternalManager) return;
     return () => {
-      socketRef.current?.disconnect();
+      // App socket lifecycle is owned by SocketProvider — just drop the ref.
       socketRef.current = null;
     };
   }, [useExternalManager]);

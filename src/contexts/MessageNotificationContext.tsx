@@ -9,10 +9,8 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { Socket } from "socket.io-client";
 import { getUnreadMessageCounts } from "@/api";
-import { getUser } from "@/api";
-import { createAuthSocket } from "@/socket";
+import { useSocket } from "@/lib/socket/SocketProvider";
 
 interface MessageNotificationContextType {
   unreadMessageCount: number;
@@ -39,7 +37,7 @@ export function MessageNotificationProvider({
     Record<string, number>
   >({});
   const [loading, setLoading] = useState(true);
-  const socketRef = useRef<Socket | null>(null);
+  const { socket } = useSocket();
   const refreshInFlightRef = useRef(false);
 
   const refreshCount = useCallback(async () => {
@@ -65,47 +63,20 @@ export function MessageNotificationProvider({
   }, [refreshCount]);
 
   useEffect(() => {
-    let mounted = true;
+    if (!socket) return;
 
-    const setupSocket = async () => {
-      try {
-        const user = await getUser();
-        if (!mounted || !user?.id) return;
-
-        const socket = createAuthSocket(user.id);
-        socketRef.current = socket;
-
-        const handleIncomingDm = () => {
-          void refreshCount();
-        };
-
-        socket.on("receive_dm", handleIncomingDm);
-        socket.on("new_message", handleIncomingDm);
-
-        return () => {
-          socket.off("receive_dm", handleIncomingDm);
-          socket.off("new_message", handleIncomingDm);
-          socket.disconnect();
-          if (socketRef.current === socket) {
-            socketRef.current = null;
-          }
-        };
-      } catch (error) {
-        console.error("Failed to initialize DM notification socket:", error);
-      }
+    const handleIncomingDm = () => {
+      void refreshCount();
     };
 
-    const cleanupPromise = setupSocket();
+    socket.on("receive_dm", handleIncomingDm);
+    socket.on("new_message", handleIncomingDm);
 
     return () => {
-      mounted = false;
-      cleanupPromise.then((cleanup) => {
-        if (typeof cleanup === "function") {
-          cleanup();
-        }
-      });
+      socket.off("receive_dm", handleIncomingDm);
+      socket.off("new_message", handleIncomingDm);
     };
-  }, [refreshCount]);
+  }, [socket, refreshCount]);
 
   const contextValue = useMemo(
     () => ({

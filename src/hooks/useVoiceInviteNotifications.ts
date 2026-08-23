@@ -5,8 +5,7 @@
 // Should be used at a high level (e.g., in the main layout or providers)
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Socket } from "socket.io-client";
-import { createAuthSocket } from "@/socket";
+import { useSocket } from "@/lib/socket/SocketProvider";
 
 // ==================== TYPES ====================
 
@@ -47,7 +46,7 @@ export function useVoiceInviteNotifications({
   inviteExpirationMs = 30000, // 30 seconds default
 }: UseVoiceInviteNotificationsOptions): UseVoiceInviteNotificationsReturn {
   const [invites, setInvites] = useState<VoiceInvite[]>([]);
-  const socketRef = useRef<Socket | null>(null);
+  const { socket } = useSocket();
   const expirationTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   // Clean up expired invites
@@ -96,11 +95,7 @@ export function useVoiceInviteNotifications({
 
   // Set up socket connection and listeners
   useEffect(() => {
-    if (!userId) return;
-
-    // Create socket connection
-    const socket = createAuthSocket(userId);
-    socketRef.current = socket;
+    if (!userId || !socket) return;
 
     // Listen for voice invite notifications
     const handleVoiceInviteReceived = (data: {
@@ -177,14 +172,12 @@ export function useVoiceInviteNotifications({
     // Cleanup
     return () => {
       socket.off("voice_invite_received", handleVoiceInviteReceived);
-      socket.disconnect();
-      socketRef.current = null;
 
       // Clear all timers
       expirationTimersRef.current.forEach((timer) => clearTimeout(timer));
       expirationTimersRef.current.clear();
     };
-  }, [userId, inviteExpirationMs, clearInvite]);
+  }, [socket, userId, inviteExpirationMs, clearInvite]);
 
   return {
     invites,

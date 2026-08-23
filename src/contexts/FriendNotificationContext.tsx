@@ -9,9 +9,8 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { Socket } from "socket.io-client";
-import { fetchFriendRequests, getUser } from "@/api";
-import { createAuthSocket } from "@/socket";
+import { fetchFriendRequests } from "@/api";
+import { useSocket } from "@/lib/socket/SocketProvider";
 
 interface FriendNotificationContextType {
   friendRequestCount: number;
@@ -32,7 +31,7 @@ export function FriendNotificationProvider({
 }) {
   const [friendRequestCount, setFriendRequestCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const socketRef = useRef<Socket | null>(null);
+  const { socket } = useSocket();
   const refreshInFlightRef = useRef(false);
 
   const refreshCount = useCallback(async () => {
@@ -57,47 +56,20 @@ export function FriendNotificationProvider({
   }, [refreshCount]);
 
   useEffect(() => {
-    let mounted = true;
-    let cleanupSocket: (() => void) | null = null;
+    if (!socket) return;
 
-    const setupSocket = async () => {
-      try {
-        const user = await getUser();
-        if (!mounted || !user?.id) return;
-
-        const socket = createAuthSocket(user.id);
-        socketRef.current = socket;
-
-        const handleFriendEvent = () => {
-          void refreshCount();
-        };
-
-        socket.on("friend_request", handleFriendEvent);
-        socket.on("friend_request_accepted", handleFriendEvent);
-
-        cleanupSocket = () => {
-          socket.off("friend_request", handleFriendEvent);
-          socket.off("friend_request_accepted", handleFriendEvent);
-          socket.disconnect();
-          if (socketRef.current === socket) {
-            socketRef.current = null;
-          }
-        };
-      } catch (error) {
-        console.error(
-          "Failed to initialize friend notification socket:",
-          error
-        );
-      }
+    const handleFriendEvent = () => {
+      void refreshCount();
     };
 
-    void setupSocket();
+    socket.on("friend_request", handleFriendEvent);
+    socket.on("friend_request_accepted", handleFriendEvent);
 
     return () => {
-      mounted = false;
-      cleanupSocket?.();
+      socket.off("friend_request", handleFriendEvent);
+      socket.off("friend_request_accepted", handleFriendEvent);
     };
-  }, [refreshCount]);
+  }, [socket, refreshCount]);
 
   const contextValue = useMemo(
     () => ({ friendRequestCount, loading, refreshCount }),

@@ -9,7 +9,6 @@ import React, {
   forwardRef,
   useMemo,
 } from "react";
-import { Socket } from "socket.io-client";
 import dynamic from "next/dynamic";
 import MessageInput from "./MessageInput";
 import MessageInputWithMentions from "./MessageInputWithMentions";
@@ -25,7 +24,7 @@ import {
 import { MoreVertical, Paperclip } from "lucide-react";
 import { getUserAvatar, getUser } from "@/api/profile.api";
 import { getChannelPermissions } from "@/api/channel.api";
-import { createAuthSocket } from "@/socket";
+import { useSocket } from "@/lib/socket/SocketProvider";
 import MessageBubble from "./MessageBubble";
 import Toast from "@/components/Toast";
 import { Search, Hash } from "lucide-react";
@@ -154,7 +153,7 @@ export default forwardRef(function ChatWindow(
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const validRoleNamesRef = useRef<Set<string>>(new Set());
 
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const { socket, connected, joinChannel, leaveChannel } = useSocket();
   const usernamesRef = useRef<Record<string, string>>({});
   const avatarCacheRef = useRef<
     Record<string, { url: string; updatedAt: number }>
@@ -780,15 +779,6 @@ export default forwardRef(function ChatWindow(
     loadMyServerRoles();
   }, [serverId, currentUserId]);
 
-  useEffect(() => {
-    const newSocket = createAuthSocket(currentUserId);
-    setSocket(newSocket);
-
-    return () => {
-      newSocket.disconnect();
-    };
-  }, [currentUserId]);
-
   const loadMessages = useCallback(
     async (loadMore: boolean = false, abortSignal?: AbortSignal) => {
       const currentChannelId = channelIdRef.current;
@@ -1289,40 +1279,12 @@ export default forwardRef(function ChatWindow(
   }, [localStream, camOn]);
 
   useEffect(() => {
-    if (!socket || !channelId) return;
-
-    socket.emit("join_room", channelId);
-
+    if (!channelId) return;
+    joinChannel(channelId);
     return () => {
-      socket.emit("leave_room", channelId);
+      leaveChannel(channelId);
     };
-  }, [socket, channelId]);
-
-  useEffect(() => {
-    if (!socket) return;
-    socket.on("connect", () => {
-      if (channelId) {
-        socket.emit("join_room", channelId);
-      }
-    });
-
-    socket.on("connect_error", () => {});
-
-    socket.on("disconnect", () => {});
-
-    const pingInterval = setInterval(() => {
-      if (!socket.connected) {
-        socket.connect();
-      }
-    }, 5000);
-
-    return () => {
-      socket.off("connect");
-      socket.off("connect_error");
-      socket.off("disconnect");
-      clearInterval(pingInterval);
-    };
-  }, [socket, channelId]);
+  }, [channelId, joinChannel, leaveChannel]);
 
   useEffect(() => {
     if (!socket) return;
@@ -1807,6 +1769,19 @@ export default forwardRef(function ChatWindow(
 
           {/* Right Section */}
           <div className="flex items-center gap-1">
+            <div
+              className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[12px]"
+              title={connected ? "Connected" : "Disconnected"}
+            >
+              <span
+                className={`inline-block w-2 h-2 rounded-full ${
+                  connected ? "bg-green-500" : "bg-red-500"
+                }`}
+              />
+              <span className="hidden sm:inline text-[#949ba4]">
+                {connected ? "Connected" : "Disconnected"}
+              </span>
+            </div>
             <button
               onClick={() => setShowSearch(true)}
               className="p-2 rounded-md text-[#b5bac1] hover:text-white hover:bg-[#3f4248] transition"
