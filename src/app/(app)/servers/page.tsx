@@ -35,18 +35,13 @@ import {
   FaVideoSlash,
 } from "react-icons/fa";
 import VoiceChannel from "@/components/EnhancedVoiceChannel";
-import {
-  fetchServers,
-  fetchChannelsByServer,
-  updateChannel,
-  deleteChannel,
-} from "@/api";
-import {
-  getSelfAssignableRoles,
-  getMyRoles,
-  selfAssignRole,
-  selfUnassignRole,
-} from "@/api";
+import { updateChannel, deleteChannel, fetchChannelsByServer } from "@/api";
+import { selfAssignRole, selfUnassignRole } from "@/api";
+import { useQueryClient } from "@tanstack/react-query";
+import { useServers } from "@/hooks/query/useServers";
+import { useChannels } from "@/hooks/query/useChannels";
+import { useServerRoles } from "@/hooks/query/useServerRoles";
+import { queryKeys, policyForQueryKey } from "@/lib/query";
 import { type Role } from "@/api/types/roles.types";
 import Chatwindow from "@/components/ChatWindow";
 import NotificationBell from "@/components/NotificationBell";
@@ -104,7 +99,6 @@ const ServersPageContent: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selfAssignableRoles, setSelfAssignableRoles] = useState<Role[]>([]);
   const [myRoles, setMyRoles] = useState<Role[]>([]);
-  const [rolesLoading, setRolesLoading] = useState(false);
   const [showRoles, setShowRoles] = useState(false);
   const [viewMode, setViewMode] = useState<"voice" | "chat">("chat");
   const [toast, setToast] = useState<{
@@ -118,6 +112,22 @@ const ServersPageContent: React.FC = () => {
   const [isSavingChannel, setIsSavingChannel] = useState(false);
   const [isDeletingChannel, setIsDeletingChannel] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+
+  const queryClient = useQueryClient();
+  const {
+    servers: cachedServers,
+    isLoading: serversLoading,
+    isError: serversIsError,
+  } = useServers();
+  const {
+    channels: cachedChannels,
+    isLoading: channelsLoading,
+  } = useChannels(selectedServerId ?? undefined);
+  const {
+    selfAssignableRoles: cachedSelfAssignableRoles,
+    myRoles: cachedMyRoles,
+    isLoading: rolesLoading,
+  } = useServerRoles(selectedServerId ?? undefined);
   // All useState at top
   // Also correct:
   type ChannelRoster = {
@@ -368,35 +378,31 @@ const ServersPageContent: React.FC = () => {
   }, [viewMode]);
 
   useEffect(() => {
-    const loadServers = async () => {
-      try {
-        setLoading(true);
-        const data = await fetchServers();
-        setServers(data);
-        if (data.length > 0) {
-          const cachedServerId = localStorage.getItem("currentServerId");
-          const preferredServer =
-            (serverIdFromQuery
-              ? data.find((s: any) => s.id === serverIdFromQuery)
-              : null) ||
-            (cachedServerId
-              ? data.find((s: any) => s.id === cachedServerId)
-              : null) ||
-            data[0];
-          setSelectedServerId(preferredServer.id);
-          setSelectedServerName(preferredServer.name);
-        }
-        setToast(null);
-      } catch {
-        setError("Failed to load servers.");
-        setToast({ message: "Failed to load servers", type: "error" });
-      } finally {
-        setLoading(false);
-        pageReady();
-      }
-    };
-    loadServers();
-  }, [serverIdFromQuery, pageReady]);
+    setLoading(serversLoading);
+  }, [serversLoading]);
+
+  useEffect(() => {
+    if (serversLoading) return;
+    const data = cachedServers as any[] | undefined;
+    setLoading(false);
+    setError(serversIsError ? "Failed to load servers." : null);
+    if (Array.isArray(data)) setServers(data);
+    if (data && data.length > 0) {
+      const cachedServerId = localStorage.getItem("currentServerId");
+      const preferredServer =
+        (serverIdFromQuery
+          ? data.find((s: any) => s.id === serverIdFromQuery)
+          : null) ||
+        (cachedServerId
+          ? data.find((s: any) => s.id === cachedServerId)
+          : null) ||
+        data[0];
+      setSelectedServerId(preferredServer.id);
+      setSelectedServerName(preferredServer.name);
+      setToast(null);
+    }
+    pageReady();
+  }, [cachedServers, serversLoading, serversIsError, serverIdFromQuery, pageReady]);
 
   useEffect(() => {
     if (viewModeFromQuery === "voice") setViewMode("voice");
@@ -447,7 +453,13 @@ const ServersPageContent: React.FC = () => {
       .single();
     const isVoiceEnabled = controls?.voice_enabled ?? true;
     setVoiceEnabled(isVoiceEnabled);
-    const data: Channel[] = await fetchChannelsByServer(serverId);
+    const key = queryKeys.serverChannels(serverId);
+    const data: Channel[] =
+      (await queryClient.fetchQuery<Channel[]>({
+        queryKey: key,
+        queryFn: () => fetchChannelsByServer(serverId),
+        staleTime: policyForQueryKey(key).staleTimeMs,
+      })) ?? [];
     const normalized = (data || []).map((c) => ({
       ...c,
       type: (c.type || "").toLowerCase(),
@@ -462,7 +474,7 @@ const ServersPageContent: React.FC = () => {
       return firstTextChannel || null;
     });
     return filteredChannels;
-  }, []);
+  }, [queryClient]);
 
   useEffect(() => {
     if (!selectedServerId) return;
@@ -479,23 +491,26 @@ const ServersPageContent: React.FC = () => {
   }, [selectedServerId, myRoles, loadChannelsForServer]);
 
   useEffect(() => {
-    const loadRoles = async () => {
-      if (!selectedServerId) return;
-      setRolesLoading(true);
-      try {
-        const [assignableRoles, userRoles] = await Promise.all([
-          getSelfAssignableRoles(selectedServerId),
-          getMyRoles(selectedServerId),
-        ]);
-        setSelfAssignableRoles(assignableRoles);
-        setMyRoles(userRoles);
-      } catch {
-      } finally {
-        setRolesLoading(false);
-      }
-    };
-    loadRoles();
-  }, [selectedServerId]);
+    if (channelsLoading) return;
+    const normalized = (cachedChannels || []).map((c) => ({
+      ...c,
+      type: (c.type || "").toLowerCase(),
+    }));
+    const filteredChannels = voiceEnabled
+      ? normalized
+      : normalized.filter((c) => c.type === "text");
+    setChannels(filteredChannels);
+    setActiveChannel((prev) => {
+      if (prev && filteredChannels.some((c) => c.id === prev.id)) return prev;
+      return filteredChannels.find((c) => c.type === "text") || null;
+    });
+  }, [cachedChannels, voiceEnabled, channelsLoading]);
+
+  useEffect(() => {
+    if (rolesLoading) return;
+    setSelfAssignableRoles(cachedSelfAssignableRoles);
+    setMyRoles(cachedMyRoles);
+  }, [cachedSelfAssignableRoles, cachedMyRoles, rolesLoading]);
 
   useEffect(() => {
     if (selectedServerId) {
@@ -553,19 +568,9 @@ const ServersPageContent: React.FC = () => {
 
   useEffect(() => {
     if (!refresh) return;
-    const reloadServers = async () => {
-      try {
-        setLoading(true);
-        const data = await fetchServers();
-        setServers(data);
-      } catch {
-        setError("Failed to load servers.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    reloadServers();
-  }, [refresh]);
+    setLoading(true);
+    queryClient.invalidateQueries({ queryKey: queryKeys.servers });
+  }, [refresh, queryClient]);
 
   const handleHangUp = () => {
     if (activeCall && user?.id) {
@@ -607,12 +612,12 @@ const ServersPageContent: React.FC = () => {
       const hasRole = myRoles.some((r) => r.id === roleId);
       if (hasRole) {
         await selfUnassignRole(selectedServerId, roleId);
-        setMyRoles((prev) => prev.filter((r) => r.id !== roleId));
       } else {
         await selfAssignRole(selectedServerId, roleId);
-        const updatedRoles = await getMyRoles(selectedServerId);
-        setMyRoles(updatedRoles);
       }
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.serverRoles(selectedServerId),
+      });
     } catch (err: any) {
       setToast({
         message: err?.response?.data?.error || "Failed to toggle role",
@@ -644,6 +649,9 @@ const ServersPageContent: React.FC = () => {
     try {
       await updateChannel(selectedServerId, channelSettings.channel.id, {
         name: nextName,
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.serverChannels(selectedServerId),
       });
       setChannels((prev) =>
         prev.map((channel) =>
@@ -677,6 +685,9 @@ const ServersPageContent: React.FC = () => {
     setIsDeletingChannel(true);
     try {
       await deleteChannel(selectedServerId, channelSettings.channel.id);
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.serverChannels(selectedServerId),
+      });
       const remainingChannels = channels.filter(
         (channel) => channel.id !== channelSettings.channel.id
       );
