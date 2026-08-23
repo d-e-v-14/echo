@@ -33,6 +33,8 @@ import { useTyping } from "@/hooks/useTyping";
 
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { MessageVirtualizer } from "@/components/chat/MessageVirtualizer";
+import { ScrollToBottomButton } from "@/components/ScrollToBottomButton";
+import { isNearBottom } from "@/lib/scrollUtils";
 import { MessageList } from "@/components/chat/MessageList";
 import { MessageComposer } from "@/components/chat/MessageComposer";
 
@@ -100,6 +102,7 @@ export default forwardRef(function ChatWindow(
   const [micOn, setMicOn] = useState<boolean>(true);
   const [camOn, setCamOn] = useState<boolean>(true);
   const [isSending, setIsSending] = useState(false);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [toast, setToast] = useState<{
     message: string;
     type: "info" | "success" | "error";
@@ -190,6 +193,11 @@ export default forwardRef(function ChatWindow(
     const container = messagesContainerRef.current;
     if (!container || messages.length === 0 || !channelId) return;
 
+    if (isNearBottom(container, 80)) {
+      channelScrollAnchors.delete(channelId);
+      return;
+    }
+
     const viewportTop = container.scrollTop;
     for (const msg of messages) {
       const el = messageRefs.current[msg.id];
@@ -205,6 +213,20 @@ export default forwardRef(function ChatWindow(
       }
     }
   }, [messages, channelId]);
+
+  const updateScrollButtonVisibility = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    setShowScrollBtn(!isNearBottom(container));
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    isAutoScrollingRef.current = true;
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    setTimeout(() => {
+      isAutoScrollingRef.current = false;
+    }, 1000);
+  }, []);
 
   const { permissions, permissionError, setPermissionError } =
     useChannelPermissions(channelId, serverId);
@@ -381,6 +403,7 @@ export default forwardRef(function ChatWindow(
       const done = () =>
         setTimeout(() => {
           isAutoScrollingRef.current = false;
+          updateScrollButtonVisibility();
         }, 500);
 
       try {
@@ -446,6 +469,7 @@ export default forwardRef(function ChatWindow(
     lastReadTimestamp,
     markUnreadMentionsAsRead,
     updateLastRead,
+    updateScrollButtonVisibility,
   ]);
 
   const handleScroll = useCallback(() => {
@@ -453,6 +477,8 @@ export default forwardRef(function ChatWindow(
     if (!container || loadingMore || !hasMore) return;
 
     if (isAutoScrollingRef.current) return;
+
+    updateScrollButtonVisibility();
 
     hasUserScrolledRef.current = true;
     isManuallyScrollingRef.current = false;
@@ -525,6 +551,7 @@ export default forwardRef(function ChatWindow(
     updateLastRead,
     markUnreadMentionsAsRead,
     saveScrollAnchor,
+    updateScrollButtonVisibility,
   ]);
 
   const handleReply = useCallback((message: ChannelMessage) => {
@@ -1117,29 +1144,33 @@ export default forwardRef(function ChatWindow(
         </div>
       )}
 
-      <MessageVirtualizer
-        containerRef={messagesContainerRef}
-        onScroll={handleScroll}
-      >
-        <MessageList
-          messages={messages}
-          currentUserId={currentUserId}
-          loadingMessages={loadingMessages}
-          loadingMore={loadingMore}
-          hasMore={hasMore}
-          isInitialLoadDone={isInitialLoadDone}
-          unreadDividerIndex={unreadDividerIndex}
-          messagesEndRef={messagesEndRef}
-          registerRef={registerMessageRef}
-          typingNames={typingUsers}
-          renderContent={renderMessageContent}
-          onReply={handleReply}
-          onProfileClick={(msg) =>
-            openProfile(msg.senderId, msg.username, msg.avatarUrl)
-          }
-          onReplyPreviewClick={scrollToMessage}
-        />
-      </MessageVirtualizer>
+      <div className="relative flex-1 flex flex-col min-h-0">
+        <MessageVirtualizer
+          containerRef={messagesContainerRef}
+          onScroll={handleScroll}
+        >
+          <MessageList
+            messages={messages}
+            currentUserId={currentUserId}
+            loadingMessages={loadingMessages}
+            loadingMore={loadingMore}
+            hasMore={hasMore}
+            isInitialLoadDone={isInitialLoadDone}
+            unreadDividerIndex={unreadDividerIndex}
+            messagesEndRef={messagesEndRef}
+            registerRef={registerMessageRef}
+            typingNames={typingUsers}
+            renderContent={renderMessageContent}
+            onReply={handleReply}
+            onProfileClick={(msg) =>
+              openProfile(msg.senderId, msg.username, msg.avatarUrl)
+            }
+            onReplyPreviewClick={scrollToMessage}
+          />
+        </MessageVirtualizer>
+
+        {showScrollBtn && <ScrollToBottomButton onClick={scrollToBottom} />}
+      </div>
 
       <MessageComposer
         permissions={permissions}

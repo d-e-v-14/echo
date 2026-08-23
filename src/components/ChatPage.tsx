@@ -29,6 +29,8 @@ import { useToast } from "@/contexts/ToastContext";
 import dynamic from "next/dynamic";
 import { Theme } from "emoji-picker-react";
 import UserProfileModal from "./UserProfileModal";
+import { ScrollToBottomButton } from "@/components/ScrollToBottomButton";
+import { isNearBottom } from "@/lib/scrollUtils";
 // import { useMessageReactions } from "@/hooks/useMessageReactions";
 // import { usePinnedMessages } from "@/hooks/usePinnedMessages";
 import MessageSearchPanel from "./MessageSearchPanel";
@@ -471,6 +473,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   }
   const [files, setFiles] = useState<SelectedFile[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const dmAtBottomRef = useRef(true);
+  const prevThreadRef = useRef<string | null>(null);
+
+  const scrollDmToBottom = () => {
+    dmAtBottomRef.current = true;
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const draftInputRef = useRef<HTMLTextAreaElement>(null);
@@ -495,11 +505,39 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   const handleDmScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const container = e.currentTarget;
+    const isAtBottom = isNearBottom(container);
+    dmAtBottomRef.current = isAtBottom;
+    setShowScrollToBottom(!isAtBottom);
 
     if (container.scrollTop < 100) {
       onLoadOlderMessages?.(container);
     }
   };
+
+  useEffect(() => {
+    const isThreadSwitch = prevThreadRef.current !== threadId;
+    prevThreadRef.current = threadId;
+
+    requestAnimationFrame(() => {
+      const container = messagesContainerRef.current;
+      if (!container) return;
+
+      if (isThreadSwitch) {
+        dmAtBottomRef.current = true;
+        bottomRef.current?.scrollIntoView({ behavior: "auto" });
+        setShowScrollToBottom(false);
+        return;
+      }
+
+      if (dmAtBottomRef.current) {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+        setShowScrollToBottom(false);
+        return;
+      }
+
+      setShowScrollToBottom(!isNearBottom(container));
+    });
+  }, [messages, threadId]);
 
   const groupedMessages = useMemo<GroupedSection[]>(() => {
     if (!messages.length) return [];
@@ -783,11 +821,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         title="Search Conversation"
       />
 
-      <div
-        ref={messagesContainerRef}
-        onScroll={handleDmScroll}
-        className="chat-scroll flex-1 space-y-0 overflow-y-auto px-6 py-6 pr-3 scrollbar-thin scrollbar-thumb-slate-500 scrollbar-track-slate-900"
-      >
+      <div className="relative flex-1 flex flex-col min-h-0">
+        <div
+          ref={messagesContainerRef}
+          onScroll={handleDmScroll}
+          className="chat-scroll flex-1 space-y-0 overflow-y-auto px-6 py-6 pr-3 scrollbar-thin scrollbar-thumb-slate-500 scrollbar-track-slate-900"
+        >
         {isLoadingOlderMessages && (
           <div className="flex justify-center py-2">
             <div className="flex items-center gap-2 rounded-full border border-slate-800/60 bg-slate-900/70 px-3 py-2 text-sm text-slate-300 shadow-lg shadow-black/20">
@@ -885,6 +924,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           ))
         )}
         <div ref={bottomRef} />
+        </div>
+
+        {showScrollToBottom && (
+          <ScrollToBottomButton
+            onClick={scrollDmToBottom}
+            className="bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
+          />
+        )}
       </div>
 
       <footer className="relative border-t border-slate-800/80 bg-slate-900/70 px-6 py-5">
