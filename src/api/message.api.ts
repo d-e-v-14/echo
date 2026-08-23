@@ -101,11 +101,7 @@ export const uploadMessage = async (payload: {
       formData.append("file", payload.file);
     }
 
-    const response = await apiClient.post("/api/message/upload", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
+    const response = await apiClient.post("/api/message/upload", formData);
 
     return response.data;
   } catch (error) {
@@ -143,11 +139,7 @@ export const uploaddm = async (payload: {
       formData.append("file", payload.mediaurl);
     }
 
-    const response = await apiClient.post("/api/message/upload_dm", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
+    const response = await apiClient.post("/api/message/upload_dm", formData);
 
     return response.data;
   } catch (error) {

@@ -33,11 +33,7 @@ export const updateServer = async (
   if (iconFile) formData.append("icon", iconFile);
 
   const [response, user] = await Promise.all([
-    apiClient.put(`/api/newserver/${serverId}`, formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    }),
+    apiClient.put(`/api/newserver/${serverId}`, formData),
     getUser(),
   ]);
 
@@ -176,12 +172,7 @@ export const createServer = async (payload: {
     }
     const response = await apiClient.post<Server>(
       "/api/newserver/create/",
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      }
+      formData
     );
     return response.data;
   } catch (error) {

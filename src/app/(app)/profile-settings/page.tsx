@@ -110,13 +110,7 @@ export default function ProfilePage() {
       formData.append("bio", about.slice(0, BIO_MAX_LENGTH));
       if (avatarFile) formData.append("avatar", avatarFile);
 
-      const res = await apiClient.patch(
-        "/api/profile/updateProfile",
-        formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        }
-      );
+      const res = await apiClient.patch("/api/profile/updateProfile", formData);
 
       const updatedUser = res.data.user;
 

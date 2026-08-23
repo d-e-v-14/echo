@@ -42,6 +42,7 @@ import { useServers } from "@/hooks/query/useServers";
 import { useChannels } from "@/hooks/query/useChannels";
 import { useServerRoles } from "@/hooks/query/useServerRoles";
 import { queryKeys, policyForQueryKey } from "@/lib/query";
+import { resolvePreferredServer } from "@/lib/servers/serverSelection";
 import { type Role } from "@/api/types/roles.types";
 import Chatwindow from "@/components/ChatWindow";
 import NotificationBell from "@/components/NotificationBell";
@@ -91,6 +92,15 @@ const ServersPageContent: React.FC = () => {
   const [servers, setServers] = useState<any[]>([]);
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
   const [selectedServerName, setSelectedServerName] = useState<string>("");
+
+  const syncServerUrl = useCallback(
+    (id: string) => {
+      const params = new URLSearchParams(window.location.search);
+      params.set("serverId", id);
+      router.replace(`/servers?${params.toString()}`, { scroll: false });
+    },
+    [router]
+  );
   const [channels, setChannels] = useState<Channel[]>([]);
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
   const chatWindowRef = useRef<any>(null);
@@ -388,21 +398,49 @@ const ServersPageContent: React.FC = () => {
     setError(serversIsError ? "Failed to load servers." : null);
     if (Array.isArray(data)) setServers(data);
     if (data && data.length > 0) {
-      const cachedServerId = localStorage.getItem("currentServerId");
-      const preferredServer =
-        (serverIdFromQuery
-          ? data.find((s: any) => s.id === serverIdFromQuery)
-          : null) ||
-        (cachedServerId
-          ? data.find((s: any) => s.id === cachedServerId)
-          : null) ||
-        data[0];
-      setSelectedServerId(preferredServer.id);
-      setSelectedServerName(preferredServer.name);
+      const fromUrl = data.find((s: any) => s.id === serverIdFromQuery);
+      if (fromUrl) {
+        if (fromUrl.id !== selectedServerId) {
+          setSelectedServerId(fromUrl.id);
+          setSelectedServerName(fromUrl.name);
+        }
+      } else if (!selectedServerId) {
+        const persistedServerId = localStorage.getItem("currentServerId");
+        const preferredServer = resolvePreferredServer(data, {
+          serverIdFromQuery,
+          persistedServerId,
+        });
+        if (preferredServer) {
+          setSelectedServerId(preferredServer.id);
+          setSelectedServerName(preferredServer.name);
+          if (preferredServer.id !== serverIdFromQuery) {
+            syncServerUrl(preferredServer.id);
+          }
+        }
+      }
       setToast(null);
     }
     pageReady();
-  }, [cachedServers, serversLoading, serversIsError, serverIdFromQuery, pageReady]);
+  }, [
+    cachedServers,
+    serversLoading,
+    serversIsError,
+    serverIdFromQuery,
+    selectedServerId,
+    pageReady,
+    syncServerUrl,
+  ]);
+
+  const handleServerSelect = useCallback(
+    (id: string, name: string) => {
+      if (id !== selectedServerId) {
+        setSelectedServerId(id);
+        setSelectedServerName(name);
+      }
+      syncServerUrl(id);
+    },
+    [selectedServerId, syncServerUrl]
+  );
 
   useEffect(() => {
     if (viewModeFromQuery === "voice") setViewMode("voice");
@@ -428,8 +466,7 @@ const ServersPageContent: React.FC = () => {
         if (serverId !== selectedServerId) {
           const targetServer = servers.find((s) => s.id === serverId);
           if (targetServer) {
-            setSelectedServerId(targetServer.id);
-            setSelectedServerName(targetServer.name);
+            handleServerSelect(targetServer.id, targetServer.name);
           }
         }
       }
@@ -444,7 +481,7 @@ const ServersPageContent: React.FC = () => {
         handleExpandVoiceView as EventListener
       );
     };
-  }, [selectedServerId, activeCall, servers]);
+  }, [selectedServerId, activeCall, servers, handleServerSelect]);
 
   const loadChannelsForServer = useCallback(async (serverId: string) => {
     const { data: controls } = await supabase
@@ -820,10 +857,7 @@ const ServersPageContent: React.FC = () => {
                 className={`w-12 h-12 rounded-full hover:scale-105 transition-transform cursor-pointer shadow-[0_0_18px_rgba(0,0,0,0.4)] ${
                   selectedServerId === server.id ? "ring-2 ring-white" : ""
                 }`}
-                onClick={() => {
-                  setSelectedServerId(server.id);
-                  setSelectedServerName(server.name);
-                }}
+                onClick={() => handleServerSelect(server.id, server.name)}
               />
             ))
           )}
@@ -958,11 +992,8 @@ const ServersPageContent: React.FC = () => {
                       ) => {
                         // Switch server if needed
                         if (serverId && serverId !== selectedServerId) {
-                          setSelectedServerId(serverId);
                           const server = servers.find((s) => s.id === serverId);
-                          if (server) {
-                            setSelectedServerName(server.name);
-                          }
+                          handleServerSelect(serverId, server?.name ?? "Server");
                         }
                         // Wait for channels to load if we switched servers
                         let targetChannels = channels;
