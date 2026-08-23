@@ -56,6 +56,13 @@ const UserProfileModal = dynamic(() => import("./UserProfileModal"), {
   ssr: false,
 });
 
+interface ScrollAnchor {
+  messageId: string | number;
+  offset: number;
+}
+
+const channelScrollAnchors = new Map<string, ScrollAnchor>();
+
 interface ChatWindowProps {
   onLoadOlderMessages?: () => void;
   channelId: string;
@@ -178,6 +185,26 @@ export default forwardRef(function ChatWindow(
     currentUserId,
     resolveAvatarUrl,
   });
+
+  const saveScrollAnchor = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container || messages.length === 0 || !channelId) return;
+
+    const viewportTop = container.scrollTop;
+    for (const msg of messages) {
+      const el = messageRefs.current[msg.id];
+      if (!el) continue;
+      const top = el.offsetTop;
+      const bottom = top + el.offsetHeight;
+      if (bottom >= viewportTop) {
+        channelScrollAnchors.set(channelId, {
+          messageId: msg.id,
+          offset: viewportTop - top,
+        });
+        break;
+      }
+    }
+  }, [messages, channelId]);
 
   const { permissions, permissionError, setPermissionError } =
     useChannelPermissions(channelId, serverId);
@@ -351,60 +378,62 @@ export default forwardRef(function ChatWindow(
     hasUserScrolledRef.current = false;
 
     const performInitialScroll = () => {
-      try {
-        const lastReadMs = lastReadTimestamp
-          ? new Date(lastReadTimestamp).getTime()
-          : 0;
-
-        if (!lastReadMs) {
-          messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
-          void markUnreadMentionsAsRead();
-
-          setTimeout(() => {
-            isAutoScrollingRef.current = false;
-          }, 500);
-          return;
-        }
-
-        const firstUnreadIndex = messages.findIndex((msg) => {
-          const msgTime = new Date(msg.timestamp).getTime();
-          return msgTime > lastReadMs && msg.senderId !== currentUserId;
-        });
-
-        if (firstUnreadIndex === -1) {
-          messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
-          void markUnreadMentionsAsRead();
-          setTimeout(() => {
-            isAutoScrollingRef.current = false;
-          }, 500);
-        } else {
-          const firstUnread = messages[firstUnreadIndex];
-          const el = messageRefs.current[firstUnread.id];
-
-          if (el) {
-            el.scrollIntoView({ behavior: "auto", block: "start" });
-            setTimeout(() => {
-              isAutoScrollingRef.current = false;
-            }, 500);
-          } else {
-            requestAnimationFrame(() => {
-              const retryEl = messageRefs.current[firstUnread.id];
-              if (retryEl) {
-                retryEl.scrollIntoView({ behavior: "auto", block: "start" });
-              } else {
-                messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
-              }
-              setTimeout(() => {
-                isAutoScrollingRef.current = false;
-              }, 500);
-            });
-          }
-        }
-      } catch {
-        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+      const done = () =>
         setTimeout(() => {
           isAutoScrollingRef.current = false;
         }, 500);
+
+      try {
+        const container = messagesContainerRef.current;
+        const lastReadMs = lastReadTimestamp
+          ? new Date(lastReadTimestamp).getTime()
+          : 0;
+        const firstUnreadIndex = messages.findIndex(
+          (msg) =>
+            new Date(msg.timestamp).getTime() > lastReadMs &&
+            msg.senderId !== currentUserId
+        );
+        const hasUnread = firstUnreadIndex !== -1;
+
+        if (hasUnread) {
+          const firstUnread = messages[firstUnreadIndex];
+          const el = messageRefs.current[firstUnread.id];
+          if (el) {
+            el.scrollIntoView({ behavior: "auto", block: "start" });
+            done();
+          } else {
+            requestAnimationFrame(() => {
+              const retryEl = messageRefs.current[firstUnread.id];
+              if (retryEl) retryEl.scrollIntoView({ behavior: "auto", block: "start" });
+              else messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+              done();
+            });
+          }
+          return;
+        }
+
+        const anchor = channelScrollAnchors.get(channelId);
+        if (anchor && container) {
+          const idx = messages.findIndex(
+            (m) => String(m.id) === String(anchor.messageId)
+          );
+          const el = idx !== -1 ? messageRefs.current[messages[idx].id] : null;
+          if (el) {
+            el.scrollIntoView({ behavior: "auto", block: "start" });
+            container.scrollTop += anchor.offset;
+            done();
+            return;
+          }
+        }
+
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+        const lastMsg = messages[messages.length - 1];
+        if (lastMsg) updateLastRead(lastMsg.timestamp);
+        void markUnreadMentionsAsRead();
+        done();
+      } catch {
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+        done();
       }
     };
 
@@ -416,6 +445,7 @@ export default forwardRef(function ChatWindow(
     messages,
     lastReadTimestamp,
     markUnreadMentionsAsRead,
+    updateLastRead,
   ]);
 
   const handleScroll = useCallback(() => {
@@ -468,6 +498,8 @@ export default forwardRef(function ChatWindow(
       }
     }
 
+    saveScrollAnchor();
+
     if (container.scrollTop < 100) {
       const previousScrollHeight = container.scrollHeight;
       const previousScrollTop = container.scrollTop;
@@ -492,6 +524,7 @@ export default forwardRef(function ChatWindow(
     lastReadTimestamp,
     updateLastRead,
     markUnreadMentionsAsRead,
+    saveScrollAnchor,
   ]);
 
   const handleReply = useCallback((message: ChannelMessage) => {
@@ -720,6 +753,7 @@ export default forwardRef(function ChatWindow(
         timestamp: new Date().toISOString(),
         avatarUrl: resolvedAvatarUrl || DEFAULT_AVATAR,
         username: "You",
+        status: "pending",
         replyTo: replyingTo
           ? {
               id: replyingTo.id,
@@ -760,15 +794,19 @@ export default forwardRef(function ChatWindow(
         if (err?.response?.status === 403) {
           setPermissionError(errorMessage);
           setTimeout(() => setPermissionError(null), 5000);
+          dropTemp(tempId);
         } else {
+          updateMessages((prev) =>
+            prev.map((m) =>
+              m.id === tempId ? { ...m, status: "failed" } : m
+            )
+          );
           setToast({
             message: "Upload failed: size exceeded",
             type: "error",
             key: Date.now(),
           });
         }
-
-        dropTemp(tempId);
       }
     },
     [
@@ -783,6 +821,7 @@ export default forwardRef(function ChatWindow(
       addOptimistic,
       reconcileTemp,
       dropTemp,
+      updateMessages,
       setPermissionError,
     ]
   );

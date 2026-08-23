@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import type { EmojiClickData } from "emoji-picker-react";
 import { Theme } from "emoji-picker-react";
-import { Paperclip } from "lucide-react";
+import { Paperclip, Clock, CheckCheck, CircleAlert } from "lucide-react";
 
 /* -------------------- TYPES -------------------- */
 
@@ -504,33 +504,37 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         </div>
 
         {/* Timestamp and status */}
-        <div className="flex items-center gap-2 px-1">
+        <div className="flex items-center gap-1.5 px-1">
           {timestamp && (
             <span className="text-[10px] text-[#949ba4]">{timestamp}</span>
           )}
-          {isPending && (
-            <span className="text-[10px] text-[#949ba4] flex items-center gap-1">
-              <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  fill="none"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                />
-              </svg>
-              Sending...
+          {isSender && message.status === "pending" && (
+            <span
+              className="flex items-center text-[10px] text-[#949ba4]"
+              aria-label="Sending"
+              title="Sending"
+            >
+              <Clock className="h-3 w-3" />
             </span>
           )}
-          {isFailed && (
-            <span className="text-[10px] text-red-400">Not delivered</span>
+          {isSender && message.status === "sent" && (
+            <span
+              className="flex items-center text-[10px] text-[#8ba3ff]"
+              aria-label="Delivered"
+              title="Delivered"
+            >
+              <CheckCheck className="h-3.5 w-3.5" />
+            </span>
+          )}
+          {isSender && isFailed && (
+            <span
+              className="flex items-center gap-1 text-[10px] text-red-400"
+              aria-label="Not delivered"
+              title="Not delivered"
+            >
+              <CircleAlert className="h-3 w-3" />
+              Not delivered
+            </span>
           )}
         </div>
 
