@@ -42,6 +42,7 @@ import { useServers } from "@/hooks/query/useServers";
 import { useChannels } from "@/hooks/query/useChannels";
 import { useServerRoles } from "@/hooks/query/useServerRoles";
 import { queryKeys, policyForQueryKey } from "@/lib/query";
+import { EMPTY_ARRAY } from "@/lib/query/constants";
 import { resolvePreferredServer } from "@/lib/servers/serverSelection";
 import { type Role } from "@/api/types/roles.types";
 import Chatwindow from "@/components/ChatWindow";
@@ -101,8 +102,14 @@ const ServersPageContent: React.FC = () => {
     },
     [router]
   );
-  const [channels, setChannels] = useState<Channel[]>([]);
-  const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
+  // Which channel is open in the current server. The channel OBJECT is derived
+  // from the TanStack Query cache (activeChannel) — this state only stores the
+  // id so selection never holds a stale/fallback channel object.
+  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(
+    null
+  );
+  // Last channel used per server, so switching A → B → A restores A's channel.
+  const lastChannelByServerRef = useRef<Record<string, string>>({});
   const chatWindowRef = useRef<any>(null);
   const { notifications: mentionNotifications } = useNotifications();
   const [loading, setLoading] = useState(true);
@@ -132,12 +139,60 @@ const ServersPageContent: React.FC = () => {
   const {
     channels: cachedChannels,
     isLoading: channelsLoading,
+    isError: channelsError,
+    refetch: refetchChannels,
   } = useChannels(selectedServerId ?? undefined);
   const {
     selfAssignableRoles: cachedSelfAssignableRoles,
     myRoles: cachedMyRoles,
     isLoading: rolesLoading,
   } = useServerRoles(selectedServerId ?? undefined);
+
+  // ── Server channels: TanStack Query is the single source of truth ────────
+  // Channels are read straight from the query cache (never a local copy), so
+  // navigation between servers shows cached channels instantly and the sidebar
+  // never holds the previous server's channels as a fallback.
+  const channels = useMemo<Channel[]>(() => {
+    if (cachedChannels.length === 0) return EMPTY_ARRAY;
+    const normalized = cachedChannels.map((c) => ({
+      ...c,
+      type: (c.type || "").toLowerCase(),
+    }));
+    return voiceEnabled
+      ? normalized
+      : normalized.filter((c) => c.type === "text");
+  }, [cachedChannels, voiceEnabled]);
+
+  // Effective channel selection, derived synchronously during render so that a
+  // server switch resolves in the same frame — the sidebar never blanks to the
+  // previous server's selection nor flashes an empty chat area.
+  const effectiveSelectedChannelId = useMemo(() => {
+    if (selectedChannelId && channels.some((c) => c.id === selectedChannelId)) {
+      return selectedChannelId;
+    }
+    const restored = lastChannelByServerRef.current[selectedServerId ?? ""];
+    if (restored && channels.some((c) => c.id === restored)) return restored;
+    return channels.find((c) => c.type === "text")?.id ?? null;
+  }, [selectedChannelId, channels, selectedServerId]);
+
+  const activeChannel = useMemo(
+    () => channels.find((c) => c.id === effectiveSelectedChannelId) ?? null,
+    [channels, effectiveSelectedChannelId]
+  );
+
+  // Keep the committed selection in sync with the effective one (e.g. after a
+  // server switch restores a previously used channel) so it persists.
+  useEffect(() => {
+    setSelectedChannelId(effectiveSelectedChannelId);
+  }, [effectiveSelectedChannelId]);
+
+  // Remember the last channel per server so A → B → A restores A's channel.
+  useEffect(() => {
+    if (selectedServerId && effectiveSelectedChannelId) {
+      lastChannelByServerRef.current[selectedServerId] =
+        effectiveSelectedChannelId;
+    }
+  }, [selectedServerId, effectiveSelectedChannelId]);
   // All useState at top
   // Also correct:
   type ChannelRoster = {
@@ -483,65 +538,26 @@ const ServersPageContent: React.FC = () => {
     };
   }, [selectedServerId, activeCall, servers, handleServerSelect]);
 
-  const loadChannelsForServer = useCallback(async (serverId: string) => {
-    const { data: controls } = await supabase
-      .from("admin_controls")
-      .select("voice_enabled")
-      .single();
-    const isVoiceEnabled = controls?.voice_enabled ?? true;
-    setVoiceEnabled(isVoiceEnabled);
-    const key = queryKeys.serverChannels(serverId);
-    const data: Channel[] =
-      (await queryClient.fetchQuery<Channel[]>({
-        queryKey: key,
-        queryFn: () => fetchChannelsByServer(serverId),
-        staleTime: policyForQueryKey(key).staleTimeMs,
-      })) ?? [];
-    const normalized = (data || []).map((c) => ({
-      ...c,
-      type: (c.type || "").toLowerCase(),
-    }));
-    const filteredChannels = isVoiceEnabled
-      ? normalized
-      : normalized.filter((c) => c.type === "text");
-    setChannels(filteredChannels);
-    const firstTextChannel = filteredChannels.find((c) => c.type === "text");
-    setActiveChannel((prev) => {
-      if (prev && filteredChannels.some((c) => c.id === prev.id)) return prev;
-      return firstTextChannel || null;
-    });
-    return filteredChannels;
-  }, [queryClient]);
-
+  // Load the global voice toggle once (admin control). Channel fetching itself
+  // is handled entirely by the useChannels query.
   useEffect(() => {
-    if (!selectedServerId) return;
-    const loadChannels = async () => {
+    let cancelled = false;
+    const loadVoiceFlag = async () => {
       try {
-        await loadChannelsForServer(selectedServerId);
+        const { data: controls } = await supabase
+          .from("admin_controls")
+          .select("voice_enabled")
+          .single();
+        if (!cancelled) setVoiceEnabled(controls?.voice_enabled ?? true);
       } catch {
-        setError("Failed to load channels");
-        setChannels([]);
-        setToast({ message: "Failed to load channels", type: "error" });
+        if (!cancelled) setVoiceEnabled(true);
       }
     };
-    loadChannels();
-  }, [selectedServerId, myRoles, loadChannelsForServer]);
-
-  useEffect(() => {
-    if (channelsLoading) return;
-    const normalized = (cachedChannels || []).map((c) => ({
-      ...c,
-      type: (c.type || "").toLowerCase(),
-    }));
-    const filteredChannels = voiceEnabled
-      ? normalized
-      : normalized.filter((c) => c.type === "text");
-    setChannels(filteredChannels);
-    setActiveChannel((prev) => {
-      if (prev && filteredChannels.some((c) => c.id === prev.id)) return prev;
-      return filteredChannels.find((c) => c.type === "text") || null;
-    });
-  }, [cachedChannels, voiceEnabled, channelsLoading]);
+    void loadVoiceFlag();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (rolesLoading) return;
@@ -570,7 +586,7 @@ const ServersPageContent: React.FC = () => {
     // Find the target channel and switch to it
     const targetChannel = channels.find((c) => c.id === pendingChannelId);
     if (targetChannel && targetChannel.id !== activeChannel?.id) {
-      setActiveChannel(targetChannel);
+      setSelectedChannelId(targetChannel.id);
       setViewMode("chat");
       // Keep the pending items in storage for the next effect run
       return;
@@ -625,7 +641,7 @@ const ServersPageContent: React.FC = () => {
   const handleJoinVoiceChannel = async (channel: Channel) => {
     if (!selectedServerId) return;
     try {
-      setActiveChannel(channel);
+      setSelectedChannelId(channel.id);
       setViewMode("voice");
       await joinCall(
         channel.id,
@@ -687,20 +703,17 @@ const ServersPageContent: React.FC = () => {
       await updateChannel(selectedServerId, channelSettings.channel.id, {
         name: nextName,
       });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.serverChannels(selectedServerId),
-      });
-      setChannels((prev) =>
-        prev.map((channel) =>
-          channel.id === channelSettings.channel.id
-            ? { ...channel, name: nextName }
-            : channel
-        )
-      );
-      setActiveChannel((prev) =>
-        prev?.id === channelSettings.channel.id
-          ? { ...prev, name: nextName }
-          : prev
+      // Update the query cache directly — no refetch of the whole list.
+      queryClient.setQueryData(
+        queryKeys.serverChannels(selectedServerId),
+        (old: Channel[] | null | undefined) =>
+          old
+            ? old.map((channel) =>
+                channel.id === channelSettings.channel.id
+                  ? { ...channel, name: nextName }
+                  : channel
+              )
+            : old
       );
       setChannelSettings(null);
       setToast({ message: "Channel updated", type: "success" });
@@ -722,19 +735,17 @@ const ServersPageContent: React.FC = () => {
     setIsDeletingChannel(true);
     try {
       await deleteChannel(selectedServerId, channelSettings.channel.id);
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.serverChannels(selectedServerId),
-      });
-      const remainingChannels = channels.filter(
-        (channel) => channel.id !== channelSettings.channel.id
+      // Update the query cache directly. The selection effect re-selects a
+      // valid channel if the deleted one was active.
+      queryClient.setQueryData(
+        queryKeys.serverChannels(selectedServerId),
+        (old: Channel[] | null | undefined) =>
+          old
+            ? old.filter(
+                (channel) => channel.id !== channelSettings.channel.id
+              )
+            : old
       );
-      setChannels(remainingChannels);
-      setActiveChannel((prev) => {
-        if (prev?.id !== channelSettings.channel.id) return prev;
-        return (
-          remainingChannels.find((channel) => channel.type === "text") || null
-        );
-      });
       setChannelSettings(null);
       setToast({ message: "Channel deleted", type: "success" });
     } catch (err: any) {
@@ -995,17 +1006,30 @@ const ServersPageContent: React.FC = () => {
                           const server = servers.find((s) => s.id === serverId);
                           handleServerSelect(serverId, server?.name ?? "Server");
                         }
-                        // Wait for channels to load if we switched servers
-                        let targetChannels = channels;
-                        if (serverId && serverId !== selectedServerId) {
-                          targetChannels =
-                            await loadChannelsForServer(serverId);
+                        // Ensure the target server's channels are in the query
+                        // cache (reuse the cache if it is already loaded).
+                        if (serverId) {
+                          try {
+                            await queryClient.ensureQueryData({
+                              queryKey: queryKeys.serverChannels(serverId),
+                              queryFn: () => fetchChannelsByServer(serverId),
+                              staleTime: policyForQueryKey(
+                                queryKeys.serverChannels(serverId)
+                              ).staleTimeMs,
+                            });
+                          } catch {
+                            // Channels may already be cached; fall through.
+                          }
                         }
+                        const targetChannels =
+                          (queryClient.getQueryData(
+                            queryKeys.serverChannels(serverId ?? "")
+                          ) as Channel[] | null) ?? [];
                         const targetChannel = targetChannels.find(
                           (c) => c.id === channelId
                         );
                         if (targetChannel) {
-                          setActiveChannel(targetChannel);
+                          setSelectedChannelId(targetChannel.id);
                           setViewMode("chat");
                         }
                         await new Promise((r) => setTimeout(r, 300));
@@ -1194,7 +1218,45 @@ const ServersPageContent: React.FC = () => {
                   </div>
                 )}
 
-                {/* Text Channels */}
+                {/* Channel list states: loading (no cache) / error (no cache) / loaded */}
+                {channelsLoading ? (
+                  <div className="px-2 space-y-1.5">
+                    <div className="h-3 w-16 rounded bg-slate-800/60 animate-pulse mb-2" />
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="h-8 rounded-md bg-slate-800/40 animate-pulse"
+                      />
+                    ))}
+                    <div className="h-3 w-20 rounded bg-slate-800/60 animate-pulse mt-4 mb-2" />
+                    {Array.from({ length: 2 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="h-8 rounded-md bg-slate-800/40 animate-pulse"
+                      />
+                    ))}
+                  </div>
+                ) : channelsError && channels.length === 0 ? (
+                  <div className="px-2 py-4 text-center">
+                    <p className="text-sm text-red-400 mb-2">
+                      Failed to load channels.
+                    </p>
+                    <button
+                      onClick={() => void refetchChannels()}
+                      className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-sm text-white"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {channelsError && (
+                      <div className="px-2 text-[11px] text-amber-400/90">
+                        Couldn&apos;t refresh channels. Showing cached list.
+                      </div>
+                    )}
+
+                    {/* Text Channels */}
                 <div className="px-2">
                   <h3 className="text-xs font-bold uppercase text-gray-400 mb-2">
                     Text Channels
@@ -1212,7 +1274,7 @@ const ServersPageContent: React.FC = () => {
                             : "text-gray-400 hover:bg-[#2f3136] hover:text-white"
                         }`}
                         onClick={() => {
-                          setActiveChannel(channel);
+                          setSelectedChannelId(channel.id);
                           setViewMode("chat");
                         }}
                       >
@@ -1377,6 +1439,8 @@ const ServersPageContent: React.FC = () => {
                     );
                   })}
                 </div>
+                  </>
+                )}
 
                 {/* In-call status bar */}
                 {isVoiceActiveForCurrentServer && activeCall && (

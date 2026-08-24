@@ -51,6 +51,7 @@ export function useChannelMessages({
   const [isInitialLoadDone, setIsInitialLoadDone] = useState(false);
 
   const offsetRef = useRef(0);
+  const pageSizeRef = useRef(0);
   const channelIdRef = useRef(channelId);
   const loadingMoreRef = useRef(false);
   const requestGenerationRef = useRef(0);
@@ -79,16 +80,48 @@ export function useChannelMessages({
           setLoadingMore(false);
           setLoadingMessages(true);
           setIsInitialLoadDone(false);
-          offsetRef.current = 0;
         }
 
         if (abortSignal?.aborted) return false;
 
-        const res = await fetchMessages(
-          targetChannelId,
-          offsetRef.current,
-          abortSignal
-        );
+        // The channel API pages from the start of the history, so open at the
+        // latest messages by probing the total count + page size, then jumping
+        // to the last page.
+        let rawMessages: any[] = [];
+        let offset = 0;
+        let hasMore = false;
+
+        if (loadMore) {
+          if (offsetRef.current <= 0) return false;
+          offset = Math.max(0, offsetRef.current - pageSizeRef.current);
+          const res = await fetchMessages(
+            targetChannelId,
+            offset,
+            abortSignal
+          );
+          rawMessages = res.data ?? [];
+          hasMore = offset > 0;
+        } else {
+          const probe = await fetchMessages(targetChannelId, 0, abortSignal);
+          const pageSize = probe.data?.length ?? 0;
+          pageSizeRef.current = pageSize;
+          const totalCount = probe.totalCount ?? pageSize;
+
+          if (pageSize === 0 || totalCount <= pageSize) {
+            rawMessages = probe.data ?? [];
+            offset = 0;
+            hasMore = false;
+          } else {
+            offset = totalCount - pageSize;
+            const last = await fetchMessages(
+              targetChannelId,
+              offset,
+              abortSignal
+            );
+            rawMessages = last.data ?? [];
+            hasMore = offset > 0;
+          }
+        }
 
         if (
           abortSignal?.aborted ||
@@ -98,7 +131,6 @@ export function useChannelMessages({
           return false;
         }
 
-        const rawMessages = res.data ?? [];
         const formatted = await Promise.all(
           rawMessages.map(async (raw: any) => {
             const senderId = raw.sender_id || raw.senderId;
@@ -120,13 +152,12 @@ export function useChannelMessages({
 
         if (loadMore) {
           setMessages((prev) => prependOlderMessages(prev, sorted));
-          offsetRef.current += rawMessages.length;
         } else {
           setMessages(sorted);
-          offsetRef.current = rawMessages.length;
         }
+        offsetRef.current = offset;
 
-        setHasMore((res.hasMore ?? false) && rawMessages.length > 0);
+        setHasMore(hasMore && rawMessages.length > 0);
         return true;
       } catch {
         return false;
@@ -159,6 +190,7 @@ export function useChannelMessages({
 
   useEffect(() => {
     offsetRef.current = 0;
+    pageSizeRef.current = 0;
     loadingMoreRef.current = false;
     requestGenerationRef.current += 1;
     loadingMoreRequestRef.current = 0;

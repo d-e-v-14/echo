@@ -89,16 +89,20 @@ export const deleteChannel = async (serverId: string, channelId: string) => {
   return response.data;
 };
 
-export const fetchChannelsByServer = async (serverId: string): Promise<any> => {
-  try {
-    const response = await apiClient.get(
-      `/api/channel/${serverId}/channels-with-access`
-    );
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching channels:", error);
-    return null;
-  }
+export const fetchChannelsByServer = async (
+  serverId: string
+): Promise<
+  Array<{
+    id: string;
+    name: string;
+    type: string;
+    is_private: boolean;
+  }>
+> => {
+  const response = await apiClient.get(
+    `/api/channel/${serverId}/channels-with-access`
+  );
+  return response.data;
 };
 
 // Get channel permissions for current user

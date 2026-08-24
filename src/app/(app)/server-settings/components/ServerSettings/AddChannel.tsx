@@ -5,10 +5,13 @@ import { createChannel, getAllRoles } from "@/api";
 import { ChannelData } from "@/api/types/channel.types";
 import { Role } from "@/api/types/roles.types";
 import { useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query";
 
 const AddChannel: React.FC = () => {
   const searchParams = useSearchParams();
   const serverId = searchParams.get("serverId");
+  const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState<ChannelData>({
     name: "",
@@ -127,6 +130,14 @@ const AddChannel: React.FC = () => {
       };
 
       await createChannel(serverId!, channelPayload);
+
+      // The channel sidebar reads from the serverChannels query cache, so
+      // reconcile it so the new channel appears without a full reload.
+      if (serverId) {
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.serverChannels(serverId),
+        });
+      }
 
       setMessage("Channel created successfully!");
       setMessageType("success");
