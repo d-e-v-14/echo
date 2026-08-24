@@ -11,10 +11,10 @@ import React, {
 import { useSearchParams, useRouter } from "next/navigation";
 import { usePageReady } from "@/components/RouteChangeLoader";
 import { Paperclip, Search, Send, Smile, X } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getUserDMs,
   uploaddm,
-  getDmThreadMessages,
   markThreadAsRead,
   invalidateUserDmCache,
   searchDmMessages,
@@ -36,6 +36,22 @@ import { isNearBottom } from "@/lib/scrollUtils";
 import MessageSearchPanel from "./MessageSearchPanel";
 // import PinnedMessagesBar from "./PinnedMessagesBar";
 import { MessageSearchResult } from "@/api/types/message.types";
+import { useDmMessages } from "@/hooks/useDmMessages";
+import { queryKeys } from "@/lib/query/keys";
+import {
+  flattenDmMessages,
+  insertIncomingIntoDataOrCreate,
+  insertIncomingIntoPages,
+  markMessagesFailed,
+  normalizeDmMessage,
+  replaceOptimisticById,
+  resolveRepliesForThread,
+} from "@/lib/dm/messageUtils";
+import type {
+  DmMessage as DirectMessage,
+  DmMessagesData,
+  DmReplyTarget,
+} from "@/lib/dm/types";
 
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), { ssr: false });
 
@@ -45,32 +61,7 @@ interface User {
   avatar_url?: string;
 }
 
-interface DirectMessage {
-  id: string;
-  content: string;
-  sender_id: string;
-  receiver_id: string;
-  timestamp: string;
-  thread_id?: string;
-  media_url?: string | null;
-  media_type?: string;
-  status?: "pending" | "sent" | "failed";
-  replyTo?: {
-    id: string | number;
-    content: string;
-    author?: string;
-    mediaUrl?: string | null;
-    mediaType?: string;
-  } | null;
-}
-
-type DMReplyTarget = {
-  id: string | number;
-  content: string;
-  author?: string;
-  mediaUrl?: string | null;
-  mediaType?: string;
-} | null;
+type DMReplyTarget = DmReplyTarget | null;
 
 const isCodeBlock = (content?: string) => {
   if (!content) return false;
@@ -86,155 +77,6 @@ const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
     imageExts.includes(ext) ||
     Boolean(mediaType?.startsWith("image/"))
   );
-};
-
-const parseDmTimestamp = (timestamp: string) => {
-  const parsed = Date.parse(timestamp);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
-
-const normalizeDmMessage = (message: any): DirectMessage => ({
-  id: String(
-    message.id ??
-      message.message_id ??
-      `dm-${Math.random().toString(36).slice(2)}`
-  ),
-  content: String(message.content ?? message.message ?? ""),
-  sender_id: String(message.sender_id ?? ""),
-  receiver_id: String(message.receiver_id ?? ""),
-  status: "sent",
-  timestamp: String(message.timestamp ?? new Date(0).toISOString()),
-  thread_id: message.thread_id ? String(message.thread_id) : undefined,
-  media_url: message.media_url ?? message.mediaUrl ?? null,
-  media_type: message.media_type,
-  replyTo: message.reply_to_message
-    ? {
-        id: String(
-          message.reply_to_message.id ??
-            message.reply_to_message.message_id ??
-            ""
-        ),
-        content: String(
-          message.reply_to_message.content ??
-            message.reply_to_message.message ??
-            ""
-        ),
-        author:
-          message.reply_to_message.users?.username ??
-          message.reply_to_message.user?.username ??
-          message.reply_to_message.author ??
-          "User",
-        mediaUrl:
-          message.reply_to_message.media_url ??
-          message.reply_to_message.mediaUrl ??
-          null,
-        mediaType: message.reply_to_message.media_type,
-      }
-    : message.reply_to && typeof message.reply_to === "object"
-      ? {
-          id: String(message.reply_to.id ?? message.reply_to.message_id ?? ""),
-          content: String(
-            message.reply_to.content ?? message.reply_to.message ?? ""
-          ),
-          author:
-            message.reply_to.users?.username ??
-            message.reply_to.user?.username ??
-            message.reply_to.author ??
-            "User",
-          mediaUrl:
-            message.reply_to.media_url ?? message.reply_to.mediaUrl ?? null,
-          mediaType: message.reply_to.media_type,
-        }
-      : message.replyTo && typeof message.replyTo === "object"
-        ? {
-            id: String(message.replyTo.id ?? message.replyTo.message_id ?? ""),
-            content: String(
-              message.replyTo.content ?? message.replyTo.message ?? ""
-            ),
-            author:
-              message.replyTo.users?.username ??
-              message.replyTo.user?.username ??
-              message.replyTo.author ??
-              "User",
-            mediaUrl:
-              message.replyTo.media_url ?? message.replyTo.mediaUrl ?? null,
-            mediaType: message.replyTo.media_type,
-          }
-        : typeof message.reply_to === "string" ||
-            typeof message.reply_to === "number"
-          ? {
-              id: String(message.reply_to),
-              content: "Loading...",
-              author: "User",
-            }
-          : typeof message.replyTo === "string" ||
-              typeof message.replyTo === "number"
-            ? {
-                id: String(message.replyTo),
-                content: "Loading...",
-                author: "User",
-              }
-            : null,
-});
-
-const sortDmMessages = (messages: DirectMessage[]) =>
-  [...messages].sort(
-    (a, b) => parseDmTimestamp(a.timestamp) - parseDmTimestamp(b.timestamp)
-  );
-
-const mergeDmMessages = (...messageGroups: DirectMessage[][]) => {
-  const mergedById = new Map<string, DirectMessage>();
-
-  messageGroups.forEach((group) => {
-    group.forEach((message) => {
-      mergedById.set(message.id, message);
-    });
-  });
-
-  return sortDmMessages(Array.from(mergedById.values()));
-};
-
-const resolveRepliesForThread = (
-  threadMessages: DirectMessage[],
-  allUsers: any[],
-  currentUserId?: string
-): DirectMessage[] => {
-  if (!threadMessages || threadMessages.length === 0) return [];
-  const messageMap = new Map(threadMessages.map((m) => [m.id, m]));
-
-  return threadMessages.map((msg) => {
-    if (msg.replyTo && msg.replyTo.content === "Loading...") {
-      // FIX: Wrap msg.replyTo.id in String() to satisfy the Map's string key requirement
-      const parent = messageMap.get(String(msg.replyTo.id));
-
-      if (parent) {
-        const isCurrentUser = parent.sender_id === currentUserId;
-        const authorObj = allUsers.find((u) => u.id === parent.sender_id);
-        const authorName = isCurrentUser
-          ? "You"
-          : authorObj?.fullname || authorObj?.username || "User";
-        return {
-          ...msg,
-          replyTo: {
-            ...msg.replyTo,
-            content: parent.content,
-            author: authorName,
-            mediaUrl: parent.media_url,
-            mediaType: parent.media_type,
-          },
-        };
-      } else {
-        return {
-          ...msg,
-          replyTo: {
-            ...msg.replyTo,
-            content: "Original message unavailable",
-          },
-        };
-      }
-    }
-    return msg;
-  });
 };
 
 const getInitials = (name: string = "") => {
@@ -408,6 +250,7 @@ const ChatList: React.FC<ChatListProps> = ({
 interface ChatWindowProps {
   onLoadOlderMessages?: (container: HTMLDivElement) => void;
   isLoadingOlderMessages?: boolean;
+  isLoadingMessages?: boolean;
   activeUser: User | null;
   messages: DirectMessage[];
   currentUser: User | null;
@@ -432,6 +275,7 @@ interface ChatWindowProps {
 const ChatWindow: React.FC<ChatWindowProps> = ({
   onLoadOlderMessages,
   isLoadingOlderMessages,
+  isLoadingMessages,
   activeUser,
   messages,
   currentUser,
@@ -836,10 +680,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
         )}
         {groupedMessages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center text-center text-slate-400">
-            <p>No messages yet.</p>
-            <p className="text-sm">Say hi to start the conversation!</p>
-          </div>
+          isLoadingMessages ? (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-slate-400">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-500 border-t-indigo-400" />
+              <p className="text-sm">Loading messages...</p>
+            </div>
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center text-center text-slate-400">
+              <p>No messages yet.</p>
+              <p className="text-sm">Say hi to start the conversation!</p>
+            </div>
+          )
         ) : (
           groupedMessages.map((section) => (
             <div key={section.dayLabel} className="space-y-4">
@@ -1136,22 +987,16 @@ function MessagesPageContentInner() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [activeDmId, setActiveDmId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Map<string, DirectMessage[]>>(
-    new Map()
-  );
   const [threadIds, setThreadIds] = useState<Map<string, string>>(new Map());
-  const [dmOffsets, setDmOffsets] = useState<Map<string, number>>(new Map());
-  const [dmHasMore, setDmHasMore] = useState<Map<string, boolean>>(new Map());
   const [dmSummaries, setDmSummaries] = useState<
     Map<string, { lastMessage: string; timestamp: string; unreadCount: number }>
   >(new Map());
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingOlderDm, setIsLoadingOlderDm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [, setFileError] = useState<string | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const hydratedThreadIdsRef = useRef<Set<string>>(new Set());
   const lastAutoScrollDmRef = useRef<string | null>(null);
+  const queryClient = useQueryClient();
   const [selectedUser, setSelectedUser] = useState<{
     id: string;
     username: string;
@@ -1179,7 +1024,41 @@ function MessagesPageContentInner() {
     activeDmIdRef.current = activeDmId;
   }, [activeDmId]);
 
-  // Socket event wiring on the application-level socket
+  // ── DM messages: TanStack Query is the single source of truth ──────────
+  // The active conversation's messages live in the query cache (keyed by the
+  // other user's id). Socket events and the send mutation update the same
+  // cache directly, so navigating away and back never loses messages.
+  const activeThreadId = activeDmId
+    ? (threadIds.get(activeDmId) ?? null)
+    : null;
+
+  const {
+    data: dmMessagesData,
+    fetchPreviousPage,
+    hasPreviousPage,
+    isFetchingPreviousPage,
+    isLoading: isLoadingDmMessages,
+  } = useDmMessages(activeDmId, activeThreadId);
+
+  const rawActiveMessages = useMemo(
+    () => flattenDmMessages(dmMessagesData),
+    [dmMessagesData]
+  );
+
+  const activeMessages = useMemo(
+    () =>
+      resolveRepliesForThread(
+        rawActiveMessages,
+        allUsers,
+        currentUser?.id
+      ),
+    [rawActiveMessages, allUsers, currentUser?.id]
+  );
+
+  // Socket event wiring on the application-level socket.
+  // DM messages themselves are inserted into the TanStack Query cache by
+  // RealtimeCacheSync; this handler only reconciles the conversation list
+  // (users + last-message summaries + unread counts).
   useEffect(() => {
     if (!socket) return;
 
@@ -1188,22 +1067,13 @@ function MessagesPageContentInner() {
         if (!raw) return;
         invalidateDmCacheForCurrentUser();
         // Unwrap common envelope shapes
-        const incoming = (raw as any)?.data ?? (raw as any)?.message ?? raw;
+        const incoming =
+          (raw as any)?.payload ?? (raw as any)?.data ?? (raw as any)?.message ?? raw;
         if (!incoming) return;
         if (Array.isArray(incoming)) {
           incoming.forEach(handleNewMessage);
           return;
         }
-
-        // Normalize fields from various possible keys
-        const sender = String(
-          incoming.sender_id ??
-            incoming.senderId ??
-            incoming.from ??
-            incoming.userId ??
-            incoming.user ??
-            ""
-        );
 
         const receiver = String(
           incoming.receiver_id ??
@@ -1213,46 +1083,14 @@ function MessagesPageContentInner() {
             ""
         );
 
-        const rawMediaUrl = incoming.media_url ?? incoming.mediaUrl ?? null;
-        const replySource =
-          incoming.reply_to_message ?? incoming.replyTo ?? incoming.reply_to;
+        // Ignore channel messages; this handler only reconciles the DM list.
+        const isDm =
+          incoming.thread_id != null ||
+          incoming.threadId != null ||
+          receiver !== "";
+        if (!isDm) return;
 
-        const incomingMsg: DirectMessage = {
-          id: String(
-            incoming.id ??
-              incoming.message_id ??
-              incoming.clientMessageId ??
-              `sock-${Date.now()}`
-          ),
-          content: String(incoming.content ?? incoming.message ?? ""),
-          sender_id: sender,
-          receiver_id: receiver,
-          timestamp: String(incoming.timestamp ?? new Date().toISOString()),
-          thread_id: incoming.thread_id
-            ? String(incoming.thread_id)
-            : undefined,
-          media_url: rawMediaUrl?.startsWith("blob:") ? null : rawMediaUrl,
-          media_type: incoming.media_type,
-          status:
-            sender === currentUser?.id ? "sent" : undefined,
-          replyTo:
-            replySource && typeof replySource === "object"
-              ? {
-                  id: String(replySource.id ?? replySource.message_id ?? ""),
-                  content: String(
-                    replySource.content ?? replySource.message ?? ""
-                  ),
-                  author:
-                    replySource.users?.username ??
-                    replySource.user?.username ??
-                    replySource.author ??
-                    "User",
-                  mediaUrl:
-                    replySource.media_url ?? replySource.mediaUrl ?? null,
-                  mediaType: replySource.media_type,
-                }
-              : null,
-        };
+        const incomingMsg = normalizeDmMessage(incoming);
 
         const selfId = currentUser?.id;
         let partnerId = incomingMsg.sender_id;
@@ -1261,6 +1099,17 @@ function MessagesPageContentInner() {
         if (!partnerId) {
           console.warn("Incoming DM missing partner id", incoming);
           return;
+        }
+
+        // Learn the thread id for new DM threads so the messages query can
+        // enable and reconcile immediately.
+        if (incomingMsg.thread_id) {
+          setThreadIds((prev) => {
+            if (prev.get(partnerId) === incomingMsg.thread_id) return prev;
+            const next = new Map(prev);
+            next.set(partnerId, incomingMsg.thread_id!);
+            return next;
+          });
         }
 
         // ==========================================
@@ -1293,81 +1142,32 @@ function MessagesPageContentInner() {
         });
         // ==========================================
 
-        setMessages((prevMap) => {
-          const newMap = new Map(prevMap);
-          const currentDms = newMap.get(partnerId) || [];
+        setDmSummaries((prev) => {
+          const next = new Map(prev);
+          const existing = next.get(partnerId) ?? {
+            lastMessage: "",
+            timestamp: new Date(0).toISOString(),
+            unreadCount: 0,
+          };
 
-          const incTime = Date.parse(incomingMsg.timestamp);
+          const isFromSelf = incomingMsg.sender_id === selfId;
+          const isActiveConversation = partnerId === activeDmIdRef.current;
+          const shouldIncrementUnread = !isFromSelf && !isActiveConversation;
 
-          let replaced = false;
-          let updated = currentDms.filter((m) => {
-            if (
-              !m.id.toString().startsWith("temp-") &&
-              !m.media_url?.startsWith("blob:")
-            ) {
-              return m.id !== incomingMsg.id;
-            }
-            if (replaced) return true;
-            const sameSender = m.sender_id === incomingMsg.sender_id;
-            const sameContent =
-              (m.content || "").trim() === (incomingMsg.content || "").trim();
-            const mTime = Date.parse(m.timestamp);
-            const nearInTime =
-              Number.isFinite(mTime) && Number.isFinite(incTime)
-                ? Math.abs(mTime - incTime) < 15_000
-                : true;
-            if (sameSender && sameContent && nearInTime) {
-              replaced = true;
-              return false;
-            }
-            return true;
+          next.set(partnerId, {
+            lastMessage: isFromSelf
+              ? `You: ${incomingMsg.content || "Sent an attachment"}`
+              : incomingMsg.content || "Sent an attachment",
+            timestamp: incomingMsg.timestamp,
+            unreadCount: isFromSelf
+              ? 0
+              : shouldIncrementUnread
+                ? existing.unreadCount + 1
+                : isActiveConversation
+                  ? 0
+                  : existing.unreadCount,
           });
-
-          setDmSummaries((prev) => {
-            const next = new Map(prev);
-            const existing = next.get(partnerId) ?? {
-              lastMessage: "",
-              timestamp: new Date(0).toISOString(),
-              unreadCount: 0,
-            };
-
-            const isFromSelf = incomingMsg.sender_id === selfId;
-            const isActiveConversation = partnerId === activeDmIdRef.current;
-            const shouldIncrementUnread = !isFromSelf && !isActiveConversation;
-
-            next.set(partnerId, {
-              lastMessage: isFromSelf
-                ? `You: ${incomingMsg.content || "Sent an attachment"}`
-                : incomingMsg.content || "Sent an attachment",
-              timestamp: incomingMsg.timestamp,
-              unreadCount: isFromSelf
-                ? 0
-                : shouldIncrementUnread
-                  ? existing.unreadCount + 1
-                  : isActiveConversation
-                    ? 0
-                    : existing.unreadCount,
-            });
-            return next;
-          });
-
-          if (!updated.some((m) => m.id === incomingMsg.id)) {
-            updated = [...updated, incomingMsg];
-          }
-
-          const nextMessages = sortDmMessages(updated);
-
-          const netNew = nextMessages.length - currentDms.length;
-          if (netNew > 0) {
-            setDmOffsets((prev) => {
-              const next = new Map(prev);
-              next.set(partnerId, (next.get(partnerId) ?? 0) + netNew);
-              return next;
-            });
-          }
-
-          newMap.set(partnerId, nextMessages);
-          return newMap;
+          return next;
         });
       } catch (e) {
         console.error("Failed to handle incoming DM:", e, raw);
@@ -1478,9 +1278,6 @@ function MessagesPageContentInner() {
             string,
             { lastMessage: string; timestamp: string; unreadCount: number }
           >();
-          const initialMessages = new Map<string, DirectMessage[]>();
-          const initialOffsets = new Map<string, number>();
-          const initialHasMore = new Map<string, boolean>();
 
           threads.forEach((thread: any) => {
             const threadId = thread.thread_id
@@ -1507,26 +1304,6 @@ function MessagesPageContentInner() {
                 fullname: name,
                 avatar_url: other.avatar_url ?? null,
               });
-
-              let threadMessages = Array.isArray(thread.messages)
-                ? sortDmMessages(
-                    thread.messages.map((message: any) =>
-                      normalizeDmMessage(message)
-                    )
-                  )
-                : [];
-
-              if (threadMessages.length > 0) {
-                threadMessages = resolveRepliesForThread(
-                  threadMessages,
-                  allUsers,
-                  currentUser.id
-                );
-                initialMessages.set(otherId, threadMessages);
-                initialOffsets.set(otherId, threadMessages.length);
-                initialHasMore.set(otherId, Boolean(thread.has_more_messages));
-                hydratedThreadIdsRef.current.add(otherId);
-              }
 
               const rawThreadMessages = Array.isArray(thread.messages)
                 ? thread.messages
@@ -1579,35 +1356,6 @@ function MessagesPageContentInner() {
           setAllUsers(users);
           setThreadIds(threadMap);
           setDmSummaries(summaryMap);
-          setMessages((prev) => {
-            const next = new Map(prev);
-            const mergedLengths = new Map<string, number>();
-
-            initialMessages.forEach((value, key) => {
-              const existing = next.get(key) ?? [];
-              const merged = mergeDmMessages(existing, value);
-              next.set(key, merged);
-              mergedLengths.set(key, merged.length);
-            });
-
-            setDmOffsets((prevOffsets) => {
-              const nextOffsets = new Map(prevOffsets);
-              mergedLengths.forEach((value, key) => {
-                nextOffsets.set(key, value);
-              });
-              return nextOffsets;
-            });
-
-            setDmHasMore((prevHasMore) => {
-              const nextHasMore = new Map(prevHasMore);
-              initialHasMore.forEach((value, key) => {
-                nextHasMore.set(key, (nextHasMore.get(key) ?? false) || value);
-              });
-              return nextHasMore;
-            });
-
-            return next;
-          });
         } catch (error: any) {
           console.error("--- DETAILED FETCH ERROR ---");
           console.error(error);
@@ -1624,125 +1372,43 @@ function MessagesPageContentInner() {
     }
   }, [currentUser]);
 
-  useEffect(() => {
-    if (!activeDmId) return;
+  // Older-message pagination is handled by useDmMessages (useInfiniteQuery).
+  // This wrapper preserves the scroll position when a previous page is
+  // prepended.
+  const loadingOlderStateRef = useRef<{
+    node: HTMLDivElement | null;
+    height: number;
+    top: number;
+  } | null>(null);
 
-    const threadId = threadIds.get(activeDmId);
+  const loadOlderMessages = useCallback(
+    (container?: HTMLDivElement | null) => {
+      if (isFetchingPreviousPage || !hasPreviousPage) return;
 
-    if (!threadId) return;
-
-    if (hydratedThreadIdsRef.current.has(activeDmId)) {
-      return;
-    }
-
-    const loadMessages = async () => {
-      try {
-        const result = await getDmThreadMessages(threadId, 0);
-
-        const parsed = resolveRepliesForThread(
-          sortDmMessages(
-            (result.data || []).map((m: any) => normalizeDmMessage(m))
-          ),
-          allUsers,
-          currentUser?.id
-        );
-
-        setMessages((prev) => {
-          const next = new Map(prev);
-
-          next.set(activeDmId, parsed);
-
-          return next;
-        });
-
-        setDmOffsets((prev) => {
-          const next = new Map(prev);
-          next.set(activeDmId, parsed.length);
-          return next;
-        });
-
-        setDmHasMore((prev) => {
-          const next = new Map(prev);
-          next.set(activeDmId, result.hasMore);
-          return next;
-        });
-        hydratedThreadIdsRef.current.add(activeDmId);
-      } catch (err) {
-        console.error(err);
+      const node = container ?? messagesContainerRef.current;
+      if (node) {
+        loadingOlderStateRef.current = {
+          node,
+          height: node.scrollHeight,
+          top: node.scrollTop,
+        };
       }
-    };
+      fetchPreviousPage();
+    },
+    [isFetchingPreviousPage, hasPreviousPage, fetchPreviousPage]
+  );
 
-    loadMessages();
-  }, [activeDmId, threadIds]);
+  useEffect(() => {
+    if (isFetchingPreviousPage) return;
+    const saved = loadingOlderStateRef.current;
+    if (!saved) return;
+    loadingOlderStateRef.current = null;
 
-  const isLoadingOlderDmRef = useRef(false);
-
-  const loadOlderMessages = async (container?: HTMLDivElement | null) => {
-    if (isLoadingOlderDmRef.current) return;
-
-    if (!activeDmId) return;
-
-    const threadId = threadIds.get(activeDmId);
-    if (!threadId) return;
-
-    const offset = dmOffsets.get(activeDmId) ?? 0;
-    const hasMore = dmHasMore.get(activeDmId);
-
-    if (!hasMore) return;
-
-    isLoadingOlderDmRef.current = true;
-    setIsLoadingOlderDm(true);
-
-    try {
-      const scrollContainer = container ?? messagesContainerRef.current;
-      const previousHeight = scrollContainer?.scrollHeight ?? 0;
-      const previousScrollTop = scrollContainer?.scrollTop ?? 0;
-
-      const result = await getDmThreadMessages(threadId, offset);
-
-      const parsed = resolveRepliesForThread(
-        sortDmMessages(
-          (result.data || []).map((m: any) => normalizeDmMessage(m))
-        ),
-        allUsers,
-        currentUser?.id
-      );
-
-      setMessages((prev) => {
-        const next = new Map(prev);
-        const current = next.get(activeDmId) || [];
-
-        next.set(activeDmId, mergeDmMessages(parsed, current));
-
-        return next;
-      });
-
-      requestAnimationFrame(() => {
-        const node = scrollContainer ?? messagesContainerRef.current;
-        if (!node) return;
-
-        const newHeight = node.scrollHeight;
-        node.scrollTop = previousScrollTop + (newHeight - previousHeight);
-      });
-
-      setDmOffsets((prev) => {
-        const next = new Map(prev);
-        next.set(activeDmId, offset + parsed.length);
-        return next;
-      });
-
-      setDmHasMore((prev) => {
-        const next = new Map(prev);
-        next.set(activeDmId, result.hasMore);
-        return next;
-      });
-    } catch (err) {
-      console.error(err);
-    } finally {
-      isLoadingOlderDmRef.current = false;
-      setIsLoadingOlderDm(false);
-    }
-  };
+    requestAnimationFrame(() => {
+      if (!saved.node) return;
+      saved.node.scrollTop = saved.top + (saved.node.scrollHeight - saved.height);
+    });
+  }, [isFetchingPreviousPage]);
 
   // Effect to set the active DM based on the URL parameter
   // If user not in allUsers, fetch their profile and add them
@@ -1786,13 +1452,6 @@ function MessagesPageContentInner() {
             if (prev.some((u) => u.id === selectedDM)) return prev;
             return [...prev, newUser];
           });
-          // Initialize empty messages for this user
-          setMessages((prev) => {
-            if (prev.has(selectedDM)) return prev;
-            const newMap = new Map(prev);
-            newMap.set(selectedDM, []);
-            return newMap;
-          });
 
           setActiveDmId(selectedDM);
         }
@@ -1812,15 +1471,12 @@ function MessagesPageContentInner() {
   }, [selectedDM, currentUser?.id, allUsers.length]); // Use allUsers.length instead of allUsers
   // Empty dependency array is okay here due to the functional updates.
   // Effect for handling incoming socket events
-  const handleSendMessage = async (
+  const buildDmUploads = (
     content: string,
     files: File[],
     replyTo?: DMReplyTarget
-  ) => {
-    if (!currentUser || !activeDmId) return;
-    if (!content.trim() && files.length === 0) return;
-
-    const uploads = (files.length > 0 ? files : [null]).map((file, index) => {
+  ) =>
+    (files.length > 0 ? files : [null]).map((file, index) => {
       const contentForFile = index === 0 ? content : `${file?.name ?? "file"}`;
       const blobUrl = file ? URL.createObjectURL(file) : null;
 
@@ -1833,53 +1489,24 @@ function MessagesPageContentInner() {
         replyTo: index === 0 ? replyTo : null,
       };
     });
-    setMessages((prev) => {
-      const newMap = new Map(prev);
-      const list = newMap.get(activeDmId) || [];
-      const updated = [...list];
-      const optimisticTimestamp = new Date().toISOString();
 
-      uploads.forEach((upload) => {
-        updated.push({
-          id: upload.tempId,
-          content: upload.optimisticContent,
-          sender_id: currentUser.id,
-          receiver_id: activeDmId,
-          timestamp: optimisticTimestamp,
-          media_url: upload.blobUrl,
-          media_type: upload.file?.type ?? undefined,
-          replyTo: upload.replyTo,
-          status: "pending",
-        });
-      });
-
-      newMap.set(activeDmId, updated);
-      return newMap;
-    });
-
-    setDmSummaries((prev) => {
-      const next = new Map(prev);
-
-      const previewText =
-        files.length > 0 ? "You: Sent an attachment" : `You: ${content}`;
-
-      next.set(activeDmId, {
-        lastMessage: previewText.trim(),
-        timestamp: new Date().toISOString(),
-        unreadCount: 0,
-      });
-
-      return next;
-    });
-
-    try {
-      let lastSavedThreadId: string | undefined =
-        threadIds.get(activeDmId) || undefined;
+  const sendDmMutation = useMutation({
+    mutationFn: async (vars: {
+      conversationId: string;
+      senderId: string;
+      uploads: ReturnType<typeof buildDmUploads>;
+    }) => {
+      const { conversationId, senderId, uploads } = vars;
+      let lastSavedThreadId = threadIds.get(conversationId) || undefined;
+      const savedResults: Array<{
+        upload: (typeof uploads)[number];
+        saved: any;
+      }> = [];
 
       for (const upload of uploads) {
         const dmPayload = {
-          sender_id: currentUser.id,
-          receiver_id: activeDmId,
+          sender_id: senderId,
+          receiver_id: conversationId,
           message: upload.content,
           mediaurl: upload.file ?? undefined,
           reply_to: upload.replyTo?.id,
@@ -1892,91 +1519,162 @@ function MessagesPageContentInner() {
         }
         invalidateDmCacheForCurrentUser();
 
-        const savedId = saved
-          ? (saved.id ?? saved.message_id ?? saved.clientMessageId)
-          : undefined;
-        const savedMediaUrl = saved?.media_url ?? saved?.mediaUrl ?? null;
         const savedThreadId = saved?.thread_id
           ? String(saved.thread_id)
           : saved?.threadId
             ? String(saved.threadId)
             : undefined;
+        if (savedThreadId) lastSavedThreadId = savedThreadId;
+
+        savedResults.push({ upload, saved });
+      }
+
+      return { conversationId, lastSavedThreadId, savedResults };
+    },
+    onMutate: async (vars) => {
+      const key = queryKeys.dmMessages(vars.conversationId);
+
+      // If a GET for this conversation is in flight (e.g. the initial page0
+      // fetch), cancel it so it cannot overwrite the optimistic insert with a
+      // snapshot that predates the new message. Track whether we cancelled so
+      // onSuccess can reconcile the page afterwards.
+      const state = queryClient.getQueryState(key);
+      const cancelledFetch = state?.fetchStatus === "fetching";
+      if (cancelledFetch) {
+        await queryClient.cancelQueries({ queryKey: key });
+      }
+
+      const optimisticTimestamp = new Date().toISOString();
+      const optimisticMessages = vars.uploads.map((upload) => ({
+        id: upload.tempId,
+        content: upload.optimisticContent,
+        sender_id: vars.senderId,
+        receiver_id: vars.conversationId,
+        timestamp: optimisticTimestamp,
+        media_url: upload.blobUrl,
+        media_type: upload.file?.type ?? undefined,
+        replyTo: upload.replyTo,
+        status: "pending" as const,
+      }));
+
+      queryClient.setQueryData(
+        key,
+        (old: DmMessagesData | undefined) => {
+          let next = old;
+          optimisticMessages.forEach((message) => {
+            next = insertIncomingIntoDataOrCreate(next, message);
+          });
+          return next;
+        }
+      );
+
+      setDmSummaries((prev) => {
+        const next = new Map(prev);
+        const previewText =
+          vars.uploads.length > 1 || (vars.uploads[0]?.file != null)
+            ? "You: Sent an attachment"
+            : `You: ${vars.uploads[0]?.content ?? ""}`;
+        next.set(vars.conversationId, {
+          lastMessage: previewText.trim(),
+          timestamp: optimisticTimestamp,
+          unreadCount: 0,
+        });
+        return next;
+      });
+
+      return { uploads: vars.uploads, cancelledFetch };
+    },
+    onSuccess: (result, _vars, context) => {
+      const key = queryKeys.dmMessages(result.conversationId);
+
+      for (const { upload, saved } of result.savedResults) {
+        if (upload.blobUrl) URL.revokeObjectURL(upload.blobUrl);
+
+        const savedId = saved
+          ? (saved.id ?? saved.message_id ?? saved.clientMessageId)
+          : undefined;
+        const savedMediaUrl = saved?.media_url ?? saved?.mediaUrl ?? null;
+        const savedContent = String(
+          saved?.content ?? saved?.message ?? upload.content ?? ""
+        );
 
         if (saved && (savedId || savedMediaUrl)) {
-          if (savedThreadId) {
-            lastSavedThreadId = savedThreadId;
+          const confirmed = normalizeDmMessage({
+            ...saved,
+            media_url: savedMediaUrl,
+          });
+
+queryClient.setQueryData(
+          key,
+          (old: DmMessagesData | undefined) => {
+            if (!old) return old;
+            const optimistic = flattenDmMessages(old).find(
+              (m) => String(m.id) === upload.tempId
+            );
+            // Keep the optimistic reply preview when the server response does
+            // not echo the reply target.
+            const confirmedMessage = confirmed.replyTo
+              ? confirmed
+              : {
+                  ...confirmed,
+                  replyTo: optimistic?.replyTo ?? confirmed.replyTo,
+                };
+            const next = replaceOptimisticById(
+              old,
+              upload.tempId,
+              confirmedMessage
+            );
+            return insertIncomingIntoPages(next, confirmedMessage) ?? next;
           }
-          setDmSummaries((prev) => {
-            const next = new Map(prev);
-
-            const savedContent = savedMediaUrl
-              ? "You: Sent an attachment"
-              : `You: ${String(saved.content ?? saved.message ?? upload.content ?? "")}`;
-
-            next.set(activeDmId, {
-              lastMessage: savedContent.trim(),
-              timestamp: String(saved.timestamp ?? new Date().toISOString()),
-              unreadCount: 0,
-            });
-
-            return next;
-          });
-
-          setMessages((prev) => {
-            const newMap = new Map(prev);
-            const list = newMap.get(activeDmId) || [];
-            const idx = list.findIndex((m) => m.id === upload.tempId);
-            if (idx !== -1) {
-              const next = [...list];
-              if (upload.blobUrl) URL.revokeObjectURL(upload.blobUrl);
-              next[idx] = {
-                ...next[idx],
-                id: savedId ? String(savedId) : upload.tempId,
-                thread_id: savedThreadId ?? next[idx].thread_id,
-                media_url: savedMediaUrl,
-                media_type: saved.media_type ?? next[idx].media_type,
-                content: saved.content ?? saved.message ?? next[idx].content,
-                timestamp: String(saved.timestamp ?? next[idx].timestamp),
-                status: "sent",
-                replyTo: saved.reply_to_message
-                  ? {
-                      id: String(saved.reply_to_message.id),
-                      content: String(saved.reply_to_message.content ?? ""),
-                      author:
-                        saved.reply_to_message.users?.username ??
-                        saved.reply_to_message.user?.username ??
-                        "User",
-                      mediaUrl:
-                        saved.reply_to_message.media_url ??
-                        saved.reply_to_message.mediaUrl ??
-                        null,
-                      mediaType: saved.reply_to_message.media_type,
-                    }
-                  : next[idx].replyTo,
-              } as DirectMessage;
-              newMap.set(activeDmId, next);
-            }
-            return newMap;
-          });
-        }
-      }
-
-      if (lastSavedThreadId) {
-        await markThreadAsRead(lastSavedThreadId);
-        await refreshMessageNotifications();
-      }
-    } catch (e: any) {
-      console.error("Failed to send DM via API:", e);
-      setMessages((prev) => {
-        const newMap = new Map(prev);
-        const tempIds = new Set(uploads.map((upload) => upload.tempId));
-        const list = (newMap.get(activeDmId) || []).map((m) =>
-          tempIds.has(m.id) ? { ...m, status: "failed" as const } : m
         );
-        newMap.set(activeDmId, list);
-        return newMap;
-      });
-      uploads.forEach((upload) => {
+        }
+
+        setDmSummaries((prev) => {
+          const next = new Map(prev);
+          next.set(result.conversationId, {
+            lastMessage: (savedMediaUrl
+              ? "You: Sent an attachment"
+              : `You: ${savedContent}`
+            ).trim(),
+            timestamp: String(
+              saved?.timestamp ?? new Date().toISOString()
+            ),
+            unreadCount: 0,
+          });
+          return next;
+        });
+      }
+
+      if (result.lastSavedThreadId) {
+        setThreadIds((prev) => {
+          if (prev.get(result.conversationId) === result.lastSavedThreadId) {
+            return prev;
+          }
+          const next = new Map(prev);
+          next.set(result.conversationId, result.lastSavedThreadId!);
+          return next;
+        });
+        void markThreadAsRead(result.lastSavedThreadId);
+        void refreshMessageNotifications();
+      }
+
+      // Reconcile the page we cancelled during the send so any messages the
+      // aborted GET had not yet returned are picked up from the server.
+      if (context?.cancelledFetch) {
+        void queryClient.invalidateQueries({ queryKey: key });
+      }
+    },
+    onError: (error: any, vars, context) => {
+      console.error("Failed to send DM via API:", error);
+      const tempIds = new Set(
+        (context?.uploads ?? vars.uploads).map((upload) => upload.tempId)
+      );
+      queryClient.setQueryData(
+        queryKeys.dmMessages(vars.conversationId),
+        (old: DmMessagesData | undefined) =>
+          old ? markMessagesFailed(old, tempIds) : old
+      );
+      (context?.uploads ?? vars.uploads).forEach((upload) => {
         if (upload.blobUrl) URL.revokeObjectURL(upload.blobUrl);
       });
       setToast({
@@ -1984,7 +1682,22 @@ function MessagesPageContentInner() {
         type: "error",
         key: Date.now(),
       });
-    }
+    },
+  });
+
+  const handleSendMessage = (
+    content: string,
+    files: File[],
+    replyTo?: DMReplyTarget
+  ) => {
+    if (!currentUser || !activeDmId) return;
+    if (!content.trim() && files.length === 0) return;
+
+    sendDmMutation.mutate({
+      conversationId: activeDmId,
+      senderId: currentUser.id,
+      uploads: buildDmUploads(content, files, replyTo),
+    });
   };
 
   const handleSelectDm = useCallback(
@@ -2084,13 +1797,13 @@ function MessagesPageContentInner() {
     const markAsRead = async () => {
       try {
         // Get messages for this DM to find the thread_id
-        const userMessages = messages.get(activeDmId);
-        if (!userMessages || userMessages.length === 0) {
+        if (activeMessages.length === 0) {
           return;
         }
 
-        // Get thread_id from any message (they all share the same thread_id)
-        const threadId = userMessages[0]?.thread_id;
+        // Get thread_id from the thread map or any message
+        const threadId =
+          threadIds.get(activeDmId) || activeMessages[0]?.thread_id;
         if (!threadId) {
           return;
         }
@@ -2119,7 +1832,7 @@ function MessagesPageContentInner() {
   }, [
     activeDmId,
     currentUser?.id,
-    messages,
+    activeMessages,
     threadIds,
     refreshMessageNotifications,
   ]);
@@ -2127,30 +1840,16 @@ function MessagesPageContentInner() {
   const conversations = useMemo(() => {
     return allUsers
       .map((user) => {
-        const userMessages = messages.get(user.id) || [];
-        const lastMessageObj =
-          userMessages.length > 0
-            ? userMessages[userMessages.length - 1]
-            : null;
         const fallbackSummary = dmSummaries.get(user.id);
-        const lastMessage = lastMessageObj
-          ? `${
-              lastMessageObj.sender_id === currentUser?.id
-                ? "You: "
-                : `${user.fullname}: `
-            }${lastMessageObj.media_url ? "Sent an attachment" : lastMessageObj.content || ""}`.trim()
-          : fallbackSummary?.lastMessage || "No messages yet.";
+        const lastMessage =
+          fallbackSummary?.lastMessage || "No messages yet.";
         const timestamp =
-          lastMessageObj?.timestamp ||
-          fallbackSummary?.timestamp ||
-          new Date(0).toISOString();
+          fallbackSummary?.timestamp || new Date(0).toISOString();
 
-        const threadId = threadIds.get(user.id) || lastMessageObj?.thread_id;
+        const threadId = threadIds.get(user.id);
         const isActiveConversation = activeDmId === user.id;
-        const lastMessageFromSelf =
-          lastMessageObj?.sender_id === currentUser?.id;
         const unreadCount =
-          isActiveConversation || lastMessageFromSelf
+          isActiveConversation
             ? 0
             : threadId
               ? (unreadPerThread[threadId] ?? 0)
@@ -2170,7 +1869,6 @@ function MessagesPageContentInner() {
       });
   }, [
     allUsers,
-    messages,
     currentUser?.id,
     unreadPerThread,
     dmSummaries,
@@ -2180,11 +1878,6 @@ function MessagesPageContentInner() {
   const activeUser = useMemo(() => {
     return allUsers.find((u) => u.id === activeDmId) || null;
   }, [allUsers, activeDmId]);
-
-  const activeMessages = activeDmId ? messages.get(activeDmId) || [] : [];
-  const activeThreadId = activeDmId
-    ? (threadIds.get(activeDmId) ?? null)
-    : null;
 
   const lastMessageId = activeMessages[activeMessages.length - 1]?.id;
 
@@ -2286,7 +1979,8 @@ function MessagesPageContentInner() {
         <div className="flex flex-1 overflow-hidden">
           <ChatWindow
             onLoadOlderMessages={loadOlderMessages}
-            isLoadingOlderMessages={isLoadingOlderDm}
+            isLoadingOlderMessages={isFetchingPreviousPage}
+            isLoadingMessages={isLoadingDmMessages}
             activeUser={activeUser}
             messages={activeMessages}
             currentUser={currentUser}

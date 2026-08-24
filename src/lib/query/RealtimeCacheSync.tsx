@@ -3,17 +3,32 @@
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSocket } from "@/lib/socket/SocketProvider";
+import { useUser } from "@/components/UserContext";
 import {
   REALTIME_CACHE_EVENTS,
   realtimeEventToCommands,
 } from "@/lib/query/realtimeCache";
 import type { CacheCommand } from "@/lib/query/cacheCommand.types";
+import type { DmMessagesData } from "@/lib/dm/types";
+import { queryKeys } from "@/lib/query/keys";
+import {
+  insertIncomingIntoDataOrCreate,
+} from "@/lib/dm/messageUtils";
+import {
+  resolveDmConversationId,
+  toDmMessageFromSocket,
+  unwrapSocketPayload,
+} from "@/lib/dm/socketEvents";
 
 const DEBOUNCE_MS = 250;
+
+const DM_MESSAGE_EVENTS = ["receive_dm", "dm_sent_confirmation", "new_message"] as const;
 
 export function RealtimeCacheSync() {
   const { socket } = useSocket();
   const queryClient = useQueryClient();
+  const { user } = useUser();
+  const currentUserId = user?.id ?? undefined;
 
   const pendingInvalidate = useRef<Set<string>>(new Set());
   const pendingRemove = useRef<Set<string>>(new Set());
@@ -72,6 +87,40 @@ export function RealtimeCacheSync() {
       pendingRemove.current.clear();
     };
   }, [socket, queryClient]);
+
+  // DM messages: insert incoming socket messages straight into the TanStack
+  // Query cache so the UI updates immediately and conversations keep their
+  // messages after navigating away and back. Deduplication happens inside
+  // insertIncomingIntoDataOrCreate (stable server message id).
+  useEffect(() => {
+    if (!socket || !currentUserId) return;
+
+    const handlers = DM_MESSAGE_EVENTS.map<{
+      name: string;
+      handler: (payload: unknown) => void;
+    }>((name) => {
+      const handler = (payload: unknown) => {
+        const body = unwrapSocketPayload(payload);
+        const conversationId = resolveDmConversationId(body, currentUserId);
+        if (!conversationId) return;
+        const incoming = toDmMessageFromSocket(body);
+        if (!incoming) return;
+
+        queryClient.setQueryData<DmMessagesData>(
+          queryKeys.dmMessages(conversationId),
+          (old) => insertIncomingIntoDataOrCreate(old, incoming)
+        );
+      };
+      socket.on(name, handler as any);
+      return { name, handler };
+    });
+
+    return () => {
+      for (const { name, handler } of handlers) {
+        socket.off(name, handler as any);
+      }
+    };
+  }, [socket, queryClient, currentUserId]);
 
   return null;
 }

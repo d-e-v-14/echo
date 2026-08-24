@@ -97,8 +97,11 @@ export function realtimeEventToCommands(
       const channelId = readString(payload, "channel_id", "channelId");
       const threadId = readString(payload, "thread_id", "threadId", "thread");
 
+      // DM messages are inserted into the conversation cache directly by the
+      // realtime sync (setQueryData). Only reconcile the DM list preview here;
+      // do not refetch an entire conversation on every socket event.
       if (threadId) {
-        return [invalidate(queryKeys.dmMessages(threadId), queryKeys.dms)];
+        return [invalidate(queryKeys.dms)];
       }
       if (channelId) {
         return [invalidate(queryKeys.channelMessages(channelId))];
@@ -109,16 +112,16 @@ export function realtimeEventToCommands(
     case "reaction_updated": {
       const channelId = readString(payload, "channel_id", "channelId");
       const threadId = readString(payload, "thread_id", "threadId");
-      if (threadId) return [invalidate(queryKeys.dmMessages(threadId))];
+      // DM message caches are keyed by the other user's id, which is not
+      // present in reaction payloads, so reconcile the whole DM family.
+      if (threadId) return [invalidate(["dm"])];
       if (channelId) return [invalidate(queryKeys.channelMessages(channelId))];
       return [];
     }
 
     case "receive_dm": {
       const channelId = readString(payload, "channel_id", "channelId");
-      const threadId = readString(payload, "thread_id", "threadId");
       const keys: (readonly unknown[])[] = [queryKeys.dms];
-      if (threadId) keys.push(queryKeys.dmMessages(threadId));
       if (channelId) keys.push(queryKeys.channelMessages(channelId));
       return [invalidate(...keys)];
     }

@@ -8,16 +8,16 @@ describe("realtimeEventToCommands", () => {
     ).toEqual([{ type: "invalidate", queryKeys: [["channel", "c1", "messages"]] }]);
   });
 
-  it("invalidates the DM thread and the DM list on a DM", () => {
+  it("reconciles the DM list on a DM message (message cache is updated directly)", () => {
     expect(
       realtimeEventToCommands("new_message", { thread_id: "t1" })
-    ).toEqual([{ type: "invalidate", queryKeys: [["dm", "t1", "messages"], ["dms"]] }]);
+    ).toEqual([{ type: "invalidate", queryKeys: [["dms"]] }]);
   });
 
-  it("invalidates the DM list on receive_dm (including thread when present)", () => {
+  it("reconciles the DM list on receive_dm", () => {
     expect(
       realtimeEventToCommands("receive_dm", { thread_id: "t1" })
-    ).toEqual([{ type: "invalidate", queryKeys: [["dms"], ["dm", "t1", "messages"]] }]);
+    ).toEqual([{ type: "invalidate", queryKeys: [["dms"]] }]);
   });
 
   it("invalidates channel permissions, its messages and the server family on channel_updated", () => {
