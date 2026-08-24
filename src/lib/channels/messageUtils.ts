@@ -10,12 +10,6 @@ const timestampMs = (value: string | undefined): number => {
   return Number.isNaN(ms) ? 0 : ms;
 };
 
-export const isNonEmptyTimestamp = (value?: string): boolean => {
-  if (!value) return false;
-  const ms = new Date(value).getTime();
-  return !Number.isNaN(ms);
-};
-
 export const formatDayLabel = (timestamp: string): string => {
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return "Recent";
@@ -97,14 +91,17 @@ export const normalizeChannelMessage = (
     content: raw?.content || raw?.message || "",
     senderId,
     timestamp: raw?.timestamp || new Date().toISOString(),
-    avatarUrl,
+    avatarUrl: avatarUrl ?? extractAvatarFromRaw(raw),
     username:
       senderId === currentUserId
         ? "You"
         : raw?.username ||
           raw?.sender?.username ||
           raw?.sender?.fullname ||
+          raw?.sender?.name ||
           raw?.sender_name ||
+          raw?.senderName ||
+          raw?.name ||
           "Unknown",
     mediaUrl: raw?.media_url || raw?.mediaUrl,
     mediaType: raw?.media_type,
@@ -172,103 +169,6 @@ export const dedupeAndSortByTime = (
     (a, b) => timestampMs(a.timestamp) - timestampMs(b.timestamp)
   );
 };
-
-export const prependOlderMessages = (
-  current: ChannelMessage[],
-  older: ChannelMessage[]
-): ChannelMessage[] => {
-  const existingIds = new Set(current.map((msg) => msg.id));
-  const fresh = older.filter((msg) => !existingIds.has(msg.id));
-  return [...fresh, ...current];
-};
-
-export const mergeIncomingMessage = (
-  current: ChannelMessage[],
-  incoming: ChannelMessage,
-  currentUserId: string
-): ChannelMessage[] => {
-  if (current.some((msg) => msg.id === incoming.id)) return current;
-
-  let tempReplyToFallback: MessageReply | null = null;
-
-  const filtered = current.filter((msg) => {
-    const isDuplicate =
-      msg.senderId === currentUserId &&
-      msg.content === incoming.content &&
-      Math.abs(timestampMs(msg.timestamp) - timestampMs(incoming.timestamp)) <
-        5000;
-
-    if (isDuplicate && msg.replyTo) tempReplyToFallback = msg.replyTo;
-    return !isDuplicate;
-  });
-
-  const merged: ChannelMessage = {
-    ...incoming,
-    replyTo: mergeReplyFallback(incoming.replyTo ?? null, tempReplyToFallback),
-  };
-
-  return [...filtered, merged].sort(
-    (a, b) => timestampMs(a.timestamp) - timestampMs(b.timestamp)
-  );
-};
-
-const mergeReplyFallback = (
-  replyTo: MessageReply | null,
-  fallback: MessageReply | null
-): MessageReply | null => {
-  if (fallback && replyTo) {
-    return {
-      ...replyTo,
-      mediaUrl: replyTo.mediaUrl || fallback.mediaUrl,
-      mediaType: replyTo.mediaType || fallback.mediaType,
-    };
-  }
-  return fallback || replyTo;
-};
-
-export const shouldAddOptimisticMessage = (
-  current: ChannelMessage[],
-  optimistic: ChannelMessage,
-  currentUserId: string
-): boolean => {
-  return !current.some(
-    (msg) =>
-      msg.senderId === currentUserId &&
-      msg.content === optimistic.content &&
-      Math.abs(timestampMs(msg.timestamp) - timestampMs(optimistic.timestamp)) <
-        2000
-  );
-};
-
-export const reconcileOptimisticMessage = (
-  current: ChannelMessage[],
-  tempId: string | number,
-  replacement: { id: string | number; content?: string; mediaUrl?: string }
-): ChannelMessage[] => {
-  if (current.some((m) => String(m.id) === String(replacement.id))) {
-    return current.filter((m) => m.id !== tempId);
-  }
-
-  const idx = current.findIndex((m) => m.id === tempId);
-  if (idx === -1) return current;
-
-  const next = [...current];
-  next[idx] = {
-    ...next[idx],
-    id: replacement.id,
-    content: replacement.content ?? next[idx].content,
-    mediaUrl: replacement.mediaUrl ?? next[idx].mediaUrl,
-    status: "sent",
-    replyTo: next[idx].replyTo,
-  };
-
-  return next;
-};
-
-export const removeOptimisticMessage = (
-  current: ChannelMessage[],
-  tempId: string | number
-): ChannelMessage[] => current.filter((m) => m.id !== tempId);
 
 export const findUnreadDividerIndex = (
   messages: ChannelMessage[],

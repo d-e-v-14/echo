@@ -2,10 +2,10 @@ import { describe, it, expect } from "vitest";
 import { realtimeEventToCommands } from "./realtimeCache";
 
 describe("realtimeEventToCommands", () => {
-  it("invalidates the channel message page on new_message with a channel", () => {
+  it("does not refetch the channel window on new_message (cache is patched directly)", () => {
     expect(
       realtimeEventToCommands("new_message", { channel_id: "c1" })
-    ).toEqual([{ type: "invalidate", queryKeys: [["channel", "c1", "messages"]] }]);
+    ).toEqual([]);
   });
 
   it("reconciles the DM list on a DM message (message cache is updated directly)", () => {
@@ -71,7 +71,7 @@ describe("realtimeEventToCommands", () => {
         eventId: "e1",
         payload: { channel_id: "c9" },
       })
-    ).toEqual([{ type: "invalidate", queryKeys: [["channel", "c9", "messages"]] }]);
+    ).toEqual([]);
   });
 
   it("returns no commands for unknown events", () => {

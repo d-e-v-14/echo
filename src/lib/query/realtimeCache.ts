@@ -103,8 +103,11 @@ export function realtimeEventToCommands(
       if (threadId) {
         return [invalidate(queryKeys.dms)];
       }
+      // Channel messages are inserted into the channel cache directly by
+      // RealtimeCacheSync (setQueryData), so no invalidation/refetch is needed
+      // for the active window either.
       if (channelId) {
-        return [invalidate(queryKeys.channelMessages(channelId))];
+        return [];
       }
       return [];
     }
@@ -114,15 +117,15 @@ export function realtimeEventToCommands(
       const threadId = readString(payload, "thread_id", "threadId");
       // DM message caches are keyed by the other user's id, which is not
       // present in reaction payloads, so reconcile the whole DM family.
+      // Channel reactions are not stored in the message cache (they are
+      // fetched per message), so there is nothing to refetch here.
       if (threadId) return [invalidate(["dm"])];
-      if (channelId) return [invalidate(queryKeys.channelMessages(channelId))];
+      if (channelId) return [];
       return [];
     }
 
     case "receive_dm": {
-      const channelId = readString(payload, "channel_id", "channelId");
       const keys: (readonly unknown[])[] = [queryKeys.dms];
-      if (channelId) keys.push(queryKeys.channelMessages(channelId));
       return [invalidate(...keys)];
     }
 

@@ -5,7 +5,6 @@ import {
   MessageSearchResult,
   PinnedMessage,
 } from "./types/message.types";
-import { ApiResponse } from "./types/common.types";
 import { getUser } from "./profile.api";
 
 type ReactionTarget = { message_id?: string; dm_message_id?: string };
@@ -148,35 +147,47 @@ export const uploaddm = async (payload: {
   }
 };
 
-//Used to fetch the messages in the channel of a server
+export interface FetchMessagesParams {
+  limit?: number;
+  before?: string;
+  signal?: AbortSignal;
+}
+
+export interface FetchMessagesResult {
+  messages: Message[];
+  hasMore: boolean;
+  nextCursor: string | null;
+}
+
+// Fetches the newest window of channel messages or, when `before` is set, the
+// window immediately older than that cursor. The backend derives `hasMore`
+// from limit + 1 rows and returns a `nextCursor` pointing before the oldest
+// message of the returned window, so opening a channel never needs a COUNT(*)
+// probe request (see P0-02).
 export const fetchMessages = async (
   channel_id: string,
-  offset: number = 0,
-  signal?: AbortSignal
-): Promise<
-  ApiResponse<Message[]> & {
-    hasMore?: boolean;
-    totalCount?: number;
-  }
-> => {
+  params: FetchMessagesParams = {}
+): Promise<FetchMessagesResult> => {
+  const { limit = 50, before, signal } = params;
   try {
     const response = await apiClient.get<{
       messages?: Message[];
       data?: Message[];
+      nextCursor?: string | null;
       hasMore?: boolean;
-      totalCount?: number;
     }>("/api/message/fetch", {
       params: {
         channel_id,
-        offset,
+        limit,
+        before,
       },
       signal,
     });
 
     return {
-      data: response.data.messages ?? response.data.data ?? [],
+      messages: response.data.messages ?? response.data.data ?? [],
+      nextCursor: response.data.nextCursor ?? null,
       hasMore: response.data.hasMore ?? false,
-      totalCount: response.data.totalCount ?? 0,
     };
   } catch (error) {
     console.error("Error fetching messages:", error);

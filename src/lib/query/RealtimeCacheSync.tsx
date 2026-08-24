@@ -10,6 +10,7 @@ import {
 } from "@/lib/query/realtimeCache";
 import type { CacheCommand } from "@/lib/query/cacheCommand.types";
 import type { DmMessagesData } from "@/lib/dm/types";
+import type { ChannelMessagesData } from "@/lib/channels/types";
 import { queryKeys } from "@/lib/query/keys";
 import {
   insertIncomingIntoDataOrCreate,
@@ -19,10 +20,18 @@ import {
   toDmMessageFromSocket,
   unwrapSocketPayload,
 } from "@/lib/dm/socketEvents";
+import {
+  insertIncomingIntoDataOrCreate as insertChannelIncomingIntoDataOrCreate,
+} from "@/lib/channels/cache";
+import {
+  resolveChannelId,
+  toChannelMessageFromSocket,
+} from "@/lib/channels/socketEvents";
 
 const DEBOUNCE_MS = 250;
 
 const DM_MESSAGE_EVENTS = ["receive_dm", "dm_sent_confirmation", "new_message"] as const;
+const CHANNEL_MESSAGE_EVENTS = ["new_message", "message_confirmed"] as const;
 
 export function RealtimeCacheSync() {
   const { socket } = useSocket();
@@ -109,6 +118,45 @@ export function RealtimeCacheSync() {
         queryClient.setQueryData<DmMessagesData>(
           queryKeys.dmMessages(conversationId),
           (old) => insertIncomingIntoDataOrCreate(old, incoming)
+        );
+      };
+      socket.on(name, handler as any);
+      return { name, handler };
+    });
+
+    return () => {
+      for (const { name, handler } of handlers) {
+        socket.off(name, handler as any);
+      }
+    };
+  }, [socket, queryClient, currentUserId]);
+
+  // Channel messages: same direct-cache-patch model as DMs. The message is
+  // inserted into the newest page of the channel's cached window so the UI
+  // updates immediately and the window survives navigation. We only patch a
+  // window that has already been materialized — a channel the user has never
+  // opened is left empty and fetched fresh on first open, avoiding a
+  // one-message orphan page.
+  useEffect(() => {
+    if (!socket || !currentUserId) return;
+
+    const handlers = CHANNEL_MESSAGE_EVENTS.map<{
+      name: string;
+      handler: (payload: unknown) => void;
+    }>((name) => {
+      const handler = (payload: unknown) => {
+        const body = unwrapSocketPayload(payload);
+        const channelId = resolveChannelId(body);
+        if (!channelId) return;
+        const incoming = toChannelMessageFromSocket(body, currentUserId);
+        if (!incoming) return;
+
+        const key = queryKeys.channelMessages(channelId);
+        if (!queryClient.getQueryData(key)) return;
+
+        queryClient.setQueryData<ChannelMessagesData>(
+          key,
+          (old) => insertChannelIncomingIntoDataOrCreate(old, incoming)
         );
       };
       socket.on(name, handler as any);

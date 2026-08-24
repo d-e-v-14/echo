@@ -24,6 +24,17 @@ export interface ChannelMessage {
   tempId?: string;
 }
 
+export interface ChannelMessagesPage {
+  messages: ChannelMessage[];
+  hasMore: boolean;
+  nextCursor?: string | null;
+}
+
+export interface ChannelMessagesData {
+  pages: ChannelMessagesPage[];
+  pageParams: unknown[];
+}
+
 export interface ChannelPermissions {
   channelType: string;
   canView: boolean;

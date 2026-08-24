@@ -5,11 +5,6 @@ import {
   extractAvatarFromRaw,
   resolveReplyTargets,
   dedupeAndSortByTime,
-  prependOlderMessages,
-  mergeIncomingMessage,
-  shouldAddOptimisticMessage,
-  reconcileOptimisticMessage,
-  removeOptimisticMessage,
   findUnreadDividerIndex,
   isContentMentioningCurrentUser,
   groupMessagesForDisplay,
@@ -143,103 +138,6 @@ describe("dedupeAndSortByTime", () => {
     ];
     const out = dedupeAndSortByTime(input);
     expect(out.map((m) => m.id)).toEqual(["b", "a"]);
-  });
-});
-
-describe("prependOlderMessages", () => {
-  it("prepends without duplicating ids", () => {
-    const current = [base({ id: "b" }), base({ id: "c" })];
-    const older = [base({ id: "a" }), base({ id: "b" })];
-    expect(prependOlderMessages(current, older).map((m) => m.id)).toEqual([
-      "a",
-      "b",
-      "c",
-    ]);
-  });
-});
-
-describe("mergeIncomingMessage", () => {
-  it("drops the optimistic duplicate of the incoming message", () => {
-    const optimistic = base({
-      id: "temp-1",
-      senderId: "me",
-      content: "hi there",
-      timestamp: "2026-01-01T10:00:01.000Z",
-      status: "pending",
-    });
-    const incoming = base({
-      id: "real-1",
-      senderId: "me",
-      content: "hi there",
-      timestamp: "2026-01-01T10:00:02.000Z",
-    });
-    const out = mergeIncomingMessage([optimistic], incoming, "me");
-    expect(out.map((m) => m.id)).toEqual(["real-1"]);
-    expect(out[0].status).toBeUndefined();
-  });
-
-  it("appends and sorts new incoming messages", () => {
-    const existing = base({ id: "a", timestamp: "2026-01-01T09:00:00.000Z" });
-    const incoming = base({ id: "b", timestamp: "2026-01-01T10:00:00.000Z" });
-    const out = mergeIncomingMessage([existing], incoming, "me");
-    expect(out.map((m) => m.id)).toEqual(["a", "b"]);
-  });
-});
-
-describe("shouldAddOptimisticMessage", () => {
-  it("rejects near-duplicate optimistic messages", () => {
-    const existing = base({
-      senderId: "me",
-      content: "hello",
-      timestamp: "2026-01-01T10:00:00.500Z",
-    });
-    const optimistic = base({
-      id: "temp-1",
-      senderId: "me",
-      content: "hello",
-      timestamp: "2026-01-01T10:00:01.000Z",
-    });
-    expect(shouldAddOptimisticMessage([existing], optimistic, "me")).toBe(false);
-  });
-
-  it("accepts distinct messages", () => {
-    const existing = base({ senderId: "me", content: "one" });
-    const optimistic = base({ id: "temp-1", senderId: "me", content: "two" });
-    expect(shouldAddOptimisticMessage([existing], optimistic, "me")).toBe(true);
-  });
-});
-
-describe("reconcileOptimisticMessage", () => {
-  it("swaps temp id for real id and marks sent", () => {
-    const optimistic = base({
-      id: "temp-1",
-      senderId: "me",
-      status: "pending",
-    });
-    const out = reconcileOptimisticMessage([optimistic], "temp-1", {
-      id: "real-1",
-    });
-    expect(out[0].id).toBe("real-1");
-    expect(out[0].status).toBe("sent");
-  });
-
-  it("drops the temp message when the real message already exists", () => {
-    const optimistic = base({ id: "temp-1" });
-    const real = base({ id: "real-1" });
-    const out = reconcileOptimisticMessage([optimistic, real], "temp-1", {
-      id: "real-1",
-    });
-    expect(out.map((m) => m.id)).toEqual(["real-1"]);
-  });
-});
-
-describe("removeOptimisticMessage", () => {
-  it("removes by temp id", () => {
-    const out = removeOptimisticMessage(
-      [base({ id: "temp-1" }), base({ id: "real-1" })],
-      "temp-1"
-    );
-    expect(out.map((m) => m.id)).toEqual(["real-1"]);
   });
 });
 

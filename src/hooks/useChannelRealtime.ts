@@ -2,35 +2,29 @@
 
 import { useEffect, useRef } from "react";
 import { useSocket } from "@/lib/socket/SocketProvider";
-import { ChannelMessage } from "@/lib/channels/types";
-import {
-  isContentMentioningCurrentUser,
-  normalizeChannelMessage,
-} from "@/lib/channels/messageUtils";
+import { isContentMentioningCurrentUser } from "@/lib/channels/messageUtils";
 
 export interface UseChannelRealtimeOptions {
   channelId: string;
-  currentUserId: string;
   currentUsername: string;
-  resolveAvatarUrl: (userId: string, raw?: unknown) => Promise<string>;
-  onIncoming: (message: ChannelMessage) => void;
   onHighlight: (messageId: string | number) => void;
   onReconnect: () => void;
 }
 
+/**
+ * Joins the channel's socket room and reacts to realtime events for the
+ * ACTIVE channel (mention highlights + reconnect refetch). The messages
+ * themselves are inserted into the shared React Query cache by
+ * RealtimeCacheSync, so there is no local message state here.
+ */
 export function useChannelRealtime({
   channelId,
-  currentUserId,
   currentUsername,
-  resolveAvatarUrl,
-  onIncoming,
   onHighlight,
   onReconnect,
 }: UseChannelRealtimeOptions) {
   const { socket, joinChannel, leaveChannel } = useSocket();
   const channelIdRef = useRef(channelId);
-  const receivedIdsRef = useRef<Set<string | number>>(new Set());
-  const usernamesRef = useRef<Record<string, string>>({});
 
   useEffect(() => {
     channelIdRef.current = channelId;
@@ -48,59 +42,22 @@ export function useChannelRealtime({
   useEffect(() => {
     if (!socket) return;
 
-    const handleIncomingMessage = async (saved: any) => {
+    const handleIncomingMessage = (saved: any) => {
       const messageId = saved?.id || saved?.messageId;
 
       if (!messageId) return;
 
-      if (saved?.channel_id && saved.channel_id !== channelIdRef.current) {
-        return;
-      }
-
-      if (receivedIdsRef.current.has(messageId)) {
+      const messageChannelId = saved?.channel_id || saved?.channelId;
+      if (
+        messageChannelId &&
+        String(messageChannelId) !== String(channelIdRef.current)
+      ) {
         return;
       }
 
       if (isContentMentioningCurrentUser(saved?.content, currentUsername)) {
         onHighlight(messageId);
       }
-
-      const senderId = saved?.sender_id || saved?.senderId || "";
-      const resolvedUsername =
-        senderId === currentUserId
-          ? "You"
-          : saved?.username ||
-            (saved?.sender &&
-              (saved.sender.username ||
-                saved.sender.fullname ||
-                saved.sender.name)) ||
-            saved?.sender_name ||
-            saved?.senderName ||
-            saved?.name ||
-            usernamesRef.current[senderId] ||
-            "Unknown";
-
-      const avatarUrl = await resolveAvatarUrl(senderId, saved);
-
-      const message = normalizeChannelMessage(
-        { ...saved, username: resolvedUsername },
-        currentUserId,
-        avatarUrl
-      );
-
-      if (senderId && resolvedUsername && resolvedUsername !== "Unknown") {
-        usernamesRef.current[senderId] = resolvedUsername;
-      }
-
-      onIncoming(message);
-      receivedIdsRef.current.add(messageId);
-
-      setTimeout(
-        () => {
-          receivedIdsRef.current.delete(messageId);
-        },
-        10 * 60 * 1000
-      );
     };
 
     const handleReconnect = () => onReconnect();
@@ -112,13 +69,5 @@ export function useChannelRealtime({
       socket.off("new_message", handleIncomingMessage);
       socket.off("reconnect", handleReconnect);
     };
-  }, [
-    socket,
-    currentUserId,
-    currentUsername,
-    resolveAvatarUrl,
-    onIncoming,
-    onHighlight,
-    onReconnect,
-  ]);
+  }, [socket, currentUsername, onHighlight, onReconnect]);
 }

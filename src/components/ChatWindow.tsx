@@ -184,10 +184,10 @@ export default forwardRef(function ChatWindow(
     hasMore,
     isInitialLoadDone,
     loadMessages,
-    appendIncoming,
     addOptimistic,
     reconcileTemp,
     dropTemp,
+    markFailed,
     updateMessages,
   } = useChannelMessages({
     channelId,
@@ -391,10 +391,7 @@ export default forwardRef(function ChatWindow(
 
   useChannelRealtime({
     channelId,
-    currentUserId,
     currentUsername,
-    resolveAvatarUrl,
-    onIncoming: appendIncoming,
     onHighlight: highlightMessage,
     onReconnect: handleReconnect,
   });
@@ -891,11 +888,7 @@ export default forwardRef(function ChatWindow(
           setTimeout(() => setPermissionError(null), 5000);
           dropTemp(tempId);
         } else {
-          updateMessages((prev) =>
-            prev.map((m) =>
-              m.id === tempId ? { ...m, status: "failed" } : m
-            )
-          );
+          markFailed(new Set([tempId]));
           setToast({
             message: "Upload failed: size exceeded",
             type: "error",
@@ -916,6 +909,7 @@ export default forwardRef(function ChatWindow(
       addOptimistic,
       reconcileTemp,
       dropTemp,
+      markFailed,
       updateMessages,
       setPermissionError,
     ]
