@@ -3,9 +3,11 @@ import {
   createDmMessagesData,
   flattenDmMessages,
   insertIncomingIntoPages,
+  markMessageFailedById,
   markMessagesFailed,
   mergeIntoPage,
   normalizeDmMessage,
+  reconcileConfirmedMessage,
   replaceOptimisticById,
   resolveRepliesForThread,
   sortDmMessages,
@@ -260,5 +262,61 @@ describe("markMessagesFailed", () => {
     const flat = flattenDmMessages(next);
     expect(flat.find((m) => m.id === "temp-1")?.status).toBe("failed");
     expect(flat.find((m) => m.id === "real-1")?.status).toBe("sent");
+  });
+});
+
+describe("markMessageFailedById", () => {
+  it("marks a single message failed by id", () => {
+    const old = data(
+      msg({ id: "temp-1", sender_id: ME, status: "pending" }),
+      msg({ id: "real-1", status: "sent" })
+    );
+    const next = markMessageFailedById(old, "temp-1");
+    expect(flattenDmMessages(next).find((m) => m.id === "temp-1")?.status).toBe("failed");
+    expect(flattenDmMessages(next).find((m) => m.id === "real-1")?.status).toBe("sent");
+  });
+
+  it("no-ops when the id is not present", () => {
+    const old = data(msg({ id: "real-1" }));
+    expect(markMessageFailedById(old, "ghost")).toBe(old);
+  });
+});
+
+describe("reconcileConfirmedMessage", () => {
+  it("replaces the optimistic message by temp id", () => {
+    const old = data(msg({ id: "temp-1", sender_id: ME, content: "hi", status: "pending" }));
+    const next = reconcileConfirmedMessage(
+      old,
+      "temp-1",
+      msg({ id: "real-1", sender_id: ME, content: "hi", timestamp: "2026-01-01T00:00:02.000Z" })
+    );
+    const flat = flattenDmMessages(next);
+    expect(flat.map((m) => m.id)).toEqual(["real-1"]);
+    expect(flat[0].status).toBe("sent");
+  });
+
+  it("inserts the confirmed message when the temp id is already gone", () => {
+    const old = data(msg({ id: "real-1", content: "hi" }));
+    const next = reconcileConfirmedMessage(
+      old,
+      "temp-1",
+      msg({ id: "real-2", content: "hello", timestamp: "2026-01-01T00:00:02.000Z" })
+    );
+    expect(flattenDmMessages(next).map((m) => m.id)).toEqual(["real-1", "real-2"]);
+  });
+
+  it("falls back to content-merge when no temp id is present", () => {
+    const old = data(msg({ id: "temp-1", sender_id: ME, content: "hi", status: "pending" }));
+    const next = reconcileConfirmedMessage(
+      old,
+      undefined,
+      msg({ id: "real-9", sender_id: ME, content: "hi", timestamp: "2026-01-01T00:00:02.000Z" })
+    );
+    expect(flattenDmMessages(next).map((m) => m.id)).toEqual(["real-9"]);
+  });
+
+  it("creates a page when nothing is cached", () => {
+    const next = reconcileConfirmedMessage(undefined, undefined, msg({ id: "real-1" }));
+    expect(flattenDmMessages(next).map((m) => m.id)).toEqual(["real-1"]);
   });
 });

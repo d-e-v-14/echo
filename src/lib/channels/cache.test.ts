@@ -5,8 +5,13 @@ import {
   insertIncomingIntoDataOrCreate,
   insertIncomingIntoPages,
   markMessagesFailed,
+  markMessageFailedById,
+  reconcileConfirmedMessage,
   replaceOptimisticById,
   updateMessageById,
+  upsertChannelInList,
+  channelListItemFromPayload,
+  channelPermissionsFromPayload,
   deleteMessageById,
 } from "./cache";
 import type { ChannelMessage, ChannelMessagesData } from "./types";
@@ -151,6 +156,158 @@ describe("markMessagesFailed", () => {
     const flat = flattenChannelMessages(next);
     expect(flat.find((m) => m.id === "temp-1")?.status).toBe("failed");
     expect(flat.find((m) => m.id === "real-1")?.status).toBe("sent");
+  });
+});
+
+describe("markMessageFailedById", () => {
+  it("marks a single message failed by id", () => {
+    const old = data(
+      msg({ id: "temp-1", status: "pending" }),
+      msg({ id: "real-1", status: "sent" })
+    );
+    const next = markMessageFailedById(old, "temp-1");
+    expect(flattenChannelMessages(next).find((m) => m.id === "temp-1")?.status).toBe("failed");
+    expect(flattenChannelMessages(next).find((m) => m.id === "real-1")?.status).toBe("sent");
+  });
+
+  it("no-ops when the id is not present", () => {
+    const old = data(msg({ id: "real-1" }));
+    expect(markMessageFailedById(old, "ghost")).toBe(old);
+  });
+});
+
+describe("reconcileConfirmedMessage", () => {
+  it("replaces the optimistic message by temp id", () => {
+    const old = data(msg({ id: "temp-1", content: "hi", status: "pending" }));
+    const next = reconcileConfirmedMessage(
+      old,
+      "temp-1",
+      msg({ id: "real-1", content: "hi", timestamp: "2026-01-01T00:00:02.000Z" })
+    );
+    const flat = flattenChannelMessages(next);
+    expect(flat.map((m) => m.id)).toEqual(["real-1"]);
+    expect(flat[0].status).toBe("sent");
+  });
+
+  it("inserts the confirmed message when the temp id is already gone", () => {
+    const old = data(msg({ id: "real-1", content: "hi" }));
+    const next = reconcileConfirmedMessage(
+      old,
+      "temp-1",
+      msg({ id: "real-2", content: "hello", timestamp: "2026-01-01T00:00:02.000Z" })
+    );
+    expect(flattenChannelMessages(next).map((m) => m.id)).toEqual(["real-1", "real-2"]);
+  });
+
+  it("falls back to content-merge when no temp id is present", () => {
+    const old = data(msg({ id: "temp-1", content: "hi", status: "pending" }));
+    const next = reconcileConfirmedMessage(
+      old,
+      undefined,
+      msg({ id: "real-9", content: "hi", timestamp: "2026-01-01T00:00:02.000Z" })
+    );
+    expect(flattenChannelMessages(next).map((m) => m.id)).toEqual(["real-9"]);
+  });
+
+  it("creates a page when nothing is cached", () => {
+    const next = reconcileConfirmedMessage(
+      undefined,
+      undefined,
+      msg({ id: "real-1" })
+    );
+    expect(flattenChannelMessages(next).map((m) => m.id)).toEqual(["real-1"]);
+  });
+});
+
+describe("upsertChannelInList", () => {
+  it("replaces an entry with the same id", () => {
+    const next = upsertChannelInList(
+      [{ id: "c1", name: "old", type: "text", is_private: false }],
+      { id: "c1", name: "renamed", type: "text", is_private: true }
+    );
+    expect(next).toEqual([
+      { id: "c1", name: "renamed", type: "text", is_private: true },
+    ]);
+  });
+
+  it("appends when the channel is new", () => {
+    const next = upsertChannelInList(
+      [{ id: "c1", name: "one", type: "text", is_private: false }],
+      { id: "c2", name: "two", type: "voice", is_private: false }
+    );
+    expect(next?.map((c) => c.id)).toEqual(["c1", "c2"]);
+  });
+
+  it("returns the list unchanged when it is undefined", () => {
+    expect(upsertChannelInList(undefined, { id: "c1" })).toBeUndefined();
+  });
+});
+
+describe("channelListItemFromPayload", () => {
+  it("builds a list entry from a full payload", () => {
+    expect(
+      channelListItemFromPayload({
+        channel_id: "c1",
+        name: "general",
+        type: "text",
+        is_private: false,
+      })
+    ).toEqual({ id: "c1", name: "general", type: "text", is_private: false });
+  });
+
+  it("handles envelope-wrapped payloads and camelCase ids", () => {
+    expect(
+      channelListItemFromPayload({
+        eventId: "e1",
+        payload: { entityId: "c2", name: "voice", type: "voice" },
+      })
+    ).toEqual({ id: "c2", name: "voice", type: "voice", is_private: false });
+  });
+
+  it("returns null when no channel object fields are present", () => {
+    expect(channelListItemFromPayload({ channel_id: "c1" })).toBeNull();
+    expect(channelListItemFromPayload(null)).toBeNull();
+  });
+});
+
+describe("channelPermissionsFromPayload", () => {
+  it("builds permissions from a full payload", () => {
+    expect(
+      channelPermissionsFromPayload({
+        channel_id: "c1",
+        canView: true,
+        canSend: false,
+        isAdmin: true,
+        isModerator: false,
+        channelType: "read_only",
+      })
+    ).toEqual({
+      channelType: "read_only",
+      canView: true,
+      canSend: false,
+      isAdmin: true,
+      isModerator: false,
+    });
+  });
+
+  it("handles snake_case channel_type", () => {
+    expect(
+      channelPermissionsFromPayload({
+        channel_id: "c1",
+        canView: false,
+        channel_type: "role_restricted",
+      })
+    ).toEqual({
+      channelType: "role_restricted",
+      canView: false,
+      canSend: true,
+      isAdmin: false,
+      isModerator: false,
+    });
+  });
+
+  it("returns null when no permission fields are present", () => {
+    expect(channelPermissionsFromPayload({ channel_id: "c1" })).toBeNull();
   });
 });
 

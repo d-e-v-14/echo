@@ -2,6 +2,7 @@ import {
   ChannelMessage,
   ChannelMessagesData,
   ChannelMessagesPage,
+  ChannelPermissions,
 } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -181,6 +182,134 @@ export const updateMessageById = (
   });
   return changed ? { ...data, pages } : data;
 };
+
+/**
+ * Mark a single message (optimistic temp id or confirmed id) as failed. Used
+ * by the realtime sync on `message_error` so the optimistic bubble is flagged
+ * without refetching the window.
+ */
+export const markMessageFailedById = (
+  data: ChannelMessagesData,
+  messageId: string | number
+): ChannelMessagesData => {
+  const id = String(messageId);
+  const present = data.pages.some((page) =>
+    page.messages.some((m) => String(m.id) === id)
+  );
+  if (!present) return data;
+  return markMessagesFailed(data, new Set([id]));
+};
+
+/**
+ * Reconcile a `message_confirmed` socket payload against the cached window:
+ *  1. When the payload echoes a client temp id, swap that optimistic message
+ *     for the confirmed server message.
+ *  2. Otherwise fall back to insertIncomingIntoDataOrCreate, which dedupes by
+ *     stable id and replaces matching optimistic messages by content.
+ */
+export const reconcileConfirmedMessage = (
+  data: ChannelMessagesData | undefined,
+  tempId: string | undefined,
+  incoming: ChannelMessage
+): ChannelMessagesData | undefined => {
+  if (!data) return insertIncomingIntoDataOrCreate(data, incoming);
+
+  if (tempId) {
+    const replaced = replaceOptimisticById(data, tempId, incoming);
+    if (replaced !== data) return replaced;
+    // The optimistic bubble is already gone (replaced by a previous event or
+    // the POST response); insert the confirmed message only if it is new.
+    return insertIncomingIntoPages(replaced, incoming) ?? replaced;
+  }
+
+  return insertIncomingIntoDataOrCreate(data, incoming);
+};
+
+/**
+ * Merge a channel object into a server's channel list, replacing the entry
+ * with the same id or appending when it is new (channel_updated patch).
+ * Works on any list whose entries carry an `id`.
+ */
+export const upsertChannelInList = <T extends { id: string | number }>(
+  list: T[] | undefined,
+  channel: T
+): T[] | undefined => {
+  if (!Array.isArray(list)) return list;
+  const index = list.findIndex((c) => String(c.id) === String(channel.id));
+  if (index === -1) return [...list, channel];
+  return list.map((c, i) => (i === index ? { ...c, ...channel } : c));
+};
+
+/**
+ * Build a server-channel list entry from a `channel_updated` socket payload.
+ * Returns null when the payload does not carry a channel object.
+ */
+export const channelListItemFromPayload = (
+  payload: unknown
+): { id: string; name: string; type: string; is_private: boolean } | null => {
+  const body: any =
+    payload && typeof payload === "object" && "payload" in payload
+      ? (payload as { payload: unknown }).payload
+      : payload;
+  if (!body || typeof body !== "object") return null;
+
+  const channelId = readString(body, "channel_id", "channelId", "entityId");
+  if (!channelId) return null;
+  if (
+    body?.name == null &&
+    body?.type == null &&
+    body?.is_private == null
+  ) {
+    return null;
+  }
+
+  return {
+    id: channelId,
+    name: String(body.name ?? ""),
+    type: String(body.type ?? "text"),
+    is_private: Boolean(body.is_private ?? false),
+  };
+};
+
+/**
+ * Build a ChannelPermissions object from a `channel_updated` /
+ * `permissions_updated` socket payload. Returns null when the payload does not
+ * carry any permission fields.
+ */
+export const channelPermissionsFromPayload = (
+  payload: unknown
+): ChannelPermissions | null => {
+  const body: any =
+    payload && typeof payload === "object" && "payload" in payload
+      ? (payload as { payload: unknown }).payload
+      : payload;
+  if (!body || typeof body !== "object") return null;
+
+  const hasAny =
+    body?.canView != null ||
+    body?.canSend != null ||
+    body?.isAdmin != null ||
+    body?.isModerator != null ||
+    body?.channelType != null ||
+    body?.channel_type != null;
+  if (!hasAny) return null;
+
+  return {
+    channelType: String(body.channelType ?? body.channel_type ?? "normal"),
+    canView: Boolean(body.canView ?? true),
+    canSend: Boolean(body.canSend ?? true),
+    isAdmin: Boolean(body.isAdmin ?? false),
+    isModerator: Boolean(body.isModerator ?? false),
+  };
+};
+
+function readString(body: any, ...keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = body?.[key];
+    if (value !== undefined && value !== null) return String(value);
+  }
+  return undefined;
+}
 
 /**
  * Delete a message by stable id across every loaded page.

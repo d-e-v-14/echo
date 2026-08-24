@@ -250,3 +250,43 @@ export const markMessagesFailed = (
   }));
   return { ...data, pages };
 };
+
+/**
+ * Mark a single message (optimistic temp id or confirmed id) as failed. Used
+ * by the realtime sync on `message_error` so the optimistic bubble is flagged
+ * without refetching the conversation.
+ */
+export const markMessageFailedById = (
+  data: DmMessagesData,
+  messageId: string
+): DmMessagesData => {
+  const id = String(messageId);
+  const present = data.pages.some((page) =>
+    page.messages.some((m) => String(m.id) === id)
+  );
+  if (!present) return data;
+  return markMessagesFailed(data, new Set([id]));
+};
+
+/**
+ * Reconcile a `message_confirmed` socket payload against the conversation:
+ *  1. When the payload echoes a client temp id, swap that optimistic message
+ *     for the confirmed server message.
+ *  2. Otherwise fall back to insertIncomingIntoDataOrCreate, which dedupes by
+ *     stable id and replaces matching optimistic messages by content.
+ */
+export const reconcileConfirmedMessage = (
+  data: DmMessagesData | undefined,
+  tempId: string | undefined,
+  incoming: DmMessage
+): DmMessagesData | undefined => {
+  if (!data) return insertIncomingIntoDataOrCreate(data, incoming);
+
+  if (tempId) {
+    const replaced = replaceOptimisticById(data, tempId, incoming);
+    if (replaced !== data) return replaced;
+    return insertIncomingIntoPages(replaced, incoming) ?? replaced;
+  }
+
+  return insertIncomingIntoDataOrCreate(data, incoming);
+};

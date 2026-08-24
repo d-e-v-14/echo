@@ -28,6 +28,21 @@ export const REALTIME_CACHE_EVENTS = [
   "leave_voice_channel",
 ] as const;
 
+// ---------------------------------------------------------------------------
+// Realtime reconciliation policy.
+//
+// The realtime sync patches the cache DIRECTLY for every event whose payload
+// is complete enough to reconcile (messages, reactions, channel/permission
+// objects). This function only returns commands for the two remaining cases:
+//
+//   1. Ephemeral voice/presence state that must never be persisted.
+//   2. Events with intentionally partial payloads, where the client cannot
+//      build a safe patch and must fall back to a narrow refetch.
+//
+// It must never trigger a refetch of a dataset that the sync has already
+// patched (e.g. a whole DM family on a single reaction).
+// ---------------------------------------------------------------------------
+
 function unwrapEnvelope(payload: any): any {
   return payload && typeof payload === "object" && "payload" in payload
     ? payload.payload
@@ -57,6 +72,43 @@ function readString(payload: any, ...keys: string[]): string | undefined {
   return undefined;
 }
 
+/** True when the payload carries enough message data to patch the cache. */
+function hasMessagePayload(payload: any): boolean {
+  const body = unwrapEnvelope(payload);
+  return Boolean(
+    body?.id != null ||
+      body?.message_id != null ||
+      body?.temp_id != null ||
+      body?.tempId != null ||
+      body?.client_message_id != null ||
+      body?.content != null ||
+      body?.message != null ||
+      body?.sender_id != null ||
+      body?.senderId != null
+  );
+}
+
+/** True when the payload carries a channel object, not just its id. */
+function hasChannelObject(payload: any): boolean {
+  const body = unwrapEnvelope(payload);
+  return Boolean(
+    body?.name != null || body?.type != null || body?.is_private != null
+  );
+}
+
+/** True when the payload carries the permission fields, not just an id. */
+function hasPermissionFields(payload: any): boolean {
+  const body = unwrapEnvelope(payload);
+  return Boolean(
+    body?.canView != null ||
+      body?.canSend != null ||
+      body?.isAdmin != null ||
+      body?.isModerator != null ||
+      body?.channelType != null ||
+      body?.channel_type != null
+  );
+}
+
 function invalidate(...queryKeysArg: readonly (readonly unknown[])[]) {
   return { type: "invalidate" as const, queryKeys: queryKeysArg };
 }
@@ -70,6 +122,34 @@ export function realtimeEventToCommands(
   payload?: unknown
 ): CacheCommand[] {
   switch (eventName) {
+    case "new_message":
+    case "message_confirmed":
+    case "message_error": {
+      const channelId = readString(payload, "channel_id", "channelId");
+      const threadId = readString(payload, "thread_id", "threadId", "thread");
+
+      // Reconcilable messages are patched directly into the message caches by
+      // RealtimeCacheSync (channel window, DM conversation) and the DM list is
+      // patched by ChatPage. No refetch is needed.
+      if ((channelId || threadId) && hasMessagePayload(payload)) return [];
+
+      // Intentionally partial payload: the sync cannot build a message, so
+      // refetch only the affected window.
+      if (channelId) {
+        return [invalidate(queryKeys.channelMessages(channelId))];
+      }
+      return [];
+    }
+
+    case "reaction_updated":
+      // Reaction state is patched directly into the shared reaction store, so
+      // a single reaction must never refetch a whole DM family or channel.
+      return [];
+
+    case "receive_dm":
+      // DM conversations are patched by the DM sync + ChatPage's list handler.
+      return [];
+
     case "channel_updated": {
       const serverId = readString(payload, "server_id", "serverId");
       const channelId = readString(
@@ -78,55 +158,31 @@ export function realtimeEventToCommands(
         "channelId",
         "entityId"
       );
-      const commands: CacheCommand[] = serverId
-        ? [invalidate(queryKeys.server(serverId), queryKeys.serverChannels(serverId))]
-        : [invalidate(["server"])];
 
+      // A full channel object is patched into the server channel list and, when
+      // permission fields ride along, into the permission cache. A channel
+      // update never invalidates the message window.
+      if (channelId && hasChannelObject(payload)) return [];
+
+      // Partial payload (ids only): reconcile the channel list + permissions.
+      const commands: CacheCommand[] = [];
+      if (serverId) {
+        commands.push(invalidate(queryKeys.serverChannels(serverId)));
+      }
       if (channelId) {
-        commands.push(
-          invalidate(queryKeys.channelPermissions(channelId), queryKeys.channelMessages(channelId))
-        );
+        commands.push(invalidate(queryKeys.channelPermissions(channelId)));
       }
-
-      return commands;
+      return commands.length > 0 ? commands : [invalidate(["server"])];
     }
 
-    case "new_message":
-    case "message_confirmed":
-    case "message_error": {
+    case "permissions_updated": {
       const channelId = readString(payload, "channel_id", "channelId");
-      const threadId = readString(payload, "thread_id", "threadId", "thread");
-
-      // DM messages are inserted into the conversation cache directly by the
-      // realtime sync (setQueryData). Only reconcile the DM list preview here;
-      // do not refetch an entire conversation on every socket event.
-      if (threadId) {
-        return [invalidate(queryKeys.dms)];
-      }
-      // Channel messages are inserted into the channel cache directly by
-      // RealtimeCacheSync (setQueryData), so no invalidation/refetch is needed
-      // for the active window either.
-      if (channelId) {
-        return [];
-      }
-      return [];
-    }
-
-    case "reaction_updated": {
-      const channelId = readString(payload, "channel_id", "channelId");
-      const threadId = readString(payload, "thread_id", "threadId");
-      // DM message caches are keyed by the other user's id, which is not
-      // present in reaction payloads, so reconcile the whole DM family.
-      // Channel reactions are not stored in the message cache (they are
-      // fetched per message), so there is nothing to refetch here.
-      if (threadId) return [invalidate(["dm"])];
-      if (channelId) return [];
-      return [];
-    }
-
-    case "receive_dm": {
-      const keys: (readonly unknown[])[] = [queryKeys.dms];
-      return [invalidate(...keys)];
+      // A payload with the permission fields is patched directly into the
+      // permission cache.
+      if (channelId && hasPermissionFields(payload)) return [];
+      return channelId
+        ? [invalidate(queryKeys.channelPermissions(channelId))]
+        : [invalidate(["channel"])];
     }
 
     case "new_notification":
@@ -134,12 +190,16 @@ export function realtimeEventToCommands(
     case "mention_notification":
     case "mention_marked_read":
     case "mention_read":
-      return [invalidate(queryKeys.notifications, queryKeys.unreadCounts)];
+      // The notification list + unread counters are patched by the
+      // notifications store; there is no query to refetch.
+      return [];
 
     case "friend_request":
     case "friend_request_accepted":
     case "presence_updated":
-      return [invalidate(queryKeys.friends, queryKeys.friendRequests)];
+      // Friend list/counter state is patched by its own components; a presence
+      // event must not refetch the whole friends list.
+      return [];
 
     case "voice_state_update":
     case "voice_channel_roster":
@@ -148,16 +208,8 @@ export function realtimeEventToCommands(
     case "voice_invite_error":
     case "join_voice_channel":
     case "leave_voice_channel":
+      // Ephemeral voice/presence state is never persisted in the cache.
       return [remove(["voice"], ["presence"])];
-
-    case "permissions_updated": {
-      const channelId = readString(payload, "channel_id", "channelId");
-      return [
-        channelId
-          ? invalidate(queryKeys.channelPermissions(channelId))
-          : invalidate(["channel"]),
-      ];
-    }
 
     default:
       return [];

@@ -6,14 +6,18 @@ import {
   getMessageReactions,
   removeMessageReaction,
 } from "@/api/message.api";
+import {
+  ReactionStoreData,
+  setMessageReactions,
+  updateReactionStore,
+  useReactionStore,
+} from "@/lib/query/reactionStore";
 
 export type MessageReactionSummary = {
   emoji: string;
   count: number;
   reactedByMe?: boolean;
 };
-
-type ReactionStorage = Record<string, Record<string, string[]>>;
 
 type UseMessageReactionsOptions = {
   mode: "channel" | "dm";
@@ -58,13 +62,18 @@ const normalizeReactions = (
   return result;
 };
 
+/**
+ * Reaction state lives in the shared module-level store (patched directly by
+ * `reaction_updated` socket events via RealtimeCacheSync). This hook is a thin
+ * view + mutation layer over that store, so reactions update in realtime
+ * without refetching message datasets.
+ */
 export const useMessageReactions = ({
   mode,
   currentUserId,
   messageIds = [],
 }: UseMessageReactionsOptions) => {
-  const [reactionsByMessageId, setReactionsByMessageId] =
-    useState<ReactionStorage>({});
+  const reactionsByMessageId = useReactionStore();
   const [loading, setLoading] = useState(false);
   const fetchedIdsRef = useRef<Set<string>>(new Set());
 
@@ -83,15 +92,10 @@ export const useMessageReactions = ({
 
       try {
         const raw = await getMessageReactions(buildTarget(messageId));
-        setReactionsByMessageId((current) => {
-          const normalized = normalizeReactions(raw, currentUserId);
-          if (Object.keys(normalized).length === 0) {
-            const next = { ...current };
-            delete next[key];
-            return next;
-          }
-          return { ...current, [key]: normalized };
-        });
+        const normalized = normalizeReactions(raw, currentUserId);
+        updateReactionStore((prev) =>
+          setMessageReactions(prev, key, normalized as ReactionStoreData[string])
+        );
         fetchedIdsRef.current.add(key);
       } catch (error) {
         console.error(`Failed to fetch reactions for message ${key}`, error);
@@ -102,7 +106,6 @@ export const useMessageReactions = ({
 
   useEffect(() => {
     fetchedIdsRef.current.clear();
-    setReactionsByMessageId({});
   }, [mode]);
 
   useEffect(() => {
@@ -147,31 +150,18 @@ export const useMessageReactions = ({
       );
       const isRemoving = existingUsers.has(normalizedUserId);
 
-      setReactionsByMessageId((current) => {
-        const next = { ...current };
-        const messageReactions = { ...(next[key] ?? {}) };
-        const users = new Set(messageReactions[normalizedEmoji] ?? []);
-
-        if (isRemoving) {
-          users.delete(normalizedUserId);
-        } else {
-          users.add(normalizedUserId);
-        }
-
-        if (users.size === 0) {
-          delete messageReactions[normalizedEmoji];
-        } else {
-          messageReactions[normalizedEmoji] = Array.from(users);
-        }
-
-        if (Object.keys(messageReactions).length === 0) {
-          delete next[key];
-        } else {
-          next[key] = messageReactions;
-        }
-
-        return next;
-      });
+      updateReactionStore((prev) =>
+        setMessageReactions(
+          prev,
+          key,
+          {
+            ...(prev[key] ?? {}),
+            [normalizedEmoji]: isRemoving
+              ? Array.from(existingUsers).filter((id) => id !== normalizedUserId)
+              : Array.from(new Set([...existingUsers, normalizedUserId])),
+          }
+        )
+      );
 
       try {
         const target = buildTarget(messageId);
