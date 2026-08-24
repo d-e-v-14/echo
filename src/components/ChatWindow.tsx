@@ -30,6 +30,7 @@ import { useChannelPermissions } from "@/hooks/useChannelPermissions";
 import { useChannelMembers } from "@/hooks/useChannelMembers";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { useTyping } from "@/hooks/useTyping";
+import { tokenStore } from "@/lib/auth/tokenStore";
 
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { MessageVirtualizer } from "@/components/chat/MessageVirtualizer";
@@ -697,7 +698,7 @@ export default forwardRef(function ChatWindow(
       setIsProfileOpen(true);
 
       try {
-        const token = localStorage.getItem("access_token");
+        const token = await tokenStore.ensureAccessToken();
         if (!token || !serverId) return;
 
         const url = `${process.env.NEXT_PUBLIC_API_URL}/api/newserver/${serverId}/members/${userId}`;
@@ -768,7 +769,8 @@ export default forwardRef(function ChatWindow(
       if (!serverId) return;
 
       try {
-        const token = localStorage.getItem("access_token");
+        const token = await tokenStore.ensureAccessToken();
+        if (!token) return;
         const url = `${
           process.env.NEXT_PUBLIC_API_URL
         }/api/newserver/${serverId}/roles/${encodeURIComponent(

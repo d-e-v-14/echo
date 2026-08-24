@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { safeHref } from "@/lib/security/safeUrl";
 
 interface Role {
   id: string;
@@ -181,7 +182,7 @@ export default function MessageContentWithMentions({
         parts.push(
           <a
             key={keyIndex++}
-            href={mention.url}
+            href={safeHref(mention.url)}
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-400 hover:text-blue-300 underline hover:underline-offset-2 transition-colors break-all"

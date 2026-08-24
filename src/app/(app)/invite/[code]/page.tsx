@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { joinServer } from "@/api";
 import { supabase } from "@/lib/supabaseClient";
+import { tokenStore } from "@/lib/auth/tokenStore";
 
 export default function InvitePage() {
   const { code } = useParams<{ code: string }>();
@@ -47,11 +48,9 @@ export default function InvitePage() {
       return;
     }
 
-    const token = localStorage.getItem("access_token");
-    const tokenExpiry = localStorage.getItem("tokenExpiry");
-    const isExpired = tokenExpiry && Date.now() > parseInt(tokenExpiry);
+    const hasSession = tokenStore.hasRefreshToken();
 
-    if (!token || isExpired) {
+    if (!hasSession) {
       localStorage.setItem("redirectAfterLogin", `/invite/${code}`);
       setPageState("signIn");
       return;

@@ -82,7 +82,7 @@ export default function ProfilePage() {
       setToast({ message: "Logged out successfully", type: "success" });
 
       setTimeout(() => {
-        window.location.href = "/login";
+        window.location.href = "/";
       }, 800);
     } catch (error) {
       console.error("Failed to logout:", error);

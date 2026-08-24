@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useImageModal } from "@/contexts/ImageModalContext";
+import { safeHref, isSafeMediaUrl } from "@/lib/security/safeUrl";
 
 interface MessageAttachmentProps {
   media_url: string;
@@ -14,7 +15,7 @@ export default function MessageAttachment({
 }: MessageAttachmentProps) {
   const { openImage } = useImageModal();
 
-  if (!media_url) return null;
+  if (!media_url || !isSafeMediaUrl(media_url)) return null;
 
   // Check if it's a blob URL (from local file uploads) or has image extension
   const isBlobUrl = media_url.startsWith("blob:");
@@ -79,7 +80,7 @@ export default function MessageAttachment({
 
   return (
     <a
-      href={media_url}
+      href={safeHref(media_url)}
       target="_blank"
       rel="noopener noreferrer"
       className="inline-flex items-center gap-2 px-3 py-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors border border-white/20"

@@ -1,4 +1,5 @@
-import { api, getToken } from "./axios";
+import { api } from "./axios";
+import { tokenStore } from "@/lib/auth/tokenStore";
 
 export const register = async (
   email: string,
@@ -16,22 +17,17 @@ export const register = async (
 export const login = async (identifier: string, password: string) => {
   const response = await api.post("/api/auth/login", { identifier, password });
 
-  // Store tokens after successful login
+  // Store the access token in memory and persist the refresh token.
   if (response.data.accessToken) {
-    localStorage.setItem("access_token", response.data.accessToken);
-    localStorage.setItem("refresh_token", response.data.refreshToken);
+    tokenStore.setTokens({
+      accessToken: response.data.accessToken,
+      refreshToken: response.data.refreshToken,
+      expiresIn: response.data.expiresIn,
+    });
 
-    // Calculate and store expiry time
-    const expiryTime = Date.now() + response.data.expiresIn * 1000;
-    localStorage.setItem("tokenExpiry", expiryTime.toString());
-
-    // Store user data
     if (response.data.user) {
-      localStorage.setItem("user", JSON.stringify(response.data.user));
+      tokenStore.setUser(response.data.user);
     }
-
-    // Set authorization header
-    getToken(response.data.accessToken);
   }
 
   return response.data;
@@ -46,6 +42,18 @@ export const handleOAuthLogin = async (
     { refreshToken }, // Send refresh token in body for backend to set cookie
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
+
+  if (response.data.accessToken) {
+    tokenStore.setTokens({
+      accessToken: response.data.accessToken,
+      refreshToken: response.data.refreshToken ?? refreshToken,
+      expiresIn: response.data.expiresIn,
+    });
+    if (response.data.user) {
+      tokenStore.setUser(response.data.user);
+    }
+  }
+
   return response.data;
 };
 
@@ -74,19 +82,11 @@ export const logout = async () => {
 
     const res = await api.get("/api/auth/logout");
 
-    // Clear all stored tokens and user data
-    localStorage.removeItem("token");
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-    localStorage.removeItem("tokenExpiry");
-    localStorage.removeItem("user");
-
-    // Clear authorization header
-    delete api.defaults.headers.common["Authorization"];
-
     return res.data;
   } catch (err) {
     console.error("Logout error:", err);
     throw err;
+  } finally {
+    tokenStore.clear();
   }
 };

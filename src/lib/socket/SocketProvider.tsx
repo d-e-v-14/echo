@@ -12,6 +12,7 @@ import {
 } from "react";
 import { io, Socket } from "socket.io-client";
 import { useUser } from "@/components/UserContext";
+import { tokenStore } from "@/lib/auth/tokenStore";
 import { setAppSocket, getAppSocket } from "./appSocket";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -79,64 +80,82 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     }, HEARTBEAT_INTERVAL_MS);
   }, []);
 
-  // Create ONE socket per authenticated user (spec §5). The provider mounts
-  // once around the app, so this is the single application-level socket.
   useEffect(() => {
     if (!userId) return;
 
-    const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem("access_token") || undefined
-        : undefined;
+    let disposed = false;
+    let cleanup: (() => void) | null = null;
 
-    const newSocket = io(API_URL, {
-      ...SOCKET_CONFIG,
-      auth: { userId, token },
-    });
+    const connectSocket = async () => {
+      const token = await tokenStore.ensureAccessToken();
+      if (disposed || !token) return;
 
-    socketRef.current = newSocket;
-    setSocket(newSocket);
-    setAppSocket(newSocket);
-    setConnected(newSocket.connected);
-    setSocketId(newSocket.id ?? null);
+      const newSocket = io(API_URL, {
+        ...SOCKET_CONFIG,
 
-    const handleConnect = () => {
-      setConnected(true);
-      setSocketId(newSocket.id ?? null);
-      startHeartbeat(newSocket);
-      // Re-join rooms the app had subscribed to before the reconnect break.
-      joinedRoomsRef.current.forEach((roomId) => {
-        newSocket.emit("join_room", roomId);
+        auth: async (cb: (auth: Record<string, unknown>) => void) => {
+          const freshToken = await tokenStore.ensureAccessToken();
+          cb({ userId, token: freshToken });
+        },
       });
+
+      socketRef.current = newSocket;
+      setSocket(newSocket);
+      setAppSocket(newSocket);
+      setConnected(newSocket.connected);
+      setSocketId(newSocket.id ?? null);
+
+      const handleConnect = () => {
+        setConnected(true);
+        setSocketId(newSocket.id ?? null);
+        startHeartbeat(newSocket);
+
+        joinedRoomsRef.current.forEach((roomId) => {
+          newSocket.emit("join_room", roomId);
+        });
+      };
+
+      const handleDisconnect = (reason: string) => {
+        setConnected(false);
+        setSocketId(null);
+        stopHeartbeat();
+        // Server-initiated disconnects need an explicit reconnect in Socket.IO.
+        if (reason === "io server disconnect") newSocket.connect();
+      };
+
+      const handleConnectError = async (err: Error) => {
+        console.error("Socket connect_error:", { message: err?.message });
+        // The auth callback refreshes the access token for the next attempt. If
+        // the session is genuinely gone, stop retrying and let the app redirect.
+        const ok = await tokenStore.refresh();
+        if (!ok) {
+          newSocket.disconnect();
+        }
+      };
+
+      newSocket.on("connect", handleConnect);
+      newSocket.on("disconnect", handleDisconnect);
+      newSocket.on("connect_error", handleConnectError);
+
+      cleanup = () => {
+        stopHeartbeat();
+        newSocket.off("connect", handleConnect);
+        newSocket.off("disconnect", handleDisconnect);
+        newSocket.off("connect_error", handleConnectError);
+        newSocket.disconnect();
+        setConnected(false);
+        setSocketId(null);
+        joinedRoomsRef.current.clear();
+        if (socketRef.current === newSocket) socketRef.current = null;
+        if (getAppSocket() === newSocket) setAppSocket(null);
+      };
     };
 
-    const handleDisconnect = (reason: string) => {
-      setConnected(false);
-      setSocketId(null);
-      stopHeartbeat();
-      // Server-initiated disconnects need an explicit reconnect in Socket.IO.
-      if (reason === "io server disconnect") newSocket.connect();
-    };
-
-    const handleConnectError = (err: Error) => {
-      console.error("Socket connect_error:", { message: err?.message });
-    };
-
-    newSocket.on("connect", handleConnect);
-    newSocket.on("disconnect", handleDisconnect);
-    newSocket.on("connect_error", handleConnectError);
+    void connectSocket();
 
     return () => {
-      stopHeartbeat();
-      newSocket.off("connect", handleConnect);
-      newSocket.off("disconnect", handleDisconnect);
-      newSocket.off("connect_error", handleConnectError);
-      newSocket.disconnect();
-      setConnected(false);
-      setSocketId(null);
-      joinedRoomsRef.current.clear();
-      if (socketRef.current === newSocket) socketRef.current = null;
-      if (getAppSocket() === newSocket) setAppSocket(null);
+      disposed = true;
+      cleanup?.();
     };
   }, [userId, startHeartbeat, stopHeartbeat]);
 

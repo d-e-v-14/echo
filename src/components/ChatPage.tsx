@@ -37,6 +37,7 @@ import MessageSearchPanel from "./MessageSearchPanel";
 // import PinnedMessagesBar from "./PinnedMessagesBar";
 import { MessageSearchResult } from "@/api/types/message.types";
 import { useDmMessages } from "@/hooks/useDmMessages";
+import { tokenStore } from "@/lib/auth/tokenStore";
 import { queryKeys } from "@/lib/query/keys";
 import {
   flattenDmMessages,
@@ -1722,7 +1723,7 @@ queryClient.setQueryData(
       setIsProfileOpen(true);
 
       try {
-        const token = localStorage.getItem("access_token");
+        const token = await tokenStore.ensureAccessToken();
 
         // Try the generic profile endpoint with exhaustive field names
         const url = `${process.env.NEXT_PUBLIC_API_URL}/api/profile/${userId}`;

@@ -6,6 +6,7 @@ import { getAllRoles } from "@/api/roles.api";
 import { getServerMembers } from "@/api/server.api";
 import { ChatRole } from "@/lib/channels/types";
 import { normalizeRoleName, normalizeUsername } from "@/lib/channels/mentions";
+import { tokenStore } from "@/lib/auth/tokenStore";
 
 export interface UseChannelMembersResult {
   currentUsername: string;
@@ -120,7 +121,7 @@ export function useChannelMembers({
 
     const loadMyServerRoles = async () => {
       try {
-        const token = localStorage.getItem("access_token");
+        const token = await tokenStore.ensureAccessToken();
         if (!token) return;
 
         const res = await fetch(
