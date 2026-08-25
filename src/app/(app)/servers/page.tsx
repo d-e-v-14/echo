@@ -106,14 +106,11 @@ const ServersPageContent: React.FC = () => {
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
   const [selectedServerName, setSelectedServerName] = useState<string>("");
 
-  const syncServerUrl = useCallback(
-    (id: string) => {
-      const params = new URLSearchParams(window.location.search);
-      params.set("serverId", id);
-      router.replace(`/servers?${params.toString()}`, { scroll: false });
-    },
-    [router]
-  );
+  const syncServerUrl = useCallback((id: string) => {
+    const params = new URLSearchParams(window.location.search);
+    params.set("serverId", id);
+    window.history.replaceState(window.history.state, "", `/servers?${params.toString()}`);
+  }, []);
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(
     null
   );
@@ -180,6 +177,12 @@ const ServersPageContent: React.FC = () => {
     () => channels.find((c) => c.id === effectiveSelectedChannelId) ?? null,
     [channels, effectiveSelectedChannelId]
   );
+
+  const lastActiveChannelRef = useRef<Channel | null>(null);
+  useEffect(() => {
+    if (activeChannel) lastActiveChannelRef.current = activeChannel;
+  }, [activeChannel]);
+  const displayChannel = activeChannel ?? lastActiveChannelRef.current;
 
   useEffect(() => {
     setSelectedChannelId(effectiveSelectedChannelId);
@@ -1449,14 +1452,14 @@ const ServersPageContent: React.FC = () => {
 
                 <div
                   className={`flex-1 overflow-hidden ${
-                    !showVoiceUI && activeChannel ? "flex flex-col" : "hidden"
+                    !showVoiceUI && displayChannel ? "flex flex-col" : "hidden"
                   }`}
                 >
-                  {activeChannel && (
+                  {displayChannel && (
                     <Chatwindow
                       ref={chatWindowRef}
-                      channelId={activeChannel.id}
-                      channelName={activeChannel.name}
+                      channelId={displayChannel.id}
+                      channelName={displayChannel.name}
                       isDM={false}
                       currentUserId={user.id}
                       localStream={null}
@@ -1466,7 +1469,7 @@ const ServersPageContent: React.FC = () => {
                   )}
                 </div>
 
-                {!showVoiceUI && !activeChannel && (
+                {!showVoiceUI && !displayChannel && (
                   <div className="flex flex-col items-center justify-center h-full">
                     <h2 className="text-2xl text-gray-400" />
                   </div>

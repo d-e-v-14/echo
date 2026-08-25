@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { fetchChannelsByServer } from "@/api/channel.api";
 import { queryKeys } from "@/lib/query/keys";
 import { policyForQueryKey } from "@/lib/query/cachePolicy";
@@ -37,6 +37,7 @@ export function useChannels(serverId?: string): UseChannelsResult {
     enabled,
     staleTime: policy.staleTimeMs,
     gcTime: policy.gcTimeMs,
+    placeholderData: keepPreviousData,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
   });
