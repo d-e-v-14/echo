@@ -27,6 +27,7 @@ export const queryKeys = {
   channelMessages: (channelId: string) =>
     [...queryKeys.channel(channelId), "messages"] as const,
   dms: ["dms"] as const,
+  dmList: (userId: string) => [...queryKeys.dms, userId] as const,
   dmMessages: (conversationId: string) =>
     ["dm", conversationId, "messages"] as const,
   dmSearch: (threadId: string, query: string) =>

@@ -45,32 +45,6 @@ const normalizeArray = <T>(payload: unknown): T[] => {
   return [];
 };
 
-const DM_CACHE_TTL_MS = 2 * 60 * 1000;
-
-type CachedDmResponse = {
-  data: any;
-  success: boolean;
-};
-
-type CachedDmEntry = {
-  fetchedAt: number;
-  response: CachedDmResponse;
-};
-
-const userDmCache = new Map<string, CachedDmEntry>();
-const userDmInFlight = new Map<string, Promise<CachedDmResponse>>();
-
-export const invalidateUserDmCache = (userId?: string) => {
-  if (userId) {
-    userDmCache.delete(userId);
-    userDmInFlight.delete(userId);
-    return;
-  }
-
-  userDmCache.clear();
-  userDmInFlight.clear();
-};
-
 export const uploadMessage = async (payload: {
   file?: File;
   content?: string;
@@ -196,49 +170,19 @@ export const getDmThreadMessages = async (threadId: string, offset = 0) => {
   return response.data;
 };
 
-export const getUserDMs = async (
-  options: { forceRefresh?: boolean; cacheTtlMs?: number } = {}
-): Promise<any> => {
-  const { forceRefresh = false, cacheTtlMs = DM_CACHE_TTL_MS } = options;
-  let userId: string | null = null;
-
+export const getUserDMs = async (): Promise<{ data: any; success: boolean }> => {
   try {
     const user = await getUser();
     if (!user || !user.id) {
       throw new Error("User not authenticated");
     }
 
-    userId = user.id;
+    const response = await apiClient.get(`/api/message/${user.id}/getDms`);
 
-    const cached = userDmCache.get(userId);
-    if (!forceRefresh && cached && Date.now() - cached.fetchedAt < cacheTtlMs) {
-      return cached.response;
-    }
-
-    const inFlight = userDmInFlight.get(userId);
-    if (!forceRefresh && inFlight) {
-      return inFlight;
-    }
-
-    const request = (async () => {
-      const response = await apiClient.get(`/api/message/${userId}/getDms`);
-
-      const payload = {
-        data: response.data,
-        success: true,
-      };
-
-      userDmCache.set(userId!, {
-        fetchedAt: Date.now(),
-        response: payload,
-      });
-
-      return payload;
-    })();
-
-    userDmInFlight.set(user.id, request);
-
-    return await request;
+    return {
+      data: response.data,
+      success: true,
+    };
   } catch (error: any) {
     if (error?.code === "ECONNABORTED") {
       console.error(" Request timed out");
@@ -252,10 +196,6 @@ export const getUserDMs = async (
 
     console.error("Error fetching DMs:", error.message || error);
     throw new Error("Failed to fetch messages. Please try again later.");
-  } finally {
-    if (userId) {
-      userDmInFlight.delete(userId);
-    }
   }
 };
 

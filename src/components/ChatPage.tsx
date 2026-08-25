@@ -13,12 +13,11 @@ import { usePageReady } from "@/components/RouteChangeLoader";
 import { Paperclip, Search, X, Phone, Video, Pin } from "lucide-react";
 import MessageInputWithMentions from "./MessageInputWithMentions";
 import InlineSearchDropdown from "./InlineSearchDropdown";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getUserDMs,
   uploaddm,
   markThreadAsRead,
-  invalidateUserDmCache,
   searchDmMessages,
 } from "@/api/message.api";
 import { fetchUserProfile } from "@/api/profile.api";
@@ -731,7 +730,9 @@ function MessagesPageContentInner() {
   const activeDmIdRef = useRef<string | null>(null);
   const invalidateDmCacheForCurrentUser = () => {
     if (currentUser?.id) {
-      invalidateUserDmCache(currentUser.id);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.dmList(currentUser.id),
+      });
     }
   };
 
@@ -940,127 +941,150 @@ function MessagesPageContentInner() {
     );
   }, [currentUser?.avatar_url, currentUser?.id]);
 
-  useEffect(() => {
-    if (currentUser && currentUser.id) {
-      const fetchDms = async () => {
-        try {
-          setIsLoading(true);
-          setError(null);
+  // The DM conversation list is owned by React Query. The old module-level
+  // cache has been removed; React Query handles both caching and request
+  // deduplication. We mirror the parsed result into local state that the
+  // rest of the component already reads.
+  const {
+    data: dmListData,
+    isError: dmListError,
+    isLoading: isLoadingDmList,
+  } = useQuery({
+    queryKey: queryKeys.dmList(currentUser?.id ?? "__none__"),
+    enabled: Boolean(currentUser?.id),
+    staleTime: 2 * 60 * 1000,
+    queryFn: async () => {
+      if (!currentUser?.id) {
+        throw new Error("User not authenticated");
+      }
 
-          const payload = await getUserDMs();
+      const payload = await getUserDMs();
 
-          const top = (payload as any)?.data ?? payload;
-          let threads: any[] = [];
-          if (Array.isArray(top)) {
-            threads = top;
-          } else if (Array.isArray((top as any)?.threads)) {
-            threads = (top as any).threads;
-          } else if (Array.isArray((top as any)?.data)) {
-            threads = (top as any).data;
-          } else {
-            console.warn("Unexpected DM response shape", top);
-            threads = [];
-          }
+      const top = (payload as any)?.data ?? payload;
+      let threads: any[] = [];
+      if (Array.isArray(top)) {
+        threads = top;
+      } else if (Array.isArray((top as any)?.threads)) {
+        threads = (top as any).threads;
+      } else if (Array.isArray((top as any)?.data)) {
+        threads = (top as any).data;
+      } else {
+        console.warn("Unexpected DM response shape", top);
+        threads = [];
+      }
 
-          const users: User[] = [];
-          const threadMap = new Map<string, string>();
-          const summaryMap = new Map<
-            string,
-            { lastMessage: string; timestamp: string; unreadCount: number }
-          >();
+      const users: User[] = [];
+      const threadMap = new Map<string, string>();
+      const summaryMap = new Map<
+        string,
+        { lastMessage: string; timestamp: string; unreadCount: number }
+      >();
 
-          threads.forEach((thread: any) => {
-            const threadId = thread.thread_id
-              ? String(thread.thread_id)
-              : thread._id
-                ? String(thread._id)
-                : thread.id
-                  ? String(thread.id)
-                  : undefined;
+      threads.forEach((thread: any) => {
+        const threadId = thread.thread_id
+          ? String(thread.thread_id)
+          : thread._id
+            ? String(thread._id)
+            : thread.id
+              ? String(thread.id)
+              : undefined;
 
-            const other = thread.other_user;
+        const other = thread.other_user;
 
-            if (other && other.id) {
-              const otherId = String(other.id);
-              const name =
-                other.fullname ||
-                other.username ||
-                other.name ||
-                other.display_name ||
-                "Unknown User";
+        if (other && other.id) {
+          const otherId = String(other.id);
+          const name =
+            other.fullname ||
+            other.username ||
+            other.name ||
+            other.display_name ||
+            "Unknown User";
 
-              users.push({
-                id: otherId,
-                fullname: name,
-                avatar_url: other.avatar_url ?? null,
-              });
-
-              const rawThreadMessages = Array.isArray(thread.messages)
-                ? thread.messages
-                : [];
-              const lastMessageObj =
-                rawThreadMessages.length > 0
-                  ? rawThreadMessages[rawThreadMessages.length - 1]
-                  : (thread.last_message ?? thread.lastMessage ?? null);
-              const content = lastMessageObj
-                ? lastMessageObj.media_url || lastMessageObj.mediaUrl
-                  ? "Sent an attachment"
-                  : String(
-                      lastMessageObj.content ?? lastMessageObj.message ?? ""
-                    )
-                : "No messages yet.";
-              const isSender = lastMessageObj?.sender_id === currentUser.id;
-              summaryMap.set(otherId, {
-                lastMessage: lastMessageObj
-                  ? `${isSender ? "You: " : `${name}: `}${content}`.trim()
-                  : "No messages yet.",
-                timestamp: String(
-                  lastMessageObj?.timestamp ??
-                    thread.updated_at ??
-                    thread.updatedAt ??
-                    new Date(0).toISOString()
-                ),
-                unreadCount: Number(
-                  thread.unread_count ?? thread.unreadCount ?? 0
-                ),
-              });
-
-              if (threadId) {
-                threadMap.set(otherId, threadId);
-              }
-            } else if (thread.recipientId) {
-              const rid = String(thread.recipientId);
-              const name = thread.recipientName || "Unknown User";
-
-              users.push({
-                id: rid,
-                fullname: name,
-              });
-
-              if (threadId) {
-                threadMap.set(rid, threadId);
-              }
-            }
+          users.push({
+            id: otherId,
+            fullname: name,
+            avatar_url: other.avatar_url ?? null,
           });
 
-          setAllUsers(users);
-          setThreadIds(threadMap);
-          setDmSummaries(summaryMap);
-        } catch (error: any) {
-          console.error("--- DETAILED FETCH ERROR ---");
-          console.error(error);
-          if (error.response) {
-            console.error("Backend Response Data:", error.response.data);
+          const rawThreadMessages = Array.isArray(thread.messages)
+            ? thread.messages
+            : [];
+          const lastMessageObj =
+            rawThreadMessages.length > 0
+              ? rawThreadMessages[rawThreadMessages.length - 1]
+              : (thread.last_message ?? thread.lastMessage ?? null);
+          const content = lastMessageObj
+            ? lastMessageObj.media_url || lastMessageObj.mediaUrl
+              ? "Sent an attachment"
+              : String(
+                  lastMessageObj.content ?? lastMessageObj.message ?? ""
+                )
+            : "No messages yet.";
+          const isSender = lastMessageObj?.sender_id === currentUser.id;
+          summaryMap.set(otherId, {
+            lastMessage: lastMessageObj
+              ? `${isSender ? "You: " : `${name}: `}${content}`.trim()
+              : "No messages yet.",
+            timestamp: String(
+              lastMessageObj?.timestamp ??
+                thread.updated_at ??
+                thread.updatedAt ??
+                new Date(0).toISOString()
+            ),
+            unreadCount: Number(
+              thread.unread_count ?? thread.unreadCount ?? 0
+            ),
+          });
+
+          if (threadId) {
+            threadMap.set(otherId, threadId);
           }
-          setError("Failed to load conversations. Check console for details.");
-        } finally {
-          setIsLoading(false);
-          pageReady();
+        } else if (thread.recipientId) {
+          const rid = String(thread.recipientId);
+          const name = thread.recipientName || "Unknown User";
+
+          users.push({
+            id: rid,
+            fullname: name,
+          });
+
+          if (threadId) {
+            threadMap.set(rid, threadId);
+          }
         }
-      };
-      fetchDms();
+      });
+
+      return { users, threadMap, summaryMap };
+    },
+  });
+
+  useEffect(() => {
+    if (!dmListData) return;
+    setAllUsers(dmListData.users);
+    setThreadIds(dmListData.threadMap);
+    setDmSummaries(dmListData.summaryMap);
+  }, [dmListData]);
+
+  useEffect(() => {
+    setIsLoading(isLoadingDmList || !currentUser?.id);
+  }, [isLoadingDmList, currentUser?.id]);
+
+  useEffect(() => {
+    setError(
+      dmListError
+        ? "Failed to load conversations. Check console for details."
+        : null
+    );
+  }, [dmListError]);
+
+  const pageReadyCalledRef = useRef(false);
+  useEffect(() => {
+    if (pageReadyCalledRef.current) return;
+    if (currentUser?.id && !isLoadingDmList) {
+      pageReadyCalledRef.current = true;
+      pageReady();
     }
-  }, [currentUser]);
+  }, [currentUser?.id, isLoadingDmList, pageReady]);
 
   // Loads one older page; prepend compensation is handled by useChatScroll.
   const loadOlderMessages = useCallback(async () => {
