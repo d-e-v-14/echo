@@ -1,6 +1,5 @@
 "use client";
 
-import { logout } from "@/api/auth.api";
 import { useUser } from "@/components/UserContext";
 
 import {
@@ -8,7 +7,6 @@ import {
   MessageSquareText,
   User as UserIcon,
   Bell,
-  LogOut,
   Cross,
 } from "lucide-react";
 import Image from "next/image";
@@ -79,70 +77,33 @@ export default function Sidebar() {
     );
   }
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-
-      window.location.href = "/";
-    } catch (error) {
-      console.error("Failed to logout:", error);
-    }
-  };
-
   return (
     <aside className="relative flex h-screen w-52 shrink-0 flex-col overflow-hidden select-none">
       {/* Background */}
       <div className="absolute inset-0 z-0 border-r border-gray-800 bg-black" />
 
       <div className="relative z-10 flex h-full flex-col">
-        {/* Profile */}
-        <div className="px-1 pb-2 pt-2">
-          <Link
-            href="/profile-settings"
-            className="
-              group
-              flex items-center gap-3
-              rounded-lg
-              px-2.5 py-2.5
-              transition-colors
-              hover:bg-white/[0.06]
-            "
-          >
-            {/* Avatar */}
-            <div className="relative shrink-0">
-              <div className="rounded-full bg-[#FFC341] p-[2px]">
-                <div className="relative h-10 w-10 overflow-hidden rounded-full bg-white">
-                  <Image
-                    src={user.avatar_url || "/avatar.png"}
-                    alt="User"
-                    fill
-                    sizes="40px"
-                    className="object-cover"
-                  />
-                </div>
-              </div>
-
-              {/* Online indicator */}
-              <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-black bg-green-500" />
+        {/* Brand */}
+        <div className="px-3 pb-2 pt-3">
+          <div className="flex items-center gap-2.5 px-1">
+            <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg">
+              <Image
+                src="/ieeecs.png"
+                alt="IEEE CS logo"
+                fill
+                sizes="36px"
+                className="object-contain"
+              />
             </div>
-
-            {/* User information */}
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-white">
-                {user.fullname}
-              </p>
-
-              <p
-                className="max-w-[150px] truncate text-xs text-gray-400"
-                title={user.username}
-              >
-                @{user.username}
-              </p>
+            <div className="min-w-0 flex-1 leading-tight">
+              <span className="block text-base font-bold tracking-wide text-white">
+                IEEE
+              </span>
+              <span className="block text-sm font-semibold tracking-wide text-[#b5bac1]">
+                Computer Society
+              </span>
             </div>
-          </Link>
+          </div>
         </div>
 
         {/* Divider */}
@@ -226,27 +187,46 @@ export default function Sidebar() {
           </div>
         </nav>
 
-        {/* Logout */}
-        <div className=" p-3">
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="
-              flex h-9 w-full
-              items-center justify-center gap-2
-              rounded-md
-              px-3
-              text-lg
-              font-medium
-              text-gray-400
-              transition-colors
-              hover:bg-red-500/10
-              hover:text-red-400
-            "
-          >
-            <LogOut className="h-4 w-4" />
-            <span>Logout</span>
-          </button>
+        {/* Profile */}
+        <div className="border-t border-white/[0.06] p-3">
+          <div className="flex items-center gap-2">
+            <Link
+              href="/profile-settings"
+              className="group flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-white/[0.06]"
+            >
+              {/* Avatar */}
+              <div className="relative shrink-0">
+                <div className="rounded-full bg-[#FFC341] p-[2px]">
+                  <div className="relative h-10 w-10 overflow-hidden rounded-full bg-white">
+                    <Image
+                      src={user.avatar_url || "/avatar.png"}
+                      alt="User"
+                      fill
+                      sizes="40px"
+                      className="object-cover"
+                    />
+                  </div>
+                </div>
+
+                {/* Online indicator */}
+                <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-black bg-green-500" />
+              </div>
+
+              {/* User information */}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-white">
+                  {user.fullname}
+                </p>
+
+                <p
+                  className="max-w-[150px] truncate text-xs text-gray-400"
+                  title={user.username}
+                >
+                  @{user.username}
+                </p>
+              </div>
+            </Link>
+          </div>
         </div>
       </div>
     </aside>

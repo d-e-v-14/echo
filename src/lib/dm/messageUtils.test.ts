@@ -5,14 +5,16 @@ import {
   insertIncomingIntoPages,
   markMessageFailedById,
   markMessagesFailed,
+  mergeDmSummaries,
   mergeIntoPage,
   normalizeDmMessage,
   reconcileConfirmedMessage,
   replaceOptimisticById,
   resolveRepliesForThread,
+  sortDmConversationsByLatest,
   sortDmMessages,
 } from "./messageUtils";
-import type { DmMessage, DmMessagesData } from "./types";
+import type { DmMessage, DmMessagesData, DmSummary } from "./types";
 
 const ME = "me";
 const THEM = "them";
@@ -279,6 +281,115 @@ describe("markMessageFailedById", () => {
   it("no-ops when the id is not present", () => {
     const old = data(msg({ id: "real-1" }));
     expect(markMessageFailedById(old, "ghost")).toBe(old);
+  });
+});
+
+describe("sortDmConversationsByLatest", () => {
+  const conv = (id: string, timestamp: string) => ({
+    user: { id },
+    lastMessage: "msg",
+    timestamp,
+    unreadCount: 0,
+  });
+
+  it("sorts conversations newest first by timestamp", () => {
+    const sorted = sortDmConversationsByLatest([
+      conv("a", "2026-01-01T00:00:01.000Z"),
+      conv("b", "2026-01-01T00:00:03.000Z"),
+      conv("c", "2026-01-01T00:00:02.000Z"),
+    ]);
+    expect(sorted.map((c) => c.user.id)).toEqual(["b", "c", "a"]);
+  });
+
+  it("does not duplicate conversations when reordering", () => {
+    const list = [
+      conv("a", "2026-01-01T00:00:01.000Z"),
+      conv("b", "2026-01-01T00:00:03.000Z"),
+      conv("c", "2026-01-01T00:00:02.000Z"),
+    ];
+    const sorted = sortDmConversationsByLatest(list);
+    expect(sorted).toHaveLength(3);
+    expect(new Set(sorted.map((c) => c.user.id)).size).toBe(3);
+    expect(list).toHaveLength(3);
+  });
+
+  it("moves a conversation to the top when its timestamp is updated", () => {
+    let list = sortDmConversationsByLatest([
+      conv("a", "2026-01-01T00:00:01.000Z"),
+      conv("b", "2026-01-01T00:00:02.000Z"),
+    ]);
+    expect(list[0].user.id).toBe("b");
+
+    list = sortDmConversationsByLatest(
+      list.map((c) =>
+        c.user.id === "a"
+          ? { ...c, timestamp: "2026-01-01T00:00:03.000Z" }
+          : c
+      )
+    );
+    expect(list[0].user.id).toBe("a");
+  });
+});
+
+describe("mergeDmSummaries", () => {
+  const summary = (
+    id: string,
+    timestamp: string,
+    lastMessage = "msg"
+  ): [string, DmSummary] => [
+    id,
+    { lastMessage, timestamp, unreadCount: 0 },
+  ];
+
+  it("keeps a newer local preview instead of a stale remote one", () => {
+    const remote = new Map([
+      summary("a", "2026-01-01T00:00:01.000Z", "You: older"),
+    ]);
+    const local = new Map([
+      summary("a", "2026-01-01T00:00:02.000Z", "You: newer"),
+    ]);
+    const next = mergeDmSummaries(remote, local);
+    expect(next.get("a")?.lastMessage).toBe("You: newer");
+  });
+
+  it("adopts remote data when it is newer than the local preview", () => {
+    const remote = new Map([
+      summary("a", "2026-01-01T00:00:03.000Z", "Alice: latest"),
+    ]);
+    const local = new Map([
+      summary("a", "2026-01-01T00:00:02.000Z", "You: older"),
+    ]);
+    const next = mergeDmSummaries(remote, local);
+    expect(next.get("a")?.lastMessage).toBe("Alice: latest");
+  });
+
+  it("preserves a local conversation that is missing from the remote list", () => {
+    const remote = new Map();
+    const local = new Map([
+      summary("a", "2026-01-01T00:00:02.000Z", "You: fresh dm"),
+    ]);
+    const next = mergeDmSummaries(remote, local);
+    expect(next.get("a")?.lastMessage).toBe("You: fresh dm");
+  });
+
+  it("returns the remote map unchanged when nothing should be kept", () => {
+    const remote = new Map([
+      summary("a", "2026-01-01T00:00:03.000Z", "Alice: latest"),
+    ]);
+    const local = new Map([
+      summary("a", "2026-01-01T00:00:02.000Z", "You: older"),
+    ]);
+    expect(mergeDmSummaries(remote, local)).toBe(remote);
+  });
+
+  it("adopts the full remote list when there is no local state yet", () => {
+    const remote = new Map([
+      summary("a", "2026-01-01T00:00:03.000Z", "Alice: hello"),
+      summary("b", "2026-01-01T00:00:02.000Z", "Bob: hi"),
+    ]);
+    const next = mergeDmSummaries(remote, new Map());
+    expect(next.get("a")?.lastMessage).toBe("Alice: hello");
+    expect(next.get("b")?.lastMessage).toBe("Bob: hi");
   });
 });
 

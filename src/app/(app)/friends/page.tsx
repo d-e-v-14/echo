@@ -24,7 +24,6 @@ import {
   respondToFriendRequest,
   searchUsers,
 } from "@/api";
-import { fetchUserProfile } from "@/api/profile.api";
 import UserProfileModal from "@/components/UserProfileModal";
 import { useFriendNotifications } from "@/contexts/FriendNotificationContext";
 import { SearchUserResult } from "@/api/types/user.types";
@@ -71,8 +70,6 @@ export default function FriendsPage() {
     id: string;
     username: string;
     avatarUrl: string;
-    about?: string;
-    roles?: string[];
   } | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   useRef<Socket | null>(null);
@@ -108,46 +105,15 @@ export default function FriendsPage() {
   }, []);
 
   const openUserProfile = useCallback(
-    async (userId: string, fallbackName?: string, fallbackAvatar?: string) => {
+    (userId: string, fallbackName?: string, fallbackAvatar?: string) => {
       if (!userId) return;
 
       setSelectedUser({
         id: userId,
         username: fallbackName || "Unknown User",
         avatarUrl: fallbackAvatar || "/User_profil.png",
-        about: "Loading bio...",
-        roles: [],
       });
       setIsProfileOpen(true);
-
-      try {
-        const profile = await fetchUserProfile(userId);
-        if (!profile) return;
-
-        setSelectedUser((prev) => {
-          if (!prev || prev.id !== userId) return prev;
-          return {
-            id: userId,
-            username:
-              profile.username ||
-              profile.fullname ||
-              fallbackName ||
-              "Unknown User",
-            avatarUrl:
-              profile.avatar_url || fallbackAvatar || "/User_profil.png",
-            about: profile.bio || "No bio yet...",
-            roles: Array.isArray(profile.roles)
-              ? profile.roles
-                  .map((role: any) =>
-                    typeof role === "string" ? role : role?.name
-                  )
-                  .filter(Boolean)
-              : [],
-          };
-        });
-      } catch (profileError) {
-        console.error("Failed to open friend profile:", profileError);
-      }
     },
     []
   );

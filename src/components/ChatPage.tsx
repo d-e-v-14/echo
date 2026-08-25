@@ -10,7 +10,16 @@ import React, {
 } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { usePageReady } from "@/components/RouteChangeLoader";
-import { Paperclip, Search, X, Phone, Video, Pin } from "lucide-react";
+import {
+  Paperclip,
+  Search,
+  X,
+  Phone,
+  Video,
+  Pin,
+  Clock,
+  CircleAlert,
+} from "lucide-react";
 import MessageInputWithMentions from "./MessageInputWithMentions";
 import InlineSearchDropdown from "./InlineSearchDropdown";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -37,21 +46,23 @@ import {
   LoadingOlderMessagesSkeleton,
   MessageListSkeleton,
 } from "@/components/loading/skeletons";
-import { tokenStore } from "@/lib/auth/tokenStore";
 import { queryKeys } from "@/lib/query/keys";
 import {
   flattenDmMessages,
   insertIncomingIntoDataOrCreate,
   insertIncomingIntoPages,
   markMessagesFailed,
+  mergeDmSummaries,
   normalizeDmMessage,
   replaceOptimisticById,
   resolveRepliesForThread,
+  sortDmConversationsByLatest,
 } from "@/lib/dm/messageUtils";
 import type {
   DmMessage as DirectMessage,
   DmMessagesData,
   DmReplyTarget,
+  DmSummary,
 } from "@/lib/dm/types";
 
 interface User {
@@ -102,12 +113,36 @@ type GroupedSection = {
 };
 
 interface ChatListProps {
-  conversations: { user: User; lastMessage: string; unreadCount: number }[];
+  conversations: {
+    user: User;
+    lastMessage: string;
+    timestamp: string;
+    unreadCount: number;
+    status?: DirectMessage["status"];
+  }[];
   activeDmId: string | null;
   onSelectDm: (userId: string) => void;
   isLoading: boolean;
   error: string | null;
 }
+
+const formatTimestamp = (ts: string): string => {
+  const date = new Date(ts);
+  if (Number.isNaN(date.getTime())) return "";
+  const now = new Date();
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  if (date.getTime() >= startOfToday.getTime()) {
+    return date.toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+  const yesterday = new Date(startOfToday);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (date.getTime() >= yesterday.getTime()) return "Yesterday";
+  return date.toLocaleDateString([], { month: "short", day: "numeric" });
+};
 
 const ChatList: React.FC<ChatListProps> = ({
   conversations,
@@ -121,10 +156,8 @@ const ChatList: React.FC<ChatListProps> = ({
   const filteredConversations = useMemo(() => {
     if (!query.trim()) return conversations;
     const lowered = query.trim().toLowerCase();
-    return conversations.filter(
-      ({ user, lastMessage }) =>
-        user.fullname.toLowerCase().includes(lowered) ||
-        lastMessage.toLowerCase().includes(lowered)
+    return conversations.filter(({ user }) =>
+      user.fullname.toLowerCase().includes(lowered)
     );
   }, [conversations, query]);
 
@@ -159,66 +192,88 @@ const ChatList: React.FC<ChatListProps> = ({
             No conversations found. Try another name.
           </div>
         ) : (
-          <ul className="space-y-2">
-            {filteredConversations.map(({ user, lastMessage, unreadCount }) => {
-              const isActive = activeDmId === user.id;
-              return (
-                <li
-                  key={user.id}
-                  onClick={() => onSelectDm(user.id)}
-           className={`group flex cursor-pointer items-center gap-3 rounded-2xl border p-3 transition-colors ${
-  isActive
-    ? "border-[#FFC341] bg-white/[0.08] text-white shadow-[0_0_0_1px_rgba(255,195,65,0.2)]"
-    : "border-transparent text-white hover:border-[#FFC341]/30 hover:bg-white/[0.04]"
-}`}
-                >
-                  <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-full border border-slate-700/60 bg-slate-800/60">
-                    {user.avatar_url ? (
-                      <img
-                        src={user.avatar_url}
-                        alt={user.fullname}
-                        className="h-10 w-10 object-cover rounded-full"
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                          e.currentTarget.nextElementSibling?.classList.remove(
-                            "hidden"
-                          );
-                        }}
-                      />
-                    ) : null}
-                    <div
-                      className={`flex h-full w-full items-center justify-center text-xs font-semibold uppercase text-slate-300 ${
-                        user.avatar_url ? "hidden" : ""
-                      }`}
-                    >
-                      {getInitials(user.fullname)}
-                    </div>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <p
-                        className={`truncate text-sm font-medium ${
-                          isActive ? "text-slate-100" : "text-slate-200"
-                        }`}
-                      >
-                        {user.fullname}
-                      </p>
-                      {unreadCount > 0 && !isActive && (
-                        <span className="flex-shrink-0 bg-green-500 text-white text-xs rounded-full min-w-[20px] h-[20px] flex items-center justify-center px-1.5 font-bold">
+          <ul className="space-y-1">
+            {filteredConversations.map(
+              ({ user, lastMessage, timestamp, unreadCount, status }) => {
+                const isActive = activeDmId === user.id;
+                const hasUnread = unreadCount > 0 && !isActive;
+                return (
+                  <li
+                    key={user.id}
+                    onClick={() => onSelectDm(user.id)}
+                    className={`group relative flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 transition-colors ${
+                      isActive
+                        ? "bg-white/[0.08]"
+                        : "text-white hover:bg-white/[0.04]"
+                    }`}
+                  >
+                    {hasUnread && (
+                      <span className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-green-500" />
+                    )}
+                    <div className="relative h-10 w-10 flex-shrink-0">
+                      <div className="h-10 w-10 overflow-hidden rounded-full border border-slate-700/60 bg-slate-800/60">
+                        {user.avatar_url ? (
+                          <img
+                            src={user.avatar_url}
+                            alt={user.fullname}
+                            className="h-10 w-10 object-cover rounded-full"
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                              e.currentTarget.nextElementSibling?.classList.remove(
+                                "hidden"
+                              );
+                            }}
+                          />
+                        ) : null}
+                        <div
+                          className={`flex h-full w-full items-center justify-center text-xs font-semibold uppercase text-slate-300 ${
+                            user.avatar_url ? "hidden" : ""
+                          }`}
+                        >
+                          {getInitials(user.fullname)}
+                        </div>
+                      </div>
+                      {hasUnread && (
+                        <span className="absolute -bottom-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-green-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-black">
                           {unreadCount > 99 ? "99+" : unreadCount}
                         </span>
                       )}
                     </div>
-                    <p className="truncate text-xs text-slate-400 group-hover:text-slate-300">
-                      {lastMessage || "No messages yet."}
-                    </p>
-                  </div>
-                  {/* {isActive && (
-                    <div className="h-2 w-2 rounded-full bg-indigo-400" />
-                  )} */}
-                </li>
-              );
-            })}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p
+                          className={`truncate text-sm font-semibold ${
+                            hasUnread ? "text-white" : "text-slate-200"
+                          }`}
+                        >
+                          {user.fullname}
+                        </p>
+                        <span
+                          className={`flex-shrink-0 text-[11px] leading-none ${
+                            hasUnread ? "text-white" : "text-slate-500"
+                          }`}
+                        >
+                          {status === "pending" ? (
+                            <Clock className="h-3.5 w-3.5 text-slate-400" />
+                          ) : status === "failed" ? (
+                            <CircleAlert className="h-3.5 w-3.5 text-[#ed4245]" />
+                          ) : (
+                            formatTimestamp(timestamp)
+                          )}
+                        </span>
+                      </div>
+                      <p
+                        className={`truncate text-xs ${
+                          hasUnread ? "text-slate-300" : "text-slate-500"
+                        }`}
+                      >
+                        {lastMessage || "No messages yet."}
+                      </p>
+                    </div>
+                  </li>
+                );
+              }
+            )}
           </ul>
         )}
       </div>
@@ -701,12 +756,17 @@ function MessagesPageContentInner() {
     useMessageNotifications();
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const currentUserIdRef = useRef<string | null>(null);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [activeDmId, setActiveDmId] = useState<string | null>(null);
   const [threadIds, setThreadIds] = useState<Map<string, string>>(new Map());
-  const [dmSummaries, setDmSummaries] = useState<
-    Map<string, { lastMessage: string; timestamp: string; unreadCount: number }>
-  >(new Map());
+  const [dmSummaries, setDmSummaries] = useState<Map<string, DmSummary>>(
+    new Map()
+  );
+  const dmSummariesRef = useRef<Map<string, DmSummary>>(new Map());
+  useEffect(() => {
+    dmSummariesRef.current = dmSummaries;
+  }, [dmSummaries]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [, setFileError] = useState<string | null>(null);
@@ -715,8 +775,6 @@ function MessagesPageContentInner() {
     id: string;
     username: string;
     avatarUrl: string;
-    about?: string;
-    roles?: string[];
   } | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const pageReady = usePageReady();
@@ -728,17 +786,41 @@ function MessagesPageContentInner() {
 
   const { socket } = useSocket();
   const activeDmIdRef = useRef<string | null>(null);
-  const invalidateDmCacheForCurrentUser = () => {
-    if (currentUser?.id) {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.dmList(currentUser.id),
-      });
-    }
+
+  const updateDmListCache = (
+    partnerId: string,
+    summary: DmSummary
+  ) => {
+    const userId = currentUserIdRef.current;
+    if (!userId) return;
+    queryClient.setQueryData(
+      queryKeys.dmList(userId),
+      (old: {
+        users: User[];
+        threadMap: Map<string, string>;
+        summaryMap: Map<string, DmSummary>;
+      } | undefined) => {
+        if (!old) return old;
+        const summaryMap = new Map(old.summaryMap);
+        const existing = summaryMap.get(partnerId);
+        summaryMap.set(partnerId, {
+          lastMessage: summary.lastMessage,
+          timestamp: summary.timestamp,
+          unreadCount: summary.unreadCount ?? existing?.unreadCount ?? 0,
+          status: summary.status ?? existing?.status,
+        });
+        return { ...old, summaryMap };
+      }
+    );
   };
 
   useEffect(() => {
     activeDmIdRef.current = activeDmId;
   }, [activeDmId]);
+
+  useEffect(() => {
+    currentUserIdRef.current = currentUser?.id ?? null;
+  }, [currentUser?.id]);
 
   const activeThreadId = activeDmId
     ? (threadIds.get(activeDmId) ?? null)
@@ -773,7 +855,6 @@ function MessagesPageContentInner() {
     const handleNewMessage = (raw: any) => {
       try {
         if (!raw) return;
-        invalidateDmCacheForCurrentUser();
         const incoming =
           (raw as any)?.payload ?? (raw as any)?.data ?? (raw as any)?.message ?? raw;
         if (!incoming) return;
@@ -798,7 +879,7 @@ function MessagesPageContentInner() {
 
         const incomingMsg = normalizeDmMessage(incoming);
 
-        const selfId = currentUser?.id;
+        const selfId = currentUserIdRef.current;
         let partnerId = incomingMsg.sender_id;
         if (partnerId === selfId) partnerId = incomingMsg.receiver_id;
 
@@ -841,33 +922,41 @@ function MessagesPageContentInner() {
           return [...prev, { id: partnerId, fullname: "Loading..." }];
         });
 
+        const isFromSelf = incomingMsg.sender_id === selfId;
+        const isActiveConversation = partnerId === activeDmIdRef.current;
+        const shouldIncrementUnread = !isFromSelf && !isActiveConversation;
+
+        const existing = dmSummariesRef.current.get(partnerId) ?? {
+          lastMessage: "",
+          timestamp: new Date(0).toISOString(),
+          unreadCount: 0,
+        };
+
+        const msgTimestamp = Number.isFinite(Date.parse(incomingMsg.timestamp))
+          ? incomingMsg.timestamp
+          : new Date().toISOString();
+
+        const summary: DmSummary = {
+          lastMessage: isFromSelf
+            ? `You: ${incomingMsg.content || "Sent an attachment"}`
+            : incomingMsg.content || "Sent an attachment",
+          timestamp: msgTimestamp,
+          unreadCount: isFromSelf
+            ? 0
+            : shouldIncrementUnread
+              ? existing.unreadCount + 1
+              : isActiveConversation
+                ? 0
+                : existing.unreadCount,
+          status: "sent",
+        };
+
         setDmSummaries((prev) => {
           const next = new Map(prev);
-          const existing = next.get(partnerId) ?? {
-            lastMessage: "",
-            timestamp: new Date(0).toISOString(),
-            unreadCount: 0,
-          };
-
-          const isFromSelf = incomingMsg.sender_id === selfId;
-          const isActiveConversation = partnerId === activeDmIdRef.current;
-          const shouldIncrementUnread = !isFromSelf && !isActiveConversation;
-
-          next.set(partnerId, {
-            lastMessage: isFromSelf
-              ? `You: ${incomingMsg.content || "Sent an attachment"}`
-              : incomingMsg.content || "Sent an attachment",
-            timestamp: incomingMsg.timestamp,
-            unreadCount: isFromSelf
-              ? 0
-              : shouldIncrementUnread
-                ? existing.unreadCount + 1
-                : isActiveConversation
-                  ? 0
-                  : existing.unreadCount,
-          });
+          next.set(partnerId, summary);
           return next;
         });
+        updateDmListCache(partnerId, summary);
       } catch (e) {
         console.error("Failed to handle incoming DM:", e, raw);
       }
@@ -975,10 +1064,7 @@ function MessagesPageContentInner() {
 
       const users: User[] = [];
       const threadMap = new Map<string, string>();
-      const summaryMap = new Map<
-        string,
-        { lastMessage: string; timestamp: string; unreadCount: number }
-      >();
+      const summaryMap = new Map<string, DmSummary>();
 
       threads.forEach((thread: any) => {
         const threadId = thread.thread_id
@@ -1034,6 +1120,7 @@ function MessagesPageContentInner() {
             unreadCount: Number(
               thread.unread_count ?? thread.unreadCount ?? 0
             ),
+            status: lastMessageObj?.status ?? "sent",
           });
 
           if (threadId) {
@@ -1060,9 +1147,19 @@ function MessagesPageContentInner() {
 
   useEffect(() => {
     if (!dmListData) return;
-    setAllUsers(dmListData.users);
-    setThreadIds(dmListData.threadMap);
-    setDmSummaries(dmListData.summaryMap);
+    setAllUsers((prev) => {
+      const byId = new Map(prev.map((u) => [u.id, u]));
+      dmListData.users.forEach((u) => byId.set(u.id, u));
+      return Array.from(byId.values());
+    });
+    setThreadIds((prev) => {
+      const next = new Map(prev);
+      dmListData.threadMap.forEach((threadId, partnerId) => {
+        if (!next.has(partnerId)) next.set(partnerId, threadId);
+      });
+      return next;
+    });
+    setDmSummaries((prev) => mergeDmSummaries(dmListData.summaryMap, prev));
   }, [dmListData]);
 
   useEffect(() => {
@@ -1192,7 +1289,6 @@ function MessagesPageContentInner() {
         if (!saved) {
           console.warn("DM upload returned no data");
         }
-        invalidateDmCacheForCurrentUser();
 
         const savedThreadId = saved?.thread_id
           ? String(saved.thread_id)
@@ -1245,12 +1341,25 @@ function MessagesPageContentInner() {
           vars.uploads.length > 1 || (vars.uploads[0]?.file != null)
             ? "You: Sent an attachment"
             : `You: ${vars.uploads[0]?.content ?? ""}`;
-        next.set(vars.conversationId, {
+        const summary: DmSummary = {
           lastMessage: previewText.trim(),
           timestamp: optimisticTimestamp,
           unreadCount: 0,
-        });
+          status: "pending",
+        };
+        next.set(vars.conversationId, summary);
         return next;
+      });
+
+      const optimisticPreviewText =
+        vars.uploads.length > 1 || (vars.uploads[0]?.file != null)
+          ? "You: Sent an attachment"
+          : `You: ${vars.uploads[0]?.content ?? ""}`;
+      updateDmListCache(vars.conversationId, {
+        lastMessage: optimisticPreviewText.trim(),
+        timestamp: optimisticTimestamp,
+        unreadCount: 0,
+        status: "pending",
       });
 
       return { uploads: vars.uploads, cancelledFetch };
@@ -1298,20 +1407,21 @@ queryClient.setQueryData(
         );
         }
 
+        const confirmedSummary: DmSummary = {
+          lastMessage: (savedMediaUrl
+            ? "You: Sent an attachment"
+            : `You: ${savedContent}`
+          ).trim(),
+          timestamp: String(saved?.timestamp ?? new Date().toISOString()),
+          unreadCount: 0,
+          status: "sent",
+        };
         setDmSummaries((prev) => {
           const next = new Map(prev);
-          next.set(result.conversationId, {
-            lastMessage: (savedMediaUrl
-              ? "You: Sent an attachment"
-              : `You: ${savedContent}`
-            ).trim(),
-            timestamp: String(
-              saved?.timestamp ?? new Date().toISOString()
-            ),
-            unreadCount: 0,
-          });
+          next.set(result.conversationId, confirmedSummary);
           return next;
         });
+        updateDmListCache(result.conversationId, confirmedSummary);
       }
 
       if (result.lastSavedThreadId) {
@@ -1341,6 +1451,24 @@ queryClient.setQueryData(
         (old: DmMessagesData | undefined) =>
           old ? markMessagesFailed(old, tempIds) : old
       );
+      setDmSummaries((prev) => {
+        const next = new Map(prev);
+        const existing = next.get(vars.conversationId);
+        if (existing) {
+          next.set(vars.conversationId, { ...existing, status: "failed" });
+        }
+        return next;
+      });
+      updateDmListCache(vars.conversationId, {
+        lastMessage:
+          dmSummariesRef.current.get(vars.conversationId)?.lastMessage ??
+          "Failed to send",
+        timestamp:
+          dmSummariesRef.current.get(vars.conversationId)?.timestamp ??
+          new Date().toISOString(),
+        unreadCount: 0,
+        status: "failed",
+      });
       (context?.uploads ?? vars.uploads).forEach((upload) => {
         if (upload.blobUrl) URL.revokeObjectURL(upload.blobUrl);
       });
@@ -1376,81 +1504,15 @@ queryClient.setQueryData(
   );
 
   const openUserProfile = useCallback(
-    async (userId: string, fallbackName?: string, fallbackAvatar?: string) => {
+    (userId: string, fallbackName?: string, fallbackAvatar?: string) => {
       if (!userId) return;
 
       setSelectedUser({
         id: userId,
         username: fallbackName || "Unknown User",
         avatarUrl: fallbackAvatar || "/User_profil.png",
-        about: "Loading bio...",
-        roles: [],
       });
       setIsProfileOpen(true);
-
-      try {
-        const token = await tokenStore.ensureAccessToken();
-
-        const url = `${process.env.NEXT_PUBLIC_API_URL}/api/profile/${userId}`;
-        const response = await fetch(url, {
-          headers: { Authorization: `Bearer ${token || ""}` },
-        });
-
-        let profile: any = null;
-
-        if (response.ok) {
-          profile = await response.json();
-        } else {
-          profile = await fetchUserProfile(userId);
-        }
-
-        if (!profile) throw new Error("Profile not found");
-
-        const resolvedUsername =
-          profile.user?.username ||
-          profile.users?.username ||
-          profile.username ||
-          profile.fullname ||
-          profile.name ||
-          fallbackName ||
-          "Unknown User";
-
-        const resolvedAvatar =
-          profile.user?.avatar_url ||
-          profile.users?.avatar_url ||
-          profile.avatar_url ||
-          fallbackAvatar ||
-          "/User_profil.png";
-
-        const resolvedBio =
-          profile.user?.bio ||
-          profile.users?.bio ||
-          profile.bio ||
-          profile.about ||
-          "No bio yet...";
-
-        setSelectedUser((prev) => {
-          if (!prev || prev.id !== userId) return prev;
-          return {
-            id: userId,
-            username: resolvedUsername,
-            avatarUrl: resolvedAvatar,
-            about: resolvedBio,
-            roles: Array.isArray(profile.roles)
-              ? profile.roles
-                  .map((role: any) =>
-                    typeof role === "string" ? role : role?.name
-                  )
-                  .filter(Boolean)
-              : [],
-          };
-        });
-      } catch (error) {
-        console.error("openUserProfile fetch failed:", error);
-        setSelectedUser((prev) =>
-          prev ? { ...prev, about: "No bio available." } : null
-        );
-      }
     },
     []
   );
@@ -1497,13 +1559,14 @@ queryClient.setQueryData(
   ]);
 
   const conversations = useMemo(() => {
-    return allUsers
-      .map((user) => {
+    return sortDmConversationsByLatest(
+      allUsers.map((user) => {
         const fallbackSummary = dmSummaries.get(user.id);
         const lastMessage =
           fallbackSummary?.lastMessage || "No messages yet.";
         const timestamp =
           fallbackSummary?.timestamp || new Date(0).toISOString();
+        const status = fallbackSummary?.status;
 
         const threadId = threadIds.get(user.id);
         const isActiveConversation = activeDmId === user.id;
@@ -1519,13 +1582,10 @@ queryClient.setQueryData(
           lastMessage,
           timestamp,
           unreadCount,
+          status,
         };
       })
-      .sort((a, b) => {
-        const timeA = new Date(a.timestamp).getTime() || 0;
-        const timeB = new Date(b.timestamp).getTime() || 0;
-        return timeB - timeA;
-      });
+    );
   }, [
     allUsers,
     currentUser?.id,

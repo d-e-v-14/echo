@@ -28,3 +28,10 @@ export interface DmMessagesData {
   pages: DmMessagesPage[];
   pageParams: unknown[];
 }
+
+export interface DmSummary {
+  lastMessage: string;
+  timestamp: string;
+  unreadCount: number;
+  status?: "pending" | "sent" | "failed";
+}

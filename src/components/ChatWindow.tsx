@@ -123,8 +123,6 @@ export default forwardRef(function ChatWindow(
     id: string;
     username: string;
     avatarUrl: string;
-    about?: string;
-    roles?: { id: string; name: string; color: string }[];
   } | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
@@ -420,66 +418,20 @@ export default forwardRef(function ChatWindow(
   }, [unreadMentions, currentMentionIndex, scroll]);
 
   const openProfile = useCallback(
-    async (userId: string, username?: string, fallbackAvatar?: string) => {
+    (userId: string, username?: string, fallbackAvatar?: string) => {
       if (!userId) return;
-
-      const safeUsername = username || "Unknown";
-      const safeAvatar = fallbackAvatar || DEFAULT_AVATAR;
-
       setSelectedUser({
         id: userId,
-        username: safeUsername,
-        avatarUrl: safeAvatar,
-        about: "Loading bio...",
-        roles: [],
+        username: username || "Unknown",
+        avatarUrl: fallbackAvatar || DEFAULT_AVATAR,
       });
       setIsProfileOpen(true);
-
-      try {
-        const token = await tokenStore.ensureAccessToken();
-        if (!token || !serverId) return;
-
-        const url = `${process.env.NEXT_PUBLIC_API_URL}/api/newserver/${serverId}/members/${userId}`;
-        const res = await fetch(url, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-        const data = await res.json();
-
-        setSelectedUser({
-          id: userId,
-          username:
-            data.user?.username ||
-            data.users?.username ||
-            data.username ||
-            safeUsername,
-          avatarUrl:
-            data.user?.avatar_url ||
-            data.users?.avatar_url ||
-            data.avatar_url ||
-            safeAvatar,
-          about:
-            data.user?.bio || data.users?.bio || data.bio || "No bio yet...",
-          roles:
-            data.roles?.map((r: any) => ({
-              id: r.id || r.role_id,
-              name: r.name,
-              color: r.color || "#374151",
-            })) || [],
-        });
-      } catch {
-        setSelectedUser((prev) =>
-          prev ? { ...prev, about: "No bio available." } : null
-        );
-      }
     },
-    [serverId]
+    []
   );
 
   const handleUsernameClick = useCallback(
-    async (userId: string, username: string) => {
+    (userId: string, username: string) => {
       const fromMessages = messages.find(
         (msg) =>
           msg.username?.toLowerCase() === username.toLowerCase() &&
@@ -493,11 +445,11 @@ export default forwardRef(function ChatWindow(
           avatarCacheRef.current[String(fromMessages.senderId)]?.url ||
           fromMessages.avatarUrl ||
           DEFAULT_AVATAR;
-        await openProfile(String(fromMessages.senderId), username, avatarUrl);
+        openProfile(String(fromMessages.senderId), username, avatarUrl);
         return;
       }
 
-      await openProfile(userId, username, DEFAULT_AVATAR);
+      openProfile(userId, username, DEFAULT_AVATAR);
     },
     [openProfile, messages]
   );
@@ -997,6 +949,7 @@ export default forwardRef(function ChatWindow(
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
         user={selectedUser}
+        serverId={serverId ?? undefined}
         currentUserId={currentUserId}
         currentUsername={currentUsername}
       />

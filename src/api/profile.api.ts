@@ -18,6 +18,16 @@ export const fetchUserProfile = async (userId: string): Promise<any> => {
   }
 };
 
+export const fetchServerMemberProfile = async (
+  serverId: string,
+  userId: string
+): Promise<any> => {
+  const response = await apiClient.get(
+    `/api/newserver/${serverId}/members/${userId}`
+  );
+  return response.data;
+};
+
 export async function getUser(): Promise<profile | null> {
   if (typeof window !== "undefined") {
     const storedUser = localStorage.getItem("user");

@@ -3,6 +3,7 @@ import {
   DmMessagesData,
   DmMessagesPage,
   DmReplyTarget,
+  DmSummary,
 } from "./types";
 
 const isTempId = (id: string | number | undefined): boolean =>
@@ -246,3 +247,32 @@ export const reconcileConfirmedMessage = (
 
   return insertIncomingIntoDataOrCreate(data, incoming);
 };
+
+export const mergeDmSummaries = (
+  remote: Map<string, DmSummary>,
+  local: Map<string, DmSummary>
+): Map<string, DmSummary> => {
+  const next = new Map(remote);
+  let changed = false;
+  for (const [id, localSummary] of local) {
+    const remoteSummary = next.get(id);
+    const localTs = Date.parse(localSummary.timestamp) || 0;
+    const remoteTs = remoteSummary ? Date.parse(remoteSummary.timestamp) || 0 : 0;
+    if (!remoteSummary || localTs > remoteTs) {
+      next.set(id, localSummary);
+      changed = true;
+    }
+  }
+  return changed ? next : remote;
+};
+
+export const sortDmConversationsByLatest = <
+  T extends { timestamp: string; user: { id: string } }
+>(
+  conversations: T[]
+): T[] =>
+  [...conversations].sort((a, b) => {
+    const timeA = Date.parse(a.timestamp) || 0;
+    const timeB = Date.parse(b.timestamp) || 0;
+    return timeB - timeA;
+  });
