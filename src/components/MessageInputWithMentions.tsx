@@ -36,6 +36,7 @@ interface MessageInputWithMentionsProps {
   serverId?: string;
   serverRoles: { id: string; name: string; color?: string }[];
   onTyping?: () => void;
+  placeholder?: string;
 }
 
 const UserMentionAvatar: React.FC<{
@@ -69,6 +70,7 @@ export default function MessageInputWithMentions({
   serverId,
   serverRoles,
   onTyping,
+  placeholder = "Message",
 }: MessageInputWithMentionsProps) {
   const { showToast } = useToast();
   const [text, setText] = useState("");
@@ -433,9 +435,9 @@ export default function MessageInputWithMentions({
   };
 
   return (
-    <div className="relative pt-6">
+    <div className="relative">
       {showEmojiPicker && (
-        <div ref={emojiPickerRef} className="absolute bottom-20 left-4 z-50">
+        <div ref={emojiPickerRef} className="absolute bottom-20 left-4 z-50 ">
           <EmojiPicker theme={Theme.DARK} onEmojiClick={handleEmojiClick} />
         </div>
       )}
@@ -597,14 +599,14 @@ export default function MessageInputWithMentions({
         </div>
       )}
 
-      <div className="mb-2 flex items-center gap-2 bg-gray-800 rounded-lg p-3">
+      <div className="mb-2 my-2 mx-2 flex items-center gap-2 bg-gray-800 rounded-lg py-[11px] px-3">
         <textarea
           ref={textInputRef}
           rows={1}
           value={text}
           onChange={handleTextChange}
           onKeyDown={handleKeyDown}
-          placeholder="Message"
+          placeholder={placeholder}
           className="max-h-32 min-h-6 flex-1 resize-none overflow-y-auto bg-transparent py-0 leading-6 text-white outline-none placeholder:text-gray-400"
         />
 

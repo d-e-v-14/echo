@@ -10,7 +10,9 @@ import React, {
 } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { usePageReady } from "@/components/RouteChangeLoader";
-import { Paperclip, Search, Send, Smile, X, Phone, Video, Pin } from "lucide-react";
+import { Paperclip, Search, X, Phone, Video, Pin } from "lucide-react";
+import MessageInputWithMentions from "./MessageInputWithMentions";
+import InlineSearchDropdown from "./InlineSearchDropdown";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getUserDMs,
@@ -26,12 +28,9 @@ import MessageAttachment from "./MessageAttachment";
 import { useMessageNotifications } from "@/contexts/MessageNotificationContext";
 import Toast from "@/components/Toast";
 import { useToast } from "@/contexts/ToastContext";
-import dynamic from "next/dynamic";
-import { Theme } from "emoji-picker-react";
 import UserProfileModal from "./UserProfileModal";
 import { ScrollToBottomButton } from "@/components/ScrollToBottomButton";
 import { isNearBottom } from "@/lib/scrollUtils";
-import MessageSearchPanel from "./MessageSearchPanel";
 import { MessageSearchResult } from "@/api/types/message.types";
 import { useDmMessages } from "@/hooks/useDmMessages";
 import {
@@ -55,8 +54,6 @@ import type {
   DmMessagesData,
   DmReplyTarget,
 } from "@/lib/dm/types";
-
-const EmojiPicker = dynamic(() => import("emoji-picker-react"), { ssr: false });
 
 interface User {
   id: string;
@@ -272,30 +269,19 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 }) => {
 
   useToast();
-  const [draft, setDraft] = useState("");
   const [replyingTo, setReplyingTo] = useState<DMReplyTarget>(null);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
-  const emojiPickerRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  interface SelectedFile {
-    file: File;
-    valid: boolean;
-    errorReason?: string;
-  }
-  const [files, setFiles] = useState<SelectedFile[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const dmAtBottomRef = useRef(true);
   const prevThreadRef = useRef<string | null>(null);
+  const replyingToRef = useRef<DMReplyTarget>(null);
 
   const scrollDmToBottom = () => {
     dmAtBottomRef.current = true;
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   };
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const draftInputRef = useRef<HTMLTextAreaElement>(null);
 
   const timeFormatter = useMemo(
     () =>
@@ -443,84 +429,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     [scrollToMessage, onToast]
   );
 
-  const canSend = draft.length > 0 || files.some((f) => f.valid);
-  const handleSend = (value: string) => {
-    const validFiles = files.filter((f) => f.valid).map((f) => f.file);
-    if (value.trim().length === 0 && validFiles.length === 0) return;
-    onSendMessage(value, validFiles, replyingTo);
-    setDraft("");
-    setFiles([]);
-    setReplyingTo(null);
-    requestAnimationFrame(() => {
-      if (draftInputRef.current) {
-        draftInputRef.current.style.height = "auto";
-        draftInputRef.current.focus();
-      }
-    });
-  };
-
-  const MAX_FILE_SIZE_MB = 25;
-  const ALLOWED_TYPES = [
-    "image/jpeg",
-    "image/png",
-    "image/gif",
-    "image/webp",
-    "image/svg+xml",
-    "video/mp4",
-    "video/webm",
-    "video/quicktime",
-    "video/x-msvideo",
-    "application/pdf",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.ms-excel",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "text/plain",
-    "text/csv",
-  ];
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(event.target.files || []);
-    const annotated: SelectedFile[] = selected.map((file) => {
-      if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024)
-        return {
-          file,
-          valid: false,
-          errorReason: `Too large (max ${MAX_FILE_SIZE_MB} MB)`,
-        };
-      if (!ALLOWED_TYPES.includes(file.type))
-        return { file, valid: false, errorReason: "Unsupported file type" };
-      return { file, valid: true };
-    });
-    const invalid = annotated.filter((f) => !f.valid);
-    if (invalid.length > 0) {
-      onToast(
-        invalid.map((f) => `"${f.file.name}": ${f.errorReason}`).join("\n"),
-        "error"
-      );
-    }
-    setFiles((prev) => [...prev, ...annotated]);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
   useEffect(() => {
-    if (!showEmojiPicker) return;
+    replyingToRef.current = replyingTo;
+  }, [replyingTo]);
 
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        emojiPickerRef.current &&
-        !emojiPickerRef.current.contains(event.target as Node)
-      ) {
-        setShowEmojiPicker(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showEmojiPicker]);
+  const handleSendMessage = useCallback(
+    (text: string, files: File[]) => {
+      if (text.trim().length === 0 && files.length === 0) return;
+      onSendMessage(text, files, replyingToRef.current);
+      setReplyingTo(null);
+    },
+    [onSendMessage]
+  );
 
   if (!activeUser) {
     return (
@@ -619,24 +539,23 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             <input
               type="text"
               placeholder={`Search ${activeUser.fullname.split(" ")[0] || activeUser.fullname}`}
-              onFocus={() => threadId && setShowSearch(true)}
+              onClick={() => threadId && setShowSearch(true)}
               readOnly={!threadId}
-              className="h-9 w-48 rounded-lg border border-white/[0.06] bg-[#1e1f22] px-3 pr-9 text-sm text-slate-200 placeholder:text-[#72767d] outline-none transition focus:w-64 focus:border-[#FFC341]/40 focus:ring-1 focus:ring-[#FFC341]/20 disabled:cursor-not-allowed disabled:opacity-40 lg:w-56 lg:focus:w-72"
+              className="h-9 w-64 rounded-lg border border-white/[0.06] bg-[#1e1f22] px-3 pr-9 text-sm text-slate-200 placeholder:text-[#72767d] outline-none transition-colors focus:border-[#FFC341]/40 focus:ring-1 focus:ring-[#FFC341]/20 disabled:cursor-not-allowed disabled:opacity-40 lg:w-72"
               aria-label={`Search messages with ${activeUser.fullname}`}
             />
             <Search className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#72767d] transition group-focus-within:text-[#FFC341]/60" />
+            <InlineSearchDropdown
+              isOpen={showSearch}
+              onClose={() => setShowSearch(false)}
+              onSearch={handleSearch}
+              onSelectResult={handleSearchSelect}
+              placeholder="Search in this conversation..."
+              align="right"
+            />
           </div>
         </div>
       </header>
-
-      <MessageSearchPanel
-        isOpen={showSearch}
-        onClose={() => setShowSearch(false)}
-        onSearch={handleSearch}
-        onSelectResult={handleSearchSelect}
-        placeholder="Search in this conversation..."
-        title="Search Conversation"
-      />
 
       <div className="relative flex-1 flex flex-col min-h-0">
         <div
@@ -734,54 +653,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         )}
       </div>
 
-      <footer className="relative border-t border-slate-800/80 bg-slate-900/70 px-6 py-5">
-        {files.length > 0 && (
-          <div className="mb-3 space-y-2">
-            {files.map((entry, index) => (
-              <div
-                key={`${entry.file.name}-${entry.file.lastModified}-${index}`}
-                className={`flex items-center justify-between rounded-xl border px-4 py-3 text-sm ${
-                  entry.valid
-                    ? "border-slate-800/70 bg-slate-900/60 text-slate-200"
-                    : "border-rose-500/30 bg-rose-950/30 text-slate-500 opacity-60"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Paperclip
-                    className={`h-4 w-4 ${
-                      entry.valid ? "text-[#FFC341]" : "text-slate-600"
-                    }`}
-                  />
-                  <span className="truncate max-w-[220px]">
-                    {entry.file.name}
-                  </span>
-                  <span className="text-xs">
-                    {entry.valid
-                      ? `${Math.round(entry.file.size / 1024)} KB`
-                      : entry.errorReason}
-                  </span>
-                </div>
-                <button
-                  onClick={() =>
-                    setFiles((prev) => prev.filter((_, i) => i !== index))
-                  }
-                  className="rounded-full border border-slate-800/70 p1 text-slate-400 transition-colors hover:border-rose-500/50 hover:text-rose-300"
-                  aria-label="Remove attachment"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
+      <footer className="relative p-2">
         {replyingTo && (
-          <div className="mb-2 rounded-lg border-l-4 border-[#FFC341] bg-slate-800 px-4 py-2">
+          <div className="mx-4 mt-3 mb-2 rounded-lg border-l-4 border-[#FFC341] bg-[#23272a]/60 px-4 py-2">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 min-w-0 text-sm text-slate-300">
                 <span className="shrink-0">
                   Replying to{" "}
-                  <span className="font-semibold">
+                  <span className="font-semibold text-[#FFC341]">
                     {replyingTo.author || "User"}
                   </span>
                   :
@@ -791,10 +670,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   <img
                     src={replyingTo.content.replace("[GIF]", "")}
                     alt="GIF preview"
-                    className="h-10 w-10 rounded object-cover border border-slate-600 flex-shrink-0"
+                    className="h-10 w-10 rounded object-cover border border-[#23272a] flex-shrink-0"
                   />
                 ) : isCodeBlock(replyingTo.content) ? (
-                  <div className="max-w-xs truncate rounded bg-slate-900 border border-slate-700 px-2 font-mono text-xs text-green-400">
+                  <div className="max-w-xs truncate rounded bg-[#111214] border border-[#23272a] px-2 font-mono text-xs text-green-400">
                     {
                       (
                         replyingTo.content.match(
@@ -815,14 +694,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                         <img
                           src={replyingTo.mediaUrl}
                           alt="Reply attachment"
-                          className="h-9 w-9 flex-shrink-0 rounded object-cover border border-slate-600"
+                          className="h-9 w-9 flex-shrink-0 rounded object-cover border border-[#23272a]"
                         />
                       ) : (
-                        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded border border-slate-600 bg-slate-800 text-slate-300">
+                        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded border border-[#23272a] bg-[#111214] text-[#72767d]">
                           <Paperclip className="h-4 w-4" />
                         </span>
                       ))}
-                    <span className="italic truncate">
+                    <span className="italic truncate text-slate-400">
                       {replyingTo.content ||
                         (replyingTo.mediaUrl ? "Attachment" : "")}
                     </span>
@@ -830,93 +709,23 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 )}
               </div>
               <button
-                onClick={() => {
-                  setReplyingTo(null);
-                  requestAnimationFrame(() => {
-                    draftInputRef.current?.focus();
-                  });
-                }}
-                className="ml-3 text-slate-400 transition hover:text-white"
+                onClick={() => setReplyingTo(null)}
+                className="ml-3 text-[#72767d] transition hover:text-white"
                 aria-label="Cancel reply"
-              ></button>
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
           </div>
         )}
 
-        <div className="flex items-center gap-3 rounded-2xl border border-slate-800/70 bg-slate-950/70 px-4 py-3">
-          <input
-            type="file"
-            ref={fileInputRef}
-            multiple
-            accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml,video/mp4,video/webm,video/quicktime,video/x-msvideo,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,text/csv"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="rounded-full border border-slate-800/70 p-2 text-slate-300 transition-colors hover:border-[#FFC341]/50 hover:text-[#FFC341]"
-            aria-label="Attach file"
-          >
-            <Paperclip className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            aria-label="Add reaction"
-            onClick={() => setShowEmojiPicker((v) => !v)}
-            className="rounded-full border border-slate-800/70 p-2 text-slate-300 transition-colors hover:border-[#FFC341]/50 hover:text-[#FFC341]"
-          >
-            <Smile className="h-4 w-4" />
-          </button>
-
-          <textarea
-            ref={draftInputRef}
-            rows={1}
-            value={draft}
-            onChange={(event) => {
-              setDraft(event.target.value);
-              event.target.style.height = "auto";
-              event.target.style.height = `${event.target.scrollHeight}px`;
-            }}
-            onKeyDown={(event) => {
-              if (event.nativeEvent.isComposing) {
-                return;
-              }
-
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                handleSend(draft);
-              }
-            }}
-            placeholder={`Message @${recipientFirstName}`}
-            className="max-h-32 min-h-6 flex-1 resize-none overflow-y-auto bg-transparent py-0 text-sm leading-6 text-slate-100 outline-none placeholder:text-slate-500"
-          />
-          {showEmojiPicker && (
-            <div
-              ref={emojiPickerRef}
-              className="absolute bottom-20 left-6 z-50"
-            >
-              <EmojiPicker
-                theme={Theme.DARK}
-                onEmojiClick={(emojiData) => {
-                  setDraft((prev) => prev + emojiData.emoji);
-                }}
-              />
-            </div>
-          )}
-
-          <button
-            onClick={() => handleSend(draft)}
-            disabled={!canSend}
-            className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-white transition ${
-              canSend
-                ? "bg-[#FFC341]/90 hover:bg-[#FFD700]"
-                : "bg-slate-700/50 text-slate-500 cursor-not-allowed"
-            }`}
-          >
-            <span>Send</span>
-            <Send className="h-4 w-4" />
-          </button>
-        </div>
+        <MessageInputWithMentions
+          sendMessage={handleSendMessage}
+          isSending={false}
+          serverRoles={[]}
+          onTyping={() => {}}
+          placeholder={`Message ${recipientFirstName}`}
+        />
       </footer>
     </div>
   );

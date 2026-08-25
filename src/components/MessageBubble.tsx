@@ -282,7 +282,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   return (
     <div
       data-message-id={message.id}
-      className={`group flex mb-3 mx-0 ${isSender ? "justify-end" : "justify-start"} ${
+      className={`group flex mb-3 p-2 mx-0 ${isSender ? "justify-end" : "justify-start"} ${
         isPending ? "opacity-70" : ""
       }`}
     >

@@ -2,7 +2,6 @@
 
 import React from "react";
 import { X, Paperclip } from "lucide-react";
-import MessageInput from "@/components/MessageInput";
 import MessageInputWithMentions from "@/components/MessageInputWithMentions";
 import {
   ChannelPermissions,
@@ -22,8 +21,8 @@ export interface MessageComposerProps {
   unreadMentionCount: number;
   onJumpToNextMention: () => void;
   onSend: (text: string, files: File[]) => void;
-  onToast: (message: string, type: "info" | "success" | "error") => void;
   onTyping?: () => void;
+  placeholder?: string;
 }
 
 const ReplyBanner: React.FC<{
@@ -35,11 +34,11 @@ const ReplyBanner: React.FC<{
   const mediaType = replyingTo.mediaType;
 
   return (
-    <div className="mx-6 mb-2 px-4 py-2 bg-slate-800 rounded-lg flex items-center justify-between border-l-4 border-[#FFC341]">
+    <div className="mx-6 mb-2 px-4 py-2 bg-[#23272a] rounded-lg flex items-center justify-between border-l-4 border-[#FFC341]">
       <div className="flex items-center gap-2 min-w-0 text-sm text-slate-300">
         <span className="shrink-0">
           Replying to{" "}
-          <span className="font-semibold">{replyingTo.username || "User"}</span>
+          <span className="font-semibold text-[#FFC341]">{replyingTo.username || "User"}</span>
           :
         </span>
 
@@ -47,10 +46,10 @@ const ReplyBanner: React.FC<{
           <img
             src={content.replace("[GIF]", "")}
             alt="GIF preview"
-            className="h-10 w-10 rounded object-cover border border-slate-600 flex-shrink-0"
+            className="h-10 w-10 rounded object-cover border border-[#23272a] flex-shrink-0"
           />
         ) : isCodeBlock(content) ? (
-          <div className="max-w-xs truncate rounded bg-slate-900 border border-slate-700 px-2 font-mono text-xs text-green-400">
+          <div className="max-w-xs truncate rounded bg-[#111214] border border-[#23272a] px-2 font-mono text-xs text-green-400">
             {
               (content.match(/```(?:\w+)?\n?([\s\S]*?)```/)?.[1] || "")
                 .trim()
@@ -64,14 +63,14 @@ const ReplyBanner: React.FC<{
                 <img
                   src={mediaUrl}
                   alt="Reply attachment"
-                  className="h-9 w-9 flex-shrink-0 rounded object-cover border border-slate-600"
+                  className="h-9 w-9 flex-shrink-0 rounded object-cover border border-[#23272a]"
                 />
               ) : (
-                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded border border-slate-600 bg-slate-800 text-slate-300">
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded border border-[#23272a] bg-[#111214] text-[#72767d]">
                   <Paperclip className="h-4 w-4" />
                 </span>
               ))}
-            <span className="italic truncate">
+            <span className="italic truncate text-slate-400">
               {content || (mediaUrl ? "Attachment" : "")}
             </span>
           </>
@@ -79,7 +78,7 @@ const ReplyBanner: React.FC<{
       </div>
       <button
         onClick={onCancel}
-        className="ml-3 text-slate-400 hover:text-white"
+        className="ml-3 text-[#72767d] hover:text-white transition-colors"
         aria-label="Cancel reply"
       >
         <X className="h-4 w-4" />
@@ -99,8 +98,8 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   unreadMentionCount,
   onJumpToNextMention,
   onSend,
-  onToast,
   onTyping,
+  placeholder,
 }) => {
   return (
     <div className="flex-shrink-0 px-0">
@@ -132,7 +131,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
       )}
 
       {permissions && !permissions.canSend ? (
-        <div className="mb-3 p-4 bg-slate-800/70 border-2 border-slate-700 rounded-lg text-center">
+        <div className="mb-3 p-4 bg-[#23272a]/70 border-2 border-[#23272a] rounded-lg text-center">
           <div className="flex items-center justify-center gap-2 mb-2">
             <span className="text-2xl"></span>
             <span className="text-slate-300 font-semibold">
@@ -141,7 +140,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
                 : "Restricted Channel"}
             </span>
           </div>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-[#72767d]">
             {permissions.channelType === "read_only"
               ? "Only admins and moderators can send messages in this channel."
               : "You need specific roles to send messages here."}
@@ -154,15 +153,9 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
           serverId={serverId}
           serverRoles={serverRoles}
           onTyping={onTyping}
+          placeholder={placeholder}
         />
-      ) : (
-        <MessageInput
-          sendMessage={onSend}
-          isSending={isSending}
-          onToast={onToast}
-          onTyping={onTyping}
-        />
-      )}
+      ) : null}
     </div>
   );
 };

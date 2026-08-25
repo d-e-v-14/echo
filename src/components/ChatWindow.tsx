@@ -19,7 +19,6 @@ import {
 import { getUserAvatar } from "@/api/profile.api";
 import { useSocket } from "@/lib/socket/SocketProvider";
 import Toast from "@/components/Toast";
-import MessageSearchPanel from "./MessageSearchPanel";
 import { MessageSearchResult } from "@/api/types/message.types";
 
 import { apiClient as profileApiClient } from "@/api/axios";
@@ -1140,29 +1139,15 @@ export default forwardRef(function ChatWindow(
       {(serverId || threadId) && (
         <ChatHeader
           channelName={channelName}
-          isThread={!!threadId}
           connected={connected}
-          onOpenSearch={() => setShowSearch(true)}
+          showSearch={showSearch}
+          onToggleSearch={() => setShowSearch((v) => !v)}
+          onCloseSearch={() => setShowSearch(false)}
+          onSearch={handleSearch}
+          onSelectResult={handleSearchSelect}
+          showChannelName={reactionMode === "channel"}
         />
       )}
-
-      <MessageSearchPanel
-        isOpen={showSearch}
-        onClose={() => setShowSearch(false)}
-        onSearch={handleSearch}
-        onSelectResult={handleSearchSelect}
-        placeholder={
-          reactionMode === "dm"
-            ? "Search in this conversation..."
-            : "Search messages in this server..."
-        }
-        title={
-          reactionMode === "dm"
-            ? "Search Conversation"
-            : "Search Server Messages"
-        }
-        showChannelName={reactionMode === "channel"}
-      />
 
       {toast && (
         <div className="fixed top-6 right-6 z-[9999]">
@@ -1246,10 +1231,8 @@ export default forwardRef(function ChatWindow(
         unreadMentionCount={unreadMentionCount}
         onJumpToNextMention={jumpToNextMention}
         onSend={handleSend}
-        onToast={(msg, type) =>
-          setToast({ message: msg, type, key: Date.now() })
-        }
         onTyping={sendTyping}
+        placeholder={`Message #${channelName}`}
       />
 
       {roleModal.open && (
