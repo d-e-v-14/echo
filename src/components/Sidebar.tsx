@@ -21,17 +21,19 @@ import { useEffect, useState } from "react";
 import { useNotifications } from "../hooks/useNotifications";
 import { useFriendNotifications } from "../contexts/FriendNotificationContext";
 import { useMessageNotifications } from "../contexts/MessageNotificationContext";
+import { useJoinServerModal } from "@/contexts/JoinServerModalContext";
 
 const navItems = [
   { label: "Servers", icon: Users, path: "/servers" },
   { label: "Messages", icon: MessageSquareText, path: "/messages" },
   { label: "Friends", icon: UserIcon, path: "/friends" },
   { label: "Notifications", icon: Bell, path: "/notifications" },
-  { label: "Join Server", icon: Cross, path: "/join-server" },
+  { label: "Join Server", icon: Cross, path: "" },
 ];
 
 export default function Sidebar() {
   const { user } = useUser();
+  const { openJoinServerModal } = useJoinServerModal();
 
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -145,30 +147,47 @@ export default function Sidebar() {
                 notificationCount = friendRequestCount;
               }
 
+              const isJoinServer = item.label === "Join Server";
+              const itemClassName = clsx(
+                "flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all",
+                isActive
+                  ? "bg-white/20 text-white shadow-md"
+                  : "text-gray-300 hover:bg-white/10 hover:text-white"
+              );
+              const itemContent = (
+                <>
+                  <div className="relative">
+                    <item.icon className="w-5 h-5" />
+                    {notificationCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1 font-bold">
+                        {notificationCount > 99 ? "99+" : notificationCount}
+                      </span>
+                    )}
+                  </div>
+
+                  {!collapsed && <span>{item.label}</span>}
+                </>
+              );
+
               return (
                 <div className="relative group" key={item.label}>
-                  <Link
-                    href={item.path}
-                    onClick={() => handleNavClick(item.path)}
-                    className={clsx(
-                      "flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all",
-
-                      isActive
-                        ? "bg-white/20 text-white shadow-md"
-                        : "text-gray-300 hover:bg-white/10 hover:text-white"
-                    )}
-                  >
-                    <div className="relative">
-                      <item.icon className="w-5 h-5" />
-                      {notificationCount > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1 font-bold">
-                          {notificationCount > 99 ? "99+" : notificationCount}
-                        </span>
-                      )}
-                    </div>
-
-                    {!collapsed && <span>{item.label}</span>}
-                  </Link>
+                  {isJoinServer ? (
+                    <button
+                      type="button"
+                      onClick={openJoinServerModal}
+                      className={clsx(itemClassName, "w-full text-left")}
+                    >
+                      {itemContent}
+                    </button>
+                  ) : (
+                    <Link
+                      href={item.path}
+                      onClick={() => handleNavClick(item.path)}
+                      className={itemClassName}
+                    >
+                      {itemContent}
+                    </Link>
+                  )}
 
                   {collapsed && (
                     <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-20 px-3 py-1 text-sm text-white bg-black rounded shadow-lg opacity-0 group-hover:opacity-100 transition">

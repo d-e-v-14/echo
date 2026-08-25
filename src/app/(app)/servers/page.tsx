@@ -50,6 +50,7 @@ import NotificationBell from "@/components/NotificationBell";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useSearchParams } from "next/navigation";
 import { useVoiceCall } from "@/contexts/VoiceCallContext";
+import { useJoinServerModal } from "@/contexts/JoinServerModalContext";
 import { supabase } from "@/lib/supabaseClient";
 import Toast from "@/components/Toast";
 import {
@@ -93,6 +94,7 @@ const serverIcons: string[] = [
 
 const ServersPageContent: React.FC = () => {
   const pageReady = usePageReady();
+  const { openJoinServerModal } = useJoinServerModal();
   const [isChannelSidebarCollapsed] = useState(false);
   const searchParams = useSearchParams();
   const refresh = searchParams.get("refresh");
@@ -854,8 +856,8 @@ const ServersPageContent: React.FC = () => {
                 <div className="absolute left-14 bottom-0 bg-[#1e1f22] text-white text-sm rounded-lg shadow-lg p-2 w-36 z-10">
                   <button
                     onClick={() => {
-                      router.push("/join-server");
                       setShowAddMenu(false);
+                      openJoinServerModal();
                     }}
                     className="block w-full text-left px-3 py-2 rounded hover:bg-[#2f3136] transition"
                   >
@@ -912,7 +914,7 @@ const ServersPageContent: React.FC = () => {
               </p>
               <div className="flex justify-center space-x-4">
                 <button
-                  onClick={() => router.push("/join-server")}
+                  onClick={openJoinServerModal}
                   className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700"
                 >
                   Join Server

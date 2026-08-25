@@ -19,12 +19,8 @@ export default function Home() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
-  const [faq, setfaq] = useState<number | null>(null);
   const [showNavbar, setShowNavbar] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
-  const [, setname] = useState<string>();
-  const [, setemail] = useState<string>();
-  const [, setmessage] = useState<string>();
   const [showPopup] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
