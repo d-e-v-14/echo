@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   getSelfAssignableRoles,
   selfAssignRole,
@@ -10,6 +11,7 @@ import {
 import { Role, RoleCategory } from "@/api/types/roles.types";
 import { SettingsFormSkeleton } from "@/components/loading/pageSkeletons";
 import InlineSpinner from "@/components/loading/InlineSpinner";
+import { invalidateServerPermissionQueries } from "@/lib/query/roleSync";
 
 interface SelfAssignRolesProps {
   serverId: string;
@@ -26,6 +28,7 @@ export default function SelfAssignRoles({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -71,6 +74,8 @@ export default function SelfAssignRoles({
           r.id === role.id ? { ...r, has_role: !hasRole } : r
         )
       );
+
+      invalidateServerPermissionQueries(queryClient, serverId);
     } catch (err: any) {
       setError(err.response?.data?.error || "Failed to update role");
     } finally {

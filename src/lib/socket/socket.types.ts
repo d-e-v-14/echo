@@ -24,6 +24,13 @@ export interface EchoSocketEvents {
   mention_marked_read: SocketEventEnvelope<SocketEventPayload>;
   mention_read: SocketEventEnvelope<SocketEventPayload>;
   channel_updated: SocketEventEnvelope<SocketEventPayload>;
+  roles_updated: SocketEventEnvelope<SocketEventPayload>;
+  role_updated: SocketEventEnvelope<SocketEventPayload>;
+  role_created: SocketEventEnvelope<SocketEventPayload>;
+  role_deleted: SocketEventEnvelope<SocketEventPayload>;
+  member_roles_updated: SocketEventEnvelope<SocketEventPayload>;
+  server_roles_updated: SocketEventEnvelope<SocketEventPayload>;
+  permissions_updated: SocketEventEnvelope<SocketEventPayload>;
   voice_channel_roster: SocketEventEnvelope<SocketEventPayload>;
   voice_invite_received: SocketEventEnvelope<SocketEventPayload>;
   voice_invite_sent: SocketEventEnvelope<SocketEventPayload>;

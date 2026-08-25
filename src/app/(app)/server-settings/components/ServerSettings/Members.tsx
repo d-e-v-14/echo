@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   getServerMembers,
   kickMember,
@@ -13,6 +14,8 @@ import { ServerMember } from "@/api/types/server.types";
 import { SearchUser } from "@/api/types/user.types";
 import { Role } from "@/api/types/roles.types";
 import { useToast } from "@/contexts/ToastContext";
+import { useUser } from "@/components/UserContext";
+import { invalidateServerPermissionQueries } from "@/lib/query/roleSync";
 
 interface Member {
   id: string;
@@ -35,6 +38,8 @@ export default function Members({
   isAdmin = false,
 }: MembersProps) {
   const { showToast } = useToast();
+  const { user } = useUser();
+  const queryClient = useQueryClient();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddMember, setShowAddMember] = useState(false);
@@ -104,6 +109,9 @@ export default function Members({
     try {
       await assignRoleToUser(serverId, memberId, roleId);
       await loadMembers();
+      if (memberId === user?.id) {
+        invalidateServerPermissionQueries(queryClient, serverId);
+      }
     } catch (error: any) {
       showToast(error?.response?.data?.error || "Failed to assign role", "error");
     } finally {
@@ -116,6 +124,9 @@ export default function Members({
     try {
       await removeRoleFromUser(serverId, memberId, roleId);
       await loadMembers();
+      if (memberId === user?.id) {
+        invalidateServerPermissionQueries(queryClient, serverId);
+      }
     } catch (error: any) {
       showToast(error?.response?.data?.error || "Failed to remove role", "error");
     } finally {

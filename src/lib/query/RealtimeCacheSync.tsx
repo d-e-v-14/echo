@@ -14,6 +14,10 @@ import type { ChannelMessagesData } from "@/lib/channels/types";
 import type { ChannelPermissions } from "@/lib/channels/types";
 import { queryKeys } from "@/lib/query/keys";
 import {
+  invalidateServerPermissionQueries,
+  invalidateAllCachedPermissions,
+} from "@/lib/query/roleSync";
+import {
   insertIncomingIntoDataOrCreate,
   markMessageFailedById,
   reconcileConfirmedMessage,
@@ -41,6 +45,15 @@ import {
 } from "@/lib/query/reactionStore";
 
 const DEBOUNCE_MS = 250;
+
+const ROLE_UPDATE_EVENTS = [
+  "roles_updated",
+  "role_updated",
+  "role_created",
+  "role_deleted",
+  "member_roles_updated",
+  "server_roles_updated",
+] as const;
 
 const DM_MESSAGE_EVENTS = [
   "receive_dm",
@@ -298,20 +311,61 @@ export function RealtimeCacheSync() {
     const handler = (payload: unknown) => {
       const body = unwrapSocketPayload(payload);
       const channelId = readString(body, "channel_id", "channelId");
-      if (!channelId) return;
 
       const permissions = channelPermissionsFromPayload(payload);
-      if (!permissions) return;
+      if (permissions && channelId) {
+        queryClient.setQueryData<ChannelPermissions>(
+          queryKeys.channelPermissions(channelId),
+          () => permissions
+        );
+        return;
+      }
 
-      queryClient.setQueryData<ChannelPermissions>(
-        queryKeys.channelPermissions(channelId),
-        () => permissions
-      );
+      if (channelId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.channelPermissions(channelId),
+          refetchType: "all",
+        });
+      } else {
+        invalidateAllCachedPermissions(queryClient);
+      }
     };
     socket.on("permissions_updated", handler as any);
 
     return () => {
       socket.off("permissions_updated", handler as any);
+    };
+  }, [socket, queryClient]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const readServerId = (body: any): string | undefined =>
+      readString(body, "server_id", "serverId") ??
+      (body?.server?.id != null ? String(body.server.id) : undefined);
+
+    const handler = (rawPayload: unknown) => {
+      const body = unwrapSocketPayload(rawPayload);
+      const serverId = readServerId(body);
+      if (serverId) {
+        invalidateServerPermissionQueries(queryClient, serverId);
+      } else {
+        invalidateAllCachedPermissions(queryClient);
+      }
+    };
+
+    const handlers = ROLE_UPDATE_EVENTS.map<{
+      name: string;
+      handler: (payload: unknown) => void;
+    }>((name) => {
+      socket.on(name, handler as any);
+      return { name, handler };
+    });
+
+    return () => {
+      for (const { name, handler: h } of handlers) {
+        socket.off(name, h as any);
+      }
     };
   }, [socket, queryClient]);
 

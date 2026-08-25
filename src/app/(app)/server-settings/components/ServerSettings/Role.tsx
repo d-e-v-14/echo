@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   getAllRoles,
   createRole,
@@ -16,6 +17,7 @@ import {
 import { Role as RoleType, RoleCategory } from "@/api/types/roles.types";
 import { SettingsFormSkeleton } from "@/components/loading/pageSkeletons";
 import InlineSpinner from "@/components/loading/InlineSpinner";
+import { invalidateServerPermissionQueries } from "@/lib/query/roleSync";
 
 interface RoleProps {
   serverId: string;
@@ -36,6 +38,7 @@ export default function Role({ serverId, isOwner, isAdmin }: RoleProps) {
 }
 
 function MemberRoleView({ serverId }: { serverId: string }) {
+  const queryClient = useQueryClient();
   const [selfAssignableRoles, setSelfAssignableRoles] = useState<RoleType[]>(
     []
   );
@@ -131,6 +134,8 @@ function MemberRoleView({ serverId }: { serverId: string }) {
       setMyRoles(updatedMyRoles);
       setHasChanges(false);
       setSuccess("Roles updated successfully!");
+
+      invalidateServerPermissionQueries(queryClient, serverId);
 
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
@@ -312,6 +317,7 @@ function AdminRoleView({
   isOwner: boolean;
   isAdmin: boolean;
 }) {
+  const queryClient = useQueryClient();
   const [roles, setRoles] = useState<RoleType[]>([]);
   const [categories, setCategories] = useState<RoleCategory[]>([]);
   const [selectedRole, setSelectedRole] = useState<RoleType | null>(null);
@@ -369,6 +375,7 @@ function AdminRoleView({
       setNewRoleSelfAssignable(false);
       setNewRoleCategory("");
       setShowAddPopup(false);
+      invalidateServerPermissionQueries(queryClient, serverId);
     } catch (err: any) {
       setError(err.response?.data?.error || "Failed to create role");
     } finally {
@@ -421,6 +428,7 @@ function AdminRoleView({
 
       setRoles(roles.map((r) => (r.id === updatedRole.id ? updatedRole : r)));
       setSelectedRole(null);
+      invalidateServerPermissionQueries(queryClient, serverId);
     } catch (err: any) {
       setError(err.response?.data?.error || "Failed to update role");
     } finally {
@@ -450,6 +458,7 @@ function AdminRoleView({
       await deleteRole(serverId, roleId);
       setRoles(roles.filter((r) => r.id !== roleId));
       setSelectedRole(null);
+      invalidateServerPermissionQueries(queryClient, serverId);
     } catch (err: any) {
       setError(err.response?.data?.error || "Failed to delete role");
     } finally {

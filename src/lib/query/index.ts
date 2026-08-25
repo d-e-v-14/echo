@@ -14,6 +14,7 @@ export {
 } from "./cachePolicy";
 export { realtimeEventToCommands, REALTIME_CACHE_EVENTS } from "./realtimeCache";
 export { applyCacheCommand, applyCacheCommands } from "./applyCommands";
+export { invalidateServerPermissionQueries } from "./roleSync";
 export type { QueryKey } from "./keys";
 export type { CachePolicy, PinContext } from "./shared.types";
 export type { CacheCommand } from "./cacheCommand.types";

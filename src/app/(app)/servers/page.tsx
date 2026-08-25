@@ -21,11 +21,6 @@ import {
   FaHashtag,
   FaCog,
   FaLock,
-  FaShieldAlt,
-  FaChevronDown,
-  FaChevronRight,
-  FaCheckCircle,
-  FaPlusCircle,
   FaTrash,
   FaTimes,
   FaVolumeUp,
@@ -36,15 +31,12 @@ import {
 } from "react-icons/fa";
 import VoiceChannel from "@/components/EnhancedVoiceChannel";
 import { updateChannel, deleteChannel, fetchChannelsByServer } from "@/api";
-import { selfAssignRole, selfUnassignRole } from "@/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServers } from "@/hooks/query/useServers";
 import { useChannels } from "@/hooks/query/useChannels";
-import { useServerRoles } from "@/hooks/query/useServerRoles";
 import { queryKeys, policyForQueryKey } from "@/lib/query";
 import { EMPTY_ARRAY } from "@/lib/query/constants";
 import { resolvePreferredServer } from "@/lib/servers/serverSelection";
-import { type Role } from "@/api/types/roles.types";
 import Chatwindow from "@/components/ChatWindow";
 import NotificationBell from "@/components/NotificationBell";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -58,10 +50,7 @@ import {
   MessageListSkeleton,
   ServerRailSkeleton,
 } from "@/components/loading/skeletons";
-import {
-  PageSkeleton,
-  RolePillSkeletons,
-} from "@/components/loading/pageSkeletons";
+import { PageSkeleton } from "@/components/loading/pageSkeletons";
 import InlineSpinner from "@/components/loading/InlineSpinner";
 
 interface Channel {
@@ -119,9 +108,6 @@ const ServersPageContent: React.FC = () => {
   const { notifications: mentionNotifications } = useNotifications();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selfAssignableRoles, setSelfAssignableRoles] = useState<Role[]>([]);
-  const [myRoles, setMyRoles] = useState<Role[]>([]);
-  const [showRoles, setShowRoles] = useState(false);
   const [viewMode, setViewMode] = useState<"voice" | "chat">("chat");
   const [toast, setToast] = useState<{
     message: string;
@@ -147,11 +133,6 @@ const ServersPageContent: React.FC = () => {
     isError: channelsError,
     refetch: refetchChannels,
   } = useChannels(selectedServerId ?? undefined);
-  const {
-    selfAssignableRoles: cachedSelfAssignableRoles,
-    myRoles: cachedMyRoles,
-    isLoading: rolesLoading,
-  } = useServerRoles(selectedServerId ?? undefined);
 
   const channels = useMemo<Channel[]>(() => {
     if (cachedChannels.length === 0) return EMPTY_ARRAY;
@@ -183,6 +164,22 @@ const ServersPageContent: React.FC = () => {
     if (activeChannel) lastActiveChannelRef.current = activeChannel;
   }, [activeChannel]);
   const displayChannel = activeChannel ?? lastActiveChannelRef.current;
+
+  const prevActiveChannelIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const prevId = prevActiveChannelIdRef.current;
+    prevActiveChannelIdRef.current = activeChannel?.id ?? null;
+    if (
+      prevId &&
+      activeChannel?.id !== prevId &&
+      !channels.some((c) => c.id === prevId)
+    ) {
+      queryClient.removeQueries({ queryKey: queryKeys.channelMessages(prevId) });
+      queryClient.removeQueries({
+        queryKey: queryKeys.channelPermissions(prevId),
+      });
+    }
+  }, [channels, activeChannel, queryClient]);
 
   useEffect(() => {
     setSelectedChannelId(effectiveSelectedChannelId);
@@ -554,12 +551,6 @@ const ServersPageContent: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (rolesLoading) return;
-    setSelfAssignableRoles(cachedSelfAssignableRoles);
-    setMyRoles(cachedMyRoles);
-  }, [cachedSelfAssignableRoles, cachedMyRoles, rolesLoading]);
-
-  useEffect(() => {
     if (selectedServerId) {
       localStorage.setItem("currentServerId", selectedServerId);
       localStorage.setItem("currentViewedServerId", selectedServerId);
@@ -644,26 +635,6 @@ const ServersPageContent: React.FC = () => {
       setToast({
         message:
           err?.message || "Failed to join voice channel. Please try again.",
-        type: "error",
-      });
-    }
-  };
-
-  const handleRoleToggle = async (roleId: string) => {
-    if (!selectedServerId) return;
-    try {
-      const hasRole = myRoles.some((r) => r.id === roleId);
-      if (hasRole) {
-        await selfUnassignRole(selectedServerId, roleId);
-      } else {
-        await selfAssignRole(selectedServerId, roleId);
-      }
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.serverRoles(selectedServerId),
-      });
-    } catch (err: any) {
-      setToast({
-        message: err?.response?.data?.error || "Failed to toggle role",
         type: "error",
       });
     }
@@ -1035,136 +1006,6 @@ const ServersPageContent: React.FC = () => {
                     </button>
                   </div>
                 </div>
-
-                {selfAssignableRoles.length > 0 && (
-                  <div className="px-2 mt-4 transition-all duration-300 ease-out">
-                    <div
-                      className="flex items-center justify-between cursor-pointer hover:bg-[#2f3136] rounded-md p-2"
-                      onClick={() => setShowRoles(!showRoles)}
-                    >
-                      <h3 className="text-xs font-bold uppercase text-gray-400 flex items-center gap-2">
-                        <FaShieldAlt size={12} />
-                        Self Assign Roles
-                      </h3>
-                      <span className="text-gray-400 text-xs">
-                        {showRoles ? (
-                          <FaChevronDown className="w-3 h-3" />
-                        ) : (
-                          <FaChevronRight className="w-3 h-3" />
-                        )}
-                      </span>
-                    </div>
-                    <div
-                      className={`mt-2 space-y-2 overflow-hidden transition-all duration-500 ease-in-out ${
-                        showRoles
-                          ? "max-h-96 opacity-100"
-                          : "max-h-0 opacity-0 pointer-events-none"
-                      }`}
-                    >
-                      {rolesLoading ? (
-                        <div className="py-2">
-                          <RolePillSkeletons pills={4} />
-                        </div>
-                      ) : (
-                        <>
-                          {myRoles.filter((r) =>
-                            selfAssignableRoles.some((sr) => sr.id === r.id)
-                          ).length > 0 && (
-                            <div className="mb-3">
-                              <div className="text-[10px] font-semibold uppercase text-gray-500 mb-1 px-1 flex items-center gap-1">
-                                <FaCheckCircle className="w-3 h-3 text-green-400" />
-                                Your Roles (
-                                {
-                                  myRoles.filter((r) =>
-                                    selfAssignableRoles.some(
-                                      (sr) => sr.id === r.id
-                                    )
-                                  ).length
-                                }
-                                )
-                              </div>
-                              <div className="space-y-1">
-                                {selfAssignableRoles
-                                  .filter((role) =>
-                                    myRoles.some((r) => r.id === role.id)
-                                  )
-                                  .map((role) => (
-                                    <div
-                                      key={role.id}
-                                      className="flex items-center justify-between p-2 rounded-md cursor-pointer bg-[#2f3136] hover:bg-[#36393f] border border-green-500/20"
-                                      onClick={() => handleRoleToggle(role.id)}
-                                    >
-                                      <span className="flex items-center gap-2 flex-1 min-w-0">
-                                        <div
-                                          className="w-3 h-3 rounded-full flex-shrink-0"
-                                          style={{
-                                            backgroundColor:
-                                              role.color || "#5865f2",
-                                          }}
-                                        />
-                                        <span className="text-sm text-white truncate">
-                                          {role.name}
-                                        </span>
-                                      </span>
-                                      <FaCheckCircle className="text-green-400 w-4 h-4 ml-2 flex-shrink-0" />
-                                    </div>
-                                  ))}
-                              </div>
-                            </div>
-                          )}
-                          {selfAssignableRoles.filter(
-                            (role) => !myRoles.some((r) => r.id === role.id)
-                          ).length > 0 && (
-                            <div>
-                              <div className="text-[10px] font-semibold uppercase text-gray-500 mb-1 px-1 flex items-center gap-1">
-                                <FaPlusCircle className="w-3 h-3 text-[#FFC341]" />
-                                Available to Join (
-                                {
-                                  selfAssignableRoles.filter(
-                                    (role) =>
-                                      !myRoles.some((r) => r.id === role.id)
-                                  ).length
-                                }
-                                )
-                              </div>
-                              <div className="space-y-1 max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
-                                {selfAssignableRoles
-                                  .filter(
-                                    (role) =>
-                                      !myRoles.some((r) => r.id === role.id)
-                                  )
-                                  .map((role) => (
-                                    <div
-                                      key={role.id}
-                                      className="flex items-center justify-between p-2 rounded-md cursor-pointer text-gray-400 hover:bg-[#2f3136] hover:text-white border border-transparent hover:border-gray-600"
-                                      onClick={() => handleRoleToggle(role.id)}
-                                    >
-                                      <span className="flex items-center gap-2 flex-1 min-w-0">
-                                        <div
-                                          className="w-3 h-3 rounded-full flex-shrink-0 opacity-60"
-                                          style={{
-                                            backgroundColor:
-                                              role.color || "#5865f2",
-                                          }}
-                                        />
-                                        <span className="text-sm truncate">
-                                          {role.name}
-                                        </span>
-                                      </span>
-                                      <FaPlusCircle className="text-[#FFC341] w-4 h-4 ml-2 flex-shrink-0" />
-                                    </div>
-                                  ))}
-                              </div>
-                            </div>
-                          )}
-                          <div className="text-[10px] text-gray-500 px-1 pt-2 border-t border-gray-700">
-                            Click any role to add or remove it
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
 
                 {channelsLoading ? (
                   <div className="px-2">
