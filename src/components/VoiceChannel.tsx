@@ -710,7 +710,7 @@ const VoiceChannel = ({
           <button
             onClick={retryMediaAccess}
             disabled={isInitializing}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 text-white rounded-lg"
+            className="px-4 py-2 bg-gradient-to-r from-[#FFC341] to-[#FFD700] hover:from-[#FFD700] hover:to-[#FFC341] disabled:bg-gray-600 text-black font-bold rounded-lg"
           >
             {isInitializing ? "Requesting..." : "Try Again"}
           </button>
@@ -837,7 +837,7 @@ const VoiceChannel = ({
         {serverId && channelName && onMinimize && (
           <button
             onClick={onMinimize}
-            className="p-3 rounded-full bg-blue-600 hover:bg-blue-500 transition"
+            className="p-3 rounded-full bg-[#FFC341] hover:bg-[#FFD700] transition"
             title="Go back to chat"
           >
             <FaMinus size={20} className="text-white" />

@@ -346,7 +346,7 @@ export default function MessageInput({
         <button
           onClick={handleSend}
           disabled={isSending || (!text.trim() && files.length === 0)}
-          className="bg-blue-600 hover:bg-blue-700
+          className="bg-[#FFC341] hover:bg-[#FFD700]
                      active:scale-95 transition
                      p-2 rounded-full disabled:opacity-40"
         >

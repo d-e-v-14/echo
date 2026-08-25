@@ -257,7 +257,7 @@ const FloatingVoiceWindow: React.FC<FloatingVoiceWindowProps> = ({
                   `/servers?serverId=${activeCall.serverId}&view=voice&t=${Date.now()}`
                 )
               }
-              className="p-2 rounded-full bg-blue-600"
+              className="p-2 rounded-full bg-[#FFC341]"
             >
               <FaExpand size={14} />
             </button>

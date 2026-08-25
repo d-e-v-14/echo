@@ -232,7 +232,7 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
           disabled={!isConnected}
           className={`p-3 rounded-full transition-all duration-200 ${
             mediaState.screenSharing
-              ? "bg-blue-600 hover:bg-blue-700 text-white"
+              ? "bg-[#FFC341] hover:bg-[#FFD700] text-black"
               : "bg-gray-700 hover:bg-gray-600 text-white"
           } ${!isConnected ? "opacity-50 cursor-not-allowed" : ""}`}
           title={

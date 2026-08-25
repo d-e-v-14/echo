@@ -1262,7 +1262,7 @@ export default forwardRef(function ChatWindow(
               ✕
             </button>
             <h2 className="text-xl font-semibold mb-2">
-              Role: <span className="text-indigo-400">@{roleModal.role}</span>
+              Role: <span className="text-[#FFC341]">@{roleModal.role}</span>
             </h2>
             <div className="mb-2 text-sm text-gray-400">
               {roleModal.users.length} member(s) with this role:

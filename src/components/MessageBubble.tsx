@@ -314,11 +314,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           <button
             type="button"
             onClick={() => onReplyPreviewClick?.(message.replyTo!.id)}
-            className={`max-w-full px-3 py-2 text-left text-xs text-[#dbdee1] bg-[#1e1f22] rounded-md border-l-4 border-[#5865f2] transition ${
-              onReplyPreviewClick
-                ? "cursor-pointer hover:bg-[#26282d] hover:border-[#7b83ff]"
-                : "cursor-default"
-            }`}
+            className={`max-w-full px-3 py-2 text-left text-xs text-[#dbdee1] bg-[#1e1f22] rounded-md border border-transparent transition ${
+  onReplyPreviewClick
+    ? "cursor-pointer hover:bg-[#26282d] hover:border-white/10"
+    : "cursor-default"
+}`}
           >
             <span className="block font-semibold">
               {message.replyTo.author || "User"}
@@ -431,7 +431,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                     onClick={() => handleQuickReaction(reaction.emoji)}
                     className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition ${
                       reaction.reactedByMe
-                        ? "border-indigo-500/60 bg-slate-800 text-slate-100 hover:bg-slate-700/90"
+                        ? "border-[#FFC341]/60 bg-slate-800 text-slate-100 hover:bg-slate-700/90"
                         : "border-slate-700/80 bg-slate-900/90 text-slate-200 hover:border-slate-600 hover:bg-slate-800"
                     }`}
                     aria-label={

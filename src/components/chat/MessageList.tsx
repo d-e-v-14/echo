@@ -28,9 +28,9 @@ export interface MessageListProps {
 }
 
 const DayDivider: React.FC<{ label: string }> = ({ label }) => (
-  <div className="flex items-center gap-4 my-4 px-4">
+  <div className="flex items-center gap-1 my-4 px-2">
     <div className="flex-1 h-px bg-[#3f4248]" />
-    <span className="rounded-full border border-[#3f4248] bg-[#2b2d31] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#949ba4] whitespace-nowrap">
+    <span className="rounded-xl border border-[#3f4248] bg-[#2b2d31] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#949ba4] whitespace-nowrap">
       {label}
     </span>
     <div className="flex-1 h-px bg-[#3f4248]" />

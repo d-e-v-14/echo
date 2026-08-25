@@ -185,7 +185,7 @@ export default function MessageContentWithMentions({
             href={safeHref(mention.url)}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-400 hover:text-blue-300 underline hover:underline-offset-2 transition-colors break-all"
+            className="text-[#FFC341] hover:text-[#FFD700] underline hover:underline-offset-2 transition-colors break-all"
             onClick={(e) => e.stopPropagation()}
           >
             {mention.displayText}

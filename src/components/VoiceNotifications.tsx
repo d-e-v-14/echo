@@ -115,7 +115,7 @@ const VoiceNotifications: React.FC<VoiceNotificationsProps> = ({
       case "error":
         return <FaTimesCircle className="text-red-400" />;
       case "info":
-        return <FaInfoCircle className="text-blue-400" />;
+        return <FaInfoCircle className="text-[#FFC341]" />;
       default:
         return <FaInfoCircle className="text-gray-400" />;
     }
@@ -130,7 +130,7 @@ const VoiceNotifications: React.FC<VoiceNotificationsProps> = ({
       case "error":
         return "bg-red-900 border-red-700";
       case "info":
-        return "bg-blue-900 border-blue-700";
+        return "bg-[#FFC341]/10 border-[#FFC341]/30";
       default:
         return "bg-gray-900 border-gray-700";
     }

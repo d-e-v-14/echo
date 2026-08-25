@@ -157,7 +157,7 @@ export default function MentionNotifications({
                 onClick={() => setFilter("unread")}
                 className={`px-3 py-1 rounded text-sm transition-colors ${
                   filter === "unread"
-                    ? "bg-blue-600 text-white"
+                    ? "bg-[#FFC341] text-black"
                     : "text-gray-400 hover:text-white"
                 }`}
               >
@@ -167,7 +167,7 @@ export default function MentionNotifications({
                 onClick={() => setFilter("all")}
                 className={`px-3 py-1 rounded text-sm transition-colors ${
                   filter === "all"
-                    ? "bg-blue-600 text-white"
+                    ? "bg-[#FFC341] text-black"
                     : "text-gray-400 hover:text-white"
                 }`}
               >
@@ -178,7 +178,7 @@ export default function MentionNotifications({
             {mentions.some((m) => !m.is_read) && (
               <button
                 onClick={markAllAsRead}
-                className="text-blue-400 hover:text-blue-300 text-sm"
+                className="text-[#FFC341] hover:text-[#FFD700] text-sm"
               >
                 Mark all read
               </button>
@@ -211,7 +211,7 @@ export default function MentionNotifications({
                   key={mention.id}
                   className={`p-4 cursor-pointer transition-colors hover:bg-gray-800 ${
                     !mention.is_read
-                      ? "bg-blue-900/20 border-l-4 border-l-blue-400"
+                      ? "bg-[#FFC341]/10 border-l-4 border-l-[#FFC341]"
                       : ""
                   }`}
                   onClick={() => handleMentionClick(mention)}
@@ -229,7 +229,7 @@ export default function MentionNotifications({
                         <span className="text-gray-400 text-sm">
                           mentioned you in
                         </span>
-                        <span className="text-blue-400 text-sm">
+                        <span className="text-[#FFC341] text-sm">
                           #{mention.messages.channels.name}
                         </span>
                         <span className="text-gray-500 text-xs">
@@ -245,7 +245,7 @@ export default function MentionNotifications({
                         <span
                           className={`text-xs px-2 py-1 rounded-full ${
                             mention.mention_type === "user"
-                              ? "bg-blue-500/20 text-blue-300"
+                              ? "bg-[#FFC341]/20 text-[#FFC341]"
                               : mention.mention_type === "role"
                                 ? "bg-purple-500/20 text-purple-300"
                                 : "bg-red-500/20 text-red-300"
@@ -262,7 +262,7 @@ export default function MentionNotifications({
                               e.stopPropagation();
                               markAsRead(mention.id);
                             }}
-                            className="ml-2 text-blue-400 hover:text-blue-300"
+                            className="ml-2 text-[#FFC341] hover:text-[#FFD700]"
                             title="Mark as read"
                           >
                             <Check size={16} />

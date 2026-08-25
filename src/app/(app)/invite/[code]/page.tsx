@@ -118,12 +118,12 @@ export default function InvitePage() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
       <div className="w-full max-w-sm mx-4 bg-[#1e1f22] rounded-xl shadow-2xl border border-[#2b2d31] overflow-hidden">
-        <div className="h-16 bg-gradient-to-br from-blue-600 to-indigo-700 relative">
+        <div className="h-16 bg-gradient-to-br from-[#FFC341] to-[#FFD700] relative">
           <div className="absolute -bottom-8 left-1/2 -translate-x-1/2">
             <div className="w-16 h-16 rounded-full bg-[#1e1f22] flex items-center justify-center shadow-lg border-4 border-[#1e1f22]">
               {pageState === "signIn" && (
                 <svg
-                  className="w-7 h-7 text-blue-400"
+                  className="w-7 h-7 text-[#FFC341]"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -138,7 +138,7 @@ export default function InvitePage() {
               )}
               {pageState === "confirm" && (
                 <svg
-                  className="w-7 h-7 text-blue-400"
+                  className="w-7 h-7 text-[#FFC341]"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"

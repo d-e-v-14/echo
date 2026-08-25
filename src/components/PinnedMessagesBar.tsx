@@ -43,8 +43,8 @@ const PinnedMessagesBar: React.FC<PinnedMessagesBarProps> = ({
                 onClick={() => onJumpTo(String(messageId))}
                 className="flex min-w-0 flex-1 items-center gap-2 text-left"
               >
-                <Pin className="h-3.5 w-3.5 flex-shrink-0 text-indigo-400" />
-                <span className="flex-shrink-0 text-xs font-medium text-indigo-300">
+                <Pin className="h-3.5 w-3.5 flex-shrink-0 text-[#FFC341]" />
+                <span className="flex-shrink-0 text-xs font-medium text-[#FFC341]">
                   {author}:
                 </span>
                 <span className="truncate text-xs text-slate-300">

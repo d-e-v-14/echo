@@ -143,7 +143,7 @@ export default function RouteChangeLoader({
       {showBar && (
         <div className="fixed top-0 left-0 right-0 z-[9999] h-[2px] pointer-events-none">
           <div
-            className="h-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] transition-all ease-out"
+            className="h-full bg-[#FFC341] shadow-[0_0_8px_rgba(255,195,65,0.6)] transition-all ease-out"
             style={{
               width: `${progress}%`,
               transitionDuration: progress === 100 ? "150ms" : "200ms",

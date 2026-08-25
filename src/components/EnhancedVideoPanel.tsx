@@ -486,7 +486,7 @@ const ParticipantVideo = memo(
               muted={isLocal}
               className="w-full h-full object-contain bg-black"
             />
-            <div className="absolute top-2 left-2 bg-blue-600 bg-opacity-90 rounded px-2 py-1 flex items-center space-x-1">
+            <div className="absolute top-2 left-2 bg-[#FFC341] bg-opacity-90 rounded px-2 py-1 flex items-center space-x-1">
               <IconDesktop size={12} className="text-white" />
               <span className="text-xs text-white">Screen</span>
             </div>
@@ -789,7 +789,7 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
                     }}
                     className={`relative h-full w-[124px] shrink-0 cursor-pointer overflow-hidden rounded-lg border-2 transition-colors ${
                       isPresenter
-                        ? "border-blue-500 ring-1 ring-blue-500/40"
+                        ? "border-[#FFC341] ring-1 ring-[#FFC341]/40"
                         : isHighlighted
                           ? "border-gray-500"
                           : "border-gray-700 hover:border-gray-500"
@@ -810,7 +810,7 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
                       cameraOnly={isSharing}
                     />
                     {isSharing && (
-                      <div className="pointer-events-none absolute left-1 top-1 flex items-center gap-0.5 rounded bg-blue-600/90 px-1 py-0.5">
+                      <div className="pointer-events-none absolute left-1 top-1 flex items-center gap-0.5 rounded bg-[#FFC341]/90 px-1 py-0.5">
                         <IconDesktop size={8} className="text-white" />
                         <span className="text-[8px] font-medium text-white">
                           LIVE

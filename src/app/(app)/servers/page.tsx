@@ -1114,7 +1114,7 @@ const ServersPageContent: React.FC = () => {
                           ).length > 0 && (
                             <div>
                               <div className="text-[10px] font-semibold uppercase text-gray-500 mb-1 px-1 flex items-center gap-1">
-                                <FaPlusCircle className="w-3 h-3 text-blue-400" />
+                                <FaPlusCircle className="w-3 h-3 text-[#FFC341]" />
                                 Available to Join (
                                 {
                                   selfAssignableRoles.filter(
@@ -1148,7 +1148,7 @@ const ServersPageContent: React.FC = () => {
                                           {role.name}
                                         </span>
                                       </span>
-                                      <FaPlusCircle className="text-blue-400 w-4 h-4 ml-2 flex-shrink-0" />
+                                      <FaPlusCircle className="text-[#FFC341] w-4 h-4 ml-2 flex-shrink-0" />
                                     </div>
                                   ))}
                               </div>

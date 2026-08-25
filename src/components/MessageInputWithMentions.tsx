@@ -488,7 +488,7 @@ export default function MessageInputWithMentions({
                   key={`role-${role.id}`}
                   className={`px-3 py-3 cursor-pointer flex items-center space-x-3 transition-colors ${
                     idx === selectedMentionIndex
-                      ? "bg-blue-600"
+                      ? "bg-[#FFC341]/20"
                       : "hover:bg-gray-700"
                   }`}
                   onClick={() => insertMention("role", role.name)}
@@ -511,7 +511,7 @@ export default function MessageInputWithMentions({
               ))}
 
               {mentionableUsers.length > 0 && (
-                <div className="px-3 py-1 text-xs text-blue-400">Users</div>
+                <div className="px-3 py-1 text-xs text-[#FFC341]">Users</div>
               )}
               {mentionableUsers.map((user, idx) => {
                 const adjustedIdx = filteredRoles.length + idx;
@@ -520,8 +520,8 @@ export default function MessageInputWithMentions({
                     key={`user-${user.id}`}
                     className={`px-3 py-3 cursor-pointer flex items-center space-x-3 transition-colors ${
                       adjustedIdx === selectedMentionIndex
-                        ? "bg-blue-600"
-                        : "hover:bg-gray-700"
+                    ? "bg-[#FFC341]"
+                      : "hover:bg-gray-700"
                     }`}
                     onClick={() => insertMention("user", user.username)}
                   >
@@ -537,7 +537,7 @@ export default function MessageInputWithMentions({
                         @{user.username}
                       </div>
                     </div>
-                    <div className="text-blue-400 text-xs flex-shrink-0">
+                    <div className="text-[#FFC341] text-xs flex-shrink-0">
                       user
                     </div>
                   </div>
@@ -548,7 +548,7 @@ export default function MessageInputWithMentions({
                 className={`px-3 py-3 cursor-pointer flex items-center space-x-3 transition-colors ${
                   selectedMentionIndex ===
                   filteredRoles.length + mentionableUsers.length
-                    ? "bg-blue-600"
+                    ? "bg-[#FFC341]"
                     : "hover:bg-gray-700"
                 }`}
                 onClick={() => insertMention("everyone", "everyone")}
@@ -641,7 +641,7 @@ export default function MessageInputWithMentions({
         <button
           onClick={handleSend}
           disabled={isSending || (!text.trim() && files.length === 0)}
-          className="bg-blue-600 p-2 rounded-lg disabled:opacity-50"
+          className="bg-[#FFC341] p-2 rounded-lg disabled:opacity-50"
         >
           <Send size={18} />
         </button>

@@ -138,7 +138,7 @@ const MessageSearchPanel: React.FC<MessageSearchPanelProps> = ({
                 className="flex w-full flex-col gap-1 border-b border-slate-800/80 px-4 py-3 text-left transition hover:bg-slate-800/60"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-medium text-indigo-300">
+                  <span className="text-xs font-medium text-[#FFC341]">
                     {displayName}
                   </span>
                   {timeLabel && (

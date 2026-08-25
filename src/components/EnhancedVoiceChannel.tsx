@@ -991,7 +991,7 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
             <button
               onClick={handleRetryPermissions}
               disabled={isInitializing}
-              className="block w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 px-6 py-3 rounded-lg font-medium transition-colors"
+              className="block w-full bg-gradient-to-r from-[#FFC341] to-[#FFD700] hover:from-[#FFD700] hover:to-[#FFC341] disabled:bg-gray-600 px-6 py-3 rounded-lg font-bold text-black transition-colors"
             >
               {isInitializing
                 ? "Requesting Access..."
@@ -1006,7 +1006,7 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
               <button
                 onClick={handleRetryAudioOnly}
                 disabled={isInitializing}
-                className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-green-800 px-4 py-2 rounded-lg font-medium transition-colors"
+                className="flex-1 bg-[#23272a] hover:bg-[#2f3136] disabled:opacity-50 px-4 py-2 rounded-lg font-medium transition-colors border border-[#72767d] text-[#b5bac1]"
               >
                 Audio Only
               </button>

@@ -26,7 +26,7 @@ export function InlineSpinner({
       role="status"
       aria-label={label || "Loading"}
       className={clsx(
-        "inline-block animate-spin rounded-full border-white/15 border-t-indigo-400",
+        "inline-block animate-spin rounded-full border-white/15 border-t-[#FFC341]",
         sizeMap[size],
         className
       )}

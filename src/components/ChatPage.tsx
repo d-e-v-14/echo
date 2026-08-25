@@ -141,7 +141,7 @@ const ChatList: React.FC<ChatListProps> = ({
      
       </div>
 
-      <label className="group mb-4 flex items-center gap-2 rounded-full border border-slate-800/70 bg-slate-900/70 px-3 py-2 text-sm text-slate-300 focus-within:border-indigo-500/60 focus-within:text-indigo-300">
+      <label className="group mb-4 flex items-center gap-2 rounded-full border border-slate-800/70 bg-slate-900/70 px-3 py-2 text-sm text-slate-300 focus-within:border-[#FFC341]/60 focus-within:text-[#FFC341]">
         <Search className="h-4 w-4" />
         <input
           value={query}
@@ -543,7 +543,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   return (
     <div className="flex h-full flex-1 flex-col bg-black backdrop-blur">
-      <header className="flex items-center justify-between border-b border-slate-800/80 px-6 py-5">
+      <header className="flex items-center justify-between border-b border-slate-800/80 px-2 py-2">
         <div className="flex items-center gap-3">
           <div className="h-11 w-11 overflow-hidden rounded-full border border-slate-800/70 bg-slate-900/70">
             {activeUser.avatar_url ? (
@@ -587,23 +587,24 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             >
               {activeUser.fullname}
             </h3>
-            <p className="text-xs text-slate-400">
+            {/* <p className="text-xs text-slate-400">
               Direct message • {messages.length}{" "}
               {messages.length === 1 ? "message" : "messages"}
-            </p>
+            </p> */}
           </div>
         </div>
         <div className="flex items-center gap-2 text-slate-400">
           <button
-            type="button"
-            onClick={() => setShowSearch(true)}
-            disabled={!threadId}
-            className="rounded-full border border-slate-800/70 p-2 transition-colors hover:border-indigo-500/50 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-            aria-label="Search in conversation"
-            title="Search messages"
-          >
-            <Search className="h-4 w-4" />
-          </button>
+          type="button"
+          onClick={() => setShowSearch(true)}
+          disabled={!threadId}
+          className="flex items-center gap-2 rounded-full border border-slate-800/70 px-3 py-2 text-sm text-slate-300 transition-colors hover:border-[#FFC341]/50 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label="Search in conversation"
+          title="Search messages"
+        >
+          <Search className="h-4 w-4" />
+          <span>Search</span>
+        </button>
         </div>
       </header>
 
@@ -727,7 +728,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 <div className="flex items-center gap-3">
                   <Paperclip
                     className={`h-4 w-4 ${
-                      entry.valid ? "text-indigo-300" : "text-slate-600"
+                      entry.valid ? "text-[#FFC341]" : "text-slate-600"
                     }`}
                   />
                   <span className="truncate max-w-[220px]">
@@ -754,7 +755,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         )}
 
         {replyingTo && (
-          <div className="mb-2 rounded-lg border-l-4 border-blue-500 bg-slate-800 px-4 py-2">
+          <div className="mb-2 rounded-lg border-l-4 border-[#FFC341] bg-slate-800 px-4 py-2">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 min-w-0 text-sm text-slate-300">
                 <span className="shrink-0">
@@ -832,7 +833,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="rounded-full border border-slate-800/70 p-2 text-slate-300 transition-colors hover:border-indigo-500/50 hover:text-indigo-300"
+            className="rounded-full border border-slate-800/70 p-2 text-slate-300 transition-colors hover:border-[#FFC341]/50 hover:text-[#FFC341]"
             aria-label="Attach file"
           >
             <Paperclip className="h-4 w-4" />
@@ -841,7 +842,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             type="button"
             aria-label="Add reaction"
             onClick={() => setShowEmojiPicker((v) => !v)}
-            className="rounded-full border border-slate-800/70 p-2 text-slate-300 transition-colors hover:border-indigo-500/50 hover:text-indigo-300"
+            className="rounded-full border border-slate-800/70 p-2 text-slate-300 transition-colors hover:border-[#FFC341]/50 hover:text-[#FFC341]"
           >
             <Smile className="h-4 w-4" />
           </button>
@@ -887,7 +888,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             disabled={!canSend}
             className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-white transition ${
               canSend
-                ? "bg-indigo-500/90 hover:bg-indigo-400"
+                ? "bg-[#FFC341]/90 hover:bg-[#FFD700]"
                 : "bg-slate-700/50 text-slate-500 cursor-not-allowed"
             }`}
           >
@@ -1816,7 +1817,7 @@ queryClient.setQueryData(
                   onClick={() => handleSelectDm(user.id)}
                   className={`flex min-w-[64px] flex-col items-center gap-2 rounded-2xl border px-3 py-2 text-xs transition-colors ${
                     isActive
-                      ? "border-indigo-400/70 bg-indigo-500/10 text-indigo-100"
+                      ? "border-[#FFC341]/70 bg-[#FFC341]/10 text-[#FFC341]"
                       : "border-slate-800/70 bg-slate-900/60 text-slate-300"
                   }`}
                 >

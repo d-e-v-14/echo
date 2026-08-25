@@ -191,7 +191,7 @@ const VoiceInviteModal: React.FC<VoiceInviteModalProps> = ({
             onClick={() => setActiveTab("in-call")}
             className={`flex-1 py-3 text-sm font-medium transition-colors ${
               activeTab === "in-call"
-                ? "text-white border-b-2 border-indigo-500"
+                ? "text-white border-b-2 border-[#FFC341]"
                 : "text-gray-400 hover:text-gray-200"
             }`}
           >
@@ -204,7 +204,7 @@ const VoiceInviteModal: React.FC<VoiceInviteModalProps> = ({
             onClick={() => setActiveTab("server-members")}
             className={`flex-1 py-3 text-sm font-medium transition-colors ${
               activeTab === "server-members"
-                ? "text-white border-b-2 border-indigo-500"
+                ? "text-white border-b-2 border-[#FFC341]"
                 : "text-gray-400 hover:text-gray-200"
             }`}
           >
@@ -475,7 +475,7 @@ const MemberItem: React.FC<MemberItemProps> = ({
           className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
             inviteSent
               ? "bg-green-600 text-white cursor-default"
-              : "bg-indigo-600 text-white hover:bg-indigo-500"
+              : "bg-[#FFC341] text-black hover:bg-[#FFD700]"
           }`}
         >
           {inviteSent ? "Sent!" : "Invite"}

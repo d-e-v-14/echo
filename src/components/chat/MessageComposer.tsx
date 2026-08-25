@@ -35,7 +35,7 @@ const ReplyBanner: React.FC<{
   const mediaType = replyingTo.mediaType;
 
   return (
-    <div className="mx-6 mb-2 px-4 py-2 bg-slate-800 rounded-lg flex items-center justify-between border-l-4 border-blue-500">
+    <div className="mx-6 mb-2 px-4 py-2 bg-slate-800 rounded-lg flex items-center justify-between border-l-4 border-[#FFC341]">
       <div className="flex items-center gap-2 min-w-0 text-sm text-slate-300">
         <span className="shrink-0">
           Replying to{" "}
@@ -119,7 +119,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
         <div className="mb-2">
           <button
             onClick={onJumpToNextMention}
-            className="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors"
+            className="w-full px-4 py-2 bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold rounded-lg flex items-center justify-center gap-2 transition-colors hover:-translate-y-0.5"
           >
             <span className="text-lg">@</span>
             <span className="font-medium">
