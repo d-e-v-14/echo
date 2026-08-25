@@ -1,5 +1,3 @@
-// src/hooks/useVoiceCall.ts
-// Hook to integrate CallStateManager with voice channel components
 
 "use client";
 
@@ -21,37 +19,29 @@ interface UseVoiceCallOptions {
 }
 
 interface UseVoiceCallReturn {
-  // Manager instance
   manager: VoiceVideoManager | null;
 
-  // Connection state
   isConnected: boolean;
   isConnecting: boolean;
 
-  // Call state
   isInCall: boolean;
   isMinimized: boolean;
   callState: ActiveCallState | null;
 
-  // Participants
   roster: VoiceRosterMember[];
   videoTiles: VideoTileInfo[];
 
-  // Media state
   mediaState: MediaState | null;
 
-  // Actions
   joinCall: (callType?: "voice" | "video") => Promise<void>;
   leaveCall: () => void;
   minimizeCall: () => void;
   maximizeCall: () => void;
 
-  // Media controls
   toggleMute: () => void;
   toggleVideo: () => Promise<void>;
   toggleScreenShare: () => Promise<void>;
 
-  // Error state
   error: string | null;
 }
 
@@ -71,15 +61,12 @@ export function useVoiceCall({
   const [mediaState, setMediaState] = useState<MediaState | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Track if we've set up listeners for this manager instance
   const listenersSetup = useRef(false);
 
-  // Subscribe to call state changes
   useEffect(() => {
     return callStateManager.subscribe(setCallState);
   }, []);
 
-  // Set up event listeners when manager changes
   const setupListeners = useCallback((voiceManager: VoiceVideoManager) => {
     if (listenersSetup.current) return;
 
@@ -118,14 +105,11 @@ export function useVoiceCall({
     listenersSetup.current = true;
   }, []);
 
-  // Join the call
   const joinCall = useCallback(
     async (callType: "voice" | "video" = "voice") => {
       setError(null);
 
-      // Check if already in this channel
       if (callStateManager.isInChannel(channelId)) {
-        // Already connected, just maximize
         callStateManager.maximizeCall();
         const existingManager = callStateManager.getManager();
         if (existingManager) {
@@ -137,10 +121,8 @@ export function useVoiceCall({
         return;
       }
 
-      // If in a different call, end it first
       if (callStateManager.hasActiveCall()) {
         callStateManager.endCall();
-        // Reset local state
         setRoster([]);
         setVideoTiles([]);
         listenersSetup.current = false;
@@ -149,20 +131,16 @@ export function useVoiceCall({
       setIsConnecting(true);
 
       try {
-        // Get or create manager
         const voiceManager = callStateManager.getOrCreateManager(
           userId,
           username
         );
 
-        // Set up event listeners
         setupListeners(voiceManager);
 
-        // Initialize and join
         await voiceManager.initialize(callType === "video", true);
         await voiceManager.joinVoiceChannel(channelId);
 
-        // Track the call
         callStateManager.startCall(channelId, serverId, channelName, callType);
 
         setManager(voiceManager);
@@ -181,7 +159,6 @@ export function useVoiceCall({
     [userId, username, channelId, serverId, channelName, setupListeners]
   );
 
-  // Leave the call
   const leaveCall = useCallback(() => {
     callStateManager.endCall();
     setManager(null);
@@ -193,27 +170,23 @@ export function useVoiceCall({
     listenersSetup.current = false;
   }, []);
 
-  // Minimize (navigate away while keeping call)
   const minimizeCall = useCallback(() => {
     callStateManager.minimizeCall();
   }, []);
 
-  // Maximize (return to call)
   const maximizeCall = useCallback(() => {
     callStateManager.maximizeCall();
   }, []);
 
-  // Toggle mute
   const toggleMute = useCallback(() => {
     const currentManager = manager || callStateManager.getManager();
     if (currentManager) {
       const currentState = currentManager.getMediaState();
-      currentManager.toggleAudio(currentState.muted); // Pass true to unmute, false to mute
+      currentManager.toggleAudio(currentState.muted);
       setMediaState(currentManager.getMediaState());
     }
   }, [manager]);
 
-  // Toggle video
   const toggleVideo = useCallback(async () => {
     const currentManager = manager || callStateManager.getManager();
     if (currentManager) {
@@ -221,14 +194,12 @@ export function useVoiceCall({
       await currentManager.toggleVideo(!currentState.video);
       setMediaState(currentManager.getMediaState());
 
-      // Update call type if video is enabled
       if (!currentState.video) {
         callStateManager.updateCallType("video");
       }
     }
   }, [manager]);
 
-  // Toggle screen share
   const toggleScreenShare = useCallback(async () => {
     const currentManager = manager || callStateManager.getManager();
     if (currentManager) {
@@ -242,7 +213,6 @@ export function useVoiceCall({
     }
   }, [manager]);
 
-  // Check if we're returning to an active call in this channel
   useEffect(() => {
     if (callStateManager.isInChannel(channelId)) {
       const existingManager = callStateManager.getManager();
@@ -252,16 +222,13 @@ export function useVoiceCall({
         setRoster(existingManager.getRoster());
         setMediaState(existingManager.getMediaState());
 
-        // Set up listeners if not already done
         setupListeners(existingManager);
 
-        // Maximize if it was minimized
         callStateManager.maximizeCall();
       }
     }
   }, [channelId, setupListeners]);
 
-  // Update media state periodically when in call
   useEffect(() => {
     if (!manager || !isConnected) return;
 

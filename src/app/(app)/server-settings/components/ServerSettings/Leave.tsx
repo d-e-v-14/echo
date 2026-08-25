@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { leaveServer } from "@/api";
 import { ServerDetails } from "@/api/types/server.types";
+import { SettingsFormSkeleton } from "@/components/loading/pageSkeletons";
 
 interface LeaveProps {
   serverId: string;
@@ -49,8 +50,8 @@ export default function Leave({ serverId, serverDetails }: LeaveProps) {
 
   if (pageLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400"></div>
+      <div className="p-8">
+        <SettingsFormSkeleton fields={2} titleWidth="w-32" />
       </div>
     );
   }

@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import Modal from "react-modal";
 import { FaGoogle } from "react-icons/fa";
 import { supabase } from "@/lib/supabaseClient";
+import InlineSpinner from "@/components/loading/InlineSpinner";
 
 Modal.setAppElement("body");
 
@@ -42,7 +43,6 @@ export default function Home() {
     }
   };
 
-  // Optimized background preloading for better Core Web Vitals performance
   useEffect(() => {
     let didFinish = false;
     const bgImage = new Image();
@@ -61,7 +61,6 @@ export default function Home() {
       bgImage.onerror = finalize;
     }
 
-    // Shortened safety fallback to prevent layout freezes
     const fallbackTimer = setTimeout(finalize, 1500);
 
     return () => {
@@ -123,7 +122,6 @@ export default function Home() {
 
   return (
     <>
-      {/* Loader Overlay */}
       <div
         className={`
           fixed inset-0 z-[9999] flex items-center justify-center
@@ -169,19 +167,17 @@ export default function Home() {
             </div>
           </div>
           <div className="mb-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto"></div>
+            <InlineSpinner size="lg" className="mx-auto" label="Loading" />
           </div>
         </div>
       </div>
 
       <div className="relative w-screen overflow-x-hidden">
-        {/* Background Layer */}
         <div
           className="fixed inset-0 bg-[url('/bg1.webp')] bg-cover bg-center -z-20 transition-transform duration-500"
           aria-hidden="true"
         />
 
-        {/* NAVBAR */}
         <div
           className={`fixed top-0 left-0 w-full z-50 transition-transform duration-300 ${
             showNavbar ? "translate-y-0" : "-translate-y-full"
@@ -190,7 +186,6 @@ export default function Home() {
           <Navbar />
         </div>
 
-        {/* LANDING SECTION */}
         <section className="min-h-screen flex items-center justify-between px-6 md:px-12 lg:px-24">
           <div className="w-full md:w-1/2 text-white">
             <h1
@@ -220,7 +215,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* EXPLORE SPACES SECTION - Uniform alignment and lazy loaded backgrounds */}
         <section
           id="about-us"
           className="relative min-h-screen py-20 px-4 md:px-8"
@@ -332,7 +326,6 @@ export default function Home() {
         </section>
       </div>
 
-      {/* FAQ'S SECTION */}
       <section id="faqs" className="relative py-24 px-6 overflow-hidden">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col items-center mb-16">
@@ -391,7 +384,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CONTACT US */}
       <section
         id="contact-us"
         className="mt-40 flex flex-grow min-h-[100vh] overflow-x-hidden"
@@ -485,7 +477,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* FOOTER */}
       <footer className="mt-20 relative border-t border-white/10 bg-[#020617]/80 backdrop-blur-md">
         <div className="flex items-center justify-center pt-8 pb-4">
           <div className="flex items-center w-full px-4 max-w-7xl">
@@ -498,7 +489,6 @@ export default function Home() {
         </div>
 
         <div className="max-w-7xl mx-auto px-6 py-16 grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-12">
-          {/* Logo container with strict layout protection */}
           <div className="space-y-6 flex flex-col items-center md:items-start lg:col-span-1">
             <div className="h-12 w-48 relative flex items-center justify-center md:justify-start">
               <img

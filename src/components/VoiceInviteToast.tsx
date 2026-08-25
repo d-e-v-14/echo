@@ -1,14 +1,8 @@
 "use client";
 
-// src/components/VoiceInviteToast.tsx
-// Toast notification component for incoming voice channel invites
-// Displays at bottom-right of screen, similar to Discord's incoming call notification
-
 import React, { useEffect, useState } from "react";
 import { Phone, PhoneOff, X } from "lucide-react";
 import { VoiceInvite } from "@/hooks/useVoiceInviteNotifications";
-
-// ==================== TYPES ====================
 
 interface VoiceInviteToastProps {
   invites: VoiceInvite[];
@@ -16,8 +10,6 @@ interface VoiceInviteToastProps {
   onDecline: (inviteId: string) => void;
   onClose: (inviteId: string) => void;
 }
-
-// ==================== COMPONENT ====================
 
 const VoiceInviteToast: React.FC<VoiceInviteToastProps> = ({
   invites,
@@ -42,8 +34,6 @@ const VoiceInviteToast: React.FC<VoiceInviteToastProps> = ({
   );
 };
 
-// ==================== SINGLE INVITE TOAST ====================
-
 interface SingleInviteToastProps {
   invite: VoiceInvite;
   onAccept: () => void;
@@ -60,13 +50,11 @@ const SingleInviteToast: React.FC<SingleInviteToastProps> = ({
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [isVisible, setIsVisible] = useState(false);
 
-  // Animate in
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), 50);
     return () => clearTimeout(timer);
   }, []);
 
-  // Countdown timer
   useEffect(() => {
     const updateTimer = () => {
       const remaining = Math.max(0, invite.expiresAt - Date.now());
@@ -78,8 +66,7 @@ const SingleInviteToast: React.FC<SingleInviteToastProps> = ({
     return () => clearInterval(interval);
   }, [invite.expiresAt]);
 
-  // Calculate progress for the ring animation
-  const progress = Math.max(0, timeLeft / 30); // Assuming 30 second timeout
+  const progress = Math.max(0, timeLeft / 30);
 
   return (
     <div
@@ -89,7 +76,6 @@ const SingleInviteToast: React.FC<SingleInviteToastProps> = ({
         ${isVisible ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"}
       `}
     >
-      {/* Progress bar at top */}
       <div className="h-1 bg-gray-700">
         <div
           className="h-full bg-green-500 transition-all duration-1000 ease-linear"
@@ -98,10 +84,8 @@ const SingleInviteToast: React.FC<SingleInviteToastProps> = ({
       </div>
 
       <div className="p-4">
-        {/* Header with close button */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3">
-            {/* Inviter avatar with pulsing ring */}
             <div className="relative">
               <div className="w-12 h-12 rounded-full bg-[#5865f2] flex items-center justify-center overflow-hidden">
                 {invite.inviterAvatar ? (
@@ -116,7 +100,6 @@ const SingleInviteToast: React.FC<SingleInviteToastProps> = ({
                   </span>
                 )}
               </div>
-              {/* Pulsing ring animation */}
               <div className="absolute inset-0 rounded-full border-2 border-green-400 animate-ping opacity-75" />
               <div className="absolute inset-0 rounded-full border-2 border-green-400" />
             </div>
@@ -137,7 +120,6 @@ const SingleInviteToast: React.FC<SingleInviteToastProps> = ({
           </button>
         </div>
 
-        {/* Channel info */}
         <div className="bg-[#1e1f22] rounded-md p-3 mb-3">
           <div className="flex items-center gap-2">
             <Phone className="w-4 h-4 text-green-400" />
@@ -150,7 +132,6 @@ const SingleInviteToast: React.FC<SingleInviteToastProps> = ({
           </div>
         </div>
 
-        {/* Action buttons */}
         <div className="flex gap-2">
           <button
             onClick={onDecline}

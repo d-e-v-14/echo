@@ -11,9 +11,7 @@ import React, {
 import { usePathname } from "next/navigation";
 
 interface NavigationLoadingContextValue {
-  /** Call from any page once its data is fully loaded */
   setPageReady: () => void;
-  /** Whether a route transition is in progress */
   isNavigating: boolean;
 }
 
@@ -22,28 +20,23 @@ const NavigationLoadingContext = createContext<NavigationLoadingContextValue>({
   isNavigating: false,
 });
 
-/** Pages call this hook to signal they're done loading data. */
 export function usePageReady() {
   const ctx = useContext(NavigationLoadingContext);
   return ctx.setPageReady;
 }
 
-/** Check if a navigation transition is in progress */
 export function useIsNavigating() {
   const ctx = useContext(NavigationLoadingContext);
   return ctx.isNavigating;
 }
 
-// ===================== VISITED ROUTES CACHE =====================
 const visitedRoutes = new Set<string>();
 
-/** Returns true if this route has been visited before (instant transition) */
 export function useIsCachedRoute() {
   const pathname = usePathname();
   return visitedRoutes.has(pathname);
 }
 
-// ===================== COMPONENT =====================
 export default function RouteChangeLoader({
   children,
 }: {
@@ -60,7 +53,6 @@ export default function RouteChangeLoader({
   const fadeTimer = useRef<NodeJS.Timeout | null>(null);
   const progressTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // Mark initial route as visited
   useEffect(() => {
     visitedRoutes.add(pathname);
   }, []);
@@ -87,7 +79,6 @@ export default function RouteChangeLoader({
     setProgress(100);
     setIsNavigating(false);
 
-    // Fade out the progress bar
     fadeTimer.current = setTimeout(() => {
       setShowBar(false);
       setProgress(0);
@@ -99,7 +90,6 @@ export default function RouteChangeLoader({
     setTimeout(dismiss, 50);
   }, [dismiss]);
 
-  // Detect route change
   useEffect(() => {
     if (pathname !== prevPathname.current) {
       const wasCached = visitedRoutes.has(pathname);
@@ -108,11 +98,10 @@ export default function RouteChangeLoader({
       clearTimers();
 
       if (wasCached) {
-        // Cached route — ultra-fast bar flash, no content skeleton
         loadingRef.current = true;
         setShowBar(true);
         setProgress(0);
-        setIsNavigating(false); // no skeleton for cached routes
+        setIsNavigating(false);
 
         let p = 0;
         progressTimer.current = setInterval(() => {
@@ -123,7 +112,6 @@ export default function RouteChangeLoader({
 
         autoTimer.current = setTimeout(dismiss, 200);
       } else {
-        // First visit — show skeleton + progress bar
         loadingRef.current = true;
         setShowBar(true);
         setIsNavigating(true);
@@ -136,7 +124,6 @@ export default function RouteChangeLoader({
           setProgress(p);
         }, 100);
 
-        // Auto dismiss after 2s max
         autoTimer.current = setTimeout(dismiss, 2000);
       }
     }
@@ -144,7 +131,6 @@ export default function RouteChangeLoader({
     return clearTimers;
   }, [pathname, dismiss, clearTimers]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       loadingRef.current = false;

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { apiClient } from "@/api/axios";
 import { useUser } from "@/components/UserContext";
-import Loader from "@/components/Loader";
+import { SettingsFormSkeleton } from "@/components/loading/pageSkeletons";
 
 const BIO_MAX_LENGTH = 100;
 
@@ -133,8 +133,11 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black">
-        <Loader fullscreen text="" />
+      <div className="min-h-screen bg-black px-6 py-16 flex justify-center">
+        <div className="w-full max-w-6xl mx-auto grid md:grid-cols-2 gap-16 opacity-70">
+          <SettingsFormSkeleton fields={4} />
+          <SettingsFormSkeleton fields={2} titleWidth="w-32" />
+        </div>
       </div>
     );
   }
@@ -318,12 +321,6 @@ export default function ProfilePage() {
                 {isSaving ? "Saving…" : "Save Changes"}
               </button>
 
-              {/*   <button
-                onClick={() => router.push("/delete-account")}
-                className="px-7 py-3 rounded-xl bg-red-600/70 hover:bg-red-700 hover:shadow-lg transition font-semibold"
-              >
-                Delete Account
-              </button> */}
             </div>
           </div>
         </div>

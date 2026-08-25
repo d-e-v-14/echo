@@ -1,5 +1,3 @@
-// src/contexts/VoiceCallContext.tsx
-// Global voice call state provider - persists call across page navigation
 
 "use client";
 
@@ -27,8 +25,6 @@ import {
   disconnectVoicePresenceSocket,
 } from "@/lib/voicePresenceSocket";
 
-// ==================== TYPES ====================
-
 export interface ActiveCall {
   channelId: string;
   channelName: string;
@@ -37,7 +33,6 @@ export interface ActiveCall {
 }
 
 export interface VoiceCallContextValue {
-  // State
   manager: VoiceVideoManager | null;
   activeCall: ActiveCall | null;
   isConnected: boolean;
@@ -52,7 +47,6 @@ export interface VoiceCallContextValue {
   permissionError: string | null;
   connectionError: string | null;
 
-  // Actions
   joinCall: (
     channelId: string,
     channelName: string,
@@ -67,7 +61,6 @@ export interface VoiceCallContextValue {
   unbindVideoElement: (tileId: number) => void;
 }
 
-// Default context value
 const defaultContextValue: VoiceCallContextValue = {
   manager: null,
   activeCall: null,
@@ -100,25 +93,19 @@ const defaultContextValue: VoiceCallContextValue = {
   unbindVideoElement: () => {},
 };
 
-// ==================== CONTEXT ====================
-
 const VoiceCallContext =
   createContext<VoiceCallContextValue>(defaultContextValue);
-
-// ==================== PROVIDER ====================
 
 interface VoiceCallProviderProps {
   children: ReactNode;
 }
 
 export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
-  // Manager ref - persists across renders and page navigations
   const managerRef = useRef<VoiceVideoManager | null>(null);
   const isManagerCreated = useRef(false);
   const listenersSetupRef = useRef(false);
   const activeCallRef = useRef<ActiveCall | null>(null);
 
-  // State
   const [activeCall, setActiveCall] = useState<ActiveCall | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -179,7 +166,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
     [getCurrentUser]
   );
 
-  // Create manager instance (only once)
   const getOrCreateManager = useCallback(() => {
     if (!isManagerCreated.current) {
       const user = getCurrentUser();
@@ -189,12 +175,10 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
     return managerRef.current;
   }, [getCurrentUser]);
 
-  // Setup event listeners for the manager
   const setupEventListeners = useCallback(
     (manager: VoiceVideoManager) => {
       console.log("[VoiceCallContext] Setting up event listeners");
 
-      // Voice roster updates
       manager.onVoiceRoster((members) => {
         console.log(
           "[VoiceCallContext] Roster update:",
@@ -204,7 +188,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
         setParticipants(members);
       });
 
-      // Video tile updates
       manager.onVideoTileUpdated((tile) => {
         setVideoTiles((prev) => {
           const newMap = new Map(prev);
@@ -221,7 +204,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
         }
       });
 
-      // Video tile removed
       manager.onVideoTileRemoved((tileId) => {
         console.log("[VoiceCallContext] Video tile removed:", tileId);
         setVideoTiles((prev) => {
@@ -234,7 +216,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
         setLocalScreenTileId((prev) => (prev === tileId ? null : prev));
       });
 
-      // Connection state changes
       manager.onConnectionStateChange((connected) => {
         setIsConnected(connected);
         if (connected) {
@@ -244,14 +225,12 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
         }
       });
 
-      // Error handling
       manager.onError((error) => {
         console.error("[VoiceCallContext] Error:", error);
         setConnectionError(error.message);
         setIsConnecting(false);
       });
 
-      // User joined/left (for logging)
       manager.onUserJoined((attendeeId, externalUserId) => {
         console.log(
           "[VoiceCallContext] User joined:",
@@ -272,7 +251,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
     [broadcastVoicePresence]
   );
 
-  // Initialize manager (request permissions)
   const initializeManager = useCallback(
     async (manager: VoiceVideoManager) => {
       if (isInitialized) return true;
@@ -283,7 +261,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
       setPermissionError(null);
 
       try {
-        // Try full permissions first
         await manager.initialize(true, true);
         setIsInitialized(true);
         setLocalMediaState(manager.getMediaState());
@@ -294,7 +271,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
           "[VoiceCallContext] Full permissions failed, trying fallbacks"
         );
 
-        // Try audio-only
         try {
           await manager.initializeAudioOnly();
           setIsInitialized(true);
@@ -305,7 +281,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
           console.log("[VoiceCallContext] Audio-only mode");
           return true;
         } catch {
-          // Try video-only
           try {
             await manager.initializeVideoOnly();
             setIsInitialized(true);
@@ -316,7 +291,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
             console.log("[VoiceCallContext] Video-only mode");
             return true;
           } catch {
-            // All failed
             console.error("[VoiceCallContext] All permission requests failed");
             setPermissionError(
               "Camera and microphone access denied. Please allow permissions and try again."
@@ -329,9 +303,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
     [isInitialized]
   );
 
-  // ==================== ACTIONS ====================
-
-  // Join a voice call
   const joinCall = useCallback(
     async (
       channelId: string,
@@ -346,7 +317,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
         serverName,
       });
 
-      // Clear previous errors
       setConnectionError(null);
       setIsConnecting(true);
 
@@ -359,7 +329,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
         const user = getCurrentUser();
         getVoicePresenceSocket(user.id);
 
-        // If already in a call, leave it first
         if (activeCall) {
           console.log(
             "[VoiceCallContext] Leaving previous call:",
@@ -370,7 +339,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
             serverId: activeCall.serverId,
           });
           manager.leaveVoiceChannel();
-          // Clear state
           setParticipants([]);
           setVideoTiles(new Map());
           setLocalVideoTileId(null);
@@ -391,7 +359,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
           listenersSetupRef.current = true;
         }
 
-        // Set active call state
         setActiveCall({
           channelId,
           channelName,
@@ -437,7 +404,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
     ]
   );
 
-  // Leave current call
   const leaveCall = useCallback(() => {
     console.log("[VoiceCallContext] leaveCall");
 
@@ -456,7 +422,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
 
     disconnectVoicePresenceSocket();
 
-    // Clear state
     setActiveCall(null);
     setIsConnected(false);
     setIsConnecting(false);
@@ -468,7 +433,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
     setConnectionError(null);
   }, []);
 
-  // Toggle audio (mute/unmute)
   const toggleAudio = useCallback(
     (enabled: boolean) => {
       const manager = managerRef.current;
@@ -499,7 +463,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
     [broadcastVoicePresence]
   );
 
-  // Toggle screen share
   const toggleScreenShare = useCallback(async () => {
     const manager = managerRef.current;
     if (!manager) return;
@@ -517,7 +480,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
       setLocalMediaState(mediaState);
       broadcastVoicePresence(mediaState);
     } catch (error: any) {
-      // User cancelled - not an error
       if (error?.name === "NotAllowedError") {
         console.log("[VoiceCallContext] Screen share cancelled by user");
         return;
@@ -526,7 +488,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
     }
   }, [broadcastVoicePresence]);
 
-  // Bind video element to tile
   const bindVideoElement = useCallback(
     (tileId: number, element: HTMLVideoElement) => {
       const manager = managerRef.current;
@@ -536,14 +497,12 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
     []
   );
 
-  // Unbind video element from tile
   const unbindVideoElement = useCallback((tileId: number) => {
     const manager = managerRef.current;
     if (!manager) return;
     manager.unbindVideoElement(tileId);
   }, []);
 
-  // Periodically update local media state
   useEffect(() => {
     if (!activeCall) return;
 
@@ -558,7 +517,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
     return () => clearInterval(interval);
   }, [activeCall]);
 
-  // Cleanup on unmount (full app close)
   useEffect(() => {
     return () => {
       console.log(
@@ -571,8 +529,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
       disconnectVoicePresenceSocket();
     };
   }, []);
-
-  // ==================== CONTEXT VALUE ====================
 
   const contextValue = useMemo<VoiceCallContextValue>(
     () => ({
@@ -626,8 +582,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
     </VoiceCallContext.Provider>
   );
 }
-
-// ==================== HOOK ====================
 
 export function useVoiceCall(): VoiceCallContextValue {
   const context = useContext(VoiceCallContext);

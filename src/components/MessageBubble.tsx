@@ -7,8 +7,6 @@ import type { EmojiClickData } from "emoji-picker-react";
 import { Theme } from "emoji-picker-react";
 import { Paperclip, Clock, CheckCheck, CircleAlert } from "lucide-react";
 
-/* -------------------- TYPES -------------------- */
-
 export interface ChatMessage {
   id?: string | number;
   content: string;
@@ -52,8 +50,6 @@ interface MessageBubbleProps {
   isMentioned?: boolean;
 }
 
-/* -------------------- AVATAR -------------------- */
-
 const MessageAvatar: React.FC<{
   name?: string;
   avatarUrl?: string;
@@ -85,8 +81,6 @@ const MessageAvatar: React.FC<{
     </div>
   );
 };
-
-/* -------------------- COMPONENT -------------------- */
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({
   message,
@@ -292,7 +286,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         isPending ? "opacity-70" : ""
       }`}
     >
-      {/* Left Avatar (receiver) */}
       {!isSender && (
         <div className="mx-1 mr-2">
           <MessageAvatar
@@ -303,13 +296,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         </div>
       )}
 
-      {/* Message Body */}
       <div
         className={`flex flex-col gap-1 max-w-[75%] ${
           isSender ? "items-end text-left" : "items-start"
         }`}
       >
-        {/* Username */}
         {name && !isSender && (
           <span
             className="text-xs font-medium text-[#949ba4] px-1 cursor-pointer hover:text-[#dbdee1]"
@@ -319,7 +310,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           </span>
         )}
 
-        {/* Reply Preview */}
         {message.replyTo && (
           <button
             type="button"
@@ -392,7 +382,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           </button>
         )}
 
-        {/* Message Bubble */}
         <div
           className={`
     w-fit max-w-96
@@ -412,21 +401,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           {children && <div className="mt-3">{children}</div>}
 
           <div className="flex items-center gap-2 mt-1">
-            {/* {showPinAction && onPin && !isFailed && (
-              <button
-                onClick={onPin}
-                className={`text-xs flex items-center gap-1 transition ${
-                  isPinned
-                    ? "text-indigo-300 hover:text-indigo-200"
-                    : "text-[#949ba4] hover:text-[#dbdee1]"
-                }`}
-                aria-label={isPinned ? "Unpin message" : "Pin message"}
-                title={isPinned ? "Unpin message" : "Pin message"}
-              >
-                <Pin className={`h-3 w-3 ${isPinned ? "fill-current" : ""}`} />
-                <span>{isPinned ? "Unpin" : "Pin"}</span>
-              </button>
-            )} */}
             {onReply && !isFailed && (
               <button
                 onClick={onReply}
@@ -477,20 +451,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 ))}
               </div>
             )}
-            {/* {onReact && (
-              <div ref={reactionPickerRef} className="relative">
-                <button
-                  ref={reactionButtonRef}
-                  type="button"
-                  onClick={() => setShowReactionPicker((value) => !value)}
-                  className="text-xs text-[#949ba4] hover:text-[#dbdee1] flex items-center gap-1"
-                  aria-label="Add reaction"
-                  title="Add reaction"
-                >
-                  <Smile className="h-3 w-3 mt-0.5" />
-                </button>
-              </div>
-            )} */}
             {isFailed && onRetry && (
               <button
                 onClick={onRetry}
@@ -503,7 +463,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           </div>
         </div>
 
-        {/* Timestamp and status */}
         <div className="flex items-center gap-1.5 px-1">
           {timestamp && (
             <span className="text-[10px] text-[#949ba4]">{timestamp}</span>
@@ -560,7 +519,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           : null}
       </div>
 
-      {/* Right Avatar (sender) */}
       {isSender && (
         <div className="ml-3">
           <MessageAvatar name={name || "You"} avatarUrl={avatarUrl} />

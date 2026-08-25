@@ -5,12 +5,6 @@ import {
   DmReplyTarget,
 } from "./types";
 
-// ---------------------------------------------------------------------------
-// Pure helpers for the DM message cache. These functions are shared by the
-// DM chat UI (ChatPage), the send-message mutation and the socket realtime
-// sync so that every writer merges messages through the same rules.
-// ---------------------------------------------------------------------------
-
 const isTempId = (id: string | number | undefined): boolean =>
   typeof id !== "undefined" && String(id).startsWith("temp-");
 
@@ -30,10 +24,6 @@ export const sortDmMessages = (messages: DmMessage[]): DmMessage[] =>
     (a, b) => timestampMs(a.timestamp) - timestampMs(b.timestamp)
   );
 
-/**
- * Normalize a raw message coming from the REST API or a socket event into the
- * canonical DmMessage shape used by the cache.
- */
 export const normalizeDmMessage = (message: any): DmMessage => ({
   id: String(
     message.id ??
@@ -79,10 +69,6 @@ const normalizeReply = (message: any): DmReplyTarget | null => {
   return null;
 };
 
-/**
- * Resolve "Loading..." reply previews against the messages that are already
- * loaded in the current page so authors/contents are filled in client-side.
- */
 export const resolveRepliesForThread = (
   threadMessages: DmMessage[],
   allUsers: Array<{ id: string; fullname?: string; username?: string }>,
@@ -134,16 +120,6 @@ export const flattenDmMessages = (data?: DmMessagesData): DmMessage[] => {
   return data.pages.flatMap((page) => page.messages);
 };
 
-/**
- * Merge a single incoming message into the newest page.
- *
- * Rules (in order):
- *  1. If a message with the same stable id already exists, keep the cache
- *     unchanged (deduplication across POST responses + socket events).
- *  2. If an optimistic temp message from the same sender with the same
- *     content was inserted recently, replace it with the real message.
- *  3. Otherwise append the message and re-sort the page by timestamp.
- */
 export const mergeIntoPage = (
   page: DmMessagesPage,
   incoming: DmMessage
@@ -181,10 +157,6 @@ export const mergeIntoPage = (
   return { ...page, messages: sortDmMessages([...page.messages, incoming]) };
 };
 
-/**
- * Insert an incoming message into the whole infinite-query data structure.
- * New messages always land in the newest page (the last page).
- */
 export const insertIncomingIntoPages = (
   data: DmMessagesData | undefined,
   incoming: DmMessage
@@ -212,10 +184,6 @@ export const insertIncomingIntoDataOrCreate = (
   return insertIncomingIntoPages(data, incoming) ?? data;
 };
 
-/**
- * Replace an optimistic temp message by its temp id with the confirmed
- * server message (used by the send mutation's success handler).
- */
 export const replaceOptimisticById = (
   data: DmMessagesData,
   tempId: string,
@@ -251,11 +219,6 @@ export const markMessagesFailed = (
   return { ...data, pages };
 };
 
-/**
- * Mark a single message (optimistic temp id or confirmed id) as failed. Used
- * by the realtime sync on `message_error` so the optimistic bubble is flagged
- * without refetching the conversation.
- */
 export const markMessageFailedById = (
   data: DmMessagesData,
   messageId: string
@@ -268,13 +231,6 @@ export const markMessageFailedById = (
   return markMessagesFailed(data, new Set([id]));
 };
 
-/**
- * Reconcile a `message_confirmed` socket payload against the conversation:
- *  1. When the payload echoes a client temp id, swap that optimistic message
- *     for the confirmed server message.
- *  2. Otherwise fall back to insertIncomingIntoDataOrCreate, which dedupes by
- *     stable id and replaces matching optimistic messages by content.
- */
 export const reconcileConfirmedMessage = (
   data: DmMessagesData | undefined,
   tempId: string | undefined,

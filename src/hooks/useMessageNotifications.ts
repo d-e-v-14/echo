@@ -24,7 +24,6 @@ export function useMessageNotifications() {
   }, []);
 
   useEffect(() => {
-    // Only fetch once on mount, no polling
     refreshCount();
   }, [refreshCount]);
 

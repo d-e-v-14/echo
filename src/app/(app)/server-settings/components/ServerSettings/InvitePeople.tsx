@@ -27,7 +27,6 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
       const response = await getServerInvites(serverId);
       setInvites(response);
 
-      // Set the most recent invite as the default link using the invite id
       if (response.length > 0) {
         const latestInvite = response[0];
         setInviteLink(`${window.location.origin}/invite/${latestInvite.id}`);
@@ -64,7 +63,7 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
         : "";
       setInviteLink(newLink);
       setSuccess("New invite link generated successfully");
-      loadInvites(); // Refresh the invites list
+      loadInvites();
 
       setTimeout(() => setSuccess(""), 3000);
     } catch (err: any) {
@@ -80,9 +79,8 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
       try {
         await deleteInvite(serverId, inviteId);
         setSuccess("Invite deleted successfully");
-        loadInvites(); // Refresh the invites list
+        loadInvites();
 
-        // Clear the invite link if it was the deleted one
         const deletedInvite = invites.find((inv) => inv.id === inviteId);
         if (deletedInvite && inviteLink.includes(deletedInvite.id)) {
           setInviteLink("");
@@ -283,7 +281,6 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
         </button>
       </div>
 
-      {/* Existing Invites Section */}
       {invites.length > 0 && (
         <div className="mt-8">
           <h2 className="text-lg font-bold mb-4">Existing Invites</h2>

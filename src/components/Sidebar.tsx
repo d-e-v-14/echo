@@ -38,7 +38,6 @@ export default function Sidebar() {
 
   const [error] = useState<string | null>(null);
 
-  // Get values directly from hooks (no refreshCount needed)
   const { unreadCount } = useNotifications();
   const { friendRequestCount, refreshCount: refreshFriendCount } =
     useFriendNotifications();
@@ -46,25 +45,20 @@ export default function Sidebar() {
     useMessageNotifications();
 
   const handleNavClick = async (path: string) => {
-    // Refresh counts when clicking nav items
     if (path === "/friends") {
       await refreshFriendCount();
     } else if (path === "/messages") {
       await refreshMessageCount();
     }
-    // Notifications page will handle its own refresh
   };
 
-  // Refresh counts when window regains focus
   useEffect(() => {
     const handleFocus = async () => {
       try {
-        // Only refresh what we can
         await Promise.all(
           [refreshFriendCount?.(), refreshMessageCount?.()].filter(Boolean)
         );
 
-        // Notification count is managed by its own context
       } catch (error) {
         console.error("Failed to refresh counts on focus:", error);
       }
@@ -112,12 +106,9 @@ export default function Sidebar() {
         collapsed ? "w-20" : "w-64"
       )}
     >
-      {/* Background */}
       <div className="absolute inset-0 z-0 bg-no-repeat bg-cover opacity-90 border-r border-gray-800" />
 
-      {/* Content */}
       <div className="relative z-10 flex flex-col h-full justify-between">
-        {/* Top Section */}
         <div>
           <div className="flex items-center justify-between p-4">
             <Image
@@ -169,7 +160,6 @@ export default function Sidebar() {
                   >
                     <div className="relative">
                       <item.icon className="w-5 h-5" />
-                      {/* Show notification badge with animation */}
                       {notificationCount > 0 && (
                         <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1 font-bold">
                           {notificationCount > 99 ? "99+" : notificationCount}
@@ -192,9 +182,7 @@ export default function Sidebar() {
           </nav>
         </div>
 
-        {/* Bottom Section */}
         <div>
-          {/* Logout Button */}
           <div className="px-2 mb-2">
             <div className="relative group">
               <button
@@ -216,7 +204,6 @@ export default function Sidebar() {
             </div>
           </div>
 
-          {/* Profile */}
           <Link href="/profile-settings">
             <div className="p-4 flex items-center gap-3 mt-auto cursor-pointer group hover:bg-white/10 transition rounded-lg">
               <div className="relative shrink-0">

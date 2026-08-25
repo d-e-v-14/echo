@@ -8,7 +8,6 @@ export const fetchProfile = async (): Promise<profile> => {
   return res.data.user;
 };
 
-// Function to fetch user profile by ID
 export const fetchUserProfile = async (userId: string): Promise<any> => {
   try {
     const response = await apiClient.get(`/api/profile/${userId}`);
@@ -36,13 +35,11 @@ const DEFAULT_AVATAR = "/User_profil.png";
 export const getUserAvatar = async (userId: string): Promise<string> => {
   if (!userId) return DEFAULT_AVATAR;
 
-  // Cache hit
   const cached = userProfileCache.get(userId);
   if (cached) {
     return cached.avatar_url || DEFAULT_AVATAR;
   }
 
-  // Inflight dedupe
   if (inflight.has(userId)) {
     const profile = await inflight.get(userId);
     return profile?.avatar_url || DEFAULT_AVATAR;

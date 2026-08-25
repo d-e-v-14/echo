@@ -29,6 +29,8 @@ import UserProfileModal from "@/components/UserProfileModal";
 import { useFriendNotifications } from "@/contexts/FriendNotificationContext";
 import { SearchUserResult } from "@/api/types/user.types";
 import { Socket } from "socket.io-client";
+import InlineSpinner from "@/components/loading/InlineSpinner";
+import { FriendGridSkeleton } from "@/components/loading/pageSkeletons";
 
 type RelationshipStatus = SearchUserResult["relationshipStatus"];
 
@@ -59,7 +61,7 @@ export default function FriendsPage() {
   const [requests, setRequests] = useState<FriendRequestData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchUserResult[]>([]);
-  const [, setInitialLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [removingFriendId, setRemovingFriendId] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
@@ -76,7 +78,6 @@ export default function FriendsPage() {
   useRef<Socket | null>(null);
   useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Sort friends: online first, then alphabetical
   const sortedFriends = useMemo(() => {
     return [...friends].sort((a, b) => {
       const aOnline = a.status === "online" ? 0 : 1;
@@ -105,69 +106,6 @@ export default function FriendsPage() {
       setCurrentUserId(undefined);
     }
   }, []);
-
-  // Socket-based presence tracking + periodic polling fallback
-  // useEffect(() => {
-  //   let mounted = true;
-
-  //   const setupPresence = async () => {
-  //     try {
-  //       const user = await getUser();
-  //       if (!mounted || !user?.id) return;
-
-  //       // Create a dedicated socket for presence on the friends page
-  //       const socket = createAuthSocket(user.id);
-  //       socketRef.current = socket;
-
-  //       // Listen for real-time friend status changes if the backend emits them
-  //       socket.on("friend:status_change", (data: { userId: string; status: string }) => {
-  //         if (!mounted) return;
-  //         setFriends((prev) =>
-  //           prev.map((f) =>
-  //             f.id === data.userId ? { ...f, status: data.status } : f
-  //           )
-  //         );
-  //       });
-
-  //       // Also listen for generic user status updates
-  //       socket.on("user:status_update", (data: { userId: string; status: string }) => {
-  //         if (!mounted) return;
-  //         setFriends((prev) =>
-  //           prev.map((f) =>
-  //             f.id === data.userId ? { ...f, status: data.status } : f
-  //           )
-  //         );
-  //       });
-
-  //       // Periodic polling fallback: re-fetch friends every 30s to get fresh status
-  //       presenceIntervalRef.current = setInterval(async () => {
-  //         if (!mounted) return;
-  //         try {
-  //           const data = await fetchAllFriends();
-  //           if (mounted) setFriends(data as any);
-  //         } catch {
-  //           // Silently ignore polling errors
-  //         }
-  //       }, 30000);
-  //     } catch (err) {
-  //       console.error("Failed to set up presence tracking:", err);
-  //     }
-  //   };
-
-  //   setupPresence();
-
-  //   return () => {
-  //     mounted = false;
-  //     if (socketRef.current) {
-  //       socketRef.current.disconnect();
-  //       socketRef.current = null;
-  //     }
-  //     if (presenceIntervalRef.current) {
-  //       clearInterval(presenceIntervalRef.current);
-  //       presenceIntervalRef.current = null;
-  //     }
-  //   };
-  // }, []);
 
   const openUserProfile = useCallback(
     async (userId: string, fallbackName?: string, fallbackAvatar?: string) => {
@@ -239,7 +177,6 @@ export default function FriendsPage() {
     try {
       await addFriend(userId);
       loadRequests();
-      // Update search results to reflect new status
       setSearchResults((prev) =>
         prev.map((user) =>
           user.id === userId
@@ -276,7 +213,6 @@ export default function FriendsPage() {
     }
   };
 
-  // Auto-search on typing with debounce
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       handleSearch(searchQuery);
@@ -286,8 +222,6 @@ export default function FriendsPage() {
   }, [searchQuery]);
 
   const handleSendDM = async (friendId: string) => {
-    // Navigate directly to messages with the friend's user ID
-    // The ChatPage component will handle finding/creating the DM thread
     router.push(`/messages?dm=${friendId}`);
   };
 
@@ -319,7 +253,6 @@ export default function FriendsPage() {
       await respondToFriendRequest(requestId, "accepted");
       loadFriends();
       loadRequests();
-      // Refresh the sidebar notification badge
       await refreshFriendNotifications();
     } catch (err: any) {
       console.error("Error accepting request:", err);
@@ -333,7 +266,6 @@ export default function FriendsPage() {
     try {
       await respondToFriendRequest(requestId, "rejected");
       loadRequests();
-      // Refresh the sidebar notification badge
       await refreshFriendNotifications();
     } catch (err: any) {
       console.error("Error rejecting request:", err);
@@ -368,7 +300,6 @@ export default function FriendsPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="flex min-h-screen">
-        {/* Sidebar */}
         <div className="w-80 border-r border-gray-800 bg-black">
           <div className="p-5">
             {error && (
@@ -394,7 +325,7 @@ export default function FriendsPage() {
                 searchResults.length === 0 && (
                   <div className="mt-2 rounded-lg border border-gray-800 bg-gray-900/60 px-3 py-2 text-xs text-gray-400">
                     <div className="flex items-center gap-2">
-                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-gray-700 border-t-gray-400" />
+                      <InlineSpinner size="xs" />
                       Searching...
                     </div>
                   </div>
@@ -547,9 +478,10 @@ export default function FriendsPage() {
           </div>
         </div>
 
-        {/* Main content */}
         <div className="flex-1 p-8">
-          {friends.length === 0 ? (
+          {initialLoading ? (
+            <FriendGridSkeleton rows={6} />
+          ) : friends.length === 0 ? (
             <div className="rounded-2xl border border-gray-800 bg-gray-900/60 p-10 text-center">
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-gray-800 bg-gray-900">
                 <FaUserFriends className="text-gray-300" />
@@ -561,21 +493,6 @@ export default function FriendsPage() {
             </div>
           ) : (
             <>
-              {/* Online / Offline count header */}
-              {/* <div className="mb-5 flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]" />
-                  <span className="text-sm font-medium text-emerald-300">
-                    {onlineCount} Online
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-gray-500" />
-                  <span className="text-sm font-medium text-gray-400">
-                    {friends.length - onlineCount} Offline
-                  </span>
-                </div>
-              </div> */}
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {sortedFriends.map((f) => (
                   <div
@@ -587,7 +504,6 @@ export default function FriendsPage() {
                     }`}
                   >
                     <div className="relative flex items-center gap-3">
-                      {/* Avatar with status dot */}
                       <div className="relative flex-shrink-0">
                         <img
                           src={f.avatar_url}
@@ -605,14 +521,6 @@ export default function FriendsPage() {
                             target.src = "/avatar.png";
                           }}
                         />
-                        {/* Status indicator dot on avatar */}
-                        {/* <span
-                          className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-gray-900 ${
-                            f.status === "online"
-                              ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]"
-                              : "bg-gray-500"
-                          }`}
-                        /> */}
                       </div>
                       <div
                         className="min-w-0 flex-1 cursor-pointer"
@@ -632,13 +540,6 @@ export default function FriendsPage() {
                         <div className="truncate text-xs text-white/50">
                           {f.fullname}
                         </div>
-                        {/* <div className="mt-1 flex items-center gap-1.5">
-                          <span className={`text-[11px] font-medium capitalize ${
-                            f.status === "online" ? "text-emerald-400" : "text-gray-500"
-                          }`}>
-                            {f.status === "online" ? "Online" : "Offline"}
-                          </span>
-                        </div> */}
                       </div>
                       <button
                         onClick={() => handleSendDM(f.id)}

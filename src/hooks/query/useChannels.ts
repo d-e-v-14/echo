@@ -14,12 +14,9 @@ export interface ChannelListItem {
 }
 
 export interface UseChannelsResult {
-  /** Cached channels (stable empty array while no data has loaded). */
   channels: ChannelListItem[];
-  /** True only when there is no cached data yet and a fetch is running. */
   isLoading: boolean;
   isError: boolean;
-  /** True when cached data exists and a background refetch is running. */
   isRefetching: boolean;
   error: Error | null;
   refetch: () => Promise<unknown>;

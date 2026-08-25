@@ -48,18 +48,6 @@ export interface UseChannelMessagesResult {
   ) => void;
 }
 
-/**
- * The single source of truth for a channel's messages.
- *
- * The infinite query cache is keyed by ["channel", channelId, "messages"].
- * The first page fetched is the newest window; older windows are then
- * PREPENDED by scrolling up, so after any older page loads, `data.pages[0]` is
- * the oldest window and the last page is the newest — flattening the pages
- * yields oldest → newest. New, optimistic and socket messages are patched into
- * the newest (last) page via setQueryData in this hook, in the send flow and
- * in RealtimeCacheSync, so the cache is updated directly rather than by
- * refetching the whole channel.
- */
 export function useChannelMessages({
   channelId,
   currentUserId,
@@ -103,18 +91,11 @@ export function useChannelMessages({
         nextCursor: result.nextCursor,
       };
     },
-    // Older windows are fetched by scrolling up: `before` is the cursor from
-    // the oldest loaded window (see P0-02 cursor pagination).
     getPreviousPageParam: (firstPage) => {
       if (!firstPage?.hasMore) return undefined;
       return firstPage.nextCursor ?? undefined;
     },
     getNextPageParam: () => undefined,
-    // Cached windows survive navigation (gcTime). New messages are inserted
-    // into the cache directly by the socket sync and the optimistic send, and
-    // the newest window is refreshed in place by refreshNewestPage, so we do
-    // NOT rely on TanStack's refetch — a plain refetch replaces every loaded
-    // page with a single newest window and would discard the older windows.
     staleTime: CHANNEL_MESSAGES_STALE_TIME_MS,
     gcTime: CHANNEL_MESSAGES_GC_TIME_MS,
     refetchOnMount: false,
@@ -129,9 +110,6 @@ export function useChannelMessages({
     );
   }, [infiniteQuery.data]);
 
-  // Refresh ONLY the newest page in place so a reconnect or a stale return
-  // picks up messages received while away without discarding the older
-  // windows the user has already scrolled up into.
   const refreshNewestPage = useCallback(async (): Promise<boolean> => {
     const targetChannelId = channelIdRef.current;
     try {
@@ -166,8 +144,6 @@ export function useChannelMessages({
     }
   }, [normalizeMessages, queryClient]);
 
-  // When the cached window is stale on (re)open, catch up the newest page in
-  // the background. Running once per channel visit keeps the older windows.
   const lastRefreshedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!channelId) return;

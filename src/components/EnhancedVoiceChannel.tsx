@@ -1,5 +1,3 @@
-// src/components/EnhancedVoiceChannel.tsx
-// Enhanced voice channel component using Amazon Chime SDK
 
 "use client";
 
@@ -12,6 +10,7 @@ import {
 } from "@/lib/VoiceVideoManager";
 import VoiceVideoControls from "./VoiceVideoControls";
 import EnhancedVideoPanel from "./EnhancedVideoPanel";
+import InlineSpinner from "@/components/loading/InlineSpinner";
 import {
   FaMicrophone,
   FaMicrophoneSlash,
@@ -25,8 +24,8 @@ interface Participant {
   username?: string;
   stream: MediaStream | null;
   screenStream?: MediaStream | null;
-  tileId?: number; // Chime video tile ID for binding
-  screenTileId?: number; // Chime screen share tile ID for binding
+  tileId?: number;
+  screenTileId?: number;
   isLocal?: boolean;
   mediaState: {
     muted: boolean;
@@ -49,7 +48,6 @@ interface MediaState {
   };
 }
 
-// External state from VoiceCallContext (when using external manager)
 interface ExternalVoiceState {
   participants: VoiceRosterMember[];
   localMediaState: ManagerMediaState;
@@ -79,7 +77,6 @@ interface EnhancedVoiceChannelProps {
   currentUser?: { username: string };
   debug?: boolean;
 
-  // New props for external manager (from VoiceCallContext)
   externalManager?: VoiceVideoManager | null;
   externalState?: ExternalVoiceState;
   useExternalManager?: boolean;
@@ -96,12 +93,10 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
   onVoiceRoster,
   currentUser,
   debug = false,
-  // External manager props (from VoiceCallContext)
   externalManager = null,
   externalState,
   useExternalManager = false,
 }) => {
-  // Debug logging utility
   const debugLog = (message: string, data?: any) => {
     if (debug) {
       console.log(`[EnhancedVoiceChannel] ${message}`, data || "");
@@ -122,7 +117,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
     }
   };
 
-  // State management
   const [, setLocalStream] = useState<MediaStream | null>(null);
   const [localScreenStream, setLocalScreenStream] =
     useState<MediaStream | null>(null);
@@ -152,20 +146,16 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
   const [, setConnectionStatus] = useState<string>("Disconnected");
   const [, setDebugStatus] = useState<string>("Initializing...");
 
-  // Video tiles tracking for Chime SDK
   const [, setVideoTiles] = useState<Map<number, VideoTileInfo>>(new Map());
   const [localVideoTileId, setLocalVideoTileId] = useState<number | null>(null);
   const [localScreenTileId, setLocalScreenTileId] = useState<number | null>(
     null
   );
 
-  // Refs
   const managerRef = useRef<VoiceVideoManager | null>(null);
   const isManagerInitialized = useRef(false);
 
-  // Initialize manager
   useEffect(() => {
-    // If using external manager, skip internal manager creation and setup
     if (useExternalManager) {
       debugLog("Using external manager from VoiceCallContext");
       managerRef.current = externalManager;
@@ -176,7 +166,7 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
       setConnectionStatus(
         externalState?.isConnected ? "Connected" : "Connecting..."
       );
-      return; // Skip all internal initialization
+      return;
     }
 
     let isMounted = true;
@@ -194,7 +184,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
     const manager = managerRef.current;
     if (!manager) return;
 
-    // Initialize the manager and set up all event listeners
     const setupManagerAndListeners = async () => {
       if (!isManagerInitialized.current) {
         try {
@@ -202,7 +191,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
           setPermissionError(null);
           setDebugStatus("Requesting media permissions...");
 
-          // Try to initialize with graceful degradation
           try {
             await manager.initialize(true, true);
             setDebugStatus("Media permissions granted");
@@ -213,7 +201,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
             );
             setDebugStatus("Trying audio-only fallback...");
 
-            // Try audio-only first
             try {
               await manager.initializeAudioOnly();
               debugLog("Fallback to audio-only mode successful");
@@ -222,7 +209,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
               debugWarn("Audio-only failed, trying video-only:", audioError);
               setDebugStatus("Trying video-only fallback...");
 
-              // Try video-only as last resort
               try {
                 await manager.initializeVideoOnly();
                 debugLog("Fallback to video-only mode successful");
@@ -250,7 +236,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
               setDebugStatus("No media permissions available");
             }
 
-            // Show appropriate messages based on what we got
             const permissions = manager.getAvailablePermissions();
             if (hasAnyPerms) {
               if (!permissions.audio && permissions.video) {
@@ -270,7 +255,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
           if (isMounted) {
             setIsInitializing(false);
 
-            // Check if manager has any permissions despite the error
             if (manager && manager.hasAnyPermissions()) {
               setHasAnyPermissions(true);
               setLocalStream(manager.getLocalStream());
@@ -291,7 +275,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
                 );
               }
             } else {
-              // No permissions at all - provide helpful error messages
               if (
                 error?.name === "NotAllowedError" ||
                 error?.message?.includes("permission")
@@ -326,7 +309,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
         }
       }
 
-      // Set up event listeners
       manager.onStream(
         (stream: MediaStream, peerId: string, type: "video" | "screen") => {
           if (isMounted) {
@@ -338,7 +320,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
               const existingIndex = prev.findIndex((p) => p.id === peerId);
 
               if (existingIndex >= 0) {
-                // Update existing participant
                 const updated = [...prev];
                 if (type === "screen") {
                   updated[existingIndex] = {
@@ -353,7 +334,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
                 }
                 return updated;
               } else {
-                // Add new participant
                 const newParticipant: Participant = {
                   id: peerId,
                   oduserId: peerId,
@@ -389,12 +369,9 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
           setDebugStatus(`Voice roster received: ${members.length} members`);
           setVoiceMembers(members);
 
-          // Get local attendee ID to filter out local user from roster
           const localAttendeeId = manager.getLocalAttendeeId();
           debugLog("Local attendee ID:", localAttendeeId);
 
-          // Filter out local user from the roster to avoid duplicates
-          // (local user is handled separately via localVideoTileId)
           const remoteMembers = members.filter((member) => {
             const attendeeId = String(
               member.attendeeId || member.odattendeeId || member.id || ""
@@ -437,14 +414,11 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
             }
           );
 
-          // Merge roster with existing participants, preserving video tile IDs and video state
           setParticipants((prev) => {
             const prevById = new Map(prev.map((p) => [p.id, p]));
             const merged = voiceParticipants.map((vp) => {
               const existing = prevById.get(vp.id);
               if (existing) {
-                // IMPORTANT: Preserve video/screen state if we have tile IDs OR if roster says they're on
-                // This prevents race conditions where roster update overwrites video tile state
                 return {
                   ...vp,
                   stream: existing.stream,
@@ -453,12 +427,10 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
                   screenTileId: existing.screenTileId,
                   mediaState: {
                     ...vp.mediaState,
-                    // Use roster video state but preserve if we have a tileId (tile is source of truth)
                     video:
                       existing.tileId !== undefined
                         ? vp.mediaState.video || existing.mediaState.video
                         : vp.mediaState.video,
-                    // Same for screen sharing
                     screenSharing:
                       existing.screenTileId !== undefined
                         ? vp.mediaState.screenSharing ||
@@ -504,11 +476,9 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
         }
       });
 
-      // onMediaState now has 2 params: (attendeeId, state)
       manager.onMediaState((attendeeId: string, state: any) => {
         console.log("Enhanced media state update:", { attendeeId, state });
         if (isMounted) {
-          // Update participants
           setParticipants((prev) =>
             prev.map((p) =>
               p.id === attendeeId
@@ -517,7 +487,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
             )
           );
 
-          // Update voice members
           setVoiceMembers((prev) =>
             prev.map((member) =>
               member.odattendeeId === attendeeId
@@ -528,7 +497,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
         }
       });
 
-      // onScreenSharing now has 2 params: (attendeeId, isSharing)
       manager.onScreenSharing((attendeeId: string, isSharing: boolean) => {
         console.log("Screen sharing update:", { attendeeId, isSharing });
         if (isMounted) {
@@ -575,8 +543,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
         }
       });
 
-      // VIDEO TILE HANDLERS (Chime SDK)
-      // When a video tile is created/updated, track it
       manager.onVideoTileUpdated((tile: VideoTileInfo) => {
         if (isMounted) {
           debugLog("Video tile updated:", tile);
@@ -584,14 +550,12 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
             `Video tile ${tile.tileId} updated (local: ${tile.isLocal}, active: ${tile.active})`
           );
 
-          // Track the tile
           setVideoTiles((prev) => {
             const newMap = new Map(prev);
             newMap.set(tile.tileId, tile);
             return newMap;
           });
 
-          // Track local tile IDs (camera + screen share)
           if (tile.isLocal) {
             if (tile.isContent) {
               setLocalScreenTileId(tile.tileId);
@@ -600,18 +564,10 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
             }
           }
 
-          // Update participants with tile info
-          // IMPORTANT: Don't wait for tile.active - assign tileId immediately so UI can bind
-          // The tile may not be "active" yet but we need the tileId for binding
-          // Screen share tiles (isContent=true) have attendeeId like "abc123#content-share"
-          // We need to extract the base attendeeId for matching
           if (tile.attendeeId) {
             if (tile.isLocal) {
-              // Local user screen share is rendered via localScreenTileId in EnhancedVideoPanel
               return;
             }
-            // For content share tiles, the attendeeId is "baseId#content-share"
-            // Extract the base ID for participant matching
             const baseAttendeeId = tile.isContent
               ? tile.attendeeId.split("#")[0]
               : tile.attendeeId;
@@ -622,11 +578,9 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
               );
 
               if (existingIndex >= 0) {
-                // Update existing participant with tile ID
                 const updated = [...prev];
 
                 if (tile.isContent) {
-                  // This is a screen share tile - store in screenTileId
                   updated[existingIndex] = {
                     ...updated[existingIndex],
                     screenTileId: tile.tileId,
@@ -639,7 +593,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
                     `Updated participant ${baseAttendeeId} with screenTileId ${tile.tileId} (active: ${tile.active})`
                   );
                 } else {
-                  // This is a camera video tile - store in tileId
                   updated[existingIndex] = {
                     ...updated[existingIndex],
                     tileId: tile.tileId,
@@ -655,7 +608,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
                 }
                 return updated;
               } else {
-                // IMPORTANT: Video tile arrived before roster - create placeholder participant
                 debugLog(
                   `Creating placeholder participant for ${baseAttendeeId} (tile arrived before roster, active: ${tile.active}, isContent: ${tile.isContent})`
                 );
@@ -682,21 +634,17 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
         }
       });
 
-      // When a video tile is removed, clean it up
       manager.onVideoTileRemoved((tileId: number) => {
         if (isMounted) {
           debugLog("Video tile removed:", tileId);
           setDebugStatus(`Video tile ${tileId} removed`);
 
-          // Get tile info before removing
           setVideoTiles((prev) => {
             const tile = prev.get(tileId);
             const newMap = new Map(prev);
             newMap.delete(tileId);
 
-            // Update participant to remove video/screen state
             if (tile?.attendeeId) {
-              // For content share tiles, extract base attendeeId
               const baseAttendeeId = tile.isContent
                 ? tile.attendeeId.split("#")[0]
                 : tile.attendeeId;
@@ -705,14 +653,12 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
                 prevParts.map((p) => {
                   if (p.id === baseAttendeeId || p.id === tile.attendeeId) {
                     if (tile.isContent) {
-                      // Screen share tile removed
                       return {
                         ...p,
                         screenTileId: undefined,
                         mediaState: { ...p.mediaState, screenSharing: false },
                       };
                     } else {
-                      // Video tile removed
                       return {
                         ...p,
                         tileId: undefined,
@@ -728,7 +674,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
             return newMap;
           });
 
-          // Clear local tile IDs if removed
           setLocalVideoTileId((prev) => (prev === tileId ? null : prev));
           setLocalScreenTileId((prev) => (prev === tileId ? null : prev));
         }
@@ -739,7 +684,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
 
     return () => {
       isMounted = false;
-      // Only disconnect if NOT using external manager (external manager persists)
       if (managerRef.current && !useExternalManager) {
         managerRef.current.disconnect();
       }
@@ -750,9 +694,7 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
     if (activeSpeakerId) setLastSpeakerId(activeSpeakerId);
   }, [activeSpeakerId]);
 
-  // Handle channel changes - join the voice channel
   useEffect(() => {
-    // If using external manager, skip joining here (context handles it)
     if (useExternalManager) {
       debugLog(
         "Using external manager - skipping channel join (handled by context)"
@@ -779,7 +721,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
 
         setDebugStatus("Voice channel join request sent");
 
-        // Update local streams
         setLocalStream(manager.getLocalStream());
         setLocalScreenStream(manager.getLocalScreenStream());
         setLocalMediaState(manager.getMediaState());
@@ -797,7 +738,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
     joinChannel();
 
     return () => {
-      // Only leave channel if NOT using external manager
       debugLog("Leaving voice channel:", channelId);
       setDebugStatus("Leaving voice channel...");
       if (manager) {
@@ -808,7 +748,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
     };
   }, [channelId, onLocalStreamChange, hasAnyPermissions, useExternalManager]);
 
-  // Update local media state + screen capture stream periodically
   useEffect(() => {
     const manager = managerRef.current;
     if (!manager) return;
@@ -827,25 +766,20 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
     return () => clearInterval(interval);
   }, [useExternalManager, externalManager]);
 
-  // Sync state from externalState when using external manager
   useEffect(() => {
     if (!useExternalManager || !externalState) return;
 
     debugLog("Syncing state from external context", externalState);
 
-    // Build a lookup map: attendeeId -> tileId (for video tiles)
-    // This allows us to find the tileId for each participant
     const attendeeToTileId = new Map<string, number>();
     const attendeeToScreenTileId = new Map<string, number>();
 
     externalState.videoTiles.forEach((tile, tileId) => {
       if (tile.attendeeId) {
         if (tile.isContent) {
-          // Screen share tile - extract base attendeeId (remove #content suffix)
           const baseAttendeeId = tile.attendeeId.split("#")[0];
           attendeeToScreenTileId.set(baseAttendeeId, tileId);
         } else {
-          // Camera video tile
           attendeeToTileId.set(tile.attendeeId, tileId);
         }
       }
@@ -856,9 +790,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
       screenTiles: Array.from(attendeeToScreenTileId.entries()),
     });
 
-    // Map external participants to our Participant format
-    // Properly identify local user by comparing with currentUser username
-    // Note: oduserId from Chime roster is actually the username (externalUserId sent to Chime)
     const localUsername = currentUser?.username || "";
 
     const mappedParticipants: Participant[] = externalState.participants.map(
@@ -867,15 +798,12 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
         const memberOduserId = String(member.oduserId || "");
         const memberName = member.name || "";
 
-        // Check if this participant is the local user
-        // Compare against both username and name since oduserId/name in Chime is the username
         const isLocalUser =
           memberOduserId === localUsername ||
           memberName === localUsername ||
           memberOduserId === userId ||
           memberName === userId;
 
-        // Look up tileId for this participant by their attendeeId
         const tileId = attendeeToTileId.get(memberAttendeeId);
         const screenTileId = attendeeToScreenTileId.get(memberAttendeeId);
 
@@ -928,7 +856,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
       setConnectionError(externalState.connectionError);
     }
 
-    // Map external media state to our format
     setLocalMediaState({
       muted: externalState.localMediaState.muted,
       speaking: externalState.localMediaState.speaking,
@@ -1040,7 +967,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
     }
   };
 
-  // Render states
   if (permissionError && !hasAnyPermissions) {
     return (
       <div className="flex items-center justify-center h-full bg-gray-900 text-white">
@@ -1132,7 +1058,7 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
     return (
       <div className="flex items-center justify-center h-full bg-gray-900 text-white">
         <div className="text-center">
-          <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <InlineSpinner size="lg" className="mx-auto mb-4" label="Initializing media devices" />
           <p className="text-gray-400">Initializing media devices...</p>
         </div>
       </div>
@@ -1149,8 +1075,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
       />
     );
   }
-  // Convert Participant[] to expected format for EnhancedVideoPanel
-  // Include tile IDs for proper Chime video binding
   const panelParticipants = participants.map((p) => ({
     id: p.id,
     oduserId: p.oduserId,
@@ -1165,7 +1089,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-black">
-      {/* Partial permissions warning */}
       {permissionError && hasAnyPermissions && (
         <div className="bg-yellow-900/50 border-l-4 border-yellow-400 p-4 text-yellow-100">
           <div className="flex items-center">
@@ -1192,7 +1115,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
         </div>
       )}
 
-      {/* Video Panel */}
       <div className="flex-1 min-h-0 overflow-hidden">
         <EnhancedVideoPanel
           manager={managerRef.current}
@@ -1206,7 +1128,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
         />
       </div>
 
-      {/* Controls */}
       <div className="p-4">
         <VoiceVideoControls
           manager={managerRef.current}
@@ -1214,9 +1135,7 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
           isConnected={isConnected}
         />
 
-        {/* Additional Control Buttons */}
         <div className="flex items-center justify-center space-x-4 mt-3">
-          {/* Connection status indicator and manual reconnection */}
           {hasAnyPermissions && !isConnected && (
             <button
               onClick={handleManualReconnection}
@@ -1227,7 +1146,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
             </button>
           )}
 
-          {/* Permission retry button */}
           {!hasAnyPermissions && (
             <button
               onClick={handleRetryPermissions}
@@ -1241,7 +1159,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
         </div>
       </div>
 
-      {/* Voice Members List */}
       {voiceMembers.length > 0 && (
         <div className="mx-4 mb-4 p-3 bg-black rounded-lg">
           <h4 className="text-sm font-medium text-gray-300 mb-3">

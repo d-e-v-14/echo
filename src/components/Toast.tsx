@@ -52,12 +52,9 @@ export default function Toast({
           border border-white/20
         `}
       >
-        {/* Glow */}
         <div className="absolute inset-0 opacity-30 blur-xl bg-white" />
-        {/* Message */}
         <p className="relative flex-1 font-medium leading-snug">{message}</p>
 
-        {/* Close */}
         <button
           onClick={onClose}
           className="relative ml-2 opacity-70 hover:opacity-100 transition"

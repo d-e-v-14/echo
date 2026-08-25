@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import Link from "next/link";
-import Loader from "@/components/Loader";
+import InlineSpinner from "@/components/loading/InlineSpinner";
 import Toast from "@/components/Toast";
 
 function ChangePasswordContent() {
@@ -93,7 +93,6 @@ function ChangePasswordContent() {
         })()}
 
       <div className="flex h-screen bg-black font-sans">
-        {/* Left Image */}
         <div className="w-1/2 h-full">
           <img
             src="/gradient.png"
@@ -198,7 +197,13 @@ function ChangePasswordContent() {
 
 export default function ChangePassword() {
   return (
-    <Suspense fallback={<Loader fullscreen text="Loading…" size="md" />}>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-black">
+          <InlineSpinner size="lg" label="Loading" />
+        </div>
+      }
+    >
       <ChangePasswordContent />
     </Suspense>
   );

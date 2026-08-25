@@ -94,9 +94,6 @@ export function RealtimeCacheSync() {
   const pendingRemove = useRef<Set<string>>(new Set());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fallback reconciliation: the debounced command queue is only fed events
-  // that realtimeEventToCommands marks as not directly patchable (partial
-  // payloads, ephemeral voice state). Everything else is patched below.
   useEffect(() => {
     if (!socket) return;
 
@@ -151,10 +148,6 @@ export function RealtimeCacheSync() {
     };
   }, [socket, queryClient]);
 
-  // DM messages: insert incoming socket messages straight into the TanStack
-  // Query cache so the UI updates immediately and conversations keep their
-  // messages after navigating away and back. Deduplication happens inside
-  // insertIncomingIntoDataOrCreate (stable server message id).
   useEffect(() => {
     if (!socket || !currentUserId) return;
 
@@ -202,12 +195,6 @@ export function RealtimeCacheSync() {
     };
   }, [socket, queryClient, currentUserId]);
 
-  // Channel messages: same direct-cache-patch model as DMs. The message is
-  // inserted into the newest page of the channel's cached window so the UI
-  // updates immediately and the window survives navigation. We only patch a
-  // window that has already been materialized — a channel the user has never
-  // opened is left empty and fetched fresh on first open, avoiding a
-  // one-message orphan page.
   useEffect(() => {
     if (!socket || !currentUserId) return;
 
@@ -256,8 +243,6 @@ export function RealtimeCacheSync() {
     };
   }, [socket, queryClient, currentUserId]);
 
-  // Reactions: patch the shared reaction store directly so a single
-  // reaction_updated never refetches a whole DM family or channel.
   useEffect(() => {
     if (!socket) return;
 
@@ -272,9 +257,6 @@ export function RealtimeCacheSync() {
     };
   }, [socket]);
 
-  // channel_updated: patch the channel object into the server channel list and
-  // patch permissions when the payload carries them. Never invalidates the
-  // message window.
   useEffect(() => {
     if (!socket) return;
 
@@ -310,7 +292,6 @@ export function RealtimeCacheSync() {
     };
   }, [socket, queryClient]);
 
-  // permissions_updated: patch the permission query directly.
   useEffect(() => {
     if (!socket) return;
 

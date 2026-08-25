@@ -1,12 +1,3 @@
-// src/lib/voiceErrorHandler.ts
-// Error handling for Amazon Chime SDK voice/video operations
-//
-// HOW IT WORKS:
-// =============
-// 1. Maps error codes to user-friendly messages and actions
-// 2. Handles both Chime SDK errors and native browser errors
-// 3. Provides retry logic based on error severity
-// 4. Categorizes errors by type for better UX
 
 export interface VoiceError {
   code: string;
@@ -18,9 +9,7 @@ export interface VoiceError {
 
 export class VoiceErrorHandler {
   private static errorMap: Record<string, VoiceError> = {
-    // ==================== CHIME SDK ERRORS ====================
 
-    // Initialization Errors
     INIT_FAILED: {
       code: "INIT_FAILED",
       message:
@@ -30,7 +19,6 @@ export class VoiceErrorHandler {
       retryable: true,
     },
 
-    // Meeting/Session Errors
     JOIN_FAILED: {
       code: "JOIN_FAILED",
       message: "Failed to join voice channel. Please try again.",
@@ -63,7 +51,6 @@ export class VoiceErrorHandler {
       retryable: true,
     },
 
-    // Chime Session Status Codes (from MeetingSessionStatusCode)
     AUDIO_CALL_ENDED: {
       code: "AUDIO_CALL_ENDED",
       message: "Voice session has ended.",
@@ -120,9 +107,6 @@ export class VoiceErrorHandler {
       retryable: true,
     },
 
-    // ==================== LEGACY/GENERIC ERRORS ====================
-
-    // Authentication Errors
     VOICE_AUTH_FAILED: {
       code: "VOICE_AUTH_FAILED",
       message: "Authentication failed. Please log in again.",
@@ -131,7 +115,6 @@ export class VoiceErrorHandler {
       retryable: false,
     },
 
-    // WebRTC Errors (handled by Chime SDK internally, but kept for reference)
     VOICE_WEBRTC_SIGNALING_FAILED: {
       code: "VOICE_WEBRTC_SIGNALING_FAILED",
       message: "Connection failed. Retrying...",
@@ -156,7 +139,6 @@ export class VoiceErrorHandler {
       retryable: true,
     },
 
-    // Network Errors
     VOICE_NETWORK_ERROR: {
       code: "VOICE_NETWORK_ERROR",
       message: "Network error. Please check your connection.",
@@ -174,7 +156,6 @@ export class VoiceErrorHandler {
       retryable: false,
     },
 
-    // Media Device Errors
     MEDIA_DEVICE_ERROR: {
       code: "MEDIA_DEVICE_ERROR",
       message: "Media device error. Please check your camera and microphone.",
@@ -207,7 +188,6 @@ export class VoiceErrorHandler {
       retryable: true,
     },
 
-    // Screen Sharing Errors
     SCREEN_SHARE_DENIED: {
       code: "SCREEN_SHARE_DENIED",
       message: "Screen sharing permission denied.",
@@ -224,7 +204,6 @@ export class VoiceErrorHandler {
       retryable: true,
     },
 
-    // Recording Errors
     RECORDING_FAILED: {
       code: "RECORDING_FAILED",
       message: "Failed to start recording. Please try again.",
@@ -241,7 +220,6 @@ export class VoiceErrorHandler {
       retryable: false,
     },
 
-    // Connection Errors
     RECONNECTION_FAILED: {
       code: "RECONNECTION_FAILED",
       message: "Failed to reconnect. Please refresh the page.",
@@ -258,7 +236,6 @@ export class VoiceErrorHandler {
       retryable: true,
     },
 
-    // Server Errors
     SERVER_ERROR: {
       code: "SERVER_ERROR",
       message: "Server error. Please try again later.",
@@ -275,7 +252,6 @@ export class VoiceErrorHandler {
       retryable: true,
     },
 
-    // Browser Compatibility
     BROWSER_NOT_SUPPORTED: {
       code: "BROWSER_NOT_SUPPORTED",
       message:
@@ -295,12 +271,10 @@ export class VoiceErrorHandler {
   };
 
   static handleError(error: any): VoiceError {
-    // Handle native errors
     if (error instanceof DOMException) {
       return this.handleDOMException(error);
     }
 
-    // Handle custom errors
     if (typeof error === "object" && error.code) {
       const mappedError = this.errorMap[error.code];
       if (mappedError) {
@@ -311,7 +285,6 @@ export class VoiceErrorHandler {
       }
     }
 
-    // Handle string errors
     if (typeof error === "string") {
       const mappedError = this.errorMap[error];
       if (mappedError) {
@@ -319,7 +292,6 @@ export class VoiceErrorHandler {
       }
     }
 
-    // Default error
     return {
       code: "UNKNOWN_ERROR",
       message: error?.message || "An unknown error occurred",
@@ -416,7 +388,6 @@ export class VoiceErrorHandler {
   }
 
   static getRetryDelay(error: VoiceError): number {
-    // Return retry delay in milliseconds
     switch (error.severity) {
       case "low":
         return 1000;
@@ -432,7 +403,6 @@ export class VoiceErrorHandler {
   }
 }
 
-// Utility function for components
 export const handleVoiceError = (
   error: any,
   onError?: (error: VoiceError) => void

@@ -30,7 +30,6 @@ export default function MessageInput({
   const gifPickerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  /* -------------------- KEEP FOCUS AFTER SEND -------------------- */
   useEffect(() => {
     if (!isSending) {
       requestAnimationFrame(() => {
@@ -63,7 +62,6 @@ export default function MessageInput({
     };
   }, [showGifPicker]);
 
-  /* -------------------- EMOJI -------------------- */
   const handleEmojiClick = (emojiData: EmojiClickData) => {
     setText((prev) => prev + emojiData.emoji);
     requestAnimationFrame(() => {
@@ -75,7 +73,6 @@ export default function MessageInput({
 
   const getWordCount = (text: string) =>
     text.trim().split(/\s+/).filter(Boolean).length;
-  /* -------------------- FILE -------------------- */
   const ALLOWED_TYPES = [
     "image/jpeg",
     "image/png",
@@ -121,7 +118,6 @@ export default function MessageInput({
 
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
-  /* -------------------- SEND -------------------- */
   const handleSend = () => {
     const wordCount = getWordCount(text);
 
@@ -149,7 +145,6 @@ export default function MessageInput({
       }
     });
   };
-  /* -------------------- KEEP FOCUS AFTER SEND -------------------- */
   useEffect(() => {
     if (!isSending) {
       requestAnimationFrame(() => {
@@ -158,16 +153,12 @@ export default function MessageInput({
     }
   }, [isSending]);
 
-  /* -------------------- AUTO-FOCUS ON MOUNT -------------------- */
   useEffect(() => {
-    // Focus immediately when component mounts
     inputRef.current?.focus();
   }, []);
 
-  /* -------------------- MAINTAIN FOCUS -------------------- */
   useEffect(() => {
     const handleGlobalClick = (e: MouseEvent) => {
-      // Don't refocus if clicking on buttons, emoji picker, or file preview
       const target = e.target as HTMLElement;
       if (
         target.closest("button") ||
@@ -177,7 +168,6 @@ export default function MessageInput({
         return;
       }
 
-      // Refocus the textarea
       requestAnimationFrame(() => {
         inputRef.current?.focus();
       });
@@ -186,7 +176,6 @@ export default function MessageInput({
     document.addEventListener("click", handleGlobalClick);
     return () => document.removeEventListener("click", handleGlobalClick);
   }, []);
-  /* -------------------- TEXTAREA -------------------- */
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
 
@@ -236,10 +225,8 @@ export default function MessageInput({
     setGifs(data.data || []);
   };
 
-  /* -------------------- RENDER -------------------- */
   return (
     <div className="relative p-4">
-      {/* Emoji Picker */}
       {showEmojiPicker && (
         <div className="emoji-picker-react absolute bottom-24 left-4 z-50 shadow-xl">
           <EmojiPicker theme={Theme.DARK} onEmojiClick={handleEmojiClick} />
@@ -275,7 +262,6 @@ export default function MessageInput({
           </div>
         </div>
       )}
-      {/* File Preview */}
       {files.length > 0 && (
         <div className="mb-2 space-y-2">
           {files.map((file, index) => (
@@ -301,12 +287,10 @@ export default function MessageInput({
           ))}
         </div>
       )}
-      {/* Input Bar */}
       <div
-        className="bg-white/10 backdrop-blur-lg border border-white/20 
+        className="bg-white/10 backdrop-blur-lg border border-white/20
                    rounded-2xl flex items-center px-3 py-2 gap-2 text-white"
       >
-        {/* Hidden File Input */}
         <input
           ref={fileInputRef}
           type="file"
@@ -316,7 +300,6 @@ export default function MessageInput({
           onChange={handleFileChange}
         />
 
-        {/* Attach */}
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={isSending}
@@ -325,7 +308,6 @@ export default function MessageInput({
           <Paperclip className="w-5 h-5" />
         </button>
 
-        {/* Emoji */}
         <button
           onClick={() => setShowEmojiPicker((v) => !v)}
           disabled={isSending}
@@ -347,7 +329,6 @@ export default function MessageInput({
           <ImageIcon className="w-5 h-5" />
         </button>
 
-        {/* TEXTAREA */}
         <textarea
           ref={inputRef}
           rows={1}
@@ -355,19 +336,18 @@ export default function MessageInput({
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           placeholder="Type a message"
-          className="flex-1 bg-transparent resize-none 
-                     text-white caret-white 
-                     placeholder-white/60 
-                     focus:outline-none 
+          className="flex-1 bg-transparent resize-none
+                     text-white caret-white
+                     placeholder-white/60
+                     focus:outline-none
                      max-h-32 min-h-6 overflow-y-auto py-0 leading-6"
         />
 
-        {/* Send */}
         <button
           onClick={handleSend}
           disabled={isSending || (!text.trim() && files.length === 0)}
-          className="bg-blue-600 hover:bg-blue-700 
-                     active:scale-95 transition 
+          className="bg-blue-600 hover:bg-blue-700
+                     active:scale-95 transition
                      p-2 rounded-full disabled:opacity-40"
         >
           <Send className="w-4 h-4 text-white" />

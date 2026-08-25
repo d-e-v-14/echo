@@ -24,7 +24,6 @@ export default function DeleteAccount() {
         withCredentials: true,
       });
       alert("Account deleted.");
-      // redirect to homepage or logout page
       router.push("/");
     } catch (err) {
       console.error("Failed to delete profile", err);
@@ -34,7 +33,6 @@ export default function DeleteAccount() {
 
   return (
     <div className="flex h-screen bg-black font-sans">
-      {/* Left side image */}
       <div className="w-1/2 h-full">
         <img
           src="/gradient.png"
@@ -43,10 +41,8 @@ export default function DeleteAccount() {
         />
       </div>
 
-      {/* Right side form */}
       <div className="w-1/2 flex justify-center items-center">
         <div className="w-[70%] max-w-md">
-          {/* Logo or branding (optional, replicate from reset password) */}
           <div className="w-full mb-10">
             <div className="relative inline-block">
               <div

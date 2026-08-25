@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import { handleOAuthLogin } from "@/api";
 import { tokenStore } from "@/lib/auth/tokenStore";
+import InlineSpinner from "@/components/loading/InlineSpinner";
 
 export default function OAuthCallback() {
   const router = useRouter();
@@ -77,7 +78,6 @@ export default function OAuthCallback() {
       <div className="flex h-screen bg-black font-sans items-center justify-center">
         <div className="text-center">
           <div className="mb-6">
-            {/* Echo Logo */}
             <div className="relative inline-block">
               <div className="font-jersey text-[64px] font-normal text-white">
                 echo
@@ -109,14 +109,11 @@ export default function OAuthCallback() {
             </div>
           </div>
 
-          {/* Loading Spinner */}
           {!error && (
             <div className="mb-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto"></div>
+              <InlineSpinner size="lg" className="mx-auto" label="Signing in" />
             </div>
           )}
-
-          {/* Message */}
 
           {error && (
             <p className="text-gray-400 mt-2 text-sm">

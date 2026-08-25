@@ -10,7 +10,6 @@ export function TokenRefreshProvider({
 }) {
   const pathname = usePathname();
 
-  // List of routes that don't require authentication
   const publicRoutes = [
     "/",
     "/register",
@@ -22,7 +21,6 @@ export function TokenRefreshProvider({
     (route) => pathname === route || pathname.startsWith(route + "/")
   );
 
-  // Only run token refresh on authenticated routes
   useTokenRefresh(!isPublicRoute);
 
   return <>{children}</>;

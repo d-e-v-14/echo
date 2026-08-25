@@ -8,7 +8,7 @@ import { useState, useEffect } from "react";
 import { resetPassword } from "@/api";
 import { supabase } from "../../../lib/supabaseClient";
 import Link from "next/link";
-import Loader from "@/components/Loader";
+import InlineSpinner from "@/components/loading/InlineSpinner";
 
 function ResetPasswordContent() {
   useSearchParams();
@@ -22,9 +22,7 @@ function ResetPasswordContent() {
   const [session, setSession] = useState<any>(null);
 
   useEffect(() => {
-    // Extract tokens from URL hash and set session
     const handleTokenFromHash = async () => {
-      // Check if we have hash parameters (from Supabase email link)
       if (typeof window !== "undefined" && window.location.hash) {
         const hashParams = new URLSearchParams(
           window.location.hash.substring(1)
@@ -34,7 +32,6 @@ function ResetPasswordContent() {
         const type = hashParams.get("type");
 
         if (access_token && type === "recovery") {
-          // Set the session in Supabase client using tokens from hash
           const { data, error } = await supabase.auth.setSession({
             access_token,
             refresh_token: refresh_token || "",
@@ -56,7 +53,6 @@ function ResetPasswordContent() {
         }
       }
 
-      // Fallback: Check if there's an existing session
       const {
         data: { session },
         error,
@@ -98,12 +94,10 @@ function ResetPasswordContent() {
     }
 
     try {
-      // Send session token to backend for password update
       await resetPassword(password, session.access_token);
       setSubmitted(true);
       setMessage("Password updated! Redirecting to login...");
 
-      // Sign out to clear the recovery session
       await supabase.auth.signOut();
 
       setTimeout(() => router.push("/"), 2000);
@@ -114,8 +108,9 @@ function ResetPasswordContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black">
-        <Loader fullscreen text="Verifying reset link..." />
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-black">
+        <InlineSpinner size="lg" label="Verifying reset link" />
+        <p className="text-sm text-gray-400">Verifying reset link...</p>
       </div>
     );
   }
@@ -132,7 +127,6 @@ function ResetPasswordContent() {
 
       <div className="w-1/2 flex justify-center items-center">
         <div className="w-[70%] max-w-md">
-          {/* Logo */}
           <div className="w-full mb-[20px] lg:mb-[40px]">
             <div className="relative inline-block">
               <div
@@ -208,7 +202,6 @@ function ResetPasswordContent() {
             </button>
           </form>
 
-          {/* Message area */}
           {message && (
             <div
               className={`mt-4 text-center text-sm ${

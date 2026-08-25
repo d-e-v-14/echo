@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Force dynamic rendering for this route
 export const dynamic = "force-dynamic";
 
-// Mark all mentions as read
 export async function PATCH(request: NextRequest) {
   try {
-    // console.log('Frontend API: Marking all mentions as read');
 
-    // Get the backend URL from environment or default to localhost
     const backendUrl =
       process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
     const url = `${backendUrl}/api/mentions/mark-all-read`;
 
-    // console.log('Frontend API: Fetching from backend:', url);
-
-    // Forward the request to the backend
     const response = await fetch(url, {
       method: "PATCH",
       headers: {
@@ -23,8 +16,6 @@ export async function PATCH(request: NextRequest) {
         "Content-Type": "application/json",
       },
     });
-
-    // console.log('Frontend API: Backend response status:', response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -36,7 +27,6 @@ export async function PATCH(request: NextRequest) {
     }
 
     const data = await response.json();
-    // console.log('Frontend API: Backend data received:', data);
 
     return NextResponse.json(data);
   } catch (error) {

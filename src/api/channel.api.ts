@@ -1,7 +1,6 @@
 import { api, apiClient } from "./axios";
 import { ChannelRoleAccess, ChannelData } from "./types/channel.types";
 
-// Get channel role access
 export const getChannelRoleAccess = async (
   channelId: string
 ): Promise<{
@@ -12,7 +11,6 @@ export const getChannelRoleAccess = async (
   return response.data;
 };
 
-// Set channel role access (Owner/Admin)
 export const setChannelRoleAccess = async (
   channelId: string,
   data: {
@@ -27,7 +25,6 @@ export const setChannelRoleAccess = async (
   return response.data;
 };
 
-// Get channels with access filtering
 export const getChannelsWithAccess = async (
   serverId: string
 ): Promise<
@@ -105,7 +102,6 @@ export const fetchChannelsByServer = async (
   return response.data;
 };
 
-// Get channel permissions for current user
 export const getChannelPermissions = async (
   channelId: string
 ): Promise<{

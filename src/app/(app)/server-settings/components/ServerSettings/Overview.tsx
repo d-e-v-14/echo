@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { updateServer } from "@/api";
 import { ServerDetails } from "@/api/types/server.types";
+import { SettingsFormSkeleton } from "@/components/loading/pageSkeletons";
 
 interface OverviewProps {
   serverId: string;
@@ -75,7 +76,6 @@ export default function Overview({
       setSuccessMessage("Server updated successfully!");
       setIconFile(null);
 
-      // Clear success message after 3 seconds
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (error: any) {
       console.error("Failed to update server:", error);
@@ -89,7 +89,6 @@ export default function Overview({
 
       setErrorMessage(errorMsg);
 
-      // Clear error message after 5 seconds
       setTimeout(() => setErrorMessage(""), 5000);
     } finally {
       setIsLoading(false);
@@ -100,16 +99,16 @@ export default function Overview({
 
   if (pageLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400"></div>
+      <div className="p-8">
+        <SettingsFormSkeleton fields={3} />
       </div>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400"></div>
+      <div className="p-8">
+        <SettingsFormSkeleton fields={3} titleWidth="w-32" />
       </div>
     );
   }

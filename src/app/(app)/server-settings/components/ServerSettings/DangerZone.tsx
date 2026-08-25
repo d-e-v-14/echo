@@ -50,8 +50,6 @@ export default function DangerZone({
     );
   }
 
-  /* ---------------- DELETE SERVER ---------------- */
-
   const handleDeleteServer = async () => {
     if (deleteConfirmText !== serverName) return;
 
@@ -79,8 +77,6 @@ export default function DangerZone({
       setDeleteConfirmText("");
     }
   };
-
-  /* ---------------- LOAD MEMBERS ---------------- */
 
   const loadMembers = async () => {
     try {
@@ -117,8 +113,6 @@ export default function DangerZone({
     }
   };
 
-  /* ---------------- TRANSFER OWNERSHIP ---------------- */
-
   const handleTransferOwnership = async () => {
     if (!selectedNewOwner) return;
 
@@ -153,7 +147,6 @@ export default function DangerZone({
 
   return (
     <div className="space-y-6 relative">
-      {/* Toast */}
       {toast && (
         <div className="fixed top-6 right-6 z-[9999]">
           <Toast
@@ -165,11 +158,9 @@ export default function DangerZone({
         </div>
       )}
 
-      {/* Main Card */}
       <div className="bg-[#2f3136] rounded-lg p-6 border border-gray-700">
         <h3 className="text-lg font-semibold text-white mb-4">Danger Zone</h3>
 
-        {/* Transfer Ownership */}
         <div className="mb-6">
           <h4 className="text-md font-medium text-white mb-2">
             Transfer Ownership
@@ -186,7 +177,6 @@ export default function DangerZone({
           </button>
         </div>
 
-        {/* Delete Server */}
         <div>
           <h4 className="text-md font-medium text-white mb-2">Delete Server</h4>
           <p className="text-gray-400 text-sm mb-4">
@@ -202,7 +192,6 @@ export default function DangerZone({
         </div>
       </div>
 
-      {/* ================= TRANSFER MODAL ================= */}
       {showTransferModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-[#36393f] rounded-lg p-6 w-full max-w-md mx-4">
@@ -272,7 +261,6 @@ export default function DangerZone({
         </div>
       )}
 
-      {/* ================= DELETE MODAL ================= */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-[#36393f] rounded-lg p-6 w-full max-w-md mx-4">

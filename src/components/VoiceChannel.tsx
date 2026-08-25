@@ -1,4 +1,3 @@
-// src/components/VoiceChannel.tsx
 "use client";
 
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
@@ -17,6 +16,7 @@ import {
   FaMinus,
 } from "react-icons/fa";
 import { getVoicePresenceSocket } from "@/lib/voicePresenceSocket";
+import { MemberChipSkeletons } from "@/components/loading/pageSkeletons";
 
 interface VoiceChannelProps {
   channelId: string;
@@ -78,7 +78,6 @@ const VideoPlayer = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Bind/unbind Chime tile to video element
   useEffect(() => {
     if (!videoRef.current || !manager || tileId == null) return;
 
@@ -93,7 +92,6 @@ const VideoPlayer = ({
 
   return (
     <div className="bg-gray-800 rounded-lg overflow-hidden relative w-full h-full min-h-0">
-      {/* Always render video element when we have a tile — never unmount it */}
       <video
         ref={videoRef}
         autoPlay
@@ -104,7 +102,6 @@ const VideoPlayer = ({
         } ${isLocal ? "transform -scale-x-100" : ""}`}
       />
 
-      {/* Avatar fallback when no video */}
       {!showVideo && (
         <div className="w-full h-full bg-gray-700 flex items-center justify-center">
           <div className="text-center">
@@ -118,7 +115,6 @@ const VideoPlayer = ({
         </div>
       )}
 
-      {/* Voice indicators */}
       <div className="absolute bottom-2 left-2 flex space-x-1">
         {voiceState?.muted && (
           <div className="bg-red-600 rounded-full p-1">
@@ -137,7 +133,6 @@ const VideoPlayer = ({
         )}
       </div>
 
-      {/* Username */}
       <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 rounded px-2 py-1">
         <span className="block truncate text-xs text-white">{username}</span>
       </div>
@@ -251,7 +246,6 @@ const VoiceChannel = ({
     }
   }, [externalState, useExternalManager]);
 
-  // ── Reset state on channel change ───────────────────────────────────────
   useEffect(() => {
     setVoiceMembers([]);
     setVoiceStates(new Map());
@@ -263,7 +257,6 @@ const VoiceChannel = ({
     }
   }, [channelId, useExternalManager]);
 
-  // ── Socket: roster sync (skip when parent manages voice state) ───────────
   useEffect(() => {
     if (useExternalManager) return;
     if (!userId || !channelId) return;
@@ -310,20 +303,16 @@ const VoiceChannel = ({
     };
   }, [userId, channelId, useExternalManager]);
 
-  // Disconnect socket only on full unmount
   useEffect(() => {
     if (useExternalManager) return;
     return () => {
-      // App socket lifecycle is owned by SocketProvider — just drop the ref.
       socketRef.current = null;
     };
   }, [useExternalManager]);
 
-  // ── Manager init + event listeners ──────────────────────────────────────
   useEffect(() => {
     isMountedRef.current = true;
 
-    // Use external manager or create own
     if (useExternalManager && externalManager) {
       managerRef.current = externalManager;
       isManagerInitialized.current = true;
@@ -483,7 +472,6 @@ const VoiceChannel = ({
 
     init();
 
-    // Load current user from localStorage
     if (typeof window !== "undefined" && !currentUserProp) {
       try {
         const stored = localStorage.getItem("user");
@@ -493,7 +481,6 @@ const VoiceChannel = ({
 
     return () => {
       isMountedRef.current = false;
-      // Only disconnect if we own the manager
       if (!useExternalManager && managerRef.current) {
         managerRef.current.disconnect();
         managerRef.current = null;
@@ -502,7 +489,6 @@ const VoiceChannel = ({
     };
   }, [userId, useExternalManager, externalManager]);
 
-  // ── Join voice channel ───────────────────────────────────────────────────
   useEffect(() => {
     if (useExternalManager) return;
 
@@ -633,7 +619,6 @@ const VoiceChannel = ({
     };
   }, [channelId, hasPermissions, useExternalManager]);
 
-  // ── Controls ─────────────────────────────────────────────────────────────
   const handleToggleMute = useCallback(() => {
     const manager = managerRef.current;
     if (!manager) return;
@@ -694,7 +679,6 @@ const VoiceChannel = ({
     [currentUserProp, currentUser]
   );
 
-  // Filter out self from members list
   const remoteMembers = useMemo(
     () => voiceMembers.filter((m) => m.oduserId !== userId),
     [voiceMembers, userId]
@@ -712,7 +696,6 @@ const VoiceChannel = ({
   };
   const { cols, rows } = getLayout(total);
 
-  // ── Early returns ─────────────────────────────────────────────────────────
   if (headless) return null;
 
   if (permissionError && !hasPermissions) {
@@ -754,10 +737,8 @@ const VoiceChannel = ({
     );
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="p-2 bg-gray-900 rounded-lg flex flex-col h-full">
-      {/* Status bars */}
       {connectionError && (
         <div className="mb-2 p-2 bg-red-600 rounded text-center text-white text-sm">
           {connectionError}
@@ -774,7 +755,6 @@ const VoiceChannel = ({
         </div>
       )}
 
-      {/* Video grid */}
       <div
         className="flex-1 min-h-0 p-1 gap-2"
         style={{
@@ -783,7 +763,6 @@ const VoiceChannel = ({
           gridTemplateRows: `repeat(${rows}, 1fr)`,
         }}
       >
-        {/* Local tile */}
         <VideoPlayer
           isLocal
           isMuted
@@ -793,7 +772,6 @@ const VoiceChannel = ({
           tileId={localVideoTileId}
         />
 
-        {/* Remote tiles — one per member, no duplicates */}
         {remoteMembers.map((member) => {
           const tileId = getTileIdForAttendee(member.odattendeeId);
           const voiceState = voiceStates.get(member.odattendeeId) ?? {
@@ -815,7 +793,6 @@ const VoiceChannel = ({
         })}
       </div>
 
-      {/* Controls */}
       <div className="flex items-center justify-center space-x-4 mt-2 p-3 bg-gray-800 rounded-md flex-shrink-0">
         <button
           onClick={handleToggleMute}
@@ -878,13 +855,12 @@ const VoiceChannel = ({
         )}
       </div>
 
-      {/* Members list */}
       <div className="mt-2 p-2 bg-gray-800 rounded-md flex-shrink-0">
         <h4 className="text-sm font-medium text-gray-300 mb-2">
           Voice Members ({voiceMembers.length})
         </h4>
         {isFetchingRoster ? (
-          <div className="text-xs text-gray-400">Loading members...</div>
+          <MemberChipSkeletons chips={4} />
         ) : (
           <div className="flex flex-wrap gap-1">
             {voiceMembers.map((member) => {

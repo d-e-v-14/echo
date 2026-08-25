@@ -1,5 +1,3 @@
-// src/components/VoiceVideoControls.tsx
-// Voice/Video controls component for Amazon Chime SDK
 
 "use client";
 
@@ -79,11 +77,9 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
   const [hasVideoPerm, setHasVideoPerm] = useState(false);
   const [hasAudioPerm, setHasAudioPerm] = useState(false);
 
-  // Update states when manager changes
   useEffect(() => {
     if (!manager) return;
 
-    // Initial permissions check
     const perms = manager.getAvailablePermissions?.();
     if (perms) {
       setHasAudioPerm(!!perms.audio);
@@ -95,7 +91,6 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
       setNetworkStats(manager.getNetworkStats());
       setDeviceInfo(manager.getDeviceInfo());
 
-      // Update permissions
       const currentPerms = manager.getAvailablePermissions?.();
       if (currentPerms) {
         setHasAudioPerm(!!currentPerms.audio);
@@ -106,7 +101,6 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
     return () => clearInterval(id);
   }, [manager]);
 
-  // Recording timer
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (mediaState.recording) {
@@ -162,14 +156,11 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
       }
       setMediaState(manager.getMediaState());
     } catch (e: any) {
-      // Only show error for non-cancellation errors
-      // NotAllowedError (user cancelled) is handled silently in VoiceVideoManager
       console.error("Screen share toggle failed:", e);
       if (
         e?.name !== "NotAllowedError" &&
         !e?.message?.includes("Permission denied")
       ) {
-        // Only alert for genuine errors, not user cancellation
         alert("Screen sharing failed. Please try again.");
       }
     }
@@ -183,7 +174,6 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
 
   return (
     <div className={`bg-black rounded-lg p-4 ${className}`}>
-      {/* Recording Indicator */}
       {isRecording && (
         <div className="mb-4 bg-red-600 bg-opacity-20 border border-red-500 rounded-lg p-3">
           <div className="flex items-center justify-between">
@@ -198,9 +188,7 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
         </div>
       )}
 
-      {/* Main Controls */}
       <div className="flex items-center justify-center space-x-4 mb-4">
-        {/* Microphone */}
         <button
           onClick={handleToggleAudio}
           disabled={!isConnected || !hasAudioPerm}
@@ -220,7 +208,6 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
           )}
         </button>
 
-        {/* Video */}
         <button
           onClick={handleToggleVideo}
           disabled={!isConnected || !hasVideoPerm}
@@ -240,7 +227,6 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
           )}
         </button>
 
-        {/* Screen Share */}
         <button
           onClick={handleToggleScreenShare}
           disabled={!isConnected}
@@ -260,21 +246,6 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
           )}
         </button>
 
-        {/* Recording */}
-        {/* <button
-          onClick={handleToggleRecording}
-          disabled={!isConnected}
-          className={`p-3 rounded-full transition-all duration-200 ${
-            mediaState.recording
-              ? "bg-red-600 hover:bg-red-700 text-white animate-pulse"
-              : "bg-gray-700 hover:bg-gray-600 text-white"
-          } ${!isConnected ? "opacity-50 cursor-not-allowed" : ""}`}
-          title={mediaState.recording ? "Stop recording" : "Start recording"}
-        >
-          <FaRecordVinyl size={20} />
-        </button> */}
-
-        {/* Hang Up */}
         <button
           onClick={onHangUp}
           className="p-3 rounded-full bg-red-600 hover:bg-red-700 text-white transition-all duration-200"

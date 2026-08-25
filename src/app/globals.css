@@ -122,15 +122,30 @@ body {
   animation: toast-in 0.25s ease-out forwards;
 }
 
-.skeleton-shimmer {
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: rgba(255, 255, 255, 0.07);
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
   background: linear-gradient(
     90deg,
-    rgba(30, 41, 59, 0) 0%,
-    rgba(51, 65, 85, 0.3) 50%,
-    rgba(30, 41, 59, 0) 100%
+    transparent,
+    rgba(255, 255, 255, 0.06),
+    transparent
   );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  animation: skeleton-shimmer 1.6s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .animate-in {

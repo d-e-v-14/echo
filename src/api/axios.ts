@@ -9,7 +9,6 @@ export const api = axios.create({
 
 export const apiClient = api;
 
-//Request interceptor - Add access token to all requests
 api.interceptors.request.use(
   (config) => {
     if (typeof window !== "undefined") {
@@ -30,7 +29,6 @@ const redirectToHome = () => {
   }
 };
 
-// Response interceptor for automatic token refresh
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -38,13 +36,10 @@ api.interceptors.response.use(
       _retry?: boolean;
     };
 
-    // Only handle 401 errors in browser environment
     if (typeof window === "undefined" || error.response?.status !== 401) {
       return Promise.reject(error);
     }
 
-    // Don't retry if this is already a retry attempt or if it's the refresh
-    // endpoint itself (refresh is handled by the token store).
     if (
       originalRequest._retry ||
       originalRequest.url?.includes("/api/auth/refresh")
@@ -56,7 +51,6 @@ api.interceptors.response.use(
 
     originalRequest._retry = true;
 
-    // Single-flight refresh: concurrent 401s share one refresh request.
     const refreshed = await tokenStore.refresh();
 
     if (refreshed) {
@@ -81,7 +75,6 @@ export function getToken(token?: string) {
   }
 }
 
-// Manual token refresh function (can be used proactively)
 export const refreshToken = async (): Promise<{
   accessToken: string;
   refreshToken: string;

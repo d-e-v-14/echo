@@ -17,7 +17,6 @@ export const register = async (
 export const login = async (identifier: string, password: string) => {
   const response = await api.post("/api/auth/login", { identifier, password });
 
-  // Store the access token in memory and persist the refresh token.
   if (response.data.accessToken) {
     tokenStore.setTokens({
       accessToken: response.data.accessToken,

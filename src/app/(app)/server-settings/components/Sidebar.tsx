@@ -5,7 +5,6 @@ interface SidebarProps {
   isAdmin?: boolean;
 }
 
-// Items visible to everyone
 const memberMenuItems = [
   "Overview",
   "Role", // Members see self-assignable roles view
@@ -13,7 +12,6 @@ const memberMenuItems = [
   "Leave",
 ];
 
-// Items only visible to admins and owners
 const adminMenuItems = [
   "Overview",
   "Role",
@@ -24,7 +22,6 @@ const adminMenuItems = [
   "Leave",
 ];
 
-// Items only visible to owners
 const ownerMenuItems = [
   "Overview",
   "Role",
@@ -33,7 +30,6 @@ const ownerMenuItems = [
   "Invite people",
   "Add Channel",
   "Leave",
-  // "Ownership",
 ];
 
 export default function Sidebar({
@@ -42,7 +38,6 @@ export default function Sidebar({
   isOwner = false,
   isAdmin = false,
 }: SidebarProps) {
-  // Determine which menu items to show based on role
   let menuItems: string[];
 
   if (isOwner) {

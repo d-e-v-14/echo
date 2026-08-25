@@ -34,7 +34,6 @@ export default function ForgotPassword() {
 
       <div className="w-1/2 flex justify-center items-center">
         <div className="w-[70%] max-w-md">
-          {/* Logo */}
           <div className="w-full mb-[20px] lg:mb-[40px]">
             <div className="relative inline-block">
               <div
@@ -91,12 +90,10 @@ export default function ForgotPassword() {
             </button>
           </form>
 
-          {/* Error message */}
           {error && (
             <div className="mt-4 text-red-500 text-center text-sm">{error}</div>
           )}
 
-          {/* Success message */}
           {submitted && (
             <div className="mt-4 text-green-500 text-center text-sm">
               If an account exists, a password reset link will be sent to your

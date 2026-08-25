@@ -12,15 +12,6 @@ import { queryKeys } from "@/lib/query/keys";
 const DM_MESSAGES_STALE_TIME_MS = 60_000;
 const DM_MESSAGES_GC_TIME_MS = 30 * 60_000;
 
-/**
- * The single source of truth for a DM conversation's messages.
- *
- * pages[0] is the newest batch on first load; `fetchPreviousPage` prepends
- * older batches, so flattening `data.pages` in order yields oldest → newest.
- * New/optimistic/socket messages are inserted into the newest (last) page via
- * setQueryData elsewhere, so the cache is updated directly rather than by
- * refetching the whole conversation.
- */
 export function useDmMessages(
   conversationId: string | null,
   threadId: string | null
@@ -37,8 +28,6 @@ export function useDmMessages(
         hasMore: Boolean(result?.hasMore),
       };
     },
-    // Older messages are fetched by scrolling up: the offset is the total
-    // number of messages already loaded.
     getPreviousPageParam: (firstPage, allPages) => {
       if (!firstPage?.hasMore) return undefined;
       return allPages.reduce(
@@ -47,10 +36,6 @@ export function useDmMessages(
       );
     },
     getNextPageParam: () => undefined,
-    // Discord-like: cached conversations survive navigation (gcTime) and
-    // reconcile in the background (refetchOnMount / staleTime). Do NOT rely on
-    // a long refetchInterval to make new messages appear — they are inserted
-    // into the cache directly by the socket sync and the send mutation.
     staleTime: DM_MESSAGES_STALE_TIME_MS,
     gcTime: DM_MESSAGES_GC_TIME_MS,
     refetchOnMount: true,

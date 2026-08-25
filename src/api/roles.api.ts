@@ -1,19 +1,16 @@
 import { api } from "./axios";
 import { Role, RoleCategory } from "./types/roles.types";
 
-// Get all roles for a server
 export const getAllRoles = async (serverId: string): Promise<Role[]> => {
   const response = await api.get(`/api/roles/${serverId}/all`);
   return response.data;
 };
 
-// Get user's roles in a server
 export const getMyRoles = async (serverId: string): Promise<Role[]> => {
   const response = await api.get(`/api/roles/${serverId}/my-roles`);
   return response.data;
 };
 
-// Get self-assignable roles
 export const getSelfAssignableRoles = async (
   serverId: string
 ): Promise<Role[]> => {
@@ -21,7 +18,6 @@ export const getSelfAssignableRoles = async (
   return response.data;
 };
 
-// Self-assign a role
 export const selfAssignRole = async (
   serverId: string,
   roleId: string
@@ -32,7 +28,6 @@ export const selfAssignRole = async (
   return response.data;
 };
 
-// Self-unassign a role
 export const selfUnassignRole = async (
   serverId: string,
   roleId: string
@@ -43,7 +38,6 @@ export const selfUnassignRole = async (
   return response.data;
 };
 
-// Create a new role (Owner/Admin)
 export const createRole = async (
   serverId: string,
   data: {
@@ -58,7 +52,6 @@ export const createRole = async (
   return response.data;
 };
 
-// Update a role (Owner/Admin)
 export const updateRole = async (
   serverId: string,
   roleId: string,
@@ -77,7 +70,6 @@ export const updateRole = async (
   return response.data;
 };
 
-// Delete a role (Owner/Admin)
 export const deleteRole = async (
   serverId: string,
   roleId: string
@@ -86,7 +78,6 @@ export const deleteRole = async (
   return response.data;
 };
 
-// Assign role to user (Owner/Admin)
 export const assignRoleToUser = async (
   serverId: string,
   userId: string,
@@ -99,7 +90,6 @@ export const assignRoleToUser = async (
   return response.data;
 };
 
-// Remove role from user (Owner/Admin)
 export const removeRoleFromUser = async (
   serverId: string,
   userId: string,
@@ -112,7 +102,6 @@ export const removeRoleFromUser = async (
   return response.data;
 };
 
-// Get role categories
 export const getRoleCategories = async (
   serverId: string
 ): Promise<RoleCategory[]> => {
@@ -120,7 +109,6 @@ export const getRoleCategories = async (
   return response.data;
 };
 
-// Create role category (Owner/Admin)
 export const createRoleCategory = async (
   serverId: string,
   data: {
@@ -133,7 +121,6 @@ export const createRoleCategory = async (
   return response.data;
 };
 
-// Update role category (Owner/Admin)
 export const updateRoleCategory = async (
   serverId: string,
   categoryId: string,
@@ -150,7 +137,6 @@ export const updateRoleCategory = async (
   return response.data;
 };
 
-// Delete role category (Owner/Admin)
 export const deleteRoleCategory = async (
   serverId: string,
   categoryId: string

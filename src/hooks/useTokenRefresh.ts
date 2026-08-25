@@ -1,4 +1,3 @@
-// hooks/useTokenRefresh.ts
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { tokenStore } from "@/lib/auth/tokenStore";
@@ -49,8 +48,6 @@ export const useTokenRefresh = (enabled = true) => {
       }
     };
 
-    // Restore the session by refreshing the in-memory access token, then keep
-    // it fresh proactively.
     if (!tokenStore.hasRefreshToken()) return;
 
     tokenStore.refresh().then((ok) => {
@@ -72,7 +69,6 @@ export const useTokenRefresh = (enabled = true) => {
   }, [router, enabled]);
 };
 
-// Optional: Hook to check if user is authenticated
 export const useAuth = () => {
   const router = useRouter();
 

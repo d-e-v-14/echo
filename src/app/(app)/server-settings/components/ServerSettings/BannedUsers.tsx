@@ -74,7 +74,6 @@ export default function BannedUsers({
 
   return (
     <div className="max-w-4xl mx-auto p-8 text-white relative">
-      {/* Toast */}
       {toast && (
         <div className="fixed top-6 right-6 z-[9999]">
           <Toast
@@ -86,7 +85,6 @@ export default function BannedUsers({
         </div>
       )}
 
-      {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-2xl font-bold">Banned Users</h1>
@@ -104,7 +102,6 @@ export default function BannedUsers({
         </button>
       </div>
 
-      {/* Content */}
       {loading ? (
         <div className="text-center text-gray-400">Loading banned users…</div>
       ) : bannedUsers.length === 0 ? (
@@ -175,7 +172,6 @@ export default function BannedUsers({
         </div>
       )}
 
-      {/* Info Box */}
       <div className="mt-6 p-4 border border-yellow-900/30 rounded bg-yellow-950/10">
         <div className="flex items-start gap-2">
           <span className="text-yellow-500 text-lg"></span>

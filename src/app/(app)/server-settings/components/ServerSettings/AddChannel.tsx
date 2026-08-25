@@ -30,14 +30,12 @@ const AddChannel: React.FC = () => {
   );
   const [loadingRoles, setLoadingRoles] = useState(false);
 
-  // Load roles when server ID is available
   useEffect(() => {
     const loadRoles = async () => {
       if (!serverId) return;
       setLoadingRoles(true);
       try {
         const serverRoles = await getAllRoles(serverId);
-        // Filter out owner and admin roles - they can see all channels anyway
         const assignableRoles = serverRoles.filter(
           (r) => r.role_type !== "owner" && r.role_type !== "admin"
         );
@@ -63,7 +61,6 @@ const AddChannel: React.FC = () => {
         type === "checkbox" ? (target as HTMLInputElement).checked : value,
     }));
 
-    // Clear selected roles when switching channel types
     if (name === "channel_type") {
       setSelectedRoleIds([]);
       setSelectedModeratorIds([]);
@@ -115,7 +112,6 @@ const AddChannel: React.FC = () => {
     setMessage("");
 
     try {
-      // Prepare channel data with new permission system
       const channelPayload: ChannelData = {
         name: formData.name,
         type: formData.type,
@@ -131,8 +127,6 @@ const AddChannel: React.FC = () => {
 
       await createChannel(serverId!, channelPayload);
 
-      // The channel sidebar reads from the serverChannels query cache, so
-      // reconcile it so the new channel appears without a full reload.
       if (serverId) {
         void queryClient.invalidateQueries({
           queryKey: queryKeys.serverChannels(serverId),
@@ -145,7 +139,6 @@ const AddChannel: React.FC = () => {
       setSelectedRoleIds([]);
       setSelectedModeratorIds([]);
 
-      // Clear success message after 3 seconds
       setTimeout(() => setMessage(""), 3000);
     } catch (err: any) {
       console.error("Error creating channel:", err);
@@ -166,7 +159,6 @@ const AddChannel: React.FC = () => {
       <h1 className="text-2xl font-bold mb-8">Create Channel</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Channel Name */}
         <div>
           <label className="block font-semibold mb-2 text-[#b5bac1]">
             Channel Name
@@ -182,7 +174,6 @@ const AddChannel: React.FC = () => {
           />
         </div>
 
-        {/* Channel Type */}
         <div>
           <label className="block font-semibold mb-2 text-[#b5bac1]">
             Channel Type
@@ -198,7 +189,6 @@ const AddChannel: React.FC = () => {
           </select>
         </div>
 
-        {/* Permission Type */}
         <div>
           <label className="block font-semibold mb-2 text-[#b5bac1]">
             Permission Type
@@ -218,7 +208,6 @@ const AddChannel: React.FC = () => {
             </option>
           </select>
 
-          {/* Info text based on selection */}
           <div className="mt-3 p-3 bg-[#2f3136] rounded-lg border-l-4 border-[#FFC341]">
             {formData.channel_type === "normal" && (
               <p className="text-sm text-[#b5bac1]">
@@ -240,7 +229,6 @@ const AddChannel: React.FC = () => {
           </div>
         </div>
 
-        {/* Role selection for role_restricted channels */}
         {formData.channel_type === "role_restricted" && (
           <div className="p-4 bg-[#2f3136] rounded-lg border-2 border-[#72767d]">
             <label className="block font-semibold mb-2 text-[#b5bac1]">
@@ -288,7 +276,6 @@ const AddChannel: React.FC = () => {
           </div>
         )}
 
-        {/* Moderator selection for read_only and role_restricted channels */}
         {(formData.channel_type === "read_only" ||
           formData.channel_type === "role_restricted") && (
           <div className="p-4 bg-[#2f3136] rounded-lg border-2 border-[#FFC341]">
@@ -337,7 +324,6 @@ const AddChannel: React.FC = () => {
           </div>
         )}
 
-        {/* Submit Button */}
         <button
           type="submit"
           disabled={loading}
@@ -358,7 +344,6 @@ const AddChannel: React.FC = () => {
           {loading ? "Creating..." : "Create Channel"}
         </button>
 
-        {/* Message */}
         {message && (
           <div
             className={`p-3 rounded-lg text-center font-medium ${

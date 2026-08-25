@@ -62,12 +62,6 @@ const normalizeReactions = (
   return result;
 };
 
-/**
- * Reaction state lives in the shared module-level store (patched directly by
- * `reaction_updated` socket events via RealtimeCacheSync). This hook is a thin
- * view + mutation layer over that store, so reactions update in realtime
- * without refetching message datasets.
- */
 export const useMessageReactions = ({
   mode,
   currentUserId,

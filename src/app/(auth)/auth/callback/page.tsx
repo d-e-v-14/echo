@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import InlineSpinner from "@/components/loading/InlineSpinner";
 
 function AuthCallbackContent() {
   const router = useRouter();
@@ -17,7 +18,6 @@ function AuthCallbackContent() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        // Get the hash fragment from the URL (contains tokens)
         const hashParams = new URLSearchParams(
           window.location.hash.substring(1)
         );
@@ -30,9 +30,7 @@ function AuthCallbackContent() {
           type === "email_change" ||
           type === "recovery"
         ) {
-          // Email verification or password recovery
           if (accessToken && refreshToken) {
-            // Set the session
             const { error } = await supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken,
@@ -46,7 +44,6 @@ function AuthCallbackContent() {
               return;
             }
 
-            // Success
             setStatus("success");
             if (type === "signup") {
               setMessage(
@@ -60,7 +57,6 @@ function AuthCallbackContent() {
               setMessage("Email verified! Redirecting to login...");
             }
 
-            // Check for pending invite redirect and preserve it through login
             const pendingRedirect = localStorage.getItem("redirectAfterLogin");
             const loginUrl = pendingRedirect
               ? `/login?verified=true&redirect=${encodeURIComponent(pendingRedirect)}`
@@ -72,7 +68,6 @@ function AuthCallbackContent() {
             setTimeout(() => router.push("/"), 3000);
           }
         } else {
-          // Unknown type or no type
           setStatus("success");
           setMessage("Redirecting to login...");
           setTimeout(() => router.push("/"), 1000);
@@ -94,7 +89,7 @@ function AuthCallbackContent() {
         {status === "loading" && (
           <>
             <div className="mb-4">
-              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto"></div>
+              <InlineSpinner size="lg" className="mx-auto" label="Verifying" />
             </div>
             <h2 className="text-2xl font-bold text-white mb-2">
               Verifying Email
@@ -164,7 +159,7 @@ export default function AuthCallback() {
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
           <div className="bg-gray-800 p-8 rounded-lg shadow-2xl border border-gray-700 max-w-md w-full text-center">
             <div className="mb-4">
-              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto"></div>
+              <InlineSpinner size="lg" className="mx-auto" label="Verifying" />
             </div>
             <h2 className="text-2xl font-bold text-white mb-2"></h2>
           </div>

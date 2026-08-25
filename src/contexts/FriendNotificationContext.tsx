@@ -42,7 +42,6 @@ export function FriendNotificationProvider({
       setFriendRequestCount(requests.length);
     } catch (error: any) {
       console.error("Error fetching friend requests:", error);
-      // If user is not authenticated, set count to 0 silently
       setFriendRequestCount(0);
     } finally {
       setLoading(false);
@@ -51,7 +50,6 @@ export function FriendNotificationProvider({
   }, []);
 
   useEffect(() => {
-    // Only fetch once on mount, no polling
     refreshCount();
   }, [refreshCount]);
 

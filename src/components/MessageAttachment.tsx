@@ -17,12 +17,10 @@ export default function MessageAttachment({
 
   if (!media_url || !isSafeMediaUrl(media_url)) return null;
 
-  // Check if it's a blob URL (from local file uploads) or has image extension
   const isBlobUrl = media_url.startsWith("blob:");
   const ext = media_url.split("?")[0].split(".").pop()?.toLowerCase() || "";
   const imageExts = ["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"];
 
-  // Determine if this is an image
   const isImage =
     isBlobUrl ||
     imageExts.includes(ext) ||
@@ -31,7 +29,6 @@ export default function MessageAttachment({
   if (isImage) {
     return (
       <>
-        {/* Thumbnail - Square constrained display like WhatsApp */}
         <img
           src={media_url}
           alt="attachment"
@@ -47,7 +44,6 @@ export default function MessageAttachment({
     );
   }
 
-  // For non-image files, show download link with appropriate icon
   const getFileIcon = (extension: string) => {
     switch (extension) {
       case "pdf":

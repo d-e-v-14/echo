@@ -1,4 +1,3 @@
-// src/components/VoiceNotifications.tsx
 
 "use client";
 
@@ -46,7 +45,6 @@ const VoiceNotifications: React.FC<VoiceNotificationsProps> = ({
 
     setNotifications((prev) => [...prev, newNotification]);
 
-    // Auto-dismiss after duration
     if (newNotification.duration && newNotification.duration > 0) {
       setTimeout(() => {
         removeNotification(id);
@@ -58,7 +56,6 @@ const VoiceNotifications: React.FC<VoiceNotificationsProps> = ({
     setNotifications((prev) => prev.filter((n) => n.id !== id));
   };
 
-  // Expose methods globally for use by other components
   useEffect(() => {
     (window as any).voiceNotifications = {
       addNotification,
@@ -189,7 +186,6 @@ const VoiceNotifications: React.FC<VoiceNotificationsProps> = ({
   );
 };
 
-// Hook for using notifications in components
 export const useVoiceNotifications = () => {
   const showError = (error: VoiceError, retryCallback?: () => void) => {
     (window as any).voiceNotifications?.showError(error, retryCallback);

@@ -1,17 +1,10 @@
 "use client";
 
-// src/components/VoiceInviteModal.tsx
-// Modal for inviting people to a voice channel
-// Has two tabs: "In Call" (current participants) and "Server Members" (all server members with voice status)
-
 import React, { useEffect, useState } from "react";
 import { X, Phone, Mic, MicOff, Search, Users } from "lucide-react";
-// TODO: These imports need to be implemented
-// import { getServerMembersWithVoicePresence, MemberWithVoicePresence } from '@/app/api';
-// import { VoiceParticipant } from '@/context/VoiceContext';
 import { Socket } from "socket.io-client";
+import InlineSpinner from "@/components/loading/InlineSpinner";
 
-// Temporary type definitions until proper imports are available
 interface MemberWithVoicePresence {
   user_id: string;
   username: string;
@@ -33,15 +26,12 @@ interface VoiceParticipant {
   isLocal?: boolean;
 }
 
-// Temporary stub function
 const getServerMembersWithVoicePresence = async (): Promise<
   MemberWithVoicePresence[]
 > => {
   console.warn("getServerMembersWithVoicePresence not implemented");
   return [];
 };
-
-// ==================== TYPES ====================
 
 interface VoiceInviteModalProps {
   isOpen: boolean;
@@ -53,13 +43,11 @@ interface VoiceInviteModalProps {
   currentUserId: string;
   currentUsername: string;
   currentUserAvatar?: string;
-  participants: VoiceParticipant[]; // Current voice channel participants
+  participants: VoiceParticipant[];
   socket: Socket | null;
 }
 
 type TabType = "in-call" | "server-members";
-
-// ==================== COMPONENT ====================
 
 const VoiceInviteModal: React.FC<VoiceInviteModalProps> = ({
   isOpen,
@@ -83,14 +71,12 @@ const VoiceInviteModal: React.FC<VoiceInviteModalProps> = ({
   const [inviteSentTo, setInviteSentTo] = useState<Set<string>>(new Set());
   const [inviteError, setInviteError] = useState<string | null>(null);
 
-  // Fetch server members with voice presence when modal opens or tab changes
   useEffect(() => {
     if (isOpen && activeTab === "server-members" && serverId) {
       fetchServerMembers();
     }
   }, [isOpen, activeTab, serverId]);
 
-  // Listen for invite responses
   useEffect(() => {
     if (!socket) return;
 
@@ -100,7 +86,6 @@ const VoiceInviteModal: React.FC<VoiceInviteModalProps> = ({
     }) => {
       if (data.success) {
         setInviteSentTo((prev) => new Set(prev).add(data.targetUserId));
-        // Clear after 5 seconds
         setTimeout(() => {
           setInviteSentTo((prev) => {
             const next = new Set(prev);
@@ -146,10 +131,8 @@ const VoiceInviteModal: React.FC<VoiceInviteModalProps> = ({
       return;
     }
 
-    // Don't send invite to self or already in call
     if (targetUserId === currentUserId) return;
 
-    // Check if already in this voice channel
     const alreadyInCall = participants.some(
       (p) => p.oduserId === targetUserId || p.oduserId === targetUsername
     );
@@ -167,7 +150,6 @@ const VoiceInviteModal: React.FC<VoiceInviteModalProps> = ({
     });
   };
 
-  // Filter server members based on search query
   const filteredMembers = serverMembers.filter((member) => {
     const query = searchQuery.toLowerCase();
     return (
@@ -176,7 +158,6 @@ const VoiceInviteModal: React.FC<VoiceInviteModalProps> = ({
     );
   });
 
-  // Separate members into groups: in this call, in other calls, not in call
   const membersInThisCall = filteredMembers.filter(
     (m) => m.voice_channel?.channel_id === channelId
   );
@@ -190,7 +171,6 @@ const VoiceInviteModal: React.FC<VoiceInviteModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-md mx-4 bg-[#2b2d31] rounded-lg shadow-xl overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
           <div>
             <h2 className="text-lg font-semibold text-white">
@@ -206,7 +186,6 @@ const VoiceInviteModal: React.FC<VoiceInviteModalProps> = ({
           </button>
         </div>
 
-        {/* Tabs */}
         <div className="flex border-b border-gray-700">
           <button
             onClick={() => setActiveTab("in-call")}
@@ -236,14 +215,12 @@ const VoiceInviteModal: React.FC<VoiceInviteModalProps> = ({
           </button>
         </div>
 
-        {/* Error message */}
         {inviteError && (
           <div className="mx-4 mt-3 p-2 bg-red-500/20 border border-red-500/30 rounded text-red-400 text-sm">
             {inviteError}
           </div>
         )}
 
-        {/* Search (only for server members tab) */}
         {activeTab === "server-members" && (
           <div className="p-4 pb-2">
             <div className="flex items-center gap-2 px-3 py-2 bg-[#1e1f22] rounded-md">
@@ -259,10 +236,8 @@ const VoiceInviteModal: React.FC<VoiceInviteModalProps> = ({
           </div>
         )}
 
-        {/* Content */}
         <div className="p-4 pt-2 max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
           {activeTab === "in-call" ? (
-            // In Call Tab - Show current participants
             <div className="space-y-2">
               {participants.length === 0 ? (
                 <p className="text-gray-400 text-sm text-center py-4">
@@ -291,15 +266,13 @@ const VoiceInviteModal: React.FC<VoiceInviteModalProps> = ({
               )}
             </div>
           ) : (
-            // Server Members Tab
             <div className="space-y-4">
               {isLoading ? (
                 <div className="flex items-center justify-center py-8">
-                  <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                  <InlineSpinner size="md" />
                 </div>
               ) : (
                 <>
-                  {/* Members in this call */}
                   {membersInThisCall.length > 0 && (
                     <div>
                       <h4 className="text-xs font-semibold text-gray-400 uppercase mb-2">
@@ -325,7 +298,6 @@ const VoiceInviteModal: React.FC<VoiceInviteModalProps> = ({
                     </div>
                   )}
 
-                  {/* Members in other calls */}
                   {membersInOtherCalls.length > 0 && (
                     <div>
                       <h4 className="text-xs font-semibold text-gray-400 uppercase mb-2">
@@ -356,7 +328,6 @@ const VoiceInviteModal: React.FC<VoiceInviteModalProps> = ({
                     </div>
                   )}
 
-                  {/* Members not in any call */}
                   {membersNotInCall.length > 0 && (
                     <div>
                       <h4 className="text-xs font-semibold text-gray-400 uppercase mb-2">
@@ -401,8 +372,6 @@ const VoiceInviteModal: React.FC<VoiceInviteModalProps> = ({
     </div>
   );
 };
-
-// ==================== MEMBER ITEM COMPONENT ====================
 
 interface MemberItemProps {
   userId: string;
@@ -451,7 +420,6 @@ const MemberItem: React.FC<MemberItemProps> = ({
   return (
     <div className="flex items-center justify-between p-2 rounded-md hover:bg-[#35373c] transition-colors">
       <div className="flex items-center gap-3">
-        {/* Avatar */}
         <div className="relative">
           <div className="w-9 h-9 rounded-full bg-[#5865f2] flex items-center justify-center overflow-hidden">
             {avatarUrl ? (
@@ -466,13 +434,11 @@ const MemberItem: React.FC<MemberItemProps> = ({
               </span>
             )}
           </div>
-          {/* Status indicator */}
           <div
             className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-[#2b2d31] ${statusColors[status]}`}
           />
         </div>
 
-        {/* Name and status */}
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
             <span className="text-sm text-white">
@@ -481,7 +447,6 @@ const MemberItem: React.FC<MemberItemProps> = ({
                 <span className="text-gray-400 ml-1">(You)</span>
               )}
             </span>
-            {/* Voice status icons */}
             {voiceStatus === "in-this-call" && (
               <div className="flex items-center gap-1">
                 {isMuted ? (
@@ -503,7 +468,6 @@ const MemberItem: React.FC<MemberItemProps> = ({
         </div>
       </div>
 
-      {/* Invite button */}
       {canInvite && !isCurrentUser && (
         <button
           onClick={onInvite}

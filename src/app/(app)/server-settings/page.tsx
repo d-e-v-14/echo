@@ -16,6 +16,8 @@ import AddChannel from "./components/ServerSettings/AddChannel";
 
 import { getServerDetails, getMyRoles } from "@/api";
 import { type ServerDetails } from "@/api/types/server.types";
+import Skeleton from "@/components/loading/Skeleton";
+import { SettingsFormSkeleton } from "@/components/loading/pageSkeletons";
 
 export default function ServerSettingsPage() {
   const router = useRouter();
@@ -34,9 +36,6 @@ export default function ServerSettingsPage() {
 
   const [isAdmin, setIsAdmin] = useState(false);
 
-  /* -----------------------------------------------------
-   STEP 1: Resolve serverId safely on CLIENT
-  ----------------------------------------------------- */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const fromUrl = params.get("serverId");
@@ -66,7 +65,6 @@ export default function ServerSettingsPage() {
         const details = await getServerDetails(serverId);
         setServerDetails(details);
 
-        // Check admin role
         const myRoles = await getMyRoles(serverId);
         const hasAdminRole = myRoles.some((role) => role.role_type === "admin");
         setIsAdmin(hasAdminRole);
@@ -85,10 +83,16 @@ export default function ServerSettingsPage() {
 
   if (!serverIdReady || loading) {
     return (
-      <div className="flex min-h-screen bg-black items-center justify-center">
-        <div className="mb-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto"></div>
+      <div className="flex min-h-screen bg-black text-white">
+        <div className="w-60 shrink-0 space-y-2 border-r border-gray-800 p-4 opacity-70">
+          <Skeleton className="mb-6 h-6 w-36 rounded" />
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-9 rounded-md" />
+          ))}
         </div>
+        <main className="flex-1 p-8 pt-20">
+          <SettingsFormSkeleton fields={3} />
+        </main>
       </div>
     );
   }
@@ -207,7 +211,6 @@ export default function ServerSettingsPage() {
       />
 
       <main className="flex-1 p-8 bg-black relative">
-        {/* Back Button */}
         <button
           onClick={() => router.push("/servers")}
           className="absolute top-6 left-6 flex items-center gap-2 text-gray-400 hover:text-white transition"

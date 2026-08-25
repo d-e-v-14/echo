@@ -20,7 +20,6 @@ function VideoTile({
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Attach the stream to the video element
   useEffect(() => {
     if (videoRef.current && stream) {
       if (videoRef.current.srcObject !== stream) {
@@ -34,12 +33,11 @@ function VideoTile({
       ref={containerRef}
       className="group relative w-full h-full min-h-0 rounded-lg overflow-hidden border border-slate-700 bg-[#1E2124] transition-all"
     >
-      {/* Video or Camera Off Fallback */}
       {stream ? (
         <video
           ref={videoRef}
           autoPlay
-          muted={isLocal} // Only mute if it's your own stream
+          muted={isLocal}
           playsInline
           className="w-full h-full object-cover"
         />
@@ -54,17 +52,14 @@ function VideoTile({
         </div>
       )}
 
-      {/* Name Label */}
       <div className="absolute bottom-4 right-4 rounded bg-slate-900/80 px-3 py-1.5 text-sm font-medium text-white shadow-lg backdrop-blur-sm">
         {name} {isLocal && "(You)"}
       </div>
 
-      {/* Expand Icon - Visible on hover */}
     </div>
   );
 }
 
-// 4. Main Panel Component
 export default function VideoPanel({
   localStream,
   remotes = [],
@@ -98,10 +93,8 @@ export default function VideoPanel({
           gridTemplateRows: `repeat(${rows}, 1fr)`,
         }}
       >
-        {/* Local user tile */}
         <VideoTile stream={localStream} name="Me" isLocal={true} />
 
-        {/* Remote user tiles */}
         {remotes.map((r) => (
           <VideoTile key={r.id} stream={r.stream} name={r.id} />
         ))}

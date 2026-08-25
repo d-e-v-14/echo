@@ -5,8 +5,8 @@ import Link from "next/link";
 import { fetchProfile, logout } from "@/api";
 import { profile } from "@/api/types/profile.types";
 import { useRouter } from "next/navigation";
-import Loader from "@/components/Loader";
 import Toast from "@/components/Toast";
+import { ProfilePageSkeleton } from "@/components/loading/pageSkeletons";
 
 export default function ProfilePage() {
   const numPolygons = 10;
@@ -27,12 +27,8 @@ export default function ProfilePage() {
   useEffect(() => {
     const getProfileData = async () => {
       try {
-        setToast({ message: "Loading profile…", type: "info" });
-
         const data = await fetchProfile();
         setProfile(data);
-
-        setToast(null); // hide loading toast
       } catch (err) {
         console.error("Failed to fetch profile:", err);
 
@@ -51,11 +47,7 @@ export default function ProfilePage() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <Loader size="md" />
-      </div>
-    );
+    return <ProfilePageSkeleton />;
   }
 
   if (error) {
@@ -67,7 +59,7 @@ export default function ProfilePage() {
   }
 
   if (!profile) {
-    return <Loader fullscreen size="md" />;
+    return <ProfilePageSkeleton />;
   }
 
   const handleLogout = async () => {
@@ -112,9 +104,7 @@ export default function ProfilePage() {
         })()}
 
       <div className="flex min-h-screen bg-black text-white relative font-poppins">
-        {/* Main Content */}
         <main className="flex-1 p-10 flex flex-col gap-6 relative">
-          {/* Banner */}
           <div className="relative w-[calc(100%-2rem)] ml-[1.5rem] mr-[20rem] rounded-2xl overflow-hidden shadow-lg">
             <img
               src="/banner.png"
@@ -123,15 +113,12 @@ export default function ProfilePage() {
             />
           </div>
 
-          {/* Profile Section and Customization Panel side by side */}
           <section className="flex flex-row gap-8 w-full">
-            {/* Profile Info */}
             <div className="flex-1 min-w-0 relative">
               <div
                 className="absolute -top-[100px] -left-[30px] z-20"
                 style={{ width: 220, height: 220 }}
               >
-                {/* SVG clipPath definition (hidden) */}
                 <svg width="0" height="0" style={{ position: "absolute" }}>
                   <defs>
                     <clipPath id="hexClip" clipPathUnits="objectBoundingBox">
@@ -154,7 +141,6 @@ export default function ProfilePage() {
                   }}
                   draggable={false}
                 />
-                {/* Wavy Hex Borders and Avatar */}
                 <svg
                   viewBox="0 0 220 220"
                   width={160}
@@ -307,13 +293,11 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Vertical Divider */}
             <div
               className="w-px bg-white/20 ml-4 mr-16"
               style={{ minHeight: 320 }}
             />
 
-            {/* Customization Panel */}
             <aside className="w-full lg:w-[380px] bg-black border border-[#FFA500] rounded-2xl p-6 text-white shadow-lg self-start">
               <h2 className="text-2xl font-bold text-center mb-2 text-[#FFA500]">
                 Unleash Your Profile!

@@ -1,4 +1,3 @@
-// src/app/voice-demo/page.tsx
 
 "use client";
 
@@ -19,7 +18,6 @@ const VoiceDemoPage = () => {
     setIsInCall(false);
   };
 
-  // Generate user ID on client side only
   useEffect(() => {
     setUserId("demo-user-" + Math.random().toString(36).substr(2, 9));
   }, []);
@@ -67,7 +65,6 @@ const VoiceDemoPage = () => {
           </p>
         </div>
 
-        {/* Feature Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
             <div className="text-blue-400 mb-3"></div>
@@ -118,7 +115,6 @@ const VoiceDemoPage = () => {
           </div>
         </div>
 
-        {/* Demo Controls */}
         <div className="bg-gray-800 rounded-lg p-8 border border-gray-700">
           <h2 className="text-2xl font-bold mb-6">Start Demo</h2>
 
@@ -161,7 +157,6 @@ const VoiceDemoPage = () => {
           </button>
         </div>
 
-        {/* Instructions */}
         <div className="mt-12 bg-blue-900 bg-opacity-20 border border-blue-700 rounded-lg p-6">
           <h3 className="text-lg font-semibold mb-4 flex items-center">
             <span className="mr-2"></span>
@@ -177,7 +172,6 @@ const VoiceDemoPage = () => {
           </ol>
         </div>
 
-        {/* Technical Features */}
         <div className="mt-8 grid md:grid-cols-2 gap-6">
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
             <h3 className="text-lg font-semibold mb-4">Technical Features</h3>

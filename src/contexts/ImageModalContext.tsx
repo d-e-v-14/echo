@@ -33,7 +33,6 @@ export const ImageModalProvider: React.FC<{ children: React.ReactNode }> = ({
           className="fixed inset-0 bg-black z-[9999] flex items-center justify-center p-4"
           onClick={closeImage}
         >
-          {/* Close button */}
           <button
             className="absolute top-6 right-6 text-white hover:text-gray-300 transition-colors z-[10000]"
             onClick={(e) => {
@@ -45,7 +44,6 @@ export const ImageModalProvider: React.FC<{ children: React.ReactNode }> = ({
             <X size={32} />
           </button>
 
-          {/* Image container */}
           <div
             className="flex items-center justify-center max-w-[95vw] max-h-[95vh]"
             onClick={(e) => e.stopPropagation()}

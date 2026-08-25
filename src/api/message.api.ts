@@ -71,7 +71,6 @@ export const invalidateUserDmCache = (userId?: string) => {
   userDmInFlight.clear();
 };
 
-//Uploads messages in the channel
 export const uploadMessage = async (payload: {
   file?: File;
   content?: string;
@@ -109,7 +108,6 @@ export const uploadMessage = async (payload: {
   }
 };
 
-//Used to upload messages in DM of the user
 export const uploaddm = async (payload: {
   mediaurl?: File;
   message?: string;
@@ -159,11 +157,6 @@ export interface FetchMessagesResult {
   nextCursor: string | null;
 }
 
-// Fetches the newest window of channel messages or, when `before` is set, the
-// window immediately older than that cursor. The backend derives `hasMore`
-// from limit + 1 rows and returns a `nextCursor` pointing before the oldest
-// message of the returned window, so opening a channel never needs a COUNT(*)
-// probe request (see P0-02).
 export const fetchMessages = async (
   channel_id: string,
   params: FetchMessagesParams = {}
@@ -195,7 +188,6 @@ export const fetchMessages = async (
   }
 };
 
-//fetches the dm messages of the user
 export const getDmThreadMessages = async (threadId: string, offset = 0) => {
   const response = await apiClient.get(`/api/message/dm/${threadId}`, {
     params: { offset },
@@ -204,7 +196,6 @@ export const getDmThreadMessages = async (threadId: string, offset = 0) => {
   return response.data;
 };
 
-//Fetches the DM of the users
 export const getUserDMs = async (
   options: { forceRefresh?: boolean; cacheTtlMs?: number } = {}
 ): Promise<any> => {
@@ -268,7 +259,6 @@ export const getUserDMs = async (
   }
 };
 
-// Get unread message counts
 export const getUnreadMessageCounts = async (): Promise<{
   unreadCounts: Record<string, number>;
   totalUnread: number;
@@ -289,7 +279,6 @@ export const getUnreadMessageCounts = async (): Promise<{
   }
 };
 
-// Mark thread as read
 export const markThreadAsRead = async (threadId: string): Promise<void> => {
   try {
     const user = await getUser();

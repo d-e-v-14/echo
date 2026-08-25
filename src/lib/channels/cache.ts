@@ -5,18 +5,6 @@ import {
   ChannelPermissions,
 } from "./types";
 
-// ---------------------------------------------------------------------------
-// Single cache-mutation utility for channel messages.
-//
-// Every writer (REST fetch pages, the socket realtime sync, the optimistic
-// send mutation) mutates the SAME normalized ChannelMessagesData structure so
-// the rules stay in one place: insert, replace-optimistic, update (edit /
-// reaction / pin), delete, and status marking.
-//
-// pages[0] is the oldest window and the last page is the newest window; new
-// and optimistic messages always land in the last (newest) page.
-// ---------------------------------------------------------------------------
-
 const timestampMs = (timestamp: string): number => {
   const ms = new Date(timestamp).getTime();
   return Number.isNaN(ms) ? 0 : ms;
@@ -48,13 +36,6 @@ export const flattenChannelMessages = (
   return data.pages.flatMap((page) => page.messages);
 };
 
-/**
- * Merge a single incoming message into the newest page:
- *  1. Stable-id dedupe keeps the cache unchanged.
- *  2. An optimistic temp message from the same sender with the same content
- *     near in time is replaced by the confirmed message.
- *  3. Otherwise append and re-sort the page chronologically.
- */
 const mergeIntoNewestPage = (
   page: ChannelMessagesPage,
   incoming: ChannelMessage
@@ -88,10 +69,6 @@ const mergeIntoNewestPage = (
   return { ...page, messages: sortMessages([...page.messages, incoming]) };
 };
 
-/**
- * Insert an incoming (socket or optimistic) message into the whole
- * infinite-query data structure. New messages always land in the newest page.
- */
 export const insertIncomingIntoPages = (
   data: ChannelMessagesData | undefined,
   incoming: ChannelMessage
@@ -119,10 +96,6 @@ export const insertIncomingIntoDataOrCreate = (
   return insertIncomingIntoPages(data, incoming) ?? data;
 };
 
-/**
- * Replace an optimistic temp message by its temp id with the confirmed server
- * message (used by the send mutation's success handler).
- */
 export const replaceOptimisticById = (
   data: ChannelMessagesData,
   tempId: string | number,
@@ -145,10 +118,6 @@ export const replaceOptimisticById = (
   return replaced ? { ...data, pages } : data;
 };
 
-/**
- * Mark the given optimistic messages as failed (used by the send mutation's
- * error handler).
- */
 export const markMessagesFailed = (
   data: ChannelMessagesData,
   tempIds: ReadonlySet<string>
@@ -162,10 +131,6 @@ export const markMessagesFailed = (
   return { ...data, pages };
 };
 
-/**
- * Generic in-place patch for a message by stable id. Used for edits, reaction
- * updates and pin/unpin toggles without rebuilding the window.
- */
 export const updateMessageById = (
   data: ChannelMessagesData,
   messageId: string | number,
@@ -183,11 +148,6 @@ export const updateMessageById = (
   return changed ? { ...data, pages } : data;
 };
 
-/**
- * Mark a single message (optimistic temp id or confirmed id) as failed. Used
- * by the realtime sync on `message_error` so the optimistic bubble is flagged
- * without refetching the window.
- */
 export const markMessageFailedById = (
   data: ChannelMessagesData,
   messageId: string | number
@@ -200,13 +160,6 @@ export const markMessageFailedById = (
   return markMessagesFailed(data, new Set([id]));
 };
 
-/**
- * Reconcile a `message_confirmed` socket payload against the cached window:
- *  1. When the payload echoes a client temp id, swap that optimistic message
- *     for the confirmed server message.
- *  2. Otherwise fall back to insertIncomingIntoDataOrCreate, which dedupes by
- *     stable id and replaces matching optimistic messages by content.
- */
 export const reconcileConfirmedMessage = (
   data: ChannelMessagesData | undefined,
   tempId: string | undefined,
@@ -217,19 +170,12 @@ export const reconcileConfirmedMessage = (
   if (tempId) {
     const replaced = replaceOptimisticById(data, tempId, incoming);
     if (replaced !== data) return replaced;
-    // The optimistic bubble is already gone (replaced by a previous event or
-    // the POST response); insert the confirmed message only if it is new.
     return insertIncomingIntoPages(replaced, incoming) ?? replaced;
   }
 
   return insertIncomingIntoDataOrCreate(data, incoming);
 };
 
-/**
- * Merge a channel object into a server's channel list, replacing the entry
- * with the same id or appending when it is new (channel_updated patch).
- * Works on any list whose entries carry an `id`.
- */
 export const upsertChannelInList = <T extends { id: string | number }>(
   list: T[] | undefined,
   channel: T
@@ -240,10 +186,6 @@ export const upsertChannelInList = <T extends { id: string | number }>(
   return list.map((c, i) => (i === index ? { ...c, ...channel } : c));
 };
 
-/**
- * Build a server-channel list entry from a `channel_updated` socket payload.
- * Returns null when the payload does not carry a channel object.
- */
 export const channelListItemFromPayload = (
   payload: unknown
 ): { id: string; name: string; type: string; is_private: boolean } | null => {
@@ -271,11 +213,6 @@ export const channelListItemFromPayload = (
   };
 };
 
-/**
- * Build a ChannelPermissions object from a `channel_updated` /
- * `permissions_updated` socket payload. Returns null when the payload does not
- * carry any permission fields.
- */
 export const channelPermissionsFromPayload = (
   payload: unknown
 ): ChannelPermissions | null => {
@@ -311,9 +248,6 @@ function readString(body: any, ...keys: string[]): string | undefined {
   return undefined;
 }
 
-/**
- * Delete a message by stable id across every loaded page.
- */
 export const deleteMessageById = (
   data: ChannelMessagesData,
   messageId: string | number

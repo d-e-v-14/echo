@@ -6,6 +6,7 @@ import { X, Check, CheckCheck, Bell } from "lucide-react";
 import { getUser } from "@/api";
 import { useNotifications } from "../hooks/useNotifications";
 import { apiClient } from "@/utils/apiClient";
+import { NotificationDropdownSkeleton } from "@/components/loading/pageSkeletons";
 
 interface Notification {
   id: string;
@@ -68,7 +69,6 @@ export default function NotificationDropdown({
     setMounted(true);
     setPortalReady(true);
 
-    // Close dropdown when clicking outside
     const handleClickOutside = (event: MouseEvent) => {
       if (
         dropdownRef.current &&
@@ -103,12 +103,10 @@ export default function NotificationDropdown({
     try {
       await apiClient.patch(`/api/mentions/${notificationId}/read`);
 
-      // Update local state immediately for better UX
       setNotifications((prev) =>
         prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n))
       );
 
-      // Also call the hook function to update global state
       await hookMarkAsRead(notificationId);
     } catch (error) {
       console.error("Failed to mark notification as read:", error);
@@ -119,13 +117,10 @@ export default function NotificationDropdown({
     try {
       await apiClient.patch("/api/mentions/mark-all-read");
 
-      // Update local state immediately for better UX
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
 
-      // Also call the hook function to update global state
       await hookMarkAllAsRead();
 
-      // Reload notifications from backend to ensure sync
       setTimeout(() => {
         loadNotifications();
       }, 100);
@@ -181,7 +176,6 @@ export default function NotificationDropdown({
           mounted ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2"
         }`}
       >
-        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-800 bg-[#111214]/95 backdrop-blur">
           <h3 className="text-white font-semibold flex items-center gap-2">
             <span className="p-2 rounded-full bg-gray-900 border border-gray-800">
@@ -209,13 +203,9 @@ export default function NotificationDropdown({
           </div>
         </div>
 
-        {/* Notifications List */}
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {loading ? (
-            <div className="p-6 text-center text-gray-400">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-500 mx-auto mb-2"></div>
-              Loading notifications...
-            </div>
+            <NotificationDropdownSkeleton rows={3} />
           ) : notifications.length === 0 ? (
             <div className="p-6 text-center text-gray-400">
               <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center">
@@ -249,7 +239,6 @@ export default function NotificationDropdown({
                   }}
                 >
                   <div className="flex items-start gap-3">
-                    {/* Avatar */}
                     <img
                       src={
                         notification.message?.users?.avatar_url || "/avatar.png"
@@ -258,7 +247,6 @@ export default function NotificationDropdown({
                       className="w-9 h-9 rounded-full flex-shrink-0"
                     />
 
-                    {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-white font-medium text-sm">
@@ -291,7 +279,6 @@ export default function NotificationDropdown({
                       </div>
                     </div>
 
-                    {/* Mark as read button */}
                     {!notification.is_read && (
                       <button
                         onClick={(e) => {
@@ -311,7 +298,6 @@ export default function NotificationDropdown({
           )}
         </div>
 
-        {/* Footer */}
         {notifications.length > 0 && (
           <div className="p-3 border-t border-gray-800 text-center bg-[#0f1012]">
             <button

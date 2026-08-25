@@ -55,7 +55,6 @@ export default function RootLayout({
           <TokenRefreshProvider>
             <MobileBlocker>
               <ToastProvider>{children}</ToastProvider>
-              {/* MinimizedCallBar returns null now, keep for safety or just remove */}
             </MobileBlocker>
           </TokenRefreshProvider>
         </QueryProvider>

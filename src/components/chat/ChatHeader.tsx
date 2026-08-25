@@ -32,19 +32,20 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-1">
-        <div
-          className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[12px]"
-          title={connected ? "Connected" : "Disconnected"}
-        >
-          <span
-            className={`inline-block w-2 h-2 rounded-full ${
-              connected ? "bg-green-500" : "bg-red-500"
-            }`}
-          />
-          <span className="hidden sm:inline text-[#949ba4]">
-            {connected ? "Connected" : "Disconnected"}
-          </span>
-        </div>
+        {!connected && (
+          <div
+            className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[12px]"
+            title="Reconnecting to realtime service…"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
+            </span>
+            <span className="hidden sm:inline text-[#949ba4]">
+              Reconnecting…
+            </span>
+          </div>
+        )}
         <button
           onClick={onOpenSearch}
           className="p-2 rounded-md text-[#b5bac1] hover:text-white hover:bg-[#3f4248] transition"

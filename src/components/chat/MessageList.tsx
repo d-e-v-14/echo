@@ -5,6 +5,10 @@ import { ChannelMessage } from "@/lib/channels/types";
 import { groupMessagesForDisplay } from "@/lib/channels/messageUtils";
 import { MessageGroup } from "./MessageGroup";
 import { TypingIndicator } from "./TypingIndicator";
+import {
+  LoadingOlderMessagesSkeleton,
+  MessageListSkeleton,
+} from "@/components/loading/skeletons";
 
 export interface MessageListProps {
   messages: ChannelMessage[];
@@ -71,27 +75,14 @@ export const MessageList: React.FC<MessageListProps> = ({
   return (
     <>
       {loadingMessages ? (
-        <div className="flex h-full items-center justify-center">
-          <div className="text-center">
-            <div className="mx-auto mb-4 w-8 h-8 border-4 border-gray-700 border-t-blue-500 rounded-full animate-spin" />
-          </div>
-        </div>
+        <MessageListSkeleton />
       ) : isInitialLoadDone && messages.length === 0 ? (
         <div className="flex h-full items-center justify-center text-gray-500 text-sm">
           No messages yet. Say hi
         </div>
       ) : (
         <>
-          {loadingMore && (
-            <div className="flex justify-center py-4">
-              <div className="flex items-center gap-2">
-                <div className="w-5 h-5 border-2 border-gray-600 border-t-blue-500 rounded-full animate-spin" />
-                <span className="text-gray-400 text-sm">
-                  Loading older messages...
-                </span>
-              </div>
-            </div>
-          )}
+          {loadingMore && <LoadingOlderMessagesSkeleton />}
 
           {!hasMore && messages.length > 0 && (
             <div className="flex justify-center py-4">

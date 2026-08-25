@@ -1,4 +1,3 @@
-// src/app/simple-voice/page.tsx
 
 "use client";
 
@@ -130,14 +129,12 @@ const SimpleVoicePage = () => {
           Simple Voice System Test (Chime SDK)
         </h1>
 
-        {/* Status */}
         <div className="mb-8 text-center">
           <div className="inline-block px-6 py-3 rounded-lg text-lg font-semibold bg-blue-600">
             {status}
           </div>
         </div>
 
-        {/* Video Preview */}
         {localStream && (
           <div className="mb-8 flex justify-center">
             <div className="bg-gray-800 p-4 rounded-lg">
@@ -155,7 +152,6 @@ const SimpleVoicePage = () => {
           </div>
         )}
 
-        {/* Steps */}
         <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className={`p-4 rounded-lg ${getStepColor(1)}`}>
             <div className="text-center">
@@ -182,7 +178,6 @@ const SimpleVoicePage = () => {
           </div>
         </div>
 
-        {/* Controls */}
         <div className="flex justify-center space-x-4 mb-8">
           {step === 0 && (
             <button
@@ -219,7 +214,6 @@ const SimpleVoicePage = () => {
           </button>
         </div>
 
-        {/* Logs */}
         <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
           <h2 className="text-lg font-semibold mb-4">Debug Logs</h2>
           <div className="bg-black rounded p-3 h-64 overflow-y-auto font-mono text-sm">
@@ -237,7 +231,6 @@ const SimpleVoicePage = () => {
           </div>
         </div>
 
-        {/* Info */}
         <div className="mt-8 bg-gray-800 rounded-lg p-4 border border-gray-700">
           <h2 className="text-lg font-semibold mb-2">Backend Requirements</h2>
           <p className="text-gray-400 text-sm">

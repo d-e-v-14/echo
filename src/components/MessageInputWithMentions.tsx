@@ -7,6 +7,7 @@ import type { EmojiClickData } from "emoji-picker-react";
 import { Theme } from "emoji-picker-react";
 import { apiClient } from "@/utils/apiClient";
 import { useToast } from "@/contexts/ToastContext";
+import InlineSpinner from "@/components/loading/InlineSpinner";
 
 const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
 
@@ -16,7 +17,7 @@ const EmojiPicker = dynamic(
     ssr: false,
     loading: () => (
       <div className="w-[350px] h-[450px] bg-gray-800 rounded-lg flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-2 border-gray-600 border-t-blue-500 rounded-full" />
+        <InlineSpinner size="md" />
       </div>
     ),
   }
@@ -37,7 +38,6 @@ interface MessageInputWithMentionsProps {
   onTyping?: () => void;
 }
 
-/* -------------------- COMPONENT -------------------- */
 const UserMentionAvatar: React.FC<{
   username: string;
   avatarUrl?: string;
@@ -120,28 +120,6 @@ export default function MessageInputWithMentions({
   useEffect(() => {
     resizeTextArea();
   }, [text]);
-
-  // useEffect(() => {
-  //   const handleGlobalClick = (e: MouseEvent) => {
-  //     const target = e.target as HTMLElement;
-
-  //     if (
-  //       target.closest("button") ||
-  //       target.closest('input[type="file"]') ||
-  //       emojiPickerRef.current?.contains(target) ||
-  //       mentionDropdownRef.current?.contains(target)
-  //     ) {
-  //       return;
-  //     }
-
-  //     requestAnimationFrame(() => {
-  //       textInputRef.current?.focus();
-  //     });
-  //   };
-
-  //   document.addEventListener("click", handleGlobalClick);
-  //   return () => document.removeEventListener("click", handleGlobalClick);
-  // }, []);
 
   useEffect(() => {
     if (!showEmojiPicker) return;
@@ -456,7 +434,6 @@ export default function MessageInputWithMentions({
 
   return (
     <div className="relative pt-6">
-      {/* Emoji Picker */}
       {showEmojiPicker && (
         <div ref={emojiPickerRef} className="absolute bottom-20 left-4 z-50">
           <EmojiPicker theme={Theme.DARK} onEmojiClick={handleEmojiClick} />
@@ -492,7 +469,6 @@ export default function MessageInputWithMentions({
           </div>
         </div>
       )}
-      {/* Mention Dropdown */}
       {showMentionDropdown && (
         <div
           ref={mentionDropdownRef}
@@ -596,7 +572,6 @@ export default function MessageInputWithMentions({
           )}
         </div>
       )}
-      {/* File Preview */}
       {files.length > 0 && (
         <div className="mb-3 space-y-2">
           {files.map((file, index) => (
@@ -622,7 +597,6 @@ export default function MessageInputWithMentions({
         </div>
       )}
 
-      {/* Input Bar */}
       <div className="mb-2 flex items-center gap-2 bg-gray-800 rounded-lg p-3">
         <textarea
           ref={textInputRef}

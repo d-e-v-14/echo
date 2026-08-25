@@ -1,4 +1,3 @@
-// src/app/socket-test/page.tsx
 
 "use client";
 
@@ -82,7 +81,6 @@ const SocketTestPage = () => {
           Socket.io Connection Test
         </h1>
 
-        {/* Status */}
         <div className="mb-8 text-center">
           <div
             className={`inline-block px-6 py-3 rounded-lg text-lg font-semibold ${
@@ -99,7 +97,6 @@ const SocketTestPage = () => {
           </div>
         </div>
 
-        {/* Controls */}
         <div className="flex justify-center space-x-4 mb-8">
           <button
             onClick={testConnection}
@@ -125,7 +122,6 @@ const SocketTestPage = () => {
           </button>
         </div>
 
-        {/* Logs */}
         <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
           <h2 className="text-lg font-semibold mb-4">Connection Logs</h2>
           <div className="bg-black rounded p-3 h-96 overflow-y-auto font-mono text-sm">
@@ -143,7 +139,6 @@ const SocketTestPage = () => {
           </div>
         </div>
 
-        {/* Backend Check */}
         <div className="mt-8 bg-gray-800 rounded-lg p-4 border border-gray-700">
           <h2 className="text-lg font-semibold mb-4">Backend Server Check</h2>
           <div className="space-y-2 text-sm">

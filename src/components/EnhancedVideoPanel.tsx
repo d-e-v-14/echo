@@ -104,8 +104,6 @@ const IconDesktop = ({ size = 16, className = "" }) => (
   </svg>
 );
 
-/* --------------------------------- TYPES ---------------------------------- */
-
 interface MediaState {
   muted: boolean;
   speaking: boolean;
@@ -119,8 +117,8 @@ interface Participant {
   username?: string;
   stream: MediaStream | null;
   screenStream?: MediaStream | null;
-  tileId?: number; // Chime video tile ID for binding
-  screenTileId?: number; // Chime screen share tile ID for binding
+  tileId?: number;
+  screenTileId?: number;
   isLocal?: boolean;
   mediaState: MediaState;
 }
@@ -133,12 +131,9 @@ interface EnhancedVideoPanelProps {
   localMediaState?: MediaState;
   currentUser?: { username: string };
   collapsed?: boolean;
-  // Legacy props for backward compatibility
   localStream?: MediaStream | null;
   localScreenStream?: MediaStream | null;
 }
-
-/* ---------------------------- PARTICIPANT TILE ---------------------------- */
 
 const ParticipantVideo = memo(
   function ParticipantVideo({
@@ -209,23 +204,17 @@ const ParticipantVideo = memo(
     const shouldBindVideoTile =
       hasTileId && !!manager && (shouldShowVideo || shouldShowCameraPiP);
 
-    // Native Cross-Browser Fullscreen Logic
-    // Bind Chime video tile to video element
-    // This effect handles binding the Chime SDK video tile to the HTML video element
     useEffect(() => {
       const tileId = participant.tileId;
 
-      // Early return if we don't have what we need
       if (!manager || tileId === undefined || tileId === null) {
         return;
       }
 
-      // Function to perform the binding with retry logic
       const bindTile = (retryCount = 0) => {
         const currentVideoEl = videoRef.current;
 
         if (!currentVideoEl) {
-          // Video element not ready yet, retry after a short delay
           if (retryCount < 5) {
             setTimeout(() => bindTile(retryCount + 1), 100);
           } else {
@@ -240,9 +229,7 @@ const ParticipantVideo = memo(
           manager.bindVideoElement(tileId, currentVideoEl);
           setIsVideoBound(true);
 
-          // Try to play the video
           currentVideoEl.play().catch((err) => {
-            // Autoplay might be blocked, that's okay - user interaction will start it
             console.warn(
               `[ParticipantVideo] Video autoplay blocked:`,
               err.message
@@ -253,24 +240,20 @@ const ParticipantVideo = memo(
             `[ParticipantVideo] Failed to bind video tile ${tileId}:`,
             err
           );
-          // Retry on failure
           if (retryCount < 3) {
             setTimeout(() => bindTile(retryCount + 1), 200);
           }
         }
       };
 
-      // Start binding process - use a small delay to ensure React has finished rendering
       const bindTimeout = setTimeout(() => bindTile(0), 50);
 
       return () => {
         clearTimeout(bindTimeout);
-        // Unbind when unmounting or tile changes
         if (manager && tileId !== undefined && tileId !== null) {
           try {
             manager.unbindVideoElement(tileId);
           } catch {
-            // Ignore errors on cleanup
           }
           setIsVideoBound(false);
         }
@@ -285,7 +268,6 @@ const ParticipantVideo = memo(
       hasVideoState,
     ]);
 
-    // Bind Chime SCREEN SHARE tile to screen video element (remote participants only)
     useEffect(() => {
       const screenTileId = participant.screenTileId;
 
@@ -297,12 +279,10 @@ const ParticipantVideo = memo(
         return;
       }
 
-      // Function to perform the binding with retry logic
       const bindScreenTile = (retryCount = 0) => {
         const currentScreenEl = screenRef.current;
 
         if (!currentScreenEl) {
-          // Screen element not ready yet, retry after a short delay
           if (retryCount < 5) {
             setTimeout(() => bindScreenTile(retryCount + 1), 100);
           } else {
@@ -317,7 +297,6 @@ const ParticipantVideo = memo(
           manager.bindVideoElement(screenTileId, currentScreenEl);
           setIsScreenBound(true);
 
-          // Try to play the video
           currentScreenEl.play().catch((err) => {
             console.warn(
               `[ParticipantVideo] Screen share autoplay blocked:`,
@@ -329,24 +308,20 @@ const ParticipantVideo = memo(
             `[ParticipantVideo] Failed to bind screen tile ${screenTileId}:`,
             err
           );
-          // Retry on failure
           if (retryCount < 3) {
             setTimeout(() => bindScreenTile(retryCount + 1), 200);
           }
         }
       };
 
-      // Start binding process - use a small delay to ensure React has finished rendering
       const bindTimeout = setTimeout(() => bindScreenTile(0), 50);
 
       return () => {
         clearTimeout(bindTimeout);
-        // Unbind when unmounting or tile changes
         if (manager && screenTileId !== undefined && screenTileId !== null) {
           try {
             manager.unbindVideoElement(screenTileId);
           } catch {
-            // Ignore errors on cleanup
           }
           setIsScreenBound(false);
         }
@@ -360,7 +335,6 @@ const ParticipantVideo = memo(
       hasScreenShareState,
     ]);
 
-    // Local screen share preview via capture stream (Chime SDK requirement)
     useEffect(() => {
       const screenStream = participant.screenStream;
       if (!hasLocalScreenStreamReady || !screenStream) {
@@ -403,27 +377,7 @@ const ParticipantVideo = memo(
       isLocal,
     ]);
 
-    // Legacy: track video stream changes (for non-Chime usage)
-    // useEffect(() => {
-    //   const tracks = participant.stream?.getVideoTracks() || [];
-    //   const bump = () => setShowControls((s) => s);
-    //   tracks.forEach((t) => {
-    //     t.addEventListener("mute", bump);
-    //     t.addEventListener("unmute", bump);
-    //     t.addEventListener("ended", bump);
-    //   });
-    //   return () => {
-    //     tracks.forEach((t) => {
-    //       t.removeEventListener("mute", bump);
-    //       t.removeEventListener("unmute", bump);
-    //       t.removeEventListener("ended", bump);
-    //     });
-    //   };
-    // }, [participant.stream]);
-
-    // Legacy: bind stream to video element (fallback if no Chime tile)
     useEffect(() => {
-      // Skip if we're using Chime tile binding
       if (hasTileId && manager) return;
 
       const hasActiveCam =
@@ -451,7 +405,6 @@ const ParticipantVideo = memo(
       manager,
     ]);
 
-    // Legacy: bind screen stream to screen element (non-Chime fallback)
     useEffect(() => {
       if (useLocalScreenStream || useRemoteScreenTile) return;
 
@@ -622,27 +575,6 @@ const ParticipantVideo = memo(
           </div>
         )}
 
-        {/* onToggleFullscreen && !isFullscreen && variant !== "thumbnail" && (
-    //      <button
-    //        type="button"
-    //</div>        onClick={onToggleFullscreen}
-       //     className="absolute top-2 right-2 rounded bg-black/60 p-1.5 text-white opacity-0 transition hover:bg-black/80 group-hover:opacity-100"
-     //       aria-label="Full screen"
-          >
-  //          <IconExpand size={14} />
-   //       </button>
-   //     )}
-  ///
-        {isFullscreen && (
-          <button
-            onClick={onToggleFullscreen}
-            className="absolute top-4 right-4 bg-black bg-opacity-70 rounded p-2 text-white hover:text-gray-300 transition-colors z-10"
-          >
-            <IconCompress size={16} />
-          </button>
-        )}
-
-        {/* hidden audio so remote voice plays even when no <video> is visible */}
         <audio ref={audioRef} autoPlay className="hidden" />
       </div>
     );
@@ -678,8 +610,6 @@ const isParticipantScreenSharing = (participant: Participant): boolean =>
     participant.screenStream.getVideoTracks().length > 0
   );
 
-/* ----------------------------- VIDEO PANEL UI ----------------------------- */
-
 const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
   manager,
   participants = [],
@@ -693,7 +623,6 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
   },
   currentUser,
   collapsed = false,
-  // Legacy props
   localStream,
   localScreenStream,
 }) => {
@@ -739,31 +668,19 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
     ]
   );
 
-  // Filter out any remote participants that might be the local user
-  // (this can happen when using external manager from VoiceCallContext)
-  // We identify the local user by checking multiple criteria
   const allParticipants = useMemo(() => {
     const localUsername = currentUser?.username || "";
 
-    // Filter out participants that are actually the local user
-    // (they will be represented by localParticipant instead)
     const remoteParticipants = participants.filter((p) => {
-      // Keep participant if they are NOT the local user
-      // A participant is local if:
-      // 1. Their id is "local"
-      // 2. Their isLocal flag is true
-      // 3. Their username matches the currentUser's username
-      // 4. Their oduserId matches the currentUser's username (Chime uses username as externalUserId)
       if (p.id === "local" || p.isLocal) {
-        return false; // Filter out - this is the local user
+        return false;
       }
 
-      // Also check if username matches (for cases where isLocal wasn't set correctly)
       if (
         localUsername &&
         (p.username === localUsername || p.oduserId === localUsername)
       ) {
-        return false; // Filter out - this is the local user
+        return false;
       }
 
       return true;
@@ -835,7 +752,6 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
     >
       {hasStageLayout && stageParticipant && !isFullscreenMode ? (
         <>
-          {/* Main stage: screen share */}
           <div className="relative min-h-0 flex-1 overflow-hidden p-2">
             <div className="relative h-full w-full overflow-hidden rounded-lg">
               <ParticipantVideo
@@ -851,7 +767,6 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
             </div>
           </div>
 
-          {/* Filmstrip: fixed-height participant row */}
           <div className="shrink-0 border-t border-gray-800 bg-[#111214] px-2 py-2">
             <div className="flex h-[88px] gap-2 overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-gray-700">
               {allParticipants.map((participant) => {
@@ -936,16 +851,6 @@ const EnhancedVideoPanel: React.FC<EnhancedVideoPanelProps> = ({
           </div>
         </div>
       )}
-
-      {/* <button
-        type="button"
-        onClick={togglePanelFullscreen}
-        className={`absolute right-3 z-50 rounded-lg bg-black/80 px-3 py-1.5 text-xs text-white transition hover:bg-black ${
-          hasStageLayout && !isFullscreenMode ? "bottom-[6.75rem]" : "bottom-3"
-        }`}
-      >
-        {isPanelFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-      </button> */}
 
       {!isFullscreenMode && totalParticipants > 1 && (
         <div className="pointer-events-none absolute left-3 top-3 z-40 rounded bg-black/70 px-3 py-1">

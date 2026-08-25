@@ -69,7 +69,6 @@ export default function NotificationBell({
       >
         <Bell size={20} />
 
-        {/* Unread Count Badge */}
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
             {unreadCount > 99 ? "99+" : unreadCount}
@@ -77,7 +76,6 @@ export default function NotificationBell({
         )}
       </button>
 
-      {/* Notification Dropdown */}
       {showDropdown && (
         <NotificationDropdown
           onClose={() => setShowDropdown(false)}

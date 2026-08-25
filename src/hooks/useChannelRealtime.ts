@@ -11,12 +11,6 @@ export interface UseChannelRealtimeOptions {
   onReconnect: () => void;
 }
 
-/**
- * Joins the channel's socket room and reacts to realtime events for the
- * ACTIVE channel (mention highlights + reconnect refetch). The messages
- * themselves are inserted into the shared React Query cache by
- * RealtimeCacheSync, so there is no local message state here.
- */
 export function useChannelRealtime({
   channelId,
   currentUsername,

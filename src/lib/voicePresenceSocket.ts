@@ -1,11 +1,8 @@
 import type { Socket } from "socket.io-client";
 import { getAppSocket } from "./socket/appSocket";
 
-// Voice presence emits go through the single application-level socket owned
-// by <SocketProvider>. No dedicated presence socket is created here.
-
 export const getVoicePresenceSocket = (userId: string): Socket => {
-  void userId; // userId is retained for API compatibility; socket is app-level
+  void userId;
   return getAppSocket() as Socket;
 };
 
@@ -37,8 +34,6 @@ export const emitVoiceStateUpdate = (payload: {
   getAppSocket()?.emit("voice_state_update", payload);
 };
 
-// The app socket lifecycle is owned by <SocketProvider>, so presence teardown
-// must NOT disconnect the shared socket. Kept as a no-op for compat.
 export const disconnectVoicePresenceSocket = () => {
   /* no-op: app socket owned by SocketProvider */
 };

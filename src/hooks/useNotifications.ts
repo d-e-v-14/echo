@@ -28,7 +28,6 @@ interface NotificationsState {
 let sharedState: NotificationsState = { notifications: [], unreadCount: 0 };
 const subscribers = new Set<(state: NotificationsState) => void>();
 
-// The single application socket the notification listeners are attached to.
 let sharedSocket: Socket | null = null;
 let notificationSocketAttached: Socket | null = null;
 let initialUnreadPromise: Promise<void> | null = null;
@@ -101,9 +100,6 @@ const handleMentionMarkedRead = (notificationId: string) => {
   void fetchUnreadCountFromServer();
 };
 
-// Attach notification listeners to the application-level socket. The provider
-// owns the socket lifecycle; we only (re)bind listeners when the instance
-// changes (e.g. a different user signs in).
 const attachNotificationsSocket = (socket: Socket) => {
   if (socket === notificationSocketAttached) return;
 
@@ -137,7 +133,6 @@ const ensureInitialUnread = async () => {
         setSharedUnreadCount(Array.isArray(data) ? data.length : 0);
       }
     } catch {
-      // Silently ignore errors - notifications will load when user is authenticated
     }
   })();
 
@@ -167,8 +162,6 @@ export function useNotifications() {
     };
   }, []);
 
-  // Bind notification listeners to the application-level socket when it is
-  // available (or changes). The socket lifecycle is owned by SocketProvider.
   useEffect(() => {
     if (!socket) return;
     attachNotificationsSocket(socket);
@@ -185,7 +178,6 @@ export function useNotifications() {
 
   const markAsRead = useCallback(async (notificationId: string) => {
     try {
-      // Use apiClient for authenticated request
       await apiClient.patch(`/api/mentions/${notificationId}/read`);
 
       if (sharedSocket) {
@@ -203,17 +195,14 @@ export function useNotifications() {
 
   const markAllAsRead = useCallback(async () => {
     try {
-      // Use apiClient for authenticated request
       const response = await apiClient.patch("/api/mentions/mark-all-read");
       const result = response.data;
 
-      // Update local state
       setSharedNotifications((prev) =>
         prev.map((n) => ({ ...n, isRead: true }))
       );
       setSharedUnreadCount(0);
 
-      // Emit socket events for each marked notification
       const socket = sharedSocket;
       if (socket && Array.isArray(result.markedIds)) {
         result.markedIds.forEach((id: string) => {

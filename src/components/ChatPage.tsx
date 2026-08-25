@@ -31,12 +31,14 @@ import { Theme } from "emoji-picker-react";
 import UserProfileModal from "./UserProfileModal";
 import { ScrollToBottomButton } from "@/components/ScrollToBottomButton";
 import { isNearBottom } from "@/lib/scrollUtils";
-// import { useMessageReactions } from "@/hooks/useMessageReactions";
-// import { usePinnedMessages } from "@/hooks/usePinnedMessages";
 import MessageSearchPanel from "./MessageSearchPanel";
-// import PinnedMessagesBar from "./PinnedMessagesBar";
 import { MessageSearchResult } from "@/api/types/message.types";
 import { useDmMessages } from "@/hooks/useDmMessages";
+import {
+  ConversationListSkeleton,
+  LoadingOlderMessagesSkeleton,
+  MessageListSkeleton,
+} from "@/components/loading/skeletons";
 import { tokenStore } from "@/lib/auth/tokenStore";
 import { queryKeys } from "@/lib/query/keys";
 import {
@@ -102,7 +104,6 @@ type GroupedSection = {
     messages: Array<DirectMessage & { timeLabel: string }>;
   }>;
 };
-// 1. ChatList Component (Updated to show errors)
 
 interface ChatListProps {
   conversations: { user: User; lastMessage: string; unreadCount: number }[];
@@ -154,22 +155,7 @@ const ChatList: React.FC<ChatListProps> = ({
 
       <div className="chat-scroll flex-1 space-y-2 overflow-y-auto pr-1">
         {isLoading ? (
-          <ul className="space-y-2">
-            {Array.from({ length: 6 }).map((_, idx) => (
-              <li
-                key={idx}
-                className="animate-pulse rounded-xl border border-slate-800/60 bg-slate-900/50 p-3"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-slate-800/60" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-3 w-1/2 rounded-full bg-slate-800/70" />
-                    <div className="h-3 w-3/4 rounded-full bg-slate-800/50" />
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <ConversationListSkeleton rows={6} />
         ) : error ? (
           <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
             {error}
@@ -246,8 +232,6 @@ const ChatList: React.FC<ChatListProps> = ({
   );
 };
 
-// 2. ChatWindow Component (No changes needed)
-
 interface ChatWindowProps {
   onLoadOlderMessages?: (container: HTMLDivElement) => void;
   isLoadingOlderMessages?: boolean;
@@ -288,21 +272,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   onToast,
   onOpenProfile,
 }) => {
-  // const messageIds = useMemo(
-  //   () => messages.map((msg) => msg.id).filter(Boolean),
-  //   [messages]
-  // );
-
-  // const { getReactionsForMessage, toggleReaction } = useMessageReactions({
-  //   mode: "dm",
-  //   currentUserId: currentUser?.id ?? null,
-  //   messageIds,
-  // });
-
-  // const { pins, isPinned, togglePin, unpin, canPinMore } = usePinnedMessages({
-  //   threadId,
-  //   onError: (message) => onToast(message, "error"),
-  // });
 
   useToast();
   const [draft, setDraft] = useState("");
@@ -535,9 +504,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     setFiles((prev) => [...prev, ...annotated]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
-  // useEffect(() => {
-  //   bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  // }, [messages]);
 
   useEffect(() => {
     if (!showEmojiPicker) return;
@@ -640,22 +606,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           >
             <Search className="h-4 w-4" />
           </button>
-          {/* <span className="text-[10px] text-slate-500">
-            {canPinMore ? `${pins.length}/3 pins` : "3/3 pins"}
-          </span> */}
         </div>
       </header>
-
-      {/* <PinnedMessagesBar
-        pins={pins}
-        onJumpTo={(messageId) => {
-          void scrollToMessage(messageId);
-        }}
-        onUnpin={(messageId) => {
-          void unpin(messageId, true);
-        }}
-        isDm
-      /> */}
 
       <MessageSearchPanel
         isOpen={showSearch}
@@ -672,20 +624,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           onScroll={handleDmScroll}
           className="chat-scroll flex-1 space-y-0 overflow-y-auto px-6 py-6 pr-3 scrollbar-thin scrollbar-thumb-slate-500 scrollbar-track-slate-900"
         >
-        {isLoadingOlderMessages && (
-          <div className="flex justify-center py-2">
-            <div className="flex items-center gap-2 rounded-full border border-slate-800/60 bg-slate-900/70 px-3 py-2 text-sm text-slate-300 shadow-lg shadow-black/20">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-500 border-t-indigo-400" />
-              Loading older messages...
-            </div>
-          </div>
-        )}
+        {isLoadingOlderMessages && <LoadingOlderMessagesSkeleton />}
         {groupedMessages.length === 0 ? (
           isLoadingMessages ? (
-            <div className="flex h-full flex-col items-center justify-center gap-3 text-slate-400">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-500 border-t-indigo-400" />
-              <p className="text-sm">Loading messages...</p>
-            </div>
+            <MessageListSkeleton />
           ) : (
             <div className="flex h-full flex-col items-center justify-center text-center text-slate-400">
               <p>No messages yet.</p>
@@ -715,23 +657,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                         <MessageBubble
                           isSender={group.isSender}
                           message={msg}
-                          // reactions={getReactionsForMessage(msg.id)}
-                          // onReact={(emoji) => {
-                          //   if (currentUser?.id) {
-                          //     void toggleReaction(
-                          //       msg.id,
-                          //       emoji,
-                          //       currentUser.id
-                          //     );
-                          //   }
-                          // }}
                           showPinAction={
                             !!msg.id && !String(msg.id).startsWith("temp-")
                           }
-                          // isPinned={isPinned(msg.id)}
-                          // onPin={() => {
-                          //   void togglePin(msg.id, true);
-                          // }}
                           onReply={() => {
                             setReplyingTo({
                               id: msg.id,
@@ -974,10 +902,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   );
 };
 
-// =============================================================
-// 3. Main Page Content (Parent Component with updated logic)
-// =============================================================
-
 function MessagesPageContentInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1025,10 +949,6 @@ function MessagesPageContentInner() {
     activeDmIdRef.current = activeDmId;
   }, [activeDmId]);
 
-  // ── DM messages: TanStack Query is the single source of truth ──────────
-  // The active conversation's messages live in the query cache (keyed by the
-  // other user's id). Socket events and the send mutation update the same
-  // cache directly, so navigating away and back never loses messages.
   const activeThreadId = activeDmId
     ? (threadIds.get(activeDmId) ?? null)
     : null;
@@ -1056,10 +976,6 @@ function MessagesPageContentInner() {
     [rawActiveMessages, allUsers, currentUser?.id]
   );
 
-  // Socket event wiring on the application-level socket.
-  // DM messages themselves are inserted into the TanStack Query cache by
-  // RealtimeCacheSync; this handler only reconciles the conversation list
-  // (users + last-message summaries + unread counts).
   useEffect(() => {
     if (!socket) return;
 
@@ -1067,7 +983,6 @@ function MessagesPageContentInner() {
       try {
         if (!raw) return;
         invalidateDmCacheForCurrentUser();
-        // Unwrap common envelope shapes
         const incoming =
           (raw as any)?.payload ?? (raw as any)?.data ?? (raw as any)?.message ?? raw;
         if (!incoming) return;
@@ -1084,7 +999,6 @@ function MessagesPageContentInner() {
             ""
         );
 
-        // Ignore channel messages; this handler only reconciles the DM list.
         const isDm =
           incoming.thread_id != null ||
           incoming.threadId != null ||
@@ -1102,8 +1016,6 @@ function MessagesPageContentInner() {
           return;
         }
 
-        // Learn the thread id for new DM threads so the messages query can
-        // enable and reconcile immediately.
         if (incomingMsg.thread_id) {
           setThreadIds((prev) => {
             if (prev.get(partnerId) === incomingMsg.thread_id) return prev;
@@ -1113,13 +1025,9 @@ function MessagesPageContentInner() {
           });
         }
 
-        // ==========================================
-        // NEW CODE ADDED HERE: Add new users to list
-        // ==========================================
         setAllUsers((prev) => {
           if (prev.some((u) => u.id === partnerId)) return prev;
 
-          // Asynchronously fetch their real profile data
           fetchUserProfile(partnerId)
             .then((profile) => {
               if (profile) {
@@ -1141,7 +1049,6 @@ function MessagesPageContentInner() {
 
           return [...prev, { id: partnerId, fullname: "Loading..." }];
         });
-        // ==========================================
 
         setDmSummaries((prev) => {
           const next = new Map(prev);
@@ -1179,9 +1086,7 @@ function MessagesPageContentInner() {
       console.error("Socket DM Error:", errorMessage);
     };
 
-    const onConnect = () => {
-      // Connected
-    };
+    const onConnect = () => {};
 
     socket.on("connect", onConnect);
     socket.on("new_message", handleNewMessage);
@@ -1198,7 +1103,6 @@ function MessagesPageContentInner() {
     };
   }, [socket]);
 
-  // Effect to get user and initialize socket
   useEffect(() => {
     const userItem = localStorage.getItem("user");
     if (userItem) {
@@ -1246,11 +1150,7 @@ function MessagesPageContentInner() {
     );
   }, [currentUser?.avatar_url, currentUser?.id]);
 
-  // Removed duplicate socket setup effect; handled in single effect above
-
-  // --- EFFECT TO FETCH HISTORICAL DMS (with improved error logging) ---
   useEffect(() => {
-    // Ensure we have a valid user before fetching
     if (currentUser && currentUser.id) {
       const fetchDms = async () => {
         try {
@@ -1259,7 +1159,6 @@ function MessagesPageContentInner() {
 
           const payload = await getUserDMs();
 
-          // Normalize different possible response shapes
           const top = (payload as any)?.data ?? payload;
           let threads: any[] = [];
           if (Array.isArray(top)) {
@@ -1373,9 +1272,6 @@ function MessagesPageContentInner() {
     }
   }, [currentUser]);
 
-  // Older-message pagination is handled by useDmMessages (useInfiniteQuery).
-  // This wrapper preserves the scroll position when a previous page is
-  // prepended.
   const loadingOlderStateRef = useRef<{
     node: HTMLDivElement | null;
     height: number;
@@ -1411,30 +1307,22 @@ function MessagesPageContentInner() {
     });
   }, [isFetchingPreviousPage]);
 
-  // Effect to set the active DM based on the URL parameter
-  // If user not in allUsers, fetch their profile and add them
-  // Effect to set the active DM based on the URL parameter
-  // If user not in allUsers, fetch their profile and add them
   useEffect(() => {
     if (!selectedDM || !currentUser) return;
 
-    // Check if user already exists
     const userExists = allUsers.some((u) => u.id === selectedDM);
 
     if (userExists) {
-      // User exists, just set as active
       setActiveDmId(selectedDM);
-      return; // Exit early, no fetch needed
+      return;
     }
 
-    // User doesn't exist, fetch their profile
     let isCancelled = false;
 
     const fetchAndAddUser = async () => {
       try {
         const profile = await fetchUserProfile(selectedDM);
 
-        // Don't update if effect was cleaned up
         if (isCancelled) return;
 
         if (profile) {
@@ -1448,7 +1336,6 @@ function MessagesPageContentInner() {
             avatar_url: profile.avatar_url,
           };
 
-          // Add user to allUsers if not already present
           setAllUsers((prev) => {
             if (prev.some((u) => u.id === selectedDM)) return prev;
             return [...prev, newUser];
@@ -1465,13 +1352,10 @@ function MessagesPageContentInner() {
 
     fetchAndAddUser();
 
-    // Cleanup function
     return () => {
       isCancelled = true;
     };
-  }, [selectedDM, currentUser?.id, allUsers.length]); // Use allUsers.length instead of allUsers
-  // Empty dependency array is okay here due to the functional updates.
-  // Effect for handling incoming socket events
+  }, [selectedDM, currentUser?.id, allUsers.length]);
   const buildDmUploads = (
     content: string,
     files: File[],
@@ -1535,10 +1419,6 @@ function MessagesPageContentInner() {
     onMutate: async (vars) => {
       const key = queryKeys.dmMessages(vars.conversationId);
 
-      // If a GET for this conversation is in flight (e.g. the initial page0
-      // fetch), cancel it so it cannot overwrite the optimistic insert with a
-      // snapshot that predates the new message. Track whether we cancelled so
-      // onSuccess can reconcile the page afterwards.
       const state = queryClient.getQueryState(key);
       const cancelledFetch = state?.fetchStatus === "fetching";
       if (cancelledFetch) {
@@ -1612,8 +1492,6 @@ queryClient.setQueryData(
             const optimistic = flattenDmMessages(old).find(
               (m) => String(m.id) === upload.tempId
             );
-            // Keep the optimistic reply preview when the server response does
-            // not echo the reply target.
             const confirmedMessage = confirmed.replyTo
               ? confirmed
               : {
@@ -1659,8 +1537,6 @@ queryClient.setQueryData(
         void refreshMessageNotifications();
       }
 
-      // Reconcile the page we cancelled during the send so any messages the
-      // aborted GET had not yet returned are picked up from the server.
       if (context?.cancelledFetch) {
         void queryClient.invalidateQueries({ queryKey: key });
       }
@@ -1725,7 +1601,6 @@ queryClient.setQueryData(
       try {
         const token = await tokenStore.ensureAccessToken();
 
-        // Try the generic profile endpoint with exhaustive field names
         const url = `${process.env.NEXT_PUBLIC_API_URL}/api/profile/${userId}`;
         const response = await fetch(url, {
           headers: { Authorization: `Bearer ${token || ""}` },
@@ -1736,13 +1611,11 @@ queryClient.setQueryData(
         if (response.ok) {
           profile = await response.json();
         } else {
-          // Fallback to the existing fetchUserProfile helper
           profile = await fetchUserProfile(userId);
         }
 
         if (!profile) throw new Error("Profile not found");
 
-        // Exhaustive extraction — covers user/users nesting and flat shapes
         const resolvedUsername =
           profile.user?.username ||
           profile.users?.username ||
@@ -1791,25 +1664,21 @@ queryClient.setQueryData(
     },
     []
   );
-  // Mark thread as read when user opens a DM
   useEffect(() => {
     if (!activeDmId || !currentUser?.id) return;
 
     const markAsRead = async () => {
       try {
-        // Get messages for this DM to find the thread_id
         if (activeMessages.length === 0) {
           return;
         }
 
-        // Get thread_id from the thread map or any message
         const threadId =
           threadIds.get(activeDmId) || activeMessages[0]?.thread_id;
         if (!threadId) {
           return;
         }
 
-        // Mark thread as read
         await markThreadAsRead(threadId);
 
         setDmSummaries((prev) => {
@@ -1827,7 +1696,6 @@ queryClient.setQueryData(
       }
     };
 
-    // Small delay to ensure messages are loaded
     const timeoutId = setTimeout(markAsRead, 100);
     return () => clearTimeout(timeoutId);
   }, [
@@ -1892,11 +1760,9 @@ queryClient.setQueryData(
     const container = messagesContainerRef.current;
     if (!container) return;
 
-    // A small timeout ensures the DOM has actually painted the new message
     setTimeout(() => {
       const isInitialLoad = lastAutoScrollDmRef.current !== activeDmId;
 
-      // Increased threshold to 400px to better catch multi-line texts or attachments
       const isNearBottom =
         container.scrollHeight - container.scrollTop - container.clientHeight <
         400;

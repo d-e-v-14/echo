@@ -1,4 +1,3 @@
-// src/app/working-voice/page.tsx
 
 "use client";
 
@@ -25,7 +24,6 @@ const WorkingVoicePage = () => {
   const managerRef = useRef<VoiceVideoManager | null>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
 
-  // Use a fixed channel ID so all tabs join the same channel
   useEffect(() => {
     setChannelId("working-demo-fixed-channel");
     setUserId("user-" + Math.random().toString(36).substr(2, 9));
@@ -33,11 +31,9 @@ const WorkingVoicePage = () => {
 
   const startCall = async () => {
     try {
-      // Create manager (no socket needed for Chime)
       const manager = new VoiceVideoManager(userId);
       managerRef.current = manager;
 
-      // Set up event listeners
       manager.onStream((stream, peerId, type) => {
         setParticipants((prev) => {
           const existing = prev.findIndex((p) => p.id === peerId);
@@ -69,7 +65,6 @@ const WorkingVoicePage = () => {
         console.log("Voice roster updated:", members);
       });
 
-      // Initialize media
       await manager.initialize(true, true);
       const stream = manager.getLocalStream();
       setLocalStream(stream);
@@ -78,7 +73,6 @@ const WorkingVoicePage = () => {
         localVideoRef.current.srcObject = stream;
       }
 
-      // Join channel (calls backend /api/chime/join)
       await manager.joinVoiceChannel(channelId);
 
       setIsConnected(true);
@@ -165,10 +159,8 @@ const WorkingVoicePage = () => {
 
   return (
     <div className="h-screen bg-gray-900 flex flex-col">
-      {/* Video Grid */}
       <div className="flex-1 p-4">
         <div className="grid grid-cols-2 gap-4 h-full">
-          {/* Local Video */}
           <div className="bg-gray-800 rounded-lg overflow-hidden relative">
             {isVideoOn ? (
               <video
@@ -196,7 +188,6 @@ const WorkingVoicePage = () => {
             </div>
           </div>
 
-          {/* Remote Participants */}
           {participants.map((participant) => (
             <div
               key={participant.id}
@@ -234,7 +225,6 @@ const WorkingVoicePage = () => {
             </div>
           ))}
 
-          {/* Placeholder for more participants */}
           {participants.length === 0 && (
             <div className="bg-gray-800 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-600">
               <div className="text-center text-gray-400">
@@ -248,10 +238,8 @@ const WorkingVoicePage = () => {
         </div>
       </div>
 
-      {/* Controls */}
       <div className="p-6 bg-gray-800">
         <div className="flex justify-center items-center space-x-6">
-          {/* Connection Status */}
           <div className="text-sm">
             Status:{" "}
             <span className={isConnected ? "text-green-400" : "text-red-400"}>
@@ -259,7 +247,6 @@ const WorkingVoicePage = () => {
             </span>
           </div>
 
-          {/* Mute */}
           <button
             onClick={toggleMute}
             className={`p-4 rounded-full transition-colors ${
@@ -275,7 +262,6 @@ const WorkingVoicePage = () => {
             )}
           </button>
 
-          {/* Video */}
           <button
             onClick={toggleVideo}
             className={`p-4 rounded-full transition-colors ${
@@ -287,7 +273,6 @@ const WorkingVoicePage = () => {
             {isVideoOn ? <FaVideo size={20} /> : <FaVideoSlash size={20} />}
           </button>
 
-          {/* Hang Up */}
           <button
             onClick={endCall}
             className="p-4 rounded-full bg-red-600 hover:bg-red-700 transition-colors"
@@ -295,7 +280,6 @@ const WorkingVoicePage = () => {
             <FaPhoneSlash size={20} />
           </button>
 
-          {/* Participants Count */}
           <div className="text-sm">Participants: {participants.length + 1}</div>
         </div>
       </div>

@@ -14,6 +14,8 @@ import {
   selfUnassignRole,
 } from "@/api";
 import { Role as RoleType, RoleCategory } from "@/api/types/roles.types";
+import { SettingsFormSkeleton } from "@/components/loading/pageSkeletons";
+import InlineSpinner from "@/components/loading/InlineSpinner";
 
 interface RoleProps {
   serverId: string;
@@ -24,18 +26,15 @@ interface RoleProps {
 export default function Role({ serverId, isOwner, isAdmin }: RoleProps) {
   const canManageRoles = isOwner || isAdmin;
 
-  // If not owner/admin, show member view
   if (!canManageRoles) {
     return <MemberRoleView serverId={serverId} />;
   }
 
-  // Admin/Owner view
   return (
     <AdminRoleView serverId={serverId} isOwner={isOwner} isAdmin={isAdmin} />
   );
 }
 
-// ==================== MEMBER VIEW ====================
 function MemberRoleView({ serverId }: { serverId: string }) {
   const [selfAssignableRoles, setSelfAssignableRoles] = useState<RoleType[]>(
     []
@@ -47,7 +46,6 @@ function MemberRoleView({ serverId }: { serverId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Track selected roles (for multi-select)
   const [selectedRoleIds, setSelectedRoleIds] = useState<Set<string>>(
     new Set()
   );
@@ -64,7 +62,6 @@ function MemberRoleView({ serverId }: { serverId: string }) {
           getRoleCategories(serverId),
         ]);
 
-        // Filter out owner and admin roles
         const filteredRoles = rolesData.filter(
           (r: RoleType) => r.role_type !== "owner" && r.role_type !== "admin"
         );
@@ -73,7 +70,6 @@ function MemberRoleView({ serverId }: { serverId: string }) {
         setMyRoles(myRolesData);
         setCategories(categoriesData);
 
-        // Initialize selected roles with current user roles
         const myRoleIds = new Set(myRolesData.map((r: RoleType) => r.id));
         setSelectedRoleIds(myRoleIds);
       } catch (err: any) {
@@ -94,7 +90,6 @@ function MemberRoleView({ serverId }: { serverId: string }) {
     }
     setSelectedRoleIds(newSelected);
 
-    // Check if there are changes from original
     const myRoleIds = new Set(myRoles.map((r) => r.id));
     const newSelectedArr = Array.from(newSelected);
     const myRoleIdsArr = Array.from(myRoleIds);
@@ -117,7 +112,6 @@ function MemberRoleView({ serverId }: { serverId: string }) {
       const selectedArr = Array.from(selectedRoleIds);
       const myRoleIdsArr = Array.from(myRoleIds);
 
-      // Find roles to add and remove
       const rolesToAdd = selectedArr.filter((id) => !myRoleIds.has(id));
       const rolesToRemove = myRoleIdsArr.filter(
         (id) =>
@@ -125,23 +119,19 @@ function MemberRoleView({ serverId }: { serverId: string }) {
           !selectedRoleIds.has(id)
       );
 
-      // Process additions
       for (const roleId of rolesToAdd) {
         await selfAssignRole(serverId, roleId);
       }
 
-      // Process removals
       for (const roleId of rolesToRemove) {
         await selfUnassignRole(serverId, roleId);
       }
 
-      // Refresh my roles
       const updatedMyRoles = await getMyRoles(serverId);
       setMyRoles(updatedMyRoles);
       setHasChanges(false);
       setSuccess("Roles updated successfully!");
 
-      // Clear success message after 3 seconds
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
       setError(err.response?.data?.error || "Failed to update roles");
@@ -150,7 +140,6 @@ function MemberRoleView({ serverId }: { serverId: string }) {
     }
   };
 
-  // Group roles by category
   const groupedRoles = selfAssignableRoles.reduce(
     (acc, role) => {
       const categoryId = role.category_id || "uncategorized";
@@ -175,8 +164,8 @@ function MemberRoleView({ serverId }: { serverId: string }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400"></div>
+      <div className="p-8">
+        <SettingsFormSkeleton fields={3} />
       </div>
     );
   }
@@ -199,7 +188,6 @@ function MemberRoleView({ serverId }: { serverId: string }) {
 
   return (
     <div className="max-w-2xl mx-auto p-8 text-white">
-      {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold">Pick Your Roles</h1>
         <p className="text-sm text-gray-400 mt-1">
@@ -207,7 +195,6 @@ function MemberRoleView({ serverId }: { serverId: string }) {
         </p>
       </div>
 
-      {/* Messages */}
       {error && (
         <div className="bg-red-500/20 border border-red-500 text-red-400 px-4 py-3 rounded-lg mb-6">
           {error}
@@ -222,7 +209,6 @@ function MemberRoleView({ serverId }: { serverId: string }) {
         </div>
       )}
 
-      {/* Your Current Roles */}
       {myRoles.length > 0 && (
         <div className="mb-6">
           <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">
@@ -248,7 +234,6 @@ function MemberRoleView({ serverId }: { serverId: string }) {
 
       <div className="border-t border-gray-700 my-6"></div>
 
-      {/* Available Roles by Category */}
       {Object.entries(groupedRoles).map(([categoryId, roles]) => (
         <div key={categoryId} className="mb-6">
           <div className="mb-3">
@@ -278,7 +263,7 @@ function MemberRoleView({ serverId }: { serverId: string }) {
                   style={{
                     backgroundColor: isSelected ? `${role.color}30` : "#36393f",
                     color: isSelected ? role.color : "#b5bac1",
-                    // @ts-expect-error - ringColor works with CSS custom properties
+                    // @ts-expect-error CSS custom property in style object
                     "--tw-ring-color": role.color,
                   }}
                   onClick={() => toggleRole(role.id)}
@@ -308,7 +293,6 @@ function MemberRoleView({ serverId }: { serverId: string }) {
         </div>
       ))}
 
-      {/* Save Button */}
       <div className="mt-8 flex justify-end">
         <button
           className={`px-6 py-3 rounded-lg font-bold transition-all duration-200 ${
@@ -321,7 +305,7 @@ function MemberRoleView({ serverId }: { serverId: string }) {
         >
           {saving ? (
             <span className="flex items-center gap-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
+              <InlineSpinner size="sm" />
               Saving...
             </span>
           ) : (
@@ -330,7 +314,6 @@ function MemberRoleView({ serverId }: { serverId: string }) {
         </button>
       </div>
 
-      {/* Info */}
       <div className="mt-6 p-4 bg-[#36393f] rounded-lg">
         <p className="text-xs text-gray-400">
           <strong>Tip:</strong> Click roles to select/deselect them, then click
@@ -342,7 +325,6 @@ function MemberRoleView({ serverId }: { serverId: string }) {
   );
 }
 
-// ==================== ADMIN VIEW ====================
 function AdminRoleView({
   serverId,
   isOwner,
@@ -361,17 +343,14 @@ function AdminRoleView({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // New role form state
   const [newRoleName, setNewRoleName] = useState("");
   const [newRoleColor, setNewRoleColor] = useState("#99aab5");
   const [newRoleSelfAssignable, setNewRoleSelfAssignable] = useState(false);
   const [newRoleCategory, setNewRoleCategory] = useState<string>("");
 
-  // New category form state
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryDescription, setNewCategoryDescription] = useState("");
 
-  // Fetch roles and categories
   useEffect(() => {
     const fetchData = async () => {
       if (!serverId) return;
@@ -441,7 +420,6 @@ function AdminRoleView({
   };
 
   const handleSelectRole = (role: RoleType) => {
-    // Don't allow editing owner role
     if (role.role_type === "owner" && !isOwner) return;
     setSelectedRole({ ...role });
   };
@@ -476,13 +454,11 @@ function AdminRoleView({
     const role = roles.find((r) => r.id === roleId);
     if (!role) return;
 
-    // Prevent deleting owner role
     if (role.role_type === "owner") {
       setError("Cannot delete the owner role");
       return;
     }
 
-    // Only owner can delete admin role
     if (role.role_type === "admin" && !isOwner) {
       setError("Only the owner can delete the admin role");
       return;
@@ -548,7 +524,6 @@ function AdminRoleView({
     }
   };
 
-  // Group roles by category
   const groupedRoles = roles.reduce(
     (acc, role) => {
       const categoryId = role.category_id || "uncategorized";
@@ -561,8 +536,8 @@ function AdminRoleView({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400"></div>
+      <div className="p-8">
+        <SettingsFormSkeleton fields={3} />
       </div>
     );
   }
@@ -571,7 +546,6 @@ function AdminRoleView({
 
   return (
     <div className="max-w-2xl mx-auto p-8 text-white">
-      {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-2xl font-bold">Roles</h1>
@@ -599,7 +573,6 @@ function AdminRoleView({
         )}
       </div>
 
-      {/* Error Message */}
       {error && (
         <div className="bg-red-500/20 border border-red-500 text-red-400 px-4 py-3 rounded-lg mb-6">
           {error}
@@ -612,7 +585,6 @@ function AdminRoleView({
         </div>
       )}
 
-      {/* System Roles Section */}
       <div className="mb-8">
         <h2 className="text-lg font-semibold mb-4 text-gray-300">
           System Roles
@@ -649,7 +621,6 @@ function AdminRoleView({
         </div>
       </div>
 
-      {/* Categories Section */}
       {categories.map((category) => (
         <div key={category.id} className="mb-8">
           <div className="flex items-center justify-between mb-4">
@@ -703,7 +674,6 @@ function AdminRoleView({
         </div>
       ))}
 
-      {/* Uncategorized Roles */}
       {groupedRoles["uncategorized"]?.filter(
         (r) => r.role_type !== "owner" && r.role_type !== "admin"
       ).length > 0 && (
@@ -744,7 +714,6 @@ function AdminRoleView({
         </div>
       )}
 
-      {/* Edit Role Panel */}
       {selectedRole && canManageRoles && (
         <div className="bg-[#2f3136] rounded-lg p-6 mb-8">
           <div className="flex justify-between items-center mb-4">
@@ -760,7 +729,6 @@ function AdminRoleView({
             </span>
           </div>
 
-          {/* Role Name */}
           <label className="block font-semibold mb-2 text-[#b5bac1]">
             Role Name
           </label>
@@ -774,7 +742,6 @@ function AdminRoleView({
             }
           />
 
-          {/* Role Color */}
           <label className="block font-semibold mb-2 text-[#b5bac1]">
             Role Color
           </label>
@@ -785,7 +752,6 @@ function AdminRoleView({
             onChange={(e) => handleEditRole("color", e.target.value)}
           />
 
-          {/* Self-Assignable Toggle */}
           {selectedRole.role_type !== "owner" &&
             selectedRole.role_type !== "admin" && (
               <>
@@ -804,7 +770,6 @@ function AdminRoleView({
                   </label>
                 </div>
 
-                {/* Category Selection */}
                 <label className="block font-semibold mb-2 text-[#b5bac1]">
                   Category
                 </label>
@@ -825,7 +790,6 @@ function AdminRoleView({
               </>
             )}
 
-          {/* Action Buttons */}
           <div className="flex gap-2 mt-6">
             <button
               className="bg-gradient-to-r from-[#ed4245] to-[#a32224] text-white font-bold rounded px-6 py-2 shadow transition hover:from-[#a32224] hover:to-[#ed4245] disabled:opacity-50"
@@ -854,7 +818,6 @@ function AdminRoleView({
         </div>
       )}
 
-      {/* Create Role Popup */}
       {showAddPopup && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-60">
           <div className="bg-[#23272a] rounded-lg p-8 shadow-lg w-full max-w-md relative">
@@ -929,7 +892,6 @@ function AdminRoleView({
         </div>
       )}
 
-      {/* Create Category Popup */}
       {showCategoryPopup && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-60">
           <div className="bg-[#23272a] rounded-lg p-8 shadow-lg w-full max-w-md relative">

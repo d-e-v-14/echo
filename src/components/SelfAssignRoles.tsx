@@ -8,6 +8,8 @@ import {
   getRoleCategories,
 } from "@/api";
 import { Role, RoleCategory } from "@/api/types/roles.types";
+import { SettingsFormSkeleton } from "@/components/loading/pageSkeletons";
+import InlineSpinner from "@/components/loading/InlineSpinner";
 
 interface SelfAssignRolesProps {
   serverId: string;
@@ -64,7 +66,6 @@ export default function SelfAssignRoles({
         setMyRoles([...myRoles, role]);
       }
 
-      // Update the has_role status in selfAssignableRoles
       setSelfAssignableRoles(
         selfAssignableRoles.map((r) =>
           r.id === role.id ? { ...r, has_role: !hasRole } : r
@@ -77,7 +78,6 @@ export default function SelfAssignRoles({
     }
   };
 
-  // Group roles by category
   const groupedRoles = selfAssignableRoles.reduce(
     (acc, role) => {
       const categoryId = role.category_id || "uncategorized";
@@ -102,8 +102,8 @@ export default function SelfAssignRoles({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400"></div>
+      <div className="p-8">
+        <SettingsFormSkeleton fields={3} titleWidth="w-40" />
       </div>
     );
   }
@@ -119,7 +119,6 @@ export default function SelfAssignRoles({
 
   return (
     <div className="bg-[#2f3136] rounded-lg p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto">
-      {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-xl font-bold text-white">Pick Your Roles</h2>
@@ -137,7 +136,6 @@ export default function SelfAssignRoles({
         )}
       </div>
 
-      {/* Error Message */}
       {error && (
         <div className="bg-red-500/20 border border-red-500 text-red-400 px-4 py-3 rounded-lg mb-4">
           {error}
@@ -150,7 +148,6 @@ export default function SelfAssignRoles({
         </div>
       )}
 
-      {/* Your Current Roles */}
       {myRoles.length > 0 && (
         <div className="mb-6">
           <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">
@@ -174,10 +171,8 @@ export default function SelfAssignRoles({
         </div>
       )}
 
-      {/* Divider */}
       <div className="border-t border-gray-700 my-4"></div>
 
-      {/* Available Roles by Category */}
       {Object.entries(groupedRoles).map(([categoryId, roles]) => (
         <div key={categoryId} className="mb-6">
           <div className="mb-3">
@@ -211,21 +206,17 @@ export default function SelfAssignRoles({
                     backgroundColor: hasRole ? `${role.color}30` : "#36393f",
                     color: hasRole ? role.color : "#b5bac1",
                     borderColor: role.color,
-                    // ringColor is handled by Tailwind class
                   }}
                   onClick={() => handleToggleRole(role)}
                   disabled={isLoading}
                 >
-                  {/* Color indicator */}
                   <span
                     className="w-3 h-3 rounded-full flex-shrink-0"
                     style={{ backgroundColor: role.color }}
                   />
 
-                  {/* Role name */}
                   <span>{role.name}</span>
 
-                  {/* Checkmark for assigned roles */}
                   {hasRole && (
                     <svg
                       className="w-4 h-4"
@@ -240,10 +231,7 @@ export default function SelfAssignRoles({
                     </svg>
                   )}
 
-                  {/* Loading spinner */}
-                  {isLoading && (
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
-                  )}
+                  {isLoading && <InlineSpinner size="sm" className="ml-2" />}
                 </button>
               );
             })}
@@ -251,7 +239,6 @@ export default function SelfAssignRoles({
         </div>
       ))}
 
-      {/* Info text */}
       <div className="mt-6 p-4 bg-[#36393f] rounded-lg">
         <p className="text-xs text-gray-400">
           <strong>Tip:</strong> Click a role to add or remove it.

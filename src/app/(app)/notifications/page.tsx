@@ -1,13 +1,15 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { usePageReady } from "@/components/RouteChangeLoader";
-import { Bell, CheckCheck, Check, Loader2 } from "lucide-react";
+import { Bell, CheckCheck, Check } from "lucide-react";
 import { getUser } from "@/api";
 import { useNotifications } from "../../../hooks/useNotifications";
 import { apiClient } from "@/utils/apiClient";
 import { useRouter } from "next/navigation";
 
 import Toast from "@/components/Toast";
+import InlineSpinner from "@/components/loading/InlineSpinner";
+import { NotificationListSkeleton } from "@/components/loading/pageSkeletons";
 
 interface Notification {
   id: string;
@@ -186,7 +188,6 @@ export default function NotificationsPage() {
         })()}
       <div className="min-h-screen bg-black">
         <div className="max-w-4xl mx-auto">
-          {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-[#4f545c] bg-black sticky top-0 z-10">
             <div className="flex items-center gap-4">
               <Bell size={32} className="text-white" />
@@ -203,7 +204,6 @@ export default function NotificationsPage() {
             </div>
 
             <div className="flex items-center gap-3 flex-wrap">
-              {/* Filter Toggle */}
               <div className="flex bg-[#2f3136] rounded-lg p-1">
                 <button
                   onClick={() => setFilter("all")}
@@ -227,7 +227,6 @@ export default function NotificationsPage() {
                 </button>
               </div>
 
-              {/* Mark All Read */}
               {unreadCount > 0 && (
                 <button
                   onClick={handleMarkAllAsRead}
@@ -238,7 +237,6 @@ export default function NotificationsPage() {
                 </button>
               )}
 
-              {/* Refresh */}
               <button
                 onClick={() => loadNotifications({ showFullLoader: false })}
                 disabled={refreshing || loading}
@@ -248,9 +246,7 @@ export default function NotificationsPage() {
                     : "bg-[#4f545c] hover:bg-[#5f656c]"
                 }`}
               >
-                {(refreshing || loading) && (
-                  <Loader2 size={14} className="animate-spin" />
-                )}
+                {(refreshing || loading) && <InlineSpinner size="sm" />}
                 <span className="hidden sm:inline">Refresh</span>
                 <span className="sm:hidden"></span>
               </button>
@@ -260,15 +256,14 @@ export default function NotificationsPage() {
           {refreshing && (
             <div className="px-6 py-2 border-b border-[#2f3136] bg-[#111214]">
               <div className="flex items-center gap-2 text-sm text-gray-300">
-                <Loader2 size={14} className="animate-spin" />
+                <InlineSpinner size="sm" />
                 <span>Refreshing notifications...</span>
               </div>
             </div>
           )}
 
-          {/* Notifications List */}
           {loading ? (
-            <div className="flex items-center justify-center min-h-[400px]"></div>
+            <NotificationListSkeleton rows={5} />
           ) : filteredNotifications.length === 0 ? (
             <div className="flex items-center justify-center min-h-[400px] text-center py-16">
               <div>

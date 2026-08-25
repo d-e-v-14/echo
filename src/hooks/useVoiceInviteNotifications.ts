@@ -1,13 +1,7 @@
 "use client";
 
-// src/hooks/useVoiceInviteNotifications.ts
-// Hook to listen for incoming voice channel invites and display notifications
-// Should be used at a high level (e.g., in the main layout or providers)
-
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSocket } from "@/lib/socket/SocketProvider";
-
-// ==================== TYPES ====================
 
 export interface VoiceInvite {
   id: string;
@@ -19,14 +13,14 @@ export interface VoiceInvite {
   inviterUsername: string;
   inviterAvatar?: string;
   timestamp: string;
-  expiresAt: number; // Unix timestamp when invite expires (e.g., 30 seconds after receipt)
+  expiresAt: number;
 }
 
 export interface UseVoiceInviteNotificationsOptions {
   userId: string | null;
   onAccept?: (invite: VoiceInvite) => void;
   onDecline?: (invite: VoiceInvite) => void;
-  inviteExpirationMs?: number; // How long invites stay visible (default 30 seconds)
+  inviteExpirationMs?: number;
 }
 
 export interface UseVoiceInviteNotificationsReturn {
@@ -36,8 +30,6 @@ export interface UseVoiceInviteNotificationsReturn {
   clearInvite: (inviteId: string) => void;
   clearAllInvites: () => void;
 }
-
-// ==================== HOOK ====================
 
 export function useVoiceInviteNotifications({
   userId,
@@ -49,11 +41,9 @@ export function useVoiceInviteNotifications({
   const { socket } = useSocket();
   const expirationTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
-  // Clean up expired invites
   const clearInvite = useCallback((inviteId: string) => {
     setInvites((prev) => prev.filter((inv) => inv.id !== inviteId));
 
-    // Clear any existing timer
     const timer = expirationTimersRef.current.get(inviteId);
     if (timer) {
       clearTimeout(timer);
@@ -64,12 +54,10 @@ export function useVoiceInviteNotifications({
   const clearAllInvites = useCallback(() => {
     setInvites([]);
 
-    // Clear all timers
     expirationTimersRef.current.forEach((timer) => clearTimeout(timer));
     expirationTimersRef.current.clear();
   }, []);
 
-  // Accept invite
   const acceptInvite = useCallback(
     (inviteId: string) => {
       const invite = invites.find((inv) => inv.id === inviteId);
@@ -81,7 +69,6 @@ export function useVoiceInviteNotifications({
     [invites, onAccept, clearInvite]
   );
 
-  // Decline invite
   const declineInvite = useCallback(
     (inviteId: string) => {
       const invite = invites.find((inv) => inv.id === inviteId);
@@ -93,11 +80,9 @@ export function useVoiceInviteNotifications({
     [invites, onDecline, clearInvite]
   );
 
-  // Set up socket connection and listeners
   useEffect(() => {
     if (!userId || !socket) return;
 
-    // Listen for voice invite notifications
     const handleVoiceInviteReceived = (data: {
       channelId: string;
       channelName: string;
@@ -127,14 +112,12 @@ export function useVoiceInviteNotifications({
       };
 
       setInvites((prev) => {
-        // Don't add duplicate invites from the same person to the same channel
         const isDuplicate = prev.some(
           (inv) =>
             inv.channelId === data.channelId &&
             inv.inviterUserId === data.inviterUserId
         );
         if (isDuplicate) {
-          // Update the existing invite's expiration
           return prev.map((inv) =>
             inv.channelId === data.channelId &&
             inv.inviterUserId === data.inviterUserId
@@ -145,15 +128,12 @@ export function useVoiceInviteNotifications({
         return [...prev, newInvite];
       });
 
-      // Set up expiration timer
       const timer = setTimeout(() => {
         clearInvite(inviteId);
       }, inviteExpirationMs);
       expirationTimersRef.current.set(inviteId, timer);
 
-      // Play notification sound (optional - browser notification API)
       try {
-        // Request permission for browser notifications if not already granted
         if ("Notification" in window && Notification.permission === "granted") {
           new Notification(`Voice Invite from ${data.inviterUsername}`, {
             body: `Join ${data.channelName} in ${data.serverName}`,
@@ -169,11 +149,9 @@ export function useVoiceInviteNotifications({
 
     socket.on("voice_invite_received", handleVoiceInviteReceived);
 
-    // Cleanup
     return () => {
       socket.off("voice_invite_received", handleVoiceInviteReceived);
 
-      // Clear all timers
       expirationTimersRef.current.forEach((timer) => clearTimeout(timer));
       expirationTimersRef.current.clear();
     };

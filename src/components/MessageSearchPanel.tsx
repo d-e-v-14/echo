@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Search, X, Loader2 } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { MessageSearchResult } from "@/api/types/message.types";
+import InlineSpinner from "@/components/loading/InlineSpinner";
+import { SearchResultListSkeleton } from "@/components/loading/pageSkeletons";
 
 interface MessageSearchPanelProps {
   isOpen: boolean;
@@ -98,9 +100,7 @@ const MessageSearchPanel: React.FC<MessageSearchPanelProps> = ({
             placeholder={placeholder}
             className="flex-1 bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500"
           />
-          {isSearching && (
-            <Loader2 className="h-4 w-4 animate-spin text-indigo-400" />
-          )}
+          {isSearching && <InlineSpinner size="sm" />}
         </div>
 
         <div className="max-h-80 overflow-y-auto">
@@ -108,6 +108,10 @@ const MessageSearchPanel: React.FC<MessageSearchPanelProps> = ({
             <p className="px-4 py-6 text-center text-sm text-slate-400">
               {error}
             </p>
+          )}
+
+          {isSearching && results.length === 0 && (
+            <SearchResultListSkeleton rows={4} />
           )}
 
           {results.map((result) => {

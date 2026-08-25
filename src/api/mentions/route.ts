@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Force dynamic rendering for this route
 export const dynamic = "force-dynamic";
 
-// Get mentions for a user
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -16,24 +14,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // console.log('Frontend API: Getting mentions for user:', userId);
-
-    // Get the backend URL from environment or default to localhost
     const backendUrl =
       process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
     const url = `${backendUrl}/api/mentions?userId=${encodeURIComponent(userId)}`;
 
-    // console.log('Frontend API: Fetching from backend:', url);
-
-    // Forward the request to the backend
     const response = await fetch(url, {
       headers: {
         Cookie: request.headers.get("cookie") || "",
         "Content-Type": "application/json",
       },
     });
-
-    // console.log('Frontend API: Backend response status:', response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -45,7 +35,6 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
-    // console.log('Frontend API: Backend data received:', data);
 
     return NextResponse.json(data);
   } catch (error) {

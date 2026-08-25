@@ -49,12 +49,13 @@ import {
   validateUserMentions,
 } from "@/lib/channels/mentions";
 import { extractAvatarFromRaw } from "@/lib/channels/messageUtils";
+import InlineSpinner from "@/components/loading/InlineSpinner";
 
 const VideoPanel = dynamic(() => import("./VideoPanel"), {
   ssr: false,
   loading: () => (
     <div className="w-full h-full bg-gray-900 rounded-lg flex items-center justify-center">
-      <div className="animate-spin w-8 h-8 border-2 border-gray-600 border-t-blue-500 rounded-full" />
+      <InlineSpinner size="md" />
     </div>
   ),
 });

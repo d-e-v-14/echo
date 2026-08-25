@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Send, UserMinus, UserPlus, X } from "lucide-react";
 import { addFriend, fetchAllFriends, removeFriend, searchUsers } from "@/api";
+import { RolePillSkeletons } from "@/components/loading/pageSkeletons";
 
 const getInitials = (name: string) => {
   if (!name) return "?";
@@ -188,7 +189,6 @@ export default function UserProfileModal({
         </button>
 
         <div className="flex w-full flex-col items-center gap-4 px-6 py-7">
-          {/* Avatar Rendering Block */}
           <div className="relative">
             <div className="absolute inset-0 rounded-full bg-white/10 blur-xl" />
 
@@ -228,9 +228,7 @@ export default function UserProfileModal({
               <h3 className="mb-2 text-xs font-semibold uppercase text-gray-400">
                 Roles
               </h3>
-              <div className="flex justify-center py-2">
-                <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-gray-300" />
-              </div>
+              <RolePillSkeletons pills={3} />
             </div>
           ) : user.roles && user.roles.length > 0 ? (
             <div className="w-full rounded-xl border border-gray-700/60 bg-gray-800/40 p-4">

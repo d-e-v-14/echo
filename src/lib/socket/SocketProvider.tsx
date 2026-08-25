@@ -1,4 +1,3 @@
-// src/lib/socket/SocketProvider.tsx
 "use client";
 
 import {
@@ -22,9 +21,6 @@ const USE_CREDENTIALS =
 
 const HEARTBEAT_INTERVAL_MS = 30000;
 
-// Socket.IO's built-in reconnection strategy (spec §5): do NOT hand-roll a
-// 5-second reconnect poll. Reconnection Delay / Max / randomization are the
-// backoff that produces healthy reconnect behaviour.
 const SOCKET_CONFIG = {
   transports: ["websocket", "polling"],
   upgrade: true,
@@ -58,10 +54,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const [connected, setConnected] = useState(false);
   const [socketId, setSocketId] = useState<string | null>(null);
 
-  // Always-current handle to the live socket (for stable callbacks).
   const socketRef = useRef<Socket | null>(null);
-  // Rooms the app is currently interested in. Re-joined after (re)connection
-  // so server-side room membership survives reconnects and socket recreation.
   const joinedRoomsRef = useRef<Set<string>>(new Set());
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -119,14 +112,11 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         setConnected(false);
         setSocketId(null);
         stopHeartbeat();
-        // Server-initiated disconnects need an explicit reconnect in Socket.IO.
         if (reason === "io server disconnect") newSocket.connect();
       };
 
       const handleConnectError = async (err: Error) => {
         console.error("Socket connect_error:", { message: err?.message });
-        // The auth callback refreshes the access token for the next attempt. If
-        // the session is genuinely gone, stop retrying and let the app redirect.
         const ok = await tokenStore.refresh();
         if (!ok) {
           newSocket.disconnect();

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { joinServer } from "@/api";
 import { supabase } from "@/lib/supabaseClient";
 import { tokenStore } from "@/lib/auth/tokenStore";
+import InlineSpinner from "@/components/loading/InlineSpinner";
 
 export default function InvitePage() {
   const { code } = useParams<{ code: string }>();
@@ -109,7 +110,7 @@ export default function InvitePage() {
   if (pageState === "loading") {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black">
-        <div className="w-10 h-10 rounded-full border-4 border-gray-700 border-t-blue-500 animate-spin" />
+        <InlineSpinner size="lg" label="Loading invite" />
       </div>
     );
   }
@@ -117,7 +118,6 @@ export default function InvitePage() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
       <div className="w-full max-w-sm mx-4 bg-[#1e1f22] rounded-xl shadow-2xl border border-[#2b2d31] overflow-hidden">
-        {/* Header gradient */}
         <div className="h-16 bg-gradient-to-br from-blue-600 to-indigo-700 relative">
           <div className="absolute -bottom-8 left-1/2 -translate-x-1/2">
             <div className="w-16 h-16 rounded-full bg-[#1e1f22] flex items-center justify-center shadow-lg border-4 border-[#1e1f22]">
@@ -151,9 +151,7 @@ export default function InvitePage() {
                   />
                 </svg>
               )}
-              {pageState === "joining" && (
-                <div className="w-7 h-7 rounded-full border-[3px] border-gray-600 border-t-blue-400 animate-spin" />
-              )}
+              {pageState === "joining" && <InlineSpinner size="md" />}
               {pageState === "done" && (
                 <svg
                   className="w-7 h-7 text-green-400"
@@ -203,7 +201,6 @@ export default function InvitePage() {
           </div>
         </div>
 
-        {/* Content */}
         <div className="pt-12 pb-6 px-6 text-center">
           {pageState === "signIn" && (
             <>
@@ -286,7 +283,7 @@ export default function InvitePage() {
 
           {pageState === "joining" && (
             <>
-              <div className="w-10 h-10 rounded-full border-4 border-gray-700 border-t-blue-500 animate-spin mx-auto mb-4" />
+              <InlineSpinner size="lg" className="mx-auto mb-4" label="Joining server" />
               <p className="text-sm text-[#a3a6aa]">Joining server...</p>
             </>
           )}

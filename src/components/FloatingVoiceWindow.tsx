@@ -61,8 +61,6 @@ const FloatingVoiceWindow: React.FC<FloatingVoiceWindowProps> = ({
   const [isVisible, setIsVisible] = useState(true);
   const DragWrapper: any = Draggable;
 
-  /* ---------------- position ---------------- */
-
   useEffect(() => {
     try {
       const saved = localStorage.getItem(POSITION_STORAGE_KEY);
@@ -81,8 +79,6 @@ const FloatingVoiceWindow: React.FC<FloatingVoiceWindowProps> = ({
     setPosition(pos);
     localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(pos));
   };
-
-  /* ---------------- view sync ---------------- */
 
   useEffect(() => {
     const update = () => {
@@ -112,8 +108,6 @@ const FloatingVoiceWindow: React.FC<FloatingVoiceWindowProps> = ({
     setIsVisible(shouldShowFloating);
   }, [shouldShowFloating]);
 
-  /* ---------------- SAFE ACTIVE SPEAKER ---------------- */
-
   const focusedParticipant = useMemo<UIParticipant | null>(() => {
     const safeParticipants: UIParticipant[] = participants.map((p) => ({
       ...p,
@@ -125,19 +119,15 @@ const FloatingVoiceWindow: React.FC<FloatingVoiceWindowProps> = ({
       username: p.attendeeId,
     }));
 
-    // Prefer participant with video
     const withVideo = safeParticipants.find((p) => p.video && p.tileId);
     if (withVideo) return withVideo;
 
-    // Otherwise last speaker
     const lastSpeaker = [...safeParticipants]
       .reverse()
       .find((p) => p.speaking && p.tileId);
 
     return lastSpeaker || null;
   }, [participants]);
-
-  /* ---------------- VIDEO BINDING ---------------- */
 
   useEffect(() => {
     const videoEl = videoRef.current;
@@ -156,13 +146,9 @@ const FloatingVoiceWindow: React.FC<FloatingVoiceWindowProps> = ({
     };
   }, [focusedParticipant?.tileId, focusedParticipant?.video, isVisible]);
 
-  /* ---------------- exit guards ---------------- */
-
   if (!activeCall || !isPositionLoaded || !shouldShowFloating) {
     return null;
   }
-
-  /* ---------------- render ---------------- */
 
   return (
     <DragWrapper

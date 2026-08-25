@@ -1,16 +1,5 @@
 import { useSyncExternalStore } from "react";
 
-// ---------------------------------------------------------------------------
-// Shared reaction store.
-//
-// Reactions are patched straight into this module-level store by the realtime
-// sync on `reaction_updated` instead of invalidating/refetching whole message
-// datasets. Component state (useMessageReactions) reads the same store, so a
-// reaction added on one device shows up everywhere the message is visible.
-//
-// Shape: messageId -> emoji -> userIds that reacted.
-// ---------------------------------------------------------------------------
-
 export type ReactionUsersByEmoji = Record<string, string[]>;
 export type ReactionStoreData = Record<string, ReactionUsersByEmoji>;
 
@@ -18,7 +7,6 @@ export interface ReactionDelta {
   messageId: string;
   emoji: string;
   userId?: string;
-  /** True = add, false = remove. Undefined = derive from `added`/`removed`. */
   added?: boolean;
 }
 
@@ -47,17 +35,12 @@ export function useReactionStore(): ReactionStoreData {
   return useSyncExternalStore(subscribeReactions, getReactionState);
 }
 
-/** Update the store immutably through a pure reducer. */
 export function updateReactionStore(
   updater: (prev: ReactionStoreData) => ReactionStoreData
 ): void {
   const next = updater(state);
   if (next !== state) setState(next);
 }
-
-// ---------------------------------------------------------------------------
-// Pure reducers (unit-testable, no store coupling).
-// ---------------------------------------------------------------------------
 
 const uniqueIds = (...ids: string[]): string[] =>
   Array.from(new Set(ids.filter(Boolean)));
@@ -73,10 +56,6 @@ const withoutKey = (
   return next;
 };
 
-/**
- * Apply a single add/remove delta. Without a userId there is nothing to
- * change, so the previous state is returned untouched.
- */
 export function applyReactionDelta(
   prev: ReactionStoreData,
   delta: ReactionDelta
@@ -109,7 +88,6 @@ export function applyReactionDelta(
   return { ...prev, [messageId]: nextMessageReactions };
 }
 
-/** Replace the whole reaction set for one emoji on a message (full payload). */
 export function mergeMessageReactions(
   prev: ReactionStoreData,
   messageId: string,
@@ -129,7 +107,6 @@ export function mergeMessageReactions(
   return { ...prev, [messageId]: messageReactions };
 }
 
-/** Replace the complete reaction set for a message. */
 export function setMessageReactions(
   prev: ReactionStoreData,
   messageId: string,
@@ -146,10 +123,6 @@ export function setMessageReactions(
   return { ...prev, [messageId]: cleaned };
 }
 
-// ---------------------------------------------------------------------------
-// Socket payload parsing.
-// ---------------------------------------------------------------------------
-
 const readString = (body: any, ...keys: string[]): string | undefined => {
   for (const key of keys) {
     const value = body?.[key];
@@ -163,10 +136,6 @@ const unwrap = (raw: unknown): unknown =>
     ? (raw as { payload: unknown }).payload
     : raw;
 
-/**
- * Turn a `reaction_updated` socket payload into a store mutation. Returns a
- * reducer-style function, or null when the payload cannot identify a message.
- */
 export function reactionEventToUpdater(
   raw: unknown
 ): ((prev: ReactionStoreData) => ReactionStoreData) | null {
@@ -188,13 +157,11 @@ export function reactionEventToUpdater(
     ? body.user_ids.map(String).filter(Boolean)
     : [];
 
-  // A full set for the emoji is the most reliable patch.
   if (emoji && userIds.length > 0) {
     return (prev) => mergeMessageReactions(prev, messageId, emoji, userIds);
   }
 
   if (!emoji) {
-    // Whole-message set provided (e.g. `reactions` map).
     if (body.reactions && typeof body.reactions === "object") {
       const normalized: ReactionUsersByEmoji = {};
       for (const [key, value] of Object.entries(body.reactions)) {
@@ -208,14 +175,12 @@ export function reactionEventToUpdater(
     return null;
   }
 
-  // Delta: add or remove a single user.
   const userId = readString(body, "user_id", "userId", "actor_id", "actorId");
   let added: boolean | undefined;
   if (typeof body.added === "boolean") added = body.added;
   else if (typeof body.removed === "boolean") added = !body.removed;
   else if (body.action !== undefined) added = String(body.action) === "added";
   else if (typeof body.reacted_by_me === "boolean") {
-    // react_by_me toggles the current user's own reaction.
     added = body.reacted_by_me;
   }
 

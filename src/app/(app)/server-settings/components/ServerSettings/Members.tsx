@@ -13,6 +13,7 @@ import { ServerMember } from "@/api/types/server.types";
 import { SearchUser } from "@/api/types/user.types";
 import { Role } from "@/api/types/roles.types";
 import { useToast } from "@/contexts/ToastContext";
+import { SettingsFormSkeleton } from "@/components/loading/pageSkeletons";
 
 interface Member {
   id: string;
@@ -118,7 +119,7 @@ export default function Members({
     setRoleActionLoading(roleId);
     try {
       await assignRoleToUser(serverId, memberId, roleId);
-      await loadMembers(); // Refresh member list
+      await loadMembers();
     } catch (error: any) {
       console.error("Failed to assign role:", error);
       alert(error?.response?.data?.error || "Failed to assign role");
@@ -131,7 +132,7 @@ export default function Members({
     setRoleActionLoading(roleId);
     try {
       await removeRoleFromUser(serverId, memberId, roleId);
-      await loadMembers(); // Refresh member list
+      await loadMembers();
     } catch (error: any) {
       console.error("Failed to remove role:", error);
       alert(error?.response?.data?.error || "Failed to remove role");
@@ -166,7 +167,7 @@ export default function Members({
 
   const handleBanMember = async (memberId: string, memberUsername: string) => {
     const reason = prompt(`Ban reason for ${memberUsername}:`);
-    if (reason === null) return; // User cancelled
+    if (reason === null) return;
 
     try {
       await banMember(serverId, memberId, reason);
@@ -192,20 +193,17 @@ export default function Members({
       setAddMemberSuccess(
         `Successfully added @${user.username} to the server!`
       );
-      await loadMembers(); // Refresh the member list
+      await loadMembers();
 
-      // Clear success message after 3 seconds
       setTimeout(() => setAddMemberSuccess(""), 3000);
     } catch (error: any) {
       console.error("Failed to add member:", error);
 
-      // Check for specific error messages from backend
       const errorMessage =
         error?.response?.data?.error ||
         error?.message ||
         "Failed to add member. Please try again.";
 
-      // Customize message for banned user
       if (errorMessage.includes("banned") || errorMessage.includes("ban")) {
         setAddMemberError(
           `Cannot add @${user.username}: This user is banned from the server. You need to unban them first from the Bans section.`
@@ -218,15 +216,14 @@ export default function Members({
         setAddMemberError(`Failed to add @${user.username}: ${errorMessage}`);
       }
 
-      // Clear error message after 5 seconds
       setTimeout(() => setAddMemberError(""), 5000);
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400"></div>
+      <div className="p-8">
+        <SettingsFormSkeleton fields={4} titleWidth="w-36" />
       </div>
     );
   }
@@ -262,7 +259,6 @@ export default function Members({
         </div>
       </div>
 
-      {/* Error and Success Messages */}
       {addMemberError && (
         <div className="mb-4 bg-red-500 border border-red-600 text-white px-4 py-3 rounded flex items-start">
           <svg
@@ -436,7 +432,6 @@ export default function Members({
               for {members.find((m) => m.id === showRolePopupFor)?.username}
             </p>
 
-            {/* Current roles */}
             <div className="mb-4">
               <h4 className="text-sm font-medium text-[#b5bac1] mb-2">
                 Current Roles
@@ -473,7 +468,6 @@ export default function Members({
               </div>
             </div>
 
-            {/* Available roles to assign */}
             <div className="mb-4">
               <h4 className="text-sm font-medium text-[#b5bac1] mb-2">
                 Available Roles
@@ -481,18 +475,15 @@ export default function Members({
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {serverRoles
                   .filter((role) => {
-                    // Filter out roles the member already has
                     const memberRoles =
                       members.find((m) => m.id === showRolePopupFor)?.roles ||
                       [];
                     return !memberRoles.some((mr) => mr.id === role.id);
                   })
                   .filter((role) => {
-                    // NEVER allow assigning owner role - there can only be one owner
                     if (role.role_type === "owner") {
                       return false;
                     }
-                    // Only owner can assign admin roles
                     if (role.role_type === "admin") {
                       return isOwner;
                     }

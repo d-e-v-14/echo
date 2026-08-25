@@ -7,7 +7,6 @@ export function useMentionNotifications() {
   const { socket } = useSocket();
   const [unreadMentionsCount, setUnreadMentionsCount] = useState(0);
 
-  // Listen on the application-level socket for mention notifications
   useEffect(() => {
     if (!socket) return;
 
@@ -15,7 +14,6 @@ export function useMentionNotifications() {
       console.log("Received mention notification:", data);
       setUnreadMentionsCount((prev) => prev + 1);
 
-      // Show browser notification if permission granted
       if ("Notification" in window && Notification.permission === "granted") {
         new Notification("New Mention", {
           body: `You were mentioned in a message`,
@@ -29,7 +27,6 @@ export function useMentionNotifications() {
     };
   }, [socket]);
 
-  // Fetch initial unread count
   const fetchUnreadCount = useCallback(async () => {
     try {
       const response = await fetch("/api/mentions?unreadOnly=true", {
@@ -45,7 +42,6 @@ export function useMentionNotifications() {
     }
   }, []);
 
-  // Request notification permission
   const requestNotificationPermission = useCallback(async () => {
     if ("Notification" in window) {
       if (Notification.permission === "default") {
@@ -57,12 +53,10 @@ export function useMentionNotifications() {
     return false;
   }, []);
 
-  // Mark mention as read (decrease count)
   const markMentionAsRead = useCallback(() => {
     setUnreadMentionsCount((prev) => Math.max(0, prev - 1));
   }, []);
 
-  // Mark all mentions as read
   const markAllMentionsAsRead = useCallback(() => {
     setUnreadMentionsCount(0);
   }, []);

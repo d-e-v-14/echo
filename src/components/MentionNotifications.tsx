@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Bell, X, Check, User, Users, AtSign } from "lucide-react";
+import { NotificationDropdownSkeleton } from "@/components/loading/pageSkeletons";
 
 interface MentionNotification {
   id: string;
@@ -43,7 +44,6 @@ export default function MentionNotifications({
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<"all" | "unread">("unread");
 
-  // Fetch mentions
   const fetchMentions = async () => {
     setLoading(true);
     try {
@@ -65,7 +65,6 @@ export default function MentionNotifications({
     }
   };
 
-  // Mark mention as read
   const markAsRead = async (mentionId: string) => {
     try {
       const response = await fetch(`/api/mentions/${mentionId}/read`, {
@@ -85,7 +84,6 @@ export default function MentionNotifications({
     }
   };
 
-  // Mark all as read
   const markAllAsRead = async () => {
     const unreadMentions = mentions.filter((m) => !m.is_read);
 
@@ -142,7 +140,6 @@ export default function MentionNotifications({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
       <div className="bg-gray-900 rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">
-        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-700">
           <div className="flex items-center space-x-3">
             <Bell className="text-blue-400" size={24} />
@@ -155,7 +152,6 @@ export default function MentionNotifications({
           </div>
 
           <div className="flex items-center space-x-3">
-            {/* Filter buttons */}
             <div className="flex bg-gray-800 rounded-lg p-1">
               <button
                 onClick={() => setFilter("unread")}
@@ -197,11 +193,10 @@ export default function MentionNotifications({
           </div>
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
+            <div className="py-4">
+              <NotificationDropdownSkeleton rows={4} />
             </div>
           ) : mentions.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-gray-400">
@@ -222,12 +217,10 @@ export default function MentionNotifications({
                   onClick={() => handleMentionClick(mention)}
                 >
                   <div className="flex items-start space-x-3">
-                    {/* Icon */}
                     <div className="flex-shrink-0 mt-1">
                       {getMentionIcon(mention.mention_type)}
                     </div>
 
-                    {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2 mb-1">
                         <span className="font-medium text-white">

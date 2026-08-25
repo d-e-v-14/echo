@@ -27,8 +27,6 @@ export const queryKeys = {
   channelMessages: (channelId: string) =>
     [...queryKeys.channel(channelId), "messages"] as const,
   dms: ["dms"] as const,
-  // A DM conversation is identified by the OTHER user's id. The same key is
-  // used for fetching, optimistic sends, socket inserts and invalidation.
   dmMessages: (conversationId: string) =>
     ["dm", conversationId, "messages"] as const,
   dmSearch: (threadId: string, query: string) =>

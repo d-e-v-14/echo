@@ -4,7 +4,6 @@ import { BannedUser, SearchUserResult } from "./types/user.types";
 import { getUser } from "./profile.api";
 import { Server } from "@/api/types/server.types";
 
-// Get server details
 export const getServerDetails = async (
   serverId: string
 ): Promise<ServerDetails> => {
@@ -22,7 +21,6 @@ export const getServerDetails = async (
   };
 };
 
-// Update server
 export const updateServer = async (
   serverId: string,
   data: { name?: string },
@@ -46,13 +44,6 @@ export const updateServer = async (
   };
 };
 
-// Get server members
-//export const getServerMembers = async (serverId: string): Promise<ServerMember[]> => {
-//   const response = await api.get(`/api/newserver/${serverId}/members`);
-//    return response.data;
-//};
-
-// Kick member
 export const kickMember = async (
   serverId: string,
   userId: string
@@ -60,7 +51,6 @@ export const kickMember = async (
   await apiClient.delete(`/api/newserver/${serverId}/members/${userId}/kick`);
 };
 
-// Ban member
 export const banMember = async (
   serverId: string,
   userId: string,
@@ -71,7 +61,6 @@ export const banMember = async (
   });
 };
 
-// Get banned users
 export const getBannedUsers = async (
   serverId: string
 ): Promise<BannedUser[]> => {
@@ -79,7 +68,6 @@ export const getBannedUsers = async (
   return response.data;
 };
 
-// Unban user
 export const unbanUser = async (
   serverId: string,
   userId: string
@@ -87,7 +75,6 @@ export const unbanUser = async (
   await apiClient.delete(`/api/newserver/${serverId}/members/${userId}/unban`);
 };
 
-// Add user to server
 export const addUserToServer = async (
   serverId: string,
   username: string
@@ -95,7 +82,6 @@ export const addUserToServer = async (
   await apiClient.post(`/api/newserver/${serverId}/members`, { username });
 };
 
-// Search users
 export const searchUsers = async (
   query: string
 ): Promise<SearchUserResult[]> => {
@@ -116,7 +102,6 @@ export const searchUsers = async (
   }
 };
 
-// Get server invites
 export const getServerInvites = async (
   serverId: string
 ): Promise<ServerInvite[]> => {
@@ -124,7 +109,6 @@ export const getServerInvites = async (
   return response.data;
 };
 
-// Create server invite
 export const createServerInvite = async (
   serverId: string,
   options: { expiresAfter?: string; maxUses?: string }
@@ -136,7 +120,6 @@ export const createServerInvite = async (
   return response.data;
 };
 
-// Delete invite
 export const deleteInvite = async (
   serverId: string,
   inviteId: string
@@ -144,17 +127,10 @@ export const deleteInvite = async (
   await apiClient.delete(`/api/newserver/${serverId}/invites/${inviteId}`);
 };
 
-// Leave server
 export const leaveServer = async (serverId: string): Promise<void> => {
   await apiClient.post(`/api/newserver/${serverId}/leave`);
 };
 
-// Delete server
-//export const deleteServer = async (serverId: string): Promise<void> => {
-//    await api.delete(`/api/newserver/${serverId}`);
-//};
-
-// Get available permissions
 export const getAvailablePermissions = async (): Promise<string[]> => {
   const response = await apiClient.get("/api/roles/permissions");
   return response.data;

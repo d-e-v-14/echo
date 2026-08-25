@@ -52,6 +52,16 @@ import { useSearchParams } from "next/navigation";
 import { useVoiceCall } from "@/contexts/VoiceCallContext";
 import { supabase } from "@/lib/supabaseClient";
 import Toast from "@/components/Toast";
+import {
+  ChannelListSkeleton,
+  MessageListSkeleton,
+  ServerRailSkeleton,
+} from "@/components/loading/skeletons";
+import {
+  PageSkeleton,
+  RolePillSkeletons,
+} from "@/components/loading/pageSkeletons";
+import InlineSpinner from "@/components/loading/InlineSpinner";
 
 interface Channel {
   id: string;
@@ -102,13 +112,9 @@ const ServersPageContent: React.FC = () => {
     },
     [router]
   );
-  // Which channel is open in the current server. The channel OBJECT is derived
-  // from the TanStack Query cache (activeChannel) — this state only stores the
-  // id so selection never holds a stale/fallback channel object.
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(
     null
   );
-  // Last channel used per server, so switching A → B → A restores A's channel.
   const lastChannelByServerRef = useRef<Record<string, string>>({});
   const chatWindowRef = useRef<any>(null);
   const { notifications: mentionNotifications } = useNotifications();
@@ -148,10 +154,6 @@ const ServersPageContent: React.FC = () => {
     isLoading: rolesLoading,
   } = useServerRoles(selectedServerId ?? undefined);
 
-  // ── Server channels: TanStack Query is the single source of truth ────────
-  // Channels are read straight from the query cache (never a local copy), so
-  // navigation between servers shows cached channels instantly and the sidebar
-  // never holds the previous server's channels as a fallback.
   const channels = useMemo<Channel[]>(() => {
     if (cachedChannels.length === 0) return EMPTY_ARRAY;
     const normalized = cachedChannels.map((c) => ({
@@ -163,9 +165,6 @@ const ServersPageContent: React.FC = () => {
       : normalized.filter((c) => c.type === "text");
   }, [cachedChannels, voiceEnabled]);
 
-  // Effective channel selection, derived synchronously during render so that a
-  // server switch resolves in the same frame — the sidebar never blanks to the
-  // previous server's selection nor flashes an empty chat area.
   const effectiveSelectedChannelId = useMemo(() => {
     if (selectedChannelId && channels.some((c) => c.id === selectedChannelId)) {
       return selectedChannelId;
@@ -180,21 +179,16 @@ const ServersPageContent: React.FC = () => {
     [channels, effectiveSelectedChannelId]
   );
 
-  // Keep the committed selection in sync with the effective one (e.g. after a
-  // server switch restores a previously used channel) so it persists.
   useEffect(() => {
     setSelectedChannelId(effectiveSelectedChannelId);
   }, [effectiveSelectedChannelId]);
 
-  // Remember the last channel per server so A → B → A restores A's channel.
   useEffect(() => {
     if (selectedServerId && effectiveSelectedChannelId) {
       lastChannelByServerRef.current[selectedServerId] =
         effectiveSelectedChannelId;
     }
   }, [selectedServerId, effectiveSelectedChannelId]);
-  // All useState at top
-  // Also correct:
   type ChannelRoster = {
     id: string;
     username: string;
@@ -336,7 +330,6 @@ const ServersPageContent: React.FC = () => {
     }
   }, []);
 
-  // Unread mention count per channel
   const unreadMentionsByChannel = useMemo(() => {
     const map = new Map<string, number>();
     for (const n of mentionNotifications) {
@@ -347,7 +340,6 @@ const ServersPageContent: React.FC = () => {
     return map;
   }, [mentionNotifications]);
 
-  // Derived channel lists — must be before effects that use them
   const textChannels = useMemo(
     () => channels.filter((c) => c.type === "text"),
     [channels]
@@ -372,7 +364,6 @@ const ServersPageContent: React.FC = () => {
     [participants]
   );
 
-  // Voice roster: poll while in a call; one-shot fetch when browsing servers offline
   useEffect(() => {
     if (!voiceChannels.length || !user?.id) return;
 
@@ -538,8 +529,6 @@ const ServersPageContent: React.FC = () => {
     };
   }, [selectedServerId, activeCall, servers, handleServerSelect]);
 
-  // Load the global voice toggle once (admin control). Channel fetching itself
-  // is handled entirely by the useChannels query.
   useEffect(() => {
     let cancelled = false;
     const loadVoiceFlag = async () => {
@@ -575,7 +564,6 @@ const ServersPageContent: React.FC = () => {
     };
   }, [selectedServerId]);
 
-  // Handle pending navigation from notifications page
   useEffect(() => {
     if (!channels.length) return;
 
@@ -583,16 +571,13 @@ const ServersPageContent: React.FC = () => {
     const pendingMessageId = sessionStorage.getItem("pendingMessageId");
     if (!pendingChannelId || !pendingMessageId) return;
 
-    // Find the target channel and switch to it
     const targetChannel = channels.find((c) => c.id === pendingChannelId);
     if (targetChannel && targetChannel.id !== activeChannel?.id) {
       setSelectedChannelId(targetChannel.id);
       setViewMode("chat");
-      // Keep the pending items in storage for the next effect run
       return;
     }
 
-    // If we're already on the right channel, scroll to the message
     if (activeChannel?.id === pendingChannelId) {
       sessionStorage.removeItem("pendingChannelId");
       sessionStorage.removeItem("pendingMessageId");
@@ -703,7 +688,6 @@ const ServersPageContent: React.FC = () => {
       await updateChannel(selectedServerId, channelSettings.channel.id, {
         name: nextName,
       });
-      // Update the query cache directly — no refetch of the whole list.
       queryClient.setQueryData(
         queryKeys.serverChannels(selectedServerId),
         (old: Channel[] | null | undefined) =>
@@ -735,8 +719,6 @@ const ServersPageContent: React.FC = () => {
     setIsDeletingChannel(true);
     try {
       await deleteChannel(selectedServerId, channelSettings.channel.id);
-      // Update the query cache directly. The selection effect re-selects a
-      // valid channel if the deleted one was active.
       queryClient.setQueryData(
         queryKeys.serverChannels(selectedServerId),
         (old: Channel[] | null | undefined) =>
@@ -848,15 +830,9 @@ const ServersPageContent: React.FC = () => {
       )}
 
       <div className="relative flex h-screen z-0 bg-black select-none">
-        {/* Server Sidebar */}
         <div className="w-16 p-2 flex flex-col items-center bg-black space-y-3 relative">
           {loading ? (
-            <>
-              <div className="w-12 h-12 rounded-full bg-gray-800 animate-pulse" />
-              <div className="w-12 h-12 rounded-full bg-gray-800 animate-pulse" />
-              <div className="w-12 h-12 rounded-full bg-gray-800 animate-pulse" />
-              <div className="w-12 h-12 rounded-full bg-gray-800 animate-pulse" />
-            </>
+            <ServerRailSkeleton />
           ) : servers.length === 0 ? (
             <div className="text-white text-xs text-center px-2" />
           ) : (
@@ -891,49 +867,22 @@ const ServersPageContent: React.FC = () => {
           </div>
         </div>
 
-        {/* Main Content */}
         {loading ? (
           <div className="relative flex-1 flex">
             <div className="w-60 shrink-0 flex flex-col border-r border-slate-800/50 p-3 bg-black">
-              <div className="h-5 w-32 rounded bg-slate-800/70 animate-pulse mb-4" />
-              <div className="space-y-1.5">
-                <div className="h-3 w-20 rounded bg-slate-800/50 animate-pulse mb-2" />
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-8 rounded-md bg-slate-800/40 animate-pulse"
-                  />
-                ))}
-                <div className="h-3 w-24 rounded bg-slate-800/50 animate-pulse mt-4 mb-2" />
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-8 rounded-md bg-slate-800/40 animate-pulse"
-                  />
-                ))}
-              </div>
+              <div className="h-5 w-32 skeleton rounded mb-4" />
+              <ChannelListSkeleton textRows={5} voiceRows={3} />
             </div>
             <div className="flex-1 flex flex-col bg-black">
               <div className="h-14 border-b border-slate-800/50 flex items-center px-4 gap-3">
-                <div className="h-4 w-4 rounded bg-slate-800/50 animate-pulse" />
-                <div className="h-4 w-28 rounded bg-slate-800/60 animate-pulse" />
+                <div className="skeleton h-4 w-4 rounded" />
+                <div className="skeleton h-4 w-28 rounded" />
               </div>
-              <div className="flex-1 p-4 space-y-5">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="flex gap-3">
-                    <div className="h-10 w-10 rounded-full bg-slate-800/50 animate-pulse shrink-0" />
-                    <div className="space-y-2 flex-1">
-                      <div className="flex items-center gap-2">
-                        <div className="h-3.5 w-24 rounded bg-slate-800/60 animate-pulse" />
-                        <div className="h-3 w-12 rounded bg-slate-800/30 animate-pulse" />
-                      </div>
-                      <div className="h-3.5 rounded bg-slate-800/40 animate-pulse w-3/4" />
-                    </div>
-                  </div>
-                ))}
+              <div className="flex-1 opacity-70 pt-6">
+                <MessageListSkeleton count={4} delayMs={0} />
               </div>
               <div className="h-16 border-t border-slate-800/50 px-4 flex items-center">
-                <div className="flex-1 h-10 rounded-lg bg-slate-800/40 animate-pulse" />
+                <div className="skeleton flex-1 h-10 rounded-lg" />
               </div>
             </div>
           </div>
@@ -979,7 +928,6 @@ const ServersPageContent: React.FC = () => {
           </div>
         ) : (
           <>
-            {/* Channel List */}
             <div
               className={`h-auto shrink-0 overflow-y-auto text-white border-r border-gray-800 bg-black/95 backdrop-blur-[2px] scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-800 overflow-hidden transition-all duration-500 ease-in-out ${
                 isChannelSidebarCollapsed ? "w-0" : "w-72"
@@ -1001,13 +949,10 @@ const ServersPageContent: React.FC = () => {
                         messageId,
                         serverId
                       ) => {
-                        // Switch server if needed
                         if (serverId && serverId !== selectedServerId) {
                           const server = servers.find((s) => s.id === serverId);
                           handleServerSelect(serverId, server?.name ?? "Server");
                         }
-                        // Ensure the target server's channels are in the query
-                        // cache (reuse the cache if it is already loaded).
                         if (serverId) {
                           try {
                             await queryClient.ensureQueryData({
@@ -1018,7 +963,6 @@ const ServersPageContent: React.FC = () => {
                               ).staleTimeMs,
                             });
                           } catch {
-                            // Channels may already be cached; fall through.
                           }
                         }
                         const targetChannels =
@@ -1087,7 +1031,6 @@ const ServersPageContent: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Self-assignable roles */}
                 {selfAssignableRoles.length > 0 && (
                   <div className="px-2 mt-4 transition-all duration-300 ease-out">
                     <div
@@ -1114,8 +1057,8 @@ const ServersPageContent: React.FC = () => {
                       }`}
                     >
                       {rolesLoading ? (
-                        <div className="text-xs text-gray-400 text-center py-2">
-                          Loading...
+                        <div className="py-2">
+                          <RolePillSkeletons pills={4} />
                         </div>
                       ) : (
                         <>
@@ -1218,23 +1161,9 @@ const ServersPageContent: React.FC = () => {
                   </div>
                 )}
 
-                {/* Channel list states: loading (no cache) / error (no cache) / loaded */}
                 {channelsLoading ? (
-                  <div className="px-2 space-y-1.5">
-                    <div className="h-3 w-16 rounded bg-slate-800/60 animate-pulse mb-2" />
-                    {Array.from({ length: 4 }).map((_, i) => (
-                      <div
-                        key={i}
-                        className="h-8 rounded-md bg-slate-800/40 animate-pulse"
-                      />
-                    ))}
-                    <div className="h-3 w-20 rounded bg-slate-800/60 animate-pulse mt-4 mb-2" />
-                    {Array.from({ length: 2 }).map((_, i) => (
-                      <div
-                        key={i}
-                        className="h-8 rounded-md bg-slate-800/40 animate-pulse"
-                      />
-                    ))}
+                  <div className="px-2">
+                    <ChannelListSkeleton />
                   </div>
                 ) : channelsError && channels.length === 0 ? (
                   <div className="px-2 py-4 text-center">
@@ -1256,7 +1185,6 @@ const ServersPageContent: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Text Channels */}
                 <div className="px-2">
                   <h3 className="text-xs font-bold uppercase text-gray-400 mb-2">
                     Text Channels
@@ -1328,7 +1256,6 @@ const ServersPageContent: React.FC = () => {
                   })}
                 </div>
 
-                {/* Voice Channels */}
                 <div className="px-2">
                   <h3 className="text-xs font-bold uppercase text-gray-400 mt-4 mb-2">
                     Voice Channels
@@ -1365,11 +1292,6 @@ const ServersPageContent: React.FC = () => {
                             <span className="truncate font-medium">
                               {channel.name}
                             </span>
-                            {/* {roster.length > 0 && (
-                              <span className="rounded-full bg-[#1e1f22] px-1.5 py-0.5 text-[10px] text-gray-400">
-                                {roster.length}
-                              </span>
-                            )} */}
                             {isInThisChannel && (
                               <span
                                 className={`h-2 w-2 flex-shrink-0 rounded-full ${
@@ -1442,11 +1364,9 @@ const ServersPageContent: React.FC = () => {
                   </>
                 )}
 
-                {/* In-call status bar */}
                 {isVoiceActiveForCurrentServer && activeCall && (
                   <div className="mt-auto p-2">
                     <div className="flex items-center justify-between rounded-lg bg-[#111214] border border-[#2b2d31] px-3 py-2">
-                      {/* Left */}
                       <div className="flex items-center gap-2 min-w-0">
                         <PhoneCall
                           size={14}
@@ -1465,7 +1385,6 @@ const ServersPageContent: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Right */}
                       <div className="flex items-center gap-1">
                         {viewMode === "chat" && (
                           <button
@@ -1491,28 +1410,9 @@ const ServersPageContent: React.FC = () => {
               </div>
             </div>
 
-            {/* Main area */}
             <div className="flex-1 min-w-0 relative text-white bg-black flex flex-col">
-              {/* <button
-                onClick={() => setIsChannelSidebarCollapsed((prev) => !prev)}
-                className={`absolute top-4 ${
-                  isChannelSidebarCollapsed ? "left-4" : "left-[-1.5rem]"
-                } z-20 p-1 rounded-full bg-black border border-gray-800 text-gray-400 hover:text-white hover:bg-[#1e1f22] transition-all`}
-                title={
-                  isChannelSidebarCollapsed
-                    ? "Expand Channel List"
-                    : "Collapse Channel List"
-                }
-              >
-                {isChannelSidebarCollapsed ? (
-                  <FaAngleRight className="w-6 h-6" />
-                ) : (
-                  <FaAngleLeft className="w-6 h-6" />
-                )}
-              </button> */}
 
               <>
-                {/* Voice UI */}
                 <div
                   className={`flex-1 w-full h-full ${showVoiceUI ? "flex" : "hidden"}`}
                 >
@@ -1520,7 +1420,7 @@ const ServersPageContent: React.FC = () => {
                     <div className="relative flex h-full w-full">
                       {(isConnecting || (!isConnected && !connectionError)) && (
                         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/100 backdrop-blur-sm">
-                          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-gray-700 border-t-[#5865f2]" />
+                          <InlineSpinner size="lg" className="mb-4" />
                           <h3 className="text-lg font-semibold text-white">
                             Connecting to voice...
                           </h3>
@@ -1545,42 +1445,6 @@ const ServersPageContent: React.FC = () => {
                   )}
                 </div>
 
-                {/* Bottom bar when in call but viewing chat */}
-                {/* {activeCall && viewMode === "chat" && (
-                  <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-[#1a1b1e] border-t border-gray-800">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`w-2 h-2 rounded-full ${
-                          isConnected
-                            ? "bg-green-500"
-                            : "bg-yellow-500 animate-pulse"
-                        }`}
-                      />
-                      <span className="text-sm text-gray-300">
-                        Voice connected:{" "}
-                        <span className="text-white font-medium">
-                          {activeCall.channelName}
-                        </span>
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setViewMode("voice")}
-                        className="px-3 py-1 text-xs rounded bg-gray-700 hover:bg-gray-600 text-white"
-                      >
-                        Open
-                      </button>
-                      <button
-                        onClick={handleHangUp}
-                        className="px-3 py-1 text-xs rounded bg-red-600 hover:bg-red-500 text-white"
-                      >
-                        Hang up
-                      </button>
-                    </div>
-                  </div>
-                )} */}
-
-                {/* Chat UI */}
                 <div
                   className={`mx-2 -px-6 flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900 rounded-lg ${
                     !showVoiceUI && activeChannel ? "flex flex-col" : "hidden"
@@ -1600,7 +1464,6 @@ const ServersPageContent: React.FC = () => {
                   )}
                 </div>
 
-                {/* Empty state */}
                 {!showVoiceUI && !activeChannel && (
                   <div className="flex flex-col items-center justify-center h-full">
                     <h2 className="text-2xl text-gray-400" />
@@ -1617,15 +1480,7 @@ const ServersPageContent: React.FC = () => {
 
 const ServersPage: React.FC = () => {
   return (
-    <Suspense
-      fallback={
-        <div className="flex h-screen bg-black items-center justify-center">
-          <div className="text-white text-center">
-            <div className="mx-auto mb-4 w-10 h-10 border-4 border-gray-700 border-t-blue-500 rounded-full animate-spin" />
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<PageSkeleton />}>
       <ServersPageContent />
     </Suspense>
   );

@@ -1,23 +1,3 @@
-// src/lib/VoiceVideoManager.ts
-// Amazon Chime SDK Voice/Video Manager
-//
-// HOW IT WORKS:
-// =============
-// 1. The Amazon Chime SDK handles all the complex WebRTC, TURN/STUN, and signaling internally
-// 2. To use it, you need credentials from your backend (meeting + attendee info)
-// 3. The SDK creates a "MeetingSession" which manages all audio/video
-// 4. You bind video tiles to HTML <video> elements to display video
-// 5. Audio is handled automatically via a bound <audio> element
-//
-// FLOW:
-// -----
-// 1. initialize() - Request media permissions and set up device controller
-// 2. joinVoiceChannel(channelId) - Call backend API to get Chime meeting credentials
-// 3. Backend creates meeting via AWS SDK (CreateMeeting + CreateAttendee)
-// 4. Create MeetingSessionConfiguration with the credentials
-// 5. Create DefaultMeetingSession and start audio/video
-// 6. Subscribe to events (attendee presence, volume indicators, video tiles)
-// 7. User can now talk and see others
 
 import {
   ConsoleLogger,
@@ -39,7 +19,6 @@ import {
 
 import axios from "axios";
 
-// Chime API client - separate from main API
 const CHIME_API_URL = process.env.NEXT_PUBLIC_CHIME_API_URL;
 
 const chimeApiClient = axios.create({
@@ -47,16 +26,9 @@ const chimeApiClient = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  // Note: withCredentials is false because API Gateway uses '*' for CORS
-  // If your Chime API needs auth, pass tokens in headers instead
   withCredentials: false,
 });
 
-// ==================== TYPES ====================
-
-/**
- * Current state of local media (mute, video on/off, etc.)
- */
 export interface MediaState {
   muted: boolean;
   speaking: boolean;
@@ -75,9 +47,6 @@ export interface MediaState {
   };
 }
 
-/**
- * Available devices (microphones, cameras, speakers)
- */
 export interface DeviceInfo {
   audioInputs: MediaDeviceInfo[];
   videoInputs: MediaDeviceInfo[];
@@ -87,9 +56,6 @@ export interface DeviceInfo {
   activeAudioOutputDevice?: string;
 }
 
-/**
- * Network quality metrics
- */
 export interface NetworkStats {
   latency: number;
   packetLoss: number;
@@ -97,9 +63,6 @@ export interface NetworkStats {
   connectionType: "good" | "fair" | "poor";
 }
 
-/**
- * Credentials returned from backend after calling CreateMeeting + CreateAttendee
- */
 export interface ChimeMeetingInfo {
   meeting: {
     MeetingId: string;
@@ -121,9 +84,6 @@ export interface ChimeMeetingInfo {
   };
 }
 
-/**
- * Represents a member in the voice channel roster
- */
 export interface VoiceRosterMember {
   name: string;
   attendeeId: string;
@@ -135,9 +95,6 @@ export interface VoiceRosterMember {
   signalStrength: number;
 }
 
-/**
- * Video tile information for binding to UI
- */
 export interface VideoTileInfo {
   tileId: number;
   attendeeId: string;
@@ -146,29 +103,6 @@ export interface VideoTileInfo {
   active: boolean;
 }
 
-// ==================== MAIN MANAGER CLASS ====================
-
-/**
- * VoiceVideoManager - Manages all voice/video functionality using Amazon Chime SDK
- *
- * Usage:
- * ```ts
- * const manager = new VoiceVideoManager(userId);
- * await manager.initialize();
- * await manager.joinVoiceChannel(channelId);
- *
- * // Subscribe to events
- * manager.onVoiceRoster((members) => console.log('Roster:', members));
- * manager.onVideoTileUpdated((tile) => console.log('Video tile:', tile));
- *
- * // Control audio/video
- * manager.toggleAudio(false); // mute
- * await manager.toggleVideo(true); // turn on camera
- *
- * // Leave
- * manager.leaveVoiceChannel();
- * ```
- */
 export class VoiceVideoManager
   implements AudioVideoObserver, ContentShareObserver, DeviceChangeObserver
 {
@@ -176,29 +110,23 @@ export class VoiceVideoManager
   private username: string;
   private currentChannelId: string | null = null;
 
-  // Chime SDK Components
   private logger: ConsoleLogger;
   private deviceController: DefaultDeviceController | null = null;
   private meetingSession: DefaultMeetingSession | null = null;
   private audioVideo: AudioVideoFacade | null = null;
 
-  // Audio element for playback (hidden in DOM)
   private audioElement: HTMLAudioElement | null = null;
 
-  // Local screen capture stream (Chime requires this for sharer preview — tile bind won't work)
   private localScreenStream: MediaStream | null = null;
   private screenShareTrackEndedHandler: (() => void) | null = null;
 
-  // Video tiles tracking
   private videoTiles: Map<number, VideoTileInfo> = new Map();
   private localVideoTileId: number | null = null;
   private localScreenTileId: number | null = null;
 
-  // Roster (list of participants)
   private roster: Map<string, VoiceRosterMember> = new Map();
   private currentRemoteVideoSources: VideoSource[] = [];
 
-  // State
   private mediaState: MediaState = {
     muted: true, // Start muted by default
     speaking: false,
@@ -223,7 +151,6 @@ export class VoiceVideoManager
     connectionType: "good",
   };
 
-  // Event callbacks
   private callbacks = {
     onVideoTileUpdated: null as ((tile: VideoTileInfo) => void) | null,
     onVideoTileRemoved: null as ((tileId: number) => void) | null,
@@ -251,16 +178,6 @@ export class VoiceVideoManager
     this.logger = new ConsoleLogger("ChimeVoice", LogLevel.WARN);
   }
 
-  // ==================== INITIALIZATION ====================
-
-  /**
-   * Initialize the manager - requests media permissions and sets up device controller
-   *
-   * HOW IT WORKS:
-   * 1. Creates a DefaultDeviceController (handles all device enumeration/selection)
-   * 2. Tries to list audio/video devices (this triggers permission prompts)
-   * 3. Stores available permissions and device lists
-   */
   async initialize(requestVideo = true, requestAudio = true): Promise<void> {
     try {
       console.log("[VoiceVideoManager] Initializing with:", {
@@ -268,7 +185,6 @@ export class VoiceVideoManager
         requestAudio,
       });
 
-      // Create device controller if not exists
       if (!this.deviceController) {
         this.deviceController = new DefaultDeviceController(this.logger);
       }
@@ -276,7 +192,6 @@ export class VoiceVideoManager
       let audioGranted = false;
       let videoGranted = false;
 
-      // Request audio permission by listing devices
       if (requestAudio) {
         try {
           const audioInputs =
@@ -291,7 +206,6 @@ export class VoiceVideoManager
         }
       }
 
-      // Request video permission by listing devices
       if (requestVideo) {
         try {
           const videoInputs =
@@ -306,13 +220,11 @@ export class VoiceVideoManager
         }
       }
 
-      // Update permissions state
       this.mediaState.availablePermissions = {
         audio: audioGranted,
         video: videoGranted,
       };
 
-      // Update device lists
       await this.updateDeviceInfo();
 
       if (!audioGranted && !videoGranted) {
@@ -325,36 +237,19 @@ export class VoiceVideoManager
     }
   }
 
-  /** Initialize with audio only */
   async initializeAudioOnly(): Promise<void> {
     return this.initialize(false, true);
   }
 
-  /** Initialize with video only */
   async initializeVideoOnly(): Promise<void> {
     return this.initialize(true, false);
   }
 
-  // ==================== JOIN/LEAVE VOICE CHANNEL ====================
-
-  /**
-   * Join a voice channel
-   *
-   * HOW IT WORKS:
-   * 1. Call backend API to get Chime meeting credentials
-   * 2. Backend uses AWS SDK to CreateMeeting (or get existing) + CreateAttendee
-   * 3. Create MeetingSessionConfiguration with those credentials
-   * 4. Create DefaultMeetingSession
-   * 5. Add observers for events (video tiles, roster, etc.)
-   * 6. Start audio input and bind audio element
-   * 7. Call audioVideo.start() to begin the session
-   */
   async joinVoiceChannel(channelId: string): Promise<void> {
     try {
       console.log("[VoiceVideoManager] Joining channel:", channelId);
       this.currentChannelId = channelId;
 
-      // Step 1: Get meeting credentials from backend
       const meetingInfo = await this.createOrJoinMeeting(channelId);
 
       if (!meetingInfo?.meeting || !meetingInfo?.attendee) {
@@ -366,13 +261,11 @@ export class VoiceVideoManager
         attendeeId: meetingInfo.attendee.AttendeeId,
       });
 
-      // Step 2: Create meeting session configuration
       const configuration = new MeetingSessionConfiguration(
         meetingInfo.meeting,
         meetingInfo.attendee
       );
 
-      // Step 3: Create meeting session
       this.meetingSession = new DefaultMeetingSession(
         configuration,
         this.logger,
@@ -381,19 +274,16 @@ export class VoiceVideoManager
 
       this.audioVideo = this.meetingSession.audioVideo;
 
-      // Step 4: Add observers
       this.audioVideo.addObserver(this);
       this.audioVideo.addContentShareObserver(this);
       this.deviceController?.addDeviceChangeObserver(this);
 
-      // Step 5: Subscribe to attendee presence (join/leave events)
       this.audioVideo.realtimeSubscribeToAttendeeIdPresence(
         (attendeeId: string, present: boolean, externalUserId?: string) => {
           this.handleAttendeePresence(attendeeId, present, externalUserId);
         }
       );
 
-      // Step 6: Subscribe to local mute state changes
       this.audioVideo.realtimeSubscribeToMuteAndUnmuteLocalAudio(
         (muted: boolean) => {
           this.mediaState.muted = muted;
@@ -401,7 +291,6 @@ export class VoiceVideoManager
         }
       );
 
-      // Step 7: Subscribe to active speaker detection
       this.audioVideo.subscribeToActiveSpeakerDetector(
         new DefaultActiveSpeakerPolicy(),
         (attendeeIds: string[]) => {
@@ -409,7 +298,6 @@ export class VoiceVideoManager
         }
       );
 
-      // Step 8: Start audio/video session
       await this.startSession();
 
       this.callbacks.onConnectionStateChange?.(true);
@@ -420,20 +308,10 @@ export class VoiceVideoManager
     }
   }
 
-  /**
-   * Start the audio/video session
-   *
-   * HOW IT WORKS:
-   * 1. Select first available audio input device and start it
-   * 2. Select audio output device
-   * 3. Create hidden <audio> element and bind it (for hearing others)
-   * 4. Start the session with audioVideo.start()
-   */
   private async startSession(): Promise<void> {
     if (!this.audioVideo || !this.deviceController) return;
 
     try {
-      // Start with first available audio input
       const audioInputs = await this.deviceController.listAudioInputDevices();
       if (audioInputs.length > 0) {
         const deviceId =
@@ -444,7 +322,6 @@ export class VoiceVideoManager
         console.log("[VoiceVideoManager] Started audio input:", deviceId);
       }
 
-      // Set audio output
       const audioOutputs = await this.deviceController.listAudioOutputDevices();
       if (audioOutputs.length > 0) {
         const deviceId =
@@ -453,21 +330,17 @@ export class VoiceVideoManager
         this.deviceInfo.activeAudioOutputDevice = deviceId;
       }
 
-      // Create and bind audio element (required to hear remote participants)
       this.audioElement = document.createElement("audio");
       this.audioElement.autoplay = true;
       this.audioElement.style.display = "none";
       document.body.appendChild(this.audioElement);
       this.audioVideo.bindAudioElement(this.audioElement);
 
-      // Start the session!
       this.audioVideo.start();
 
-      // Start muted by default for privacy
       this.audioVideo.realtimeMuteLocalAudio();
       this.mediaState.muted = true;
 
-      // Late joiners: sync existing remote video sources after session starts
       setTimeout(() => this.syncExistingRemoteVideo(), 300);
     } catch (error) {
       console.error("[VoiceVideoManager] Failed to start session:", error);
@@ -475,16 +348,6 @@ export class VoiceVideoManager
     }
   }
 
-  /**
-   * Leave the current voice channel
-   *
-   * HOW IT WORKS:
-   * 1. Stop local video if on
-   * 2. Stop screen share if active
-   * 3. Stop the audio/video session
-   * 4. Clean up audio element
-   * 5. Clear all state
-   */
   leaveVoiceChannel(): void {
     console.log("[VoiceVideoManager] Leaving channel:", this.currentChannelId);
 
@@ -510,7 +373,6 @@ export class VoiceVideoManager
 
     this.roster.clear();
 
-    // Fire removal callbacks BEFORE clearing so UI can clean up
     this.videoTiles.forEach((_, tileId) => {
       this.callbacks.onVideoTileRemoved?.(tileId);
     });
@@ -532,16 +394,7 @@ export class VoiceVideoManager
 
     this.callbacks.onConnectionStateChange?.(false);
   }
-  // ==================== AUDIO/VIDEO CONTROLS ====================
 
-  /**
-   * Toggle local audio (mute/unmute)
-   *
-   * HOW IT WORKS:
-   * The Chime SDK provides realtime mute/unmute methods that immediately
-   * stop/start sending audio to the server. No audio data leaves your
-   * device when muted.
-   */
   toggleAudio(enabled: boolean): void {
     if (!this.audioVideo) return;
 
@@ -558,26 +411,16 @@ export class VoiceVideoManager
     this.broadcastLocalState();
   }
 
-  /**
-   * Toggle local video (camera on/off)
-   *
-   * HOW IT WORKS:
-   * 1. If turning on: Start video input with device, then start local video tile
-   * 2. If turning off: Stop video input and stop local video tile
-   * 3. The SDK automatically handles sending the video stream to others
-   */
   async toggleVideo(enabled: boolean): Promise<void> {
     if (!this.audioVideo) return;
 
     try {
       if (enabled) {
-        // Check permission
         if (!this.mediaState.availablePermissions.video) {
           console.warn("[VoiceVideoManager] No video permission");
           return;
         }
 
-        // Get video device
         const videoInputs =
           await this.deviceController?.listVideoInputDevices();
         if (!videoInputs?.length) {
@@ -588,7 +431,6 @@ export class VoiceVideoManager
         const deviceId =
           this.deviceInfo.activeVideoDevice || videoInputs[0].deviceId;
 
-        // Start video input (this captures from camera)
         await this.audioVideo.startVideoInput({
           deviceId,
           width: { max: 640 },
@@ -598,13 +440,11 @@ export class VoiceVideoManager
 
         this.deviceInfo.activeVideoDevice = deviceId;
 
-        // Start local video tile (this sends to others)
         this.audioVideo.startLocalVideoTile();
 
         this.mediaState.video = true;
         this.mediaState.activeStreams.video = true;
       } else {
-        // Stop video
         await this.audioVideo.stopVideoInput();
         this.audioVideo.stopLocalVideoTile();
 
@@ -620,25 +460,10 @@ export class VoiceVideoManager
     }
   }
 
-  // ==================== SCREEN SHARING ====================
-
-  /**
-   * Start screen sharing
-   *
-   * HOW IT WORKS:
-   * The SDK calls the browser's getDisplayMedia API to capture screen/window.
-   * The captured stream is sent as a "content share" which appears as a
-   * separate video tile for other participants.
-   *
-   * NOTE: If the user cancels the screen share dialog, this will throw a
-   * NotAllowedError which should be handled gracefully by the caller.
-   */
   async startScreenShare(): Promise<void> {
     if (!this.audioVideo) return;
 
     try {
-      // Capture screen/window/tab — browser shows native picker (screen/window/tab).
-      // The returned stream is required to preview your own share locally (Chime SDK docs).
       const screenStream =
         await this.audioVideo.startContentShareFromScreenCapture(undefined, 15);
       this.attachLocalScreenStream(screenStream);
@@ -649,29 +474,23 @@ export class VoiceVideoManager
     } catch (error: any) {
       console.error("[VoiceVideoManager] Screen share failed:", error);
 
-      // Handle user cancellation gracefully - don't treat as an error
       if (
         error.name === "NotAllowedError" ||
         error.message?.includes("Permission denied")
       ) {
         console.log("[VoiceVideoManager] Screen share was cancelled by user");
-        // Don't set error state or throw - just silently return
-        // The user intentionally cancelled, this is not an error condition
         return;
       }
 
-      // For other errors, notify via callback but don't crash
       this.callbacks.onError?.({
         code: "SCREEN_SHARE_FAILED",
         message: error.message || "Screen sharing failed",
       });
 
-      // Re-throw for other genuine errors so caller can handle
       throw error;
     }
   }
 
-  /** Stop screen sharing */
   stopScreenShare(): void {
     if (!this.audioVideo) return;
 
@@ -719,13 +538,11 @@ export class VoiceVideoManager
     this.screenShareTrackEndedHandler = null;
   }
 
-  /** Drop local preview reference — Chime owns stopping the capture tracks */
   private clearLocalScreenStream(): void {
     this.detachLocalScreenStreamListeners();
     this.localScreenStream = null;
   }
 
-  // ContentShareObserver implementation
   contentShareDidStart(): void {
     this.mediaState.screenSharing = true;
     this.mediaState.activeStreams.screen = true;
@@ -747,9 +564,6 @@ export class VoiceVideoManager
     console.log("[VoiceVideoManager] Content share unpaused");
   }
 
-  // ==================== DEVICE MANAGEMENT ====================
-
-  /** Update the list of available devices */
   async updateDeviceInfo(): Promise<void> {
     if (!this.deviceController) return;
 
@@ -773,14 +587,12 @@ export class VoiceVideoManager
     }
   }
 
-  /** Switch microphone to a different device */
   async switchMicrophone(deviceId: string): Promise<void> {
     if (!this.audioVideo) return;
     await this.audioVideo.startAudioInput(deviceId);
     this.deviceInfo.activeAudioDevice = deviceId;
   }
 
-  /** Switch camera to a different device */
   async switchCamera(deviceId: string): Promise<void> {
     if (!this.audioVideo) return;
     await this.audioVideo.startVideoInput({
@@ -794,7 +606,6 @@ export class VoiceVideoManager
     console.log("[VoiceVideoManager] Switched camera to:", deviceId);
   }
 
-  /** Switch speaker/audio output to a different device */
   async switchSpeaker(deviceId: string): Promise<void> {
     if (!this.audioVideo) return;
     await this.audioVideo.chooseAudioOutput(deviceId);
@@ -802,7 +613,6 @@ export class VoiceVideoManager
     console.log("[VoiceVideoManager] Switched speaker to:", deviceId);
   }
 
-  // DeviceChangeObserver implementation
   audioInputsChanged(freshAudioInputDeviceList: MediaDeviceInfo[]): void {
     this.deviceInfo.audioInputs = freshAudioInputDeviceList;
   }
@@ -815,24 +625,15 @@ export class VoiceVideoManager
     this.deviceInfo.videoInputs = freshVideoInputDeviceList;
   }
 
-  // ==================== AUDIO/VIDEO OBSERVER IMPLEMENTATION ====================
-
-  /**
-   * Called when the session starts
-   */
   audioVideoDidStart(): void {
     this.callbacks.onConnectionStateChange?.(true);
     setTimeout(() => this.syncExistingRemoteVideo(), 200);
   }
 
-  /**
-   * Called when the session stops
-   */
   audioVideoDidStop(sessionStatus: MeetingSessionStatus): void {
     const code = sessionStatus.statusCode();
     console.log("[VoiceVideoManager] Audio/video session stopped:", code);
 
-    // Handle different stop reasons
     if (code === MeetingSessionStatusCode.Left) {
       console.log("[VoiceVideoManager] User left the meeting");
     } else if (code === MeetingSessionStatusCode.MeetingEnded) {
@@ -844,27 +645,10 @@ export class VoiceVideoManager
     this.callbacks.onConnectionStateChange?.(false);
   }
 
-  /**
-   * Called during connection attempts
-   */
   audioVideoDidStartConnecting(reconnecting: boolean): void {
     console.log("[VoiceVideoManager] Connecting...", { reconnecting });
   }
 
-  /**
-   * Called when a video tile is created or updated
-   *
-   * HOW VIDEO TILES WORK:
-   * - Each participant's video (and screen share) is a "tile"
-   * - You bind tiles to <video> elements using bindVideoElement(tileId, element)
-   * - Local tile has localTile=true
-   * - Content share tiles have isContent=true
-   *
-   * NOTE: For REMOTE video state, we rely on remoteVideoSourcesDidChange() as the
-   * authoritative source. This callback is only used for:
-   * - Tracking local video state
-   * - Notifying UI about tile creation for binding video elements
-   */
   videoTileDidUpdate(tileState: VideoTileState): void {
     if (!tileState.tileId) return;
 
@@ -901,7 +685,6 @@ export class VoiceVideoManager
 
     this.callbacks.onVideoTileUpdated?.(tileInfo);
 
-    // If this is a content share, update screen sharing state in roster + notify UI
     if (tileState.isContent && tileState.boundAttendeeId) {
       const baseAttendeeId = this.getBaseAttendeeId(tileState.boundAttendeeId);
       const rosterMember = this.roster.get(baseAttendeeId);
@@ -916,16 +699,9 @@ export class VoiceVideoManager
     }
   }
 
-  /**
-   * Called when a video tile is removed
-   *
-   * NOTE: For REMOTE video state, we rely on remoteVideoSourcesDidChange() as the
-   * authoritative source. This callback only handles local tiles and screen sharing.
-   */
   videoTileWasRemoved(tileId: number): void {
     const tileInfo = this.videoTiles.get(tileId);
 
-    // Handle content share (screen sharing) removal
     if (tileInfo?.isContent && tileInfo.attendeeId) {
       const baseAttendeeId = this.getBaseAttendeeId(tileInfo.attendeeId);
       const rosterMember = this.roster.get(baseAttendeeId);
@@ -936,8 +712,6 @@ export class VoiceVideoManager
       this.callbacks.onScreenSharing?.(baseAttendeeId, false);
     }
 
-    // Only update video state for LOCAL tiles here
-    // Remote video state is handled by remoteVideoSourcesDidChange() to avoid race conditions
     if (tileInfo?.isLocal && tileInfo?.attendeeId && !tileInfo.isContent) {
       const rosterMember = this.roster.get(tileInfo.attendeeId);
       if (rosterMember) {
@@ -962,9 +736,6 @@ export class VoiceVideoManager
     this.callbacks.onVideoTileRemoved?.(tileId);
   }
 
-  /**
-   * Called when connection quality changes
-   */
   connectionDidBecomePoor(): void {
     console.warn("[VoiceVideoManager] Connection became poor");
     this.networkStats.connectionType = "poor";
@@ -977,10 +748,6 @@ export class VoiceVideoManager
     );
   }
 
-  /**
-   * Called when remote video sources change (participants turn video on/off)
-   * This is the PRIMARY callback for detecting remote video state changes!
-   */
   remoteVideoSourcesDidChange(videoSources: VideoSource[]): void {
     this.currentRemoteVideoSources = videoSources;
     this.applyRemoteVideoSourcesToRoster(videoSources);
@@ -1009,7 +776,6 @@ export class VoiceVideoManager
       this.broadcastRoster();
     }
 
-    // Re-notify UI about existing tiles so late joiners bind video elements
     this.videoTiles.forEach((tile) => {
       if (!tile.isContent && tile.active) {
         this.callbacks.onVideoTileUpdated?.(tile);
@@ -1035,32 +801,16 @@ export class VoiceVideoManager
     }
   }
 
-  // ==================== ATTENDEE/ROSTER MANAGEMENT ====================
-
-  /**
-   * Handle attendee presence changes (join/leave)
-   *
-   * HOW IT WORKS:
-   * The SDK notifies us when attendees join or leave.
-   * We maintain a roster map and subscribe to volume indicators
-   * for each attendee to track mute/speaking state.
-   *
-   * NOTE: Video state is handled by remoteVideoSourcesDidChange() - we always
-   * start with video: false here and let that callback update it.
-   */
   private handleAttendeePresence(
     attendeeId: string,
     present: boolean,
     externalUserId?: string
   ): void {
-    // Skip content share attendees for the main roster
     if (attendeeId.includes("#content")) return;
 
     const userId = externalUserId || attendeeId;
 
     if (present) {
-      // Attendee joined - start with video: false
-      // remoteVideoSourcesDidChange() will update this if they have video
       const member: VoiceRosterMember = {
         name: userId,
         attendeeId,
@@ -1075,10 +825,8 @@ export class VoiceVideoManager
       this.roster.set(attendeeId, member);
       this.callbacks.onUserJoined?.(attendeeId, userId);
 
-      // Late joiner: existing participants may already be sending video
       this.syncExistingRemoteVideo();
 
-      // Subscribe to volume indicator for this attendee
       this.audioVideo?.realtimeSubscribeToVolumeIndicator(
         attendeeId,
         (
@@ -1108,7 +856,6 @@ export class VoiceVideoManager
         userId,
       });
     } else {
-      // Attendee left
       this.roster.delete(attendeeId);
       this.callbacks.onUserLeft?.(attendeeId);
       console.log("[VoiceVideoManager] Attendee left:", attendeeId);
@@ -1117,11 +864,7 @@ export class VoiceVideoManager
     this.broadcastRoster();
   }
 
-  /**
-   * Handle active speaker detection
-   */
   private handleActiveSpeakers(attendeeIds: string[]): void {
-    // Update speaking state for all roster members
     this.roster.forEach((member, aid) => {
       const wasSpeaking = member.speaking;
       member.speaking = attendeeIds.includes(aid);
@@ -1132,13 +875,11 @@ export class VoiceVideoManager
     });
   }
 
-  /** Broadcast the current roster to listeners */
   private broadcastRoster(): void {
     const members = Array.from(this.roster.values());
     this.callbacks.onVoiceRoster?.(members);
   }
 
-  /** Broadcast local user's state change */
   private broadcastLocalState(): void {
     const localAttendeeId =
       this.meetingSession?.configuration?.credentials?.attendeeId;
@@ -1153,17 +894,6 @@ export class VoiceVideoManager
     this.broadcastRoster();
   }
 
-  // ==================== API CALLS ====================
-
-  /**
-   * Call backend to create or join a Chime meeting
-   *
-   * API Endpoints:
-   * - POST /meetings - Create meeting & attendee (returns { meeting, attendee })
-   * - GET /meetings/{meetingId} - Get meeting info
-   * - POST /meetings/{meetingId}/attendees - Join existing meeting (returns { meeting, attendee })
-   * - DELETE /meetings/{meetingId} - End meeting
-   */
   private async createOrJoinMeeting(
     channelId: string
   ): Promise<ChimeMeetingInfo> {
@@ -1176,9 +906,6 @@ export class VoiceVideoManager
       let response: any;
 
       try {
-        // Try to create a new meeting (this also creates the attendee)
-        // Backend expects: attendeeName (required), channelId (required), externalUserId (optional)
-        // Username will be used as both attendeeName and externalUserId for display in Chime roster
         response = await chimeApiClient.post("/meetings", {
           attendeeName: this.username, // Required by backend - will be displayed
           channelId: channelId, // Required by backend
@@ -1186,7 +913,6 @@ export class VoiceVideoManager
         });
         console.log("[VoiceVideoManager] Created new meeting");
       } catch (createError: any) {
-        // If meeting already exists (409 Conflict), join it instead
         if (createError.response?.status === 409) {
           const existingMeetingId =
             createError.response?.data?.meetingId ||
@@ -1197,8 +923,6 @@ export class VoiceVideoManager
             existingMeetingId
           );
 
-          // Join the existing meeting
-          // Backend expects: attendeeName (required), externalUserId (optional)
           response = await chimeApiClient.post(
             `/meetings/${existingMeetingId}/attendees`,
             {
@@ -1211,7 +935,6 @@ export class VoiceVideoManager
         }
       }
 
-      // Handle response format: { success: true, data: { meeting, attendee } }
       const responseData = response.data?.data || response.data;
       const { meeting, attendee } = responseData;
 
@@ -1222,7 +945,6 @@ export class VoiceVideoManager
       console.log("[VoiceVideoManager] Got meeting:", meeting.MeetingId);
       console.log("[VoiceVideoManager] Got attendee:", attendee.AttendeeId);
 
-      // Return in the expected ChimeMeetingInfo format
       return {
         meeting: {
           MeetingId: meeting.MeetingId,
@@ -1254,30 +976,17 @@ export class VoiceVideoManager
     }
   }
 
-  // ==================== VIDEO ELEMENT BINDING ====================
-
-  /**
-   * Bind a video tile to an HTML video element
-   *
-   *kl[] HOW TO USE:
-   * 1. Subscribe to onVideoTileUpdated to get tile info
-   * 2. When you get a tile, call bindVideoElement(tileId, yourVideoElement)
-   * 3. The video will automatically play in that element
-   */
   bindVideoElement(tileId: number, element: HTMLVideoElement): void {
     if (this.audioVideo) {
       this.audioVideo.bindVideoElement(tileId, element);
     }
   }
 
-  /** Unbind a video tile from its element */
   unbindVideoElement(tileId: number): void {
     if (this.audioVideo) {
       this.audioVideo.unbindVideoElement(tileId);
     }
   }
-
-  // ==================== EVENT CALLBACKS ====================
 
   onVideoTileUpdated(callback: (tile: VideoTileInfo) => void): void {
     this.callbacks.onVideoTileUpdated = callback;
@@ -1325,7 +1034,6 @@ export class VoiceVideoManager
     this.callbacks.onNetworkQuality = callback;
   }
 
-  // Legacy callback aliases for backwards compatibility
   onStream(
     callback: (
       stream: MediaStream,
@@ -1334,7 +1042,6 @@ export class VoiceVideoManager
     ) => void
   ): void {
     void callback;
-    // This is now handled via video tiles instead of streams
     console.warn(
       "[VoiceVideoManager] onStream is deprecated, use onVideoTileUpdated instead"
     );
@@ -1342,13 +1049,10 @@ export class VoiceVideoManager
 
   onRecording(callback: (event: string, data: any) => void): void {
     void callback;
-    // Recording is handled server-side in Chime
     console.warn(
       "[VoiceVideoManager] Recording is managed server-side via Chime Media Capture Pipeline"
     );
   }
-
-  // ==================== GETTERS ====================
 
   getMediaState(): MediaState {
     return { ...this.mediaState };
@@ -1411,16 +1115,11 @@ export class VoiceVideoManager
     );
   }
 
-  // ==================== UTILITY METHODS ====================
-
-  /** Adjust video quality (Chime handles most of this automatically) */
   adjustQuality(quality: "low" | "medium" | "high" | "auto"): void {
     this.mediaState.mediaQuality = quality;
-    // Chime SDK handles quality adaptation automatically based on network conditions
     console.log("[VoiceVideoManager] Quality preference set to:", quality);
   }
 
-  /** Recording (managed server-side) */
   startRecording(config?: any): void {
     void config;
     console.log(
@@ -1432,16 +1131,13 @@ export class VoiceVideoManager
     console.log("[VoiceVideoManager] Stop recording via server");
   }
 
-  /** Full disconnect */
   disconnect(): void {
     this.leaveVoiceChannel();
     this.deviceController = null;
     console.log("[VoiceVideoManager] Fully disconnected");
   }
 
-  // Legacy getters for backwards compatibility
   getLocalStream(): MediaStream | null {
-    // Chime SDK doesn't expose streams directly; use video tiles instead
     return null;
   }
 
@@ -1450,6 +1146,5 @@ export class VoiceVideoManager
   }
 
   async ensureConnection(): Promise<void> {
-    // No-op for compatibility
   }
 }
