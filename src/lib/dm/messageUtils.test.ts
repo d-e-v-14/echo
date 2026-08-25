@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createDmMessagesData,
+  dmMessagePreview,
   flattenDmMessages,
   insertIncomingIntoPages,
   markMessageFailedById,
@@ -281,6 +282,22 @@ describe("markMessageFailedById", () => {
   it("no-ops when the id is not present", () => {
     const old = data(msg({ id: "real-1" }));
     expect(markMessageFailedById(old, "ghost")).toBe(old);
+  });
+});
+
+describe("dmMessagePreview", () => {
+  it("shows GIF for a gif message instead of the raw url", () => {
+    expect(
+      dmMessagePreview("[GIF]https://media1.giphy.com/media/abc/giphy.gif")
+    ).toBe("GIF");
+  });
+
+  it("returns the trimmed content for normal messages", () => {
+    expect(dmMessagePreview("  hello world  ")).toBe("hello world");
+  });
+
+  it("returns a fallback when the content is empty", () => {
+    expect(dmMessagePreview("")).toBe("Sent an attachment");
   });
 });
 

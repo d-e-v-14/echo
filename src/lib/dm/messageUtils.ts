@@ -276,3 +276,10 @@ export const sortDmConversationsByLatest = <
     const timeB = Date.parse(b.timestamp) || 0;
     return timeB - timeA;
   });
+
+export const dmMessagePreview = (content: string): string => {
+  const trimmed = (content || "").trim();
+  if (!trimmed) return "Sent an attachment";
+  if (trimmed.startsWith("[GIF]")) return "GIF";
+  return trimmed;
+};

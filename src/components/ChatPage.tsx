@@ -48,6 +48,7 @@ import {
 } from "@/components/loading/skeletons";
 import { queryKeys } from "@/lib/query/keys";
 import {
+  dmMessagePreview,
   flattenDmMessages,
   insertIncomingIntoDataOrCreate,
   insertIncomingIntoPages,
@@ -143,6 +144,8 @@ const formatTimestamp = (ts: string): string => {
   if (date.getTime() >= yesterday.getTime()) return "Yesterday";
   return date.toLocaleDateString([], { month: "short", day: "numeric" });
 };
+
+const previewTextFor = dmMessagePreview;
 
 const ChatList: React.FC<ChatListProps> = ({
   conversations,
@@ -938,8 +941,8 @@ function MessagesPageContentInner() {
 
         const summary: DmSummary = {
           lastMessage: isFromSelf
-            ? `You: ${incomingMsg.content || "Sent an attachment"}`
-            : incomingMsg.content || "Sent an attachment",
+            ? `You: ${previewTextFor(incomingMsg.content)}`
+            : previewTextFor(incomingMsg.content),
           timestamp: msgTimestamp,
           unreadCount: isFromSelf
             ? 0
@@ -1102,8 +1105,8 @@ function MessagesPageContentInner() {
           const content = lastMessageObj
             ? lastMessageObj.media_url || lastMessageObj.mediaUrl
               ? "Sent an attachment"
-              : String(
-                  lastMessageObj.content ?? lastMessageObj.message ?? ""
+              : previewTextFor(
+                  String(lastMessageObj.content ?? lastMessageObj.message ?? "")
                 )
             : "No messages yet.";
           const isSender = lastMessageObj?.sender_id === currentUser.id;
@@ -1149,7 +1152,9 @@ function MessagesPageContentInner() {
     if (!dmListData) return;
     setAllUsers((prev) => {
       const byId = new Map(prev.map((u) => [u.id, u]));
-      dmListData.users.forEach((u) => byId.set(u.id, u));
+      dmListData.users.forEach((u) => {
+        if (!byId.has(u.id)) byId.set(u.id, u);
+      });
       return Array.from(byId.values());
     });
     setThreadIds((prev) => {
@@ -1160,6 +1165,34 @@ function MessagesPageContentInner() {
       return next;
     });
     setDmSummaries((prev) => mergeDmSummaries(dmListData.summaryMap, prev));
+  }, [dmListData]);
+
+  // The DM list response may only carry a partner's username; enrich each
+  // conversation partner with their authoritative profile so the display
+  // name is shown instead of the username.
+  const profileFetchedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!dmListData?.users.length) return;
+    dmListData.users.forEach((user) => {
+      if (profileFetchedRef.current.has(user.id)) return;
+      profileFetchedRef.current.add(user.id);
+      fetchUserProfile(user.id)
+        .then((profile) => {
+          if (!profile) return;
+          setAllUsers((prev) =>
+            prev.map((u) =>
+              u.id === user.id
+                ? {
+                    ...u,
+                    fullname: profile.fullname || profile.username || u.fullname,
+                    avatar_url: profile.avatar_url ?? u.avatar_url,
+                  }
+                : u
+            )
+          );
+        })
+        .catch(console.error);
+    });
   }, [dmListData]);
 
   useEffect(() => {
@@ -1340,7 +1373,7 @@ function MessagesPageContentInner() {
         const previewText =
           vars.uploads.length > 1 || (vars.uploads[0]?.file != null)
             ? "You: Sent an attachment"
-            : `You: ${vars.uploads[0]?.content ?? ""}`;
+            : `You: ${previewTextFor(vars.uploads[0]?.content ?? "")}`;
         const summary: DmSummary = {
           lastMessage: previewText.trim(),
           timestamp: optimisticTimestamp,
@@ -1354,7 +1387,7 @@ function MessagesPageContentInner() {
       const optimisticPreviewText =
         vars.uploads.length > 1 || (vars.uploads[0]?.file != null)
           ? "You: Sent an attachment"
-          : `You: ${vars.uploads[0]?.content ?? ""}`;
+          : `You: ${previewTextFor(vars.uploads[0]?.content ?? "")}`;
       updateDmListCache(vars.conversationId, {
         lastMessage: optimisticPreviewText.trim(),
         timestamp: optimisticTimestamp,
@@ -1408,10 +1441,9 @@ queryClient.setQueryData(
         }
 
         const confirmedSummary: DmSummary = {
-          lastMessage: (savedMediaUrl
+          lastMessage: savedMediaUrl
             ? "You: Sent an attachment"
-            : `You: ${savedContent}`
-          ).trim(),
+            : `You: ${previewTextFor(savedContent)}`,
           timestamp: String(saved?.timestamp ?? new Date().toISOString()),
           unreadCount: 0,
           status: "sent",

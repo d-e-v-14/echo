@@ -213,6 +213,17 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const renderPlainContent = (content: string) => {
     if (!content) return null;
 
+    const gifMatch = content.match(/^\[GIF\](.+)$/);
+    if (gifMatch) {
+      return (
+        <img
+          src={gifMatch[1]}
+          alt="GIF"
+          className="block max-w-full h-auto rounded-lg"
+        />
+      );
+    }
+
     const codeFenceRegex = /```(?:\w+)?\n?([\s\S]*?)```/g;
     const segments: Array<{ type: "text" | "code"; value: string }> = [];
     let lastIndex = 0;
