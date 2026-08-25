@@ -10,7 +10,7 @@ import React, {
 } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { usePageReady } from "@/components/RouteChangeLoader";
-import { Paperclip, Search, Send, Smile, X } from "lucide-react";
+import { Paperclip, Search, Send, Smile, X, Phone, Video, Pin } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getUserDMs,
@@ -543,68 +543,89 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   return (
     <div className="flex h-full flex-1 flex-col bg-black backdrop-blur">
-      <header className="flex items-center justify-between border-b border-slate-800/80 px-2 py-2">
-        <div className="flex items-center gap-3">
-          <div className="h-11 w-11 overflow-hidden rounded-full border border-slate-800/70 bg-slate-900/70">
+      <header className="flex h-14 shrink-0 items-center gap-3 border-b border-white/[0.06] bg-[#111214] px-4">
+        {/* Left: Avatar + Name */}
+        <div className="flex min-w-0 items-center gap-3">
+          <button
+            type="button"
+            onClick={() =>
+              onOpenProfile(
+                activeUser.id,
+                activeUser.fullname,
+                activeUser.avatar_url
+              )
+            }
+            className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-[#23272a] ring-2 ring-transparent transition hover:ring-[#FFC341]/40"
+            title={`View ${activeUser.fullname}'s profile`}
+          >
             {activeUser.avatar_url ? (
               <img
                 src={activeUser.avatar_url}
                 alt={activeUser.fullname}
-                className="h-full w-full cursor-pointer object-cover"
-                onClick={() =>
-                  onOpenProfile(
-                    activeUser.id,
-                    activeUser.fullname,
-                    activeUser.avatar_url
-                  )
-                }
+                className="h-full w-full object-cover"
               />
             ) : (
-              <div
-                onClick={() =>
-                  onOpenProfile(
-                    activeUser.id,
-                    activeUser.fullname,
-                    activeUser.avatar_url
-                  )
-                }
-                className="flex h-full w-full cursor-pointer items-center justify-center text-sm font-semibold uppercase text-slate-200"
-              >
+              <span className="flex h-full w-full items-center justify-center text-xs font-bold uppercase text-[#b5bac1]">
                 {getInitials(activeUser.fullname)}
-              </div>
+              </span>
             )}
-          </div>
-          <div>
-            <h3
-              onClick={() =>
-                onOpenProfile(
-                  activeUser.id,
-                  activeUser.fullname,
-                  activeUser.avatar_url
-                )
-              }
-              className="text-base font-semibold text-slate-100 cursor-pointer hover:text-white"
-            >
-              {activeUser.fullname}
-            </h3>
-            {/* <p className="text-xs text-slate-400">
-              Direct message • {messages.length}{" "}
-              {messages.length === 1 ? "message" : "messages"}
-            </p> */}
-          </div>
+          </button>
+          <h3
+            onClick={() =>
+              onOpenProfile(
+                activeUser.id,
+                activeUser.fullname,
+                activeUser.avatar_url
+              )
+            }
+            className="min-w-0 truncate text-[15px] font-semibold text-slate-100 cursor-pointer hover:text-white"
+            title={activeUser.fullname}
+          >
+            {activeUser.fullname}
+          </h3>
         </div>
-        <div className="flex items-center gap-2 text-slate-400">
+
+        {/* Center: Action Buttons */}
+        <div className="flex items-center gap-1 md:ml-2">
           <button
-          type="button"
-          onClick={() => setShowSearch(true)}
-          disabled={!threadId}
-          className="flex items-center gap-2 rounded-full border border-slate-800/70 px-3 py-2 text-sm text-slate-300 transition-colors hover:border-[#FFC341]/50 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-          aria-label="Search in conversation"
-          title="Search messages"
-        >
-          <Search className="h-4 w-4" />
-          <span>Search</span>
-        </button>
+            type="button"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-[#b5bac1] transition hover:bg-white/[0.06] hover:text-white"
+            title="Start voice call"
+            aria-label="Start voice call"
+          >
+            <Phone className="h-[18px] w-[18px]" />
+          </button>
+          <button
+            type="button"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-[#b5bac1] transition hover:bg-white/[0.06] hover:text-white"
+            title="Start video call"
+            aria-label="Start video call"
+          >
+            <Video className="h-[18px] w-[18px]" />
+          </button>
+          <button
+            type="button"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-[#b5bac1] transition hover:bg-white/[0.06] hover:text-white"
+            title="Pinned messages"
+            aria-label="Pinned messages"
+          >
+            <Pin className="h-[18px] w-[18px]" />
+          </button>
+        </div>
+
+        {/* Right: Search */}
+        <div className="ml-auto flex min-w-0 shrink-0 items-center">
+          <div className="group relative">
+            <input
+              type="text"
+              placeholder={`Search ${activeUser.fullname.split(" ")[0] || activeUser.fullname}`}
+              onFocus={() => threadId && setShowSearch(true)}
+              readOnly={!threadId}
+              className="h-9 w-48 rounded-lg border border-white/[0.06] bg-[#1e1f22] px-3 pr-9 text-sm text-slate-200 placeholder:text-[#72767d] outline-none transition focus:w-64 focus:border-[#FFC341]/40 focus:ring-1 focus:ring-[#FFC341]/20 disabled:cursor-not-allowed disabled:opacity-40 lg:w-56 lg:focus:w-72"
+              aria-label={`Search messages with ${activeUser.fullname}`}
+            />
+            <Search className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#72767d] transition group-focus-within:text-[#FFC341]/60" />
+          </div>
         </div>
       </header>
 
