@@ -227,7 +227,7 @@ export default function Sidebar() {
         </nav>
 
         {/* Logout */}
-        <div className="border-t border-white/[0.06] px-3 pb-4 pt-3">
+        <div className=" p-3">
           <button
             type="button"
             onClick={handleLogout}
@@ -236,7 +236,7 @@ export default function Sidebar() {
               items-center justify-center gap-2
               rounded-md
               px-3
-              text-sm
+              text-lg
               font-medium
               text-gray-400
               transition-colors
