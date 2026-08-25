@@ -13,7 +13,6 @@ import { ServerMember } from "@/api/types/server.types";
 import { SearchUser } from "@/api/types/user.types";
 import { Role } from "@/api/types/roles.types";
 import { useToast } from "@/contexts/ToastContext";
-import { SettingsFormSkeleton } from "@/components/loading/pageSkeletons";
 
 interface Member {
   id: string;
@@ -44,11 +43,7 @@ export default function Members({
   const [searchLoading, setSearchLoading] = useState(false);
   const [showRolePopupFor, setShowRolePopupFor] = useState<string | null>(null);
   const [serverRoles, setServerRoles] = useState<Role[]>([]);
-  const [roleActionLoading, setRoleActionLoading] = useState<string | null>(
-    null
-  );
-  const [addMemberError, setAddMemberError] = useState<string>("");
-  const [addMemberSuccess, setAddMemberSuccess] = useState<string>("");
+  const [roleActionLoading, setRoleActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     loadMembers();
@@ -57,57 +52,46 @@ export default function Members({
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (searchQuery.length >= 2) {
-        handleSearchUsers();
-      } else {
-        setSearchResults([]);
-      }
+      if (searchQuery.length >= 2) handleSearchUsers();
+      else setSearchResults([]);
     }, 300);
-
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
   const loadServerRoles = async () => {
     try {
-      const roles = await getAllRoles(serverId);
-      setServerRoles(roles);
+      setServerRoles(await getAllRoles(serverId));
     } catch (error) {
-      console.error("Failed to load server roles:", error);
+      console.error("Failed to load roles:", error);
     }
   };
 
   const loadMembers = async () => {
     try {
       const serverMembers = await getServerMembers(serverId);
-
       if (!serverMembers || !Array.isArray(serverMembers)) {
         setMembers([]);
         return;
       }
-
-      const formattedMembers: Member[] = serverMembers.map(
-        (member: ServerMember) => {
-          return {
-            id: member.user_id,
-            username: `@${member.users.username}`,
-            fullname: member.users.fullname,
-            roles:
-              member.user_roles?.map((ur: any) => ({
-                id: ur.roles?.id || ur.role_id,
-                name: ur.roles?.name || "Unknown",
-                color: ur.roles?.color || "#5865f2",
-                role_type: ur.roles?.role_type || "custom",
-              })) || [],
-            joinDate: new Date(member.joined_at).toLocaleDateString("en-US", {
-              month: "short",
-              year: "numeric",
-            }),
-            avatar: member.users.avatar_url || "/avatar.png",
-          };
-        }
+      setMembers(
+        serverMembers.map((m: ServerMember) => ({
+          id: m.user_id,
+          username: `@${m.users.username}`,
+          fullname: m.users.fullname,
+          roles:
+            m.user_roles?.map((ur: any) => ({
+              id: ur.roles?.id || ur.role_id,
+              name: ur.roles?.name || "Unknown",
+              color: ur.roles?.color || "#5865f2",
+              role_type: ur.roles?.role_type || "custom",
+            })) || [],
+          joinDate: new Date(m.joined_at).toLocaleDateString("en-US", {
+            month: "short",
+            year: "numeric",
+          }),
+          avatar: m.users.avatar_url || "/avatar.png",
+        }))
       );
-
-      setMembers(formattedMembers);
     } catch (error) {
       console.error("Failed to load members:", error);
     } finally {
@@ -121,8 +105,7 @@ export default function Members({
       await assignRoleToUser(serverId, memberId, roleId);
       await loadMembers();
     } catch (error: any) {
-      console.error("Failed to assign role:", error);
-      alert(error?.response?.data?.error || "Failed to assign role");
+      showToast(error?.response?.data?.error || "Failed to assign role", "error");
     } finally {
       setRoleActionLoading(null);
     }
@@ -134,8 +117,7 @@ export default function Members({
       await removeRoleFromUser(serverId, memberId, roleId);
       await loadMembers();
     } catch (error: any) {
-      console.error("Failed to remove role:", error);
-      alert(error?.response?.data?.error || "Failed to remove role");
+      showToast(error?.response?.data?.error || "Failed to remove role", "error");
     } finally {
       setRoleActionLoading(null);
     }
@@ -144,8 +126,7 @@ export default function Members({
   const handleSearchUsers = async () => {
     setSearchLoading(true);
     try {
-      const results = await searchUsers(searchQuery);
-      setSearchResults(results);
+      setSearchResults(await searchUsers(searchQuery));
     } catch (error) {
       console.error("Failed to search users:", error);
     } finally {
@@ -154,188 +135,98 @@ export default function Members({
   };
 
   const handleKickMember = async (memberId: string, memberUsername: string) => {
-    if (!confirm(`Are you sure you want to kick ${memberUsername}?`)) return;
-
+    if (!confirm(`Kick ${memberUsername}?`)) return;
     try {
       await kickMember(serverId, memberId);
       setMembers(members.filter((m) => m.id !== memberId));
-    } catch (error) {
-      console.error("Failed to kick member:", error);
-      alert("Failed to kick member. Please try again.");
+      showToast(`${memberUsername} kicked`, "success");
+    } catch {
+      showToast("Failed to kick member", "error");
     }
   };
 
   const handleBanMember = async (memberId: string, memberUsername: string) => {
     const reason = prompt(`Ban reason for ${memberUsername}:`);
     if (reason === null) return;
-
     try {
       await banMember(serverId, memberId, reason);
       setMembers(members.filter((m) => m.id !== memberId));
-      showToast(
-        `${memberUsername} has been banned from the server.`,
-        "success"
-      );
-    } catch (error) {
-      console.error("Failed to ban member:", error);
-      showToast("Failed to ban member. Please try again.", "error");
+      showToast(`${memberUsername} has been banned`, "success");
+    } catch {
+      showToast("Failed to ban member", "error");
     }
   };
 
   const handleAddMemberToServer = async (user: SearchUser) => {
     try {
-      setAddMemberError("");
-      setAddMemberSuccess("");
       await addUserToServer(serverId, user.username);
       setShowAddMember(false);
       setSearchQuery("");
       setSearchResults([]);
-      setAddMemberSuccess(
-        `Successfully added @${user.username} to the server!`
-      );
+      showToast(`@${user.username} added`, "success");
       await loadMembers();
-
-      setTimeout(() => setAddMemberSuccess(""), 3000);
     } catch (error: any) {
-      console.error("Failed to add member:", error);
-
-      const errorMessage =
-        error?.response?.data?.error ||
-        error?.message ||
-        "Failed to add member. Please try again.";
-
-      if (errorMessage.includes("banned") || errorMessage.includes("ban")) {
-        setAddMemberError(
-          `Cannot add @${user.username}: This user is banned from the server. You need to unban them first from the Bans section.`
-        );
-      } else if (errorMessage.includes("already a member")) {
-        setAddMemberError(
-          `@${user.username} is already a member of this server.`
-        );
-      } else {
-        setAddMemberError(`Failed to add @${user.username}: ${errorMessage}`);
-      }
-
-      setTimeout(() => setAddMemberError(""), 5000);
+      const msg = error?.response?.data?.error || error?.message || "Failed to add member";
+      showToast(msg, "error");
     }
   };
 
-  if (loading) {
-    return (
-      <div className="p-8">
-        <SettingsFormSkeleton fields={4} titleWidth="w-36" />
-      </div>
-    );
-  }
-
   return (
-    <div className="max-w-4xl mx-auto p-8 text-white">
-      <div className="flex justify-between items-center mb-8">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Members</h1>
-          <div className="text-sm text-gray-400 mt-1">
-            Server ID: {serverId} | Members found: {members.length}
-          </div>
+          <p className="text-sm text-[#72767d] mt-1">
+            {members.length} member{members.length !== 1 ? "s" : ""}
+          </p>
         </div>
-        <div className="flex gap-3">
+        {(isOwner || isAdmin) && (
           <button
-            onClick={loadMembers}
-            className="bg-[#23272a] text-white px-4 py-2 rounded border border-[#72767d] hover:bg-[#2f3136] transition"
+            onClick={() => {
+              setShowAddMember(!showAddMember);
+              setSearchQuery("");
+              setSearchResults([]);
+            }}
+            className="bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-medium text-sm px-3 py-1.5 rounded"
           >
-            Refresh
+            {showAddMember ? "Cancel" : "Add Member"}
           </button>
-          {(isOwner || isAdmin) && (
-            <button
-              onClick={() => {
-                setShowAddMember(!showAddMember);
-                setAddMemberError("");
-                setAddMemberSuccess("");
-              }}
-              className="bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold rounded px-4 py-2 transition-all duration-200 hover:-translate-y-0.5"
-            >
-              {showAddMember ? "Cancel" : "Add Member"}
-            </button>
-          )}
-        </div>
+        )}
       </div>
 
-      {addMemberError && (
-        <div className="mb-4 bg-[#ed4245]/10 border border-[#ed4245]/30 text-[#ed4245] px-4 py-3 rounded flex items-start">
-          <svg
-            className="w-5 h-5 mr-3 flex-shrink-0 mt-0.5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <div className="flex-1">{addMemberError}</div>
-        </div>
-      )}
-
-      {addMemberSuccess && (
-        <div className="mb-4 bg-[#3ba55c]/10 border border-[#3ba55c]/30 text-[#3ba55c] px-4 py-3 rounded flex items-start">
-          <svg
-            className="w-5 h-5 mr-3 flex-shrink-0 mt-0.5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <div className="flex-1">{addMemberSuccess}</div>
-        </div>
-      )}
-
       {showAddMember && (
-        <div className="mb-6 p-4 border border-[#72767d] rounded">
-          <h3 className="text-lg font-semibold mb-3">Add New Member</h3>
-          <div className="flex gap-3 mb-3">
-            <input
-              className="flex-1 bg-black text-white border-2 border-[#72767d] rounded px-4 py-2 focus:border-[#b5bac1] focus:outline-none"
-              placeholder="Search users by username..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-
+        <div className="border border-white/[0.06] rounded-lg bg-[#111214] p-4">
+          <input
+            className="w-full bg-[#18191c] text-base text-white border border-white/[0.06] rounded px-3 py-2 focus:border-[#FFC341] focus:outline-none transition-colors"
+            placeholder="Search by username..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            autoFocus
+          />
           {searchLoading && (
-            <div className="text-[#b5bac1] text-sm">Searching...</div>
+            <div className="text-sm text-[#72767d] mt-2">Searching...</div>
           )}
-
           {searchResults.length > 0 && (
-            <div className="space-y-2 max-h-40 overflow-y-auto">
+            <div className="space-y-1 mt-2 max-h-48 overflow-y-auto">
               {searchResults.map((user) => (
                 <div
                   key={user.id}
-                  className="flex items-center justify-between p-2 border border-[#72767d] rounded"
+                  className="flex items-center justify-between p-2 rounded hover:bg-white/[0.04] transition"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2.5">
                     <img
                       src={user.avatar_url || "/avatar.png"}
-                      alt={user.username}
-                      className="w-8 h-8 rounded-full"
+                      className="w-7 h-7 rounded-full"
+                      alt=""
                     />
                     <div>
-                      <div className="font-medium">@{user.username}</div>
-                      <div className="text-sm text-[#b5bac1]">
-                        {user.fullname}
-                      </div>
+                      <div className="text-sm font-medium">@{user.username}</div>
+                      <div className="text-[10px] text-[#72767d]">{user.fullname}</div>
                     </div>
                   </div>
                   <button
                     onClick={() => handleAddMemberToServer(user)}
-                    className="bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold px-3 py-1 rounded text-sm transition-all duration-200 hover:-translate-y-0.5"
+                    className="bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-medium text-xs px-2.5 py-1 rounded"
                   >
                     Add
                   </button>
@@ -346,183 +237,160 @@ export default function Members({
         </div>
       )}
 
-      {members.length === 0 ? (
-        <div className="text-center p-8 border border-[#72767d] rounded">
-          <div className="text-[#b5bac1] text-lg mb-2">No members found</div>
-          <div className="text-[#72767d] text-sm">
-            This server doesn&apos;t have any members yet, or there was an issue
-            loading them.
+      <div className="border border-white/[0.06] rounded-lg bg-[#111214]">
+        {loading ? (
+          <div className="p-8 text-center text-[#72767d] text-sm">Loading...</div>
+        ) : members.length === 0 ? (
+          <div className="p-8 text-center">
+            <div className="text-[#b5bac1] text-sm">No members found</div>
           </div>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {members.map((member) => (
-            <div
-              key={member.id}
-              className="flex items-center justify-between p-4 border border-[#72767d] rounded hover:border-[#b5bac1] transition"
-            >
-              <div className="flex items-center gap-4">
-                <img
-                  src={member.avatar}
-                  alt={member.username}
-                  className="w-12 h-12 rounded-full object-cover"
-                />
-                <div>
-                  <div className="font-semibold">{member.username}</div>
-                  <div className="text-sm text-[#b5bac1]">
-                    {member.fullname}
-                  </div>
-                  <div className="text-xs text-[#72767d]">
-                    Joined {member.joinDate}
-                  </div>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {member.roles.map((role) => (
-                      <span
-                        key={role.id}
-                        className="text-xs px-2 py-1 rounded text-white"
-                        style={{ backgroundColor: role.color || "#5865f2" }}
-                      >
-                        {role.name}
-                        {role.role_type === "owner" && " "}
-                        {role.role_type === "admin" && " "}
-                      </span>
-                    ))}
-                    {member.roles.length === 0 && (
-                      <span className="text-xs text-[#72767d]">No roles</span>
+        ) : (
+          <div className="divide-y divide-white/[0.04]">
+            {members.map((member) => (
+              <div
+                key={member.id}
+                className="flex items-center justify-between px-5 py-3 hover:bg-white/[0.02] transition-colors"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <img
+                    src={member.avatar}
+                    alt=""
+                    className="w-9 h-9 rounded-full object-cover flex-shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <div className="text-base font-medium truncate">{member.username}</div>
+                    <div className="text-sm text-[#72767d] truncate">
+                      {member.fullname} · Joined {member.joinDate}
+                    </div>
+                    {member.roles.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {member.roles.map((role) => (
+                          <span
+                            key={role.id}
+                            className="text-[10px] px-1.5 py-0.5 rounded"
+                            style={{
+                              backgroundColor: `${role.color || "#5865f2"}20`,
+                              color: role.color || "#5865f2",
+                            }}
+                          >
+                            {role.name}
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </div>
+                {(isOwner || isAdmin) && (
+                  <div className="flex gap-1 flex-shrink-0 ml-3">
+                    <button
+                      onClick={() =>
+                        setShowRolePopupFor(
+                          showRolePopupFor === member.id ? null : member.id
+                        )
+                      }
+                      className="text-[#b5bac1] text-xs px-2 py-1 rounded hover:bg-white/[0.06] transition"
+                    >
+                      Roles
+                    </button>
+                    <button
+                      onClick={() => handleKickMember(member.id, member.username)}
+                      className="text-[#e67e22] text-xs px-2 py-1 rounded hover:bg-[#e67e22]/10 transition"
+                    >
+                      Kick
+                    </button>
+                    <button
+                      onClick={() => handleBanMember(member.id, member.username)}
+                      className="text-[#ed4245] text-xs px-2 py-1 rounded hover:bg-[#ed4245]/10 transition"
+                    >
+                      Ban
+                    </button>
+                  </div>
+                )}
               </div>
-              {(isOwner || isAdmin) && (
-                <div className="flex gap-2">
-                  <button
-                    onClick={() =>
-                      setShowRolePopupFor(
-                        showRolePopupFor === member.id ? null : member.id
-                      )
-                    }
-                    className="bg-[#23272a] text-white px-3 py-1 rounded text-sm border border-[#72767d] hover:bg-[#2f3136] transition"
-                  >
-                    Manage Roles
-                  </button>
-                  <button
-                    onClick={() => handleKickMember(member.id, member.username)}
-                    className="bg-[#23272a] text-[#e67e22] px-3 py-1 rounded text-sm border border-[#e67e22]/30 hover:bg-[#e67e22]/10 transition"
-                  >
-                    Kick
-                  </button>
-                  <button
-                    onClick={() => handleBanMember(member.id, member.username)}
-                    className="bg-[#23272a] text-[#ed4245] px-3 py-1 rounded text-sm border border-[#ed4245]/30 hover:bg-[#ed4245]/10 transition"
-                  >
-                    Ban
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
 
       {showRolePopupFor && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-[#2f3136] p-6 rounded-lg max-w-md w-full max-h-[80vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold mb-2">Manage Roles</h3>
-            <p className="text-sm text-[#b5bac1] mb-4">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-[#23272a] border border-white/[0.06] p-5 rounded-lg max-w-sm w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <h3 className="text-base font-semibold mb-1">Manage Roles</h3>
+            <p className="text-sm text-[#72767d] mb-4">
               for {members.find((m) => m.id === showRolePopupFor)?.username}
             </p>
 
             <div className="mb-4">
-              <h4 className="text-sm font-medium text-[#b5bac1] mb-2">
-                Current Roles
+              <h4 className="text-xs font-semibold text-[#72767d] uppercase tracking-wider mb-2">
+                Current
               </h4>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 {members
                   .find((m) => m.id === showRolePopupFor)
                   ?.roles.map((role) => (
                     <div
                       key={role.id}
-                      className="flex items-center gap-1 px-2 py-1 rounded text-sm"
-                      style={{ backgroundColor: role.color || "#5865f2" }}
+                      className="flex items-center gap-1 px-2 py-1 rounded text-xs"
+                      style={{
+                        backgroundColor: `${role.color || "#5865f2"}20`,
+                        color: role.color || "#5865f2",
+                      }}
                     >
                       <span>{role.name}</span>
                       {role.role_type !== "owner" && (
                         <button
-                          onClick={() =>
-                            handleRemoveRole(showRolePopupFor!, role.id)
-                          }
+                          onClick={() => handleRemoveRole(showRolePopupFor!, role.id)}
                           disabled={roleActionLoading === role.id}
-                          className="ml-1 hover:text-red-300"
+                          className="ml-0.5 hover:text-[#ed4245]"
                         >
-                          {roleActionLoading === role.id ? "..." : "×"}
+                          ×
                         </button>
                       )}
                     </div>
                   ))}
-                {members.find((m) => m.id === showRolePopupFor)?.roles
-                  .length === 0 && (
-                  <span className="text-sm text-[#72767d]">
-                    No roles assigned
-                  </span>
+                {members.find((m) => m.id === showRolePopupFor)?.roles.length === 0 && (
+                  <span className="text-sm text-[#72767d]">None</span>
                 )}
               </div>
             </div>
 
             <div className="mb-4">
-              <h4 className="text-sm font-medium text-[#b5bac1] mb-2">
-                Available Roles
+              <h4 className="text-xs font-semibold text-[#72767d] uppercase tracking-wider mb-2">
+                Available
               </h4>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
+              <div className="space-y-1 max-h-40 overflow-y-auto">
                 {serverRoles
                   .filter((role) => {
-                    const memberRoles =
-                      members.find((m) => m.id === showRolePopupFor)?.roles ||
-                      [];
-                    return !memberRoles.some((mr) => mr.id === role.id);
+                    const mr = members.find((m) => m.id === showRolePopupFor)?.roles || [];
+                    return !mr.some((r) => r.id === role.id);
                   })
                   .filter((role) => {
-                    if (role.role_type === "owner") {
-                      return false;
-                    }
-                    if (role.role_type === "admin") {
-                      return isOwner;
-                    }
+                    if (role.role_type === "owner") return false;
+                    if (role.role_type === "admin") return isOwner;
                     return true;
                   })
                   .map((role) => (
                     <button
                       key={role.id}
-                      onClick={() =>
-                        handleAssignRole(showRolePopupFor!, role.id)
-                      }
+                      onClick={() => handleAssignRole(showRolePopupFor!, role.id)}
                       disabled={roleActionLoading === role.id}
-                      className="flex items-center justify-between w-full text-left p-2 rounded hover:bg-[#40444b] transition"
+                      className="flex items-center justify-between w-full text-left p-2 rounded hover:bg-white/[0.04] transition text-xs"
                     >
                       <span style={{ color: role.color || "#fff" }}>
                         {role.name}
                         {role.role_type === "admin" && " (Admin)"}
-                        {role.is_self_assignable && " (Self-assignable)"}
                       </span>
-                      <span className="text-xs text-[#b5bac1]">
-                        {roleActionLoading === role.id ? "Adding..." : "+ Add"}
+                      <span className="text-[10px] text-[#72767d]">
+                        {roleActionLoading === role.id ? "..." : "+ Add"}
                       </span>
                     </button>
                   ))}
-                {serverRoles.filter((role) => {
-                  const memberRoles =
-                    members.find((m) => m.id === showRolePopupFor)?.roles || [];
-                  return !memberRoles.some((mr) => mr.id === role.id);
-                }).length === 0 && (
-                  <span className="text-sm text-[#72767d]">
-                    No more roles available
-                  </span>
-                )}
               </div>
             </div>
 
             <button
               onClick={() => setShowRolePopupFor(null)}
-              className="w-full bg-[#23272a] text-white px-4 py-2 rounded border border-[#72767d] hover:bg-[#2f3136] transition"
+              className="w-full text-sm text-[#b5bac1] py-2 rounded border border-white/[0.06] hover:bg-white/[0.04] transition"
             >
               Close
             </button>

@@ -1,6 +1,10 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { getServerInvites, createServerInvite, deleteInvite } from "@/api";
 import { ServerInvite } from "@/api/types/server.types";
+import { useToast } from "@/contexts/ToastContext";
+import Skeleton from "@/components/loading/Skeleton";
 
 interface InvitePeopleProps {
   serverId: string;
@@ -8,13 +12,13 @@ interface InvitePeopleProps {
 
 export default function InvitePeople({ serverId }: InvitePeopleProps) {
   const [invites, setInvites] = useState<ServerInvite[]>([]);
-  const [inviteLink, setInviteLink] = useState<string>("");
-  const [expiresAfter, setExpiresAfter] = useState<string>("7 days");
-  const [maxUses, setMaxUses] = useState<string>("No limit");
+  const [inviteLink, setInviteLink] = useState("");
+  const [expiresAfter, setExpiresAfter] = useState("7 days");
+  const [maxUses, setMaxUses] = useState("No limit");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [generating, setGenerating] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const { showToast } = useToast();
 
   useEffect(() => {
     loadInvites();
@@ -26,20 +30,14 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
       setPermissionDenied(false);
       const response = await getServerInvites(serverId);
       setInvites(response);
-
       if (response.length > 0) {
-        const latestInvite = response[0];
-        setInviteLink(`${window.location.origin}/invite/${latestInvite.id}`);
+        setInviteLink(`${window.location.origin}/invite/${response[0].id}`);
       }
-      setError("");
     } catch (err: any) {
-      console.error("Error loading invites:", err);
       if (err.response?.status === 403) {
         setPermissionDenied(true);
-        setError("");
       } else {
-        setError("Failed to load invites");
-        setPermissionDenied(false);
+        showToast("Failed to load invites", "error");
       }
     } finally {
       setLoading(false);
@@ -48,66 +46,62 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
 
   const handleGenerateLink = async () => {
     try {
-      const expiresAfterStr =
-        expiresAfter === "Never" ? undefined : expiresAfter;
-      const maxUsesStr = maxUses === "No limit" ? undefined : maxUses;
-
+      setGenerating(true);
       const response = await createServerInvite(serverId, {
-        expiresAfter: expiresAfterStr,
-        maxUses: maxUsesStr,
+        expiresAfter: expiresAfter === "Never" ? undefined : expiresAfter,
+        maxUses: maxUses === "No limit" ? undefined : maxUses,
       });
-
       const inviteId = response.invite?.id;
-      const newLink = inviteId
-        ? `${window.location.origin}/invite/${inviteId}`
-        : "";
-      setInviteLink(newLink);
-      setSuccess("New invite link generated successfully");
+      setInviteLink(inviteId ? `${window.location.origin}/invite/${inviteId}` : "");
+      showToast("New invite link generated", "success");
       loadInvites();
-
-      setTimeout(() => setSuccess(""), 3000);
     } catch (err: any) {
-      setError(
-        `Failed to generate invite link: ${err.response?.data?.error || err.message}`
+      showToast(
+        err.response?.data?.error || "Failed to generate invite",
+        "error"
       );
-      setTimeout(() => setError(""), 5000);
+    } finally {
+      setGenerating(false);
     }
   };
 
   const handleDeleteInvite = async (inviteId: string) => {
-    if (confirm("Are you sure you want to delete this invite?")) {
-      try {
-        await deleteInvite(serverId, inviteId);
-        setSuccess("Invite deleted successfully");
-        loadInvites();
-
-        const deletedInvite = invites.find((inv) => inv.id === inviteId);
-        if (deletedInvite && inviteLink.includes(deletedInvite.id)) {
-          setInviteLink("");
-        }
-
-        setTimeout(() => setSuccess(""), 3000);
-      } catch (err) {
-        console.error("Error deleting invite:", err);
-        setError("Failed to delete invite");
-        setTimeout(() => setError(""), 3000);
-      }
+    if (!confirm("Delete this invite?")) return;
+    try {
+      await deleteInvite(serverId, inviteId);
+      showToast("Invite deleted", "success");
+      loadInvites();
+    } catch {
+      showToast("Failed to delete invite", "error");
     }
   };
 
   const handleCopyLink = () => {
     if (inviteLink) {
       navigator.clipboard.writeText(inviteLink);
-      setSuccess("Invite link copied to clipboard");
-      setTimeout(() => setSuccess(""), 2000);
+      showToast("Copied to clipboard", "success");
     }
   };
 
   if (loading) {
     return (
-      <div className="max-w-lg mx-auto p-8 text-white">
-        <div className="flex justify-center items-center h-64">
-          <div className="text-lg">Loading invites...</div>
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-6 w-32" />
+          <Skeleton className="h-4 w-48 mt-2" />
+        </div>
+        <div className="border border-white/[0.06] rounded-lg bg-[#111214] p-5 space-y-4">
+          <Skeleton className="h-10 w-full" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+          <Skeleton className="h-9 w-full" />
+        </div>
+        <div className="border border-white/[0.06] rounded-lg bg-[#111214] p-5 space-y-3">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
         </div>
       </div>
     );
@@ -115,34 +109,14 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
 
   if (permissionDenied) {
     return (
-      <div className="max-w-lg mx-auto p-8 text-white">
-        <h1 className="text-2xl font-bold mb-8">Invite People</h1>
-        <div className="bg-[#FFC341]/10 border border-[#FFC341]/30 rounded p-6">
-          <div className="flex items-center mb-4">
-            <svg
-              className="w-6 h-6 text-[#FFC341] mr-3"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.664-.833-2.464 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
-              />
-            </svg>
-            <h3 className="text-lg font-semibold text-[#FFC341]">
-              Access Restricted
-            </h3>
-          </div>
-          <p className="text-[#b5bac1] mb-4">
-            You don&apos;t have permission to view or manage server invites.
-            Only server admins and owners can access this feature.
-          </p>
-          <p className="text-[#72767d] text-sm">
-            Contact a server administrator if you need to invite someone to this
-            server.
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">Invites</h1>
+        </div>
+        <div className="border border-[#FFC341]/20 rounded-lg bg-[#FFC341]/5 p-5">
+          <p className="text-sm text-[#b5bac1]">
+            You don&apos;t have permission to manage invites. Only admins and
+            owners can access this feature.
           </p>
         </div>
       </div>
@@ -150,47 +124,38 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
   }
 
   return (
-    <div className="max-w-lg mx-auto p-8 text-white">
-      <h1 className="text-2xl font-bold mb-8">Invite People</h1>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Invites</h1>
+        <p className="text-sm text-[#72767d] mt-1">
+          Create and manage invite links
+        </p>
+      </div>
 
-      {error && (
-        <div className="bg-[#ed4245]/10 border border-[#ed4245]/30 text-[#ed4245] p-3 rounded mb-4">{error}</div>
-      )}
+      <div className="border border-white/[0.06] rounded-lg bg-[#111214] p-5">
+        <h2 className="text-base font-semibold mb-4">Create Invite</h2>
 
-      {success && (
-        <div className="bg-[#3ba55c]/10 border border-[#3ba55c]/30 text-[#3ba55c] p-3 rounded mb-4">
-          {success}
-        </div>
-      )}
-
-      <div className="mb-7">
-        <label className="block text-sm text-[#b5bac1] mb-2 font-semibold">
-          Invite Link
-        </label>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 mb-4">
           <input
             type="text"
-            value={inviteLink || "Generate a new invite link"}
+            value={inviteLink || "Generate a link below"}
             readOnly
-            className="bg-black text-white border-2 border-[#72767d] rounded px-4 py-3 text-base flex-1 focus:border-[#b5bac1] focus:outline-none transition-all duration-200"
+            className="flex-1 bg-[#18191c] text-sm text-[#b5bac1] border border-white/[0.06] rounded px-3 py-2 focus:outline-none"
           />
           <button
-            className="bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold rounded px-4 py-2.5 transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={handleCopyLink}
             disabled={!inviteLink}
+            className="bg-[#23272a] text-[#b5bac1] text-sm font-medium px-3 py-2 rounded border border-white/[0.06] hover:bg-[#2f3136] transition disabled:opacity-50"
           >
             Copy
           </button>
         </div>
-      </div>
-      <div className="flex gap-6 mb-8 flex-col md:flex-row">
-        <div className="flex-1 min-w-[180px]">
-          <label className="block text-sm text-[#b5bac1] mb-2 font-semibold">
-            Expires after
-          </label>
-          <div className="relative w-full">
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="block text-sm text-[#72767d] mb-1.5">Expires after</label>
             <select
-              className="w-full bg-black text-white border-2 border-[#72767d] rounded px-4 py-3 pr-10 appearance-none focus:border-[#b5bac1] focus:outline-none transition-all duration-200"
+              className="w-full bg-[#18191c] text-base text-white border border-white/[0.06] rounded px-3 py-2 focus:border-[#FFC341] focus:outline-none transition-colors"
               value={expiresAfter}
               onChange={(e) => setExpiresAfter(e.target.value)}
             >
@@ -203,26 +168,11 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
               <option value="30 days">30 days</option>
               <option value="Never">Never</option>
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-              <svg
-                className="w-5 h-5 text-[#b5bac1]"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                viewBox="0 0 24 24"
-              >
-                <path d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
           </div>
-        </div>
-        <div className="flex-1 min-w-[180px]">
-          <label className="block text-sm text-[#b5bac1] mb-2 font-semibold">
-            Max number of uses
-          </label>
-          <div className="relative w-full">
+          <div>
+            <label className="block text-sm text-[#72767d] mb-1.5">Max uses</label>
             <select
-              className="w-full bg-black text-white border-2 border-[#72767d] rounded px-4 py-3 pr-10 appearance-none focus:border-[#b5bac1] focus:outline-none transition-all duration-200"
+              className="w-full bg-[#18191c] text-base text-white border border-white/[0.06] rounded px-3 py-2 focus:border-[#FFC341] focus:outline-none transition-colors"
               value={maxUses}
               onChange={(e) => setMaxUses(e.target.value)}
             >
@@ -234,74 +184,58 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
               <option value="50 uses">50 uses</option>
               <option value="100 uses">100 uses</option>
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-              <svg
-                className="w-5 h-5 text-[#b5bac1]"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                viewBox="0 0 24 24"
-              >
-                <path d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
           </div>
         </div>
-      </div>
-      <div className="flex justify-end">
-        <button
-          className="bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold rounded px-6 py-2.5 transition-all duration-200 hover:-translate-y-0.5"
-          onClick={handleGenerateLink}
-        >
-          Generate New Link
-        </button>
+
+        <div className="flex justify-center">
+          <button
+            onClick={handleGenerateLink}
+            disabled={generating}
+            className="bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-medium text-sm px-4 py-2 rounded disabled:opacity-50"
+          >
+            {generating ? "Generating..." : "Generate New Link"}
+          </button>
+        </div>
       </div>
 
       {invites.length > 0 && (
-        <div className="mt-8">
-          <h2 className="text-lg font-bold mb-4">Existing Invites</h2>
-          <div className="space-y-3">
+        <div className="border border-white/[0.06] rounded-lg bg-[#111214]">
+          <div className="px-5 py-3 border-b border-white/[0.06]">
+            <h2 className="text-base font-semibold">Active Invites</h2>
+          </div>
+          <div className="divide-y divide-white/[0.04]">
             {invites.map((invite) => (
               <div
                 key={invite.id}
-                className="bg-[#23272a] border border-[#72767d] rounded p-4 flex items-center justify-between"
+                className="flex items-center justify-between px-5 py-3 hover:bg-white/[0.02] transition-colors"
               >
-                <div>
+                <div className="min-w-0">
                   <div className="text-sm font-medium">
                     Invite #{invite.id.slice(-6)}
                   </div>
-                  <div className="text-xs text-[#b5bac1]">
-                    Uses: {invite.people_joined}
-                    {invite.use_limit
-                      ? ` / ${invite.use_limit}`
-                      : " / unlimited"}
-                  </div>
-                  <div className="text-xs text-[#b5bac1]">
+                  <div className="text-sm text-[#72767d]">
+                    {invite.people_joined} joined
+                    {invite.use_limit ? ` / ${invite.use_limit} uses` : ""}
                     {invite.expiry
-                      ? `Expires: ${new Date(invite.expiry).toLocaleDateString()}`
-                      : "Never expires"}
-                  </div>
-                  <div
-                    className={`text-xs mt-1 ${invite.is_valid ? "text-green-400" : "text-red-400"}`}
-                  >
-                    {invite.is_valid ? "Active" : "Expired"}
+                      ? ` · expires ${new Date(invite.expiry).toLocaleDateString()}`
+                      : " · never expires"}
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-1.5 flex-shrink-0 ml-3">
                   <button
                     onClick={() => {
-                      const link = `${window.location.origin}/invite/${invite.id}`;
-                      navigator.clipboard.writeText(link);
-                      setSuccess("Invite link copied to clipboard");
-                      setTimeout(() => setSuccess(""), 2000);
+                      navigator.clipboard.writeText(
+                        `${window.location.origin}/invite/${invite.id}`
+                      );
+                      showToast("Copied", "success");
                     }}
-                    className="bg-[#23272a] text-white px-3 py-1 rounded text-sm border border-[#72767d] hover:bg-[#2f3136] transition"
+                    className="text-[#b5bac1] text-xs px-2 py-1 rounded hover:bg-white/[0.06] transition"
                   >
                     Copy
                   </button>
                   <button
                     onClick={() => handleDeleteInvite(invite.id)}
-                    className="bg-[#23272a] text-[#ed4245] px-3 py-1 rounded text-sm border border-[#ed4245]/30 hover:bg-[#ed4245]/10 transition"
+                    className="text-[#ed4245] text-xs px-2 py-1 rounded hover:bg-[#ed4245]/10 transition"
                   >
                     Delete
                   </button>

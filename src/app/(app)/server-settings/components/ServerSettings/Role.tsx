@@ -172,46 +172,41 @@ function MemberRoleView({ serverId }: { serverId: string }) {
 
   if (selfAssignableRoles.length === 0) {
     return (
-      <div className="max-w-2xl mx-auto p-8 text-white">
-        <h1 className="text-2xl font-bold mb-4">Pick Your Roles</h1>
-        <div className="bg-[#2f3136] rounded-lg p-6 text-center">
-          <p className="text-gray-400">
-            No self-assignable roles available in this server.
-          </p>
-          <p className="text-sm text-gray-500 mt-2">
-            Contact server admins to create some!
-          </p>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">Roles</h1>
+          <p className="text-sm text-[#72767d] mt-1">Pick roles to customize your experience</p>
+        </div>
+        <div className="border border-white/[0.06] rounded-lg bg-[#111214] p-6 text-center">
+          <p className="text-sm text-[#72767d]">No self-assignable roles available.</p>
+          <p className="text-sm text-[#72767d] mt-1">Contact server admins to create some.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-8 text-white">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold">Pick Your Roles</h1>
-        <p className="text-sm text-gray-400 mt-1">
-          Select roles to customize your experience and access specific channels
-        </p>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Roles</h1>
+        <p className="text-sm text-[#72767d] mt-1">Pick roles to customize your experience</p>
       </div>
 
       {error && (
-        <div className="bg-red-500/20 border border-red-500 text-red-400 px-4 py-3 rounded-lg mb-6">
+        <div className="p-3 bg-[#ed4245]/10 border border-[#ed4245]/20 text-[#ed4245] rounded text-sm">
           {error}
-          <button className="float-right" onClick={() => setError(null)}>
-            ×
-          </button>
+          <button className="float-right" onClick={() => setError(null)}>×</button>
         </div>
       )}
       {success && (
-        <div className="bg-green-500/20 border border-green-500 text-green-400 px-4 py-3 rounded-lg mb-6">
+        <div className="p-3 bg-[#3ba55c]/10 border border-[#3ba55c]/20 text-[#3ba55c] rounded text-sm">
           {success}
         </div>
       )}
 
       {myRoles.length > 0 && (
-        <div className="mb-6">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">
+        <div className="border border-white/[0.06] rounded-lg bg-[#111214] p-4">
+          <h3 className="text-xs font-semibold text-[#72767d] uppercase tracking-wider mb-3">
             Your Current Roles
           </h3>
           <div className="flex flex-wrap gap-2">
@@ -222,7 +217,7 @@ function MemberRoleView({ serverId }: { serverId: string }) {
                 style={{
                   backgroundColor: `${role.color}20`,
                   color: role.color,
-                  border: `1px solid ${role.color}`,
+                  border: `1px solid ${role.color}40`,
                 }}
               >
                 {role.name}
@@ -232,73 +227,57 @@ function MemberRoleView({ serverId }: { serverId: string }) {
         </div>
       )}
 
-      <div className="border-t border-gray-700 my-6"></div>
-
       {Object.entries(groupedRoles).map(([categoryId, roles]) => (
-        <div key={categoryId} className="mb-6">
-          <div className="mb-3">
-            <h3 className="text-sm font-semibold text-gray-300 uppercase">
+        <div key={categoryId}>
+          <div className="border border-white/[0.06] rounded-lg bg-[#111214] p-4">
+            <h3 className="text-xs font-semibold text-[#72767d] uppercase tracking-wider mb-3">
               {getCategoryName(categoryId)}
             </h3>
             {getCategoryDescription(categoryId) && (
-              <p className="text-xs text-gray-500 mt-1">
-                {getCategoryDescription(categoryId)}
-              </p>
+              <p className="text-sm text-[#72767d] mb-3">{getCategoryDescription(categoryId)}</p>
             )}
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {roles.map((role) => {
-              const isSelected = selectedRoleIds.has(role.id);
-              return (
-                <button
-                  key={role.id}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2
-                    ${
+            <div className="flex flex-wrap gap-2">
+              {roles.map((role) => {
+                const isSelected = selectedRoleIds.has(role.id);
+                return (
+                  <button
+                    key={role.id}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 flex items-center gap-2 border ${
                       isSelected
-                        ? "ring-2 ring-offset-2 ring-offset-[#2f3136]"
-                        : "hover:scale-105"
-                    }
-                  `}
-                  style={{
-                    backgroundColor: isSelected ? `${role.color}30` : "#36393f",
-                    color: isSelected ? role.color : "#b5bac1",
-                    // @ts-expect-error CSS custom property in style object
-                    "--tw-ring-color": role.color,
-                  }}
-                  onClick={() => toggleRole(role.id)}
-                >
-                  <span
-                    className="w-3 h-3 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: role.color }}
-                  />
-                  <span>{role.name}</span>
-                  {isSelected && (
-                    <svg
-                      className="w-4 h-4"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  )}
-                </button>
-              );
-            })}
+                        ? "border-current bg-current/10"
+                        : "border-white/[0.06] bg-[#18191c] hover:bg-[#23272a]"
+                    }`}
+                    style={{ color: isSelected ? role.color : "#b5bac1" }}
+                    onClick={() => toggleRole(role.id)}
+                  >
+                    <span
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: role.color }}
+                    />
+                    <span>{role.name}</span>
+                    {isSelected && (
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path
+                          fillRule="evenodd"
+                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       ))}
 
-      <div className="mt-8 flex justify-end">
+      <div className="flex justify-center">
         <button
-          className={`px-6 py-3 rounded font-bold transition-all duration-200 ${
+          className={`px-5 py-2 rounded text-sm font-medium transition-all duration-150 ${
             hasChanges && !saving
-              ? "bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black hover:-translate-y-0.5"
-              : "bg-[#23272a] text-[#72767d] cursor-not-allowed border border-[#72767d]"
+              ? "bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black"
+              : "bg-[#23272a] text-[#72767d] cursor-not-allowed"
           }`}
           onClick={handleSave}
           disabled={!hasChanges || saving}
@@ -314,11 +293,10 @@ function MemberRoleView({ serverId }: { serverId: string }) {
         </button>
       </div>
 
-      <div className="mt-6 p-4 bg-[#23272a] rounded border border-[#72767d]">
-        <p className="text-xs text-[#b5bac1]">
-          <strong>Tip:</strong> Click roles to select/deselect them, then click
-          &quot;Save Changes&quot; to apply. Roles help you access specific
-          channels and show your interests to other members.
+      <div className="border border-white/[0.06] rounded-lg bg-[#111214] p-4">
+        <p className="text-sm text-[#72767d]">
+          Click roles to select or deselect them, then save. Roles help you
+          access specific channels and show your interests.
         </p>
       </div>
     </div>
@@ -545,25 +523,25 @@ function AdminRoleView({
   const canManageRoles = isOwner || isAdmin;
 
   return (
-    <div className="max-w-2xl mx-auto p-8 text-white">
-      <div className="flex justify-between items-center mb-8">
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold">Roles</h1>
-          <p className="text-sm text-gray-400 mt-1">
+          <p className="text-sm text-[#72767d] mt-1">
             Manage server roles and self-assignable roles
           </p>
         </div>
         {canManageRoles && (
           <div className="flex gap-2">
             <button
-              className="bg-[#23272a] text-white px-4 py-2 rounded border border-[#72767d] hover:bg-[#2f3136] transition"
+              className="bg-[#23272a] text-white px-4 py-2 rounded border border-white/[0.06] hover:bg-[#2f3136] transition text-sm"
               onClick={() => setShowCategoryPopup(true)}
               title="Create Category"
             >
               + Category
             </button>
             <button
-              className="bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold rounded px-4 py-2 transition-all duration-200 hover:-translate-y-0.5"
+              className="bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-medium text-sm px-4 py-2 rounded transition"
               onClick={() => setShowAddPopup(true)}
               title="Create New Role"
             >
@@ -574,10 +552,10 @@ function AdminRoleView({
       </div>
 
       {error && (
-        <div className="bg-red-500/20 border border-red-500 text-red-400 px-4 py-3 rounded-lg mb-6">
+        <div className="bg-[#ed4245]/10 border border-[#ed4245]/20 text-[#ed4245] px-3 py-2 rounded text-sm">
           {error}
           <button
-            className="float-right text-red-400 hover:text-red-300"
+            className="float-right text-[#ed4245]"
             onClick={() => setError(null)}
           >
             ×
@@ -585,91 +563,93 @@ function AdminRoleView({
         </div>
       )}
 
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold mb-4 text-gray-300">
-          System Roles
-        </h2>
-        <div className="flex gap-3 flex-wrap">
-          {roles
-            .filter((r) => r.role_type === "owner" || r.role_type === "admin")
-            .map((role) => (
-              <div
-                key={role.id}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer font-medium border-2 transition-all duration-200
-                  ${
+      <div>
+        <div className="border border-white/[0.06] rounded-lg bg-[#111214] p-4">
+          <h3 className="text-xs font-semibold text-[#72767d] uppercase tracking-wider mb-3">
+            System Roles
+          </h3>
+          <div className="flex gap-2 flex-wrap">
+            {roles
+              .filter((r) => r.role_type === "owner" || r.role_type === "admin")
+              .map((role) => (
+                <button
+                  key={role.id}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer font-medium text-sm border transition ${
                     selectedRole?.id === role.id
-                      ? "border-[#ed4245] bg-[#23272a] scale-105"
-                      : "border-[#36393f] text-[#b5bac1] hover:bg-[#23272a] hover:scale-105"
+                      ? "border-[#FFC341] bg-[#FFC341]/10 text-white"
+                      : "border-white/[0.06] bg-[#18191c] text-[#b5bac1] hover:bg-[#23272a]"
                   }
-                `}
-                onClick={() => handleSelectRole(role)}
-              >
-                <span
-                  className="w-4 h-4 rounded-full border border-[#72767d]"
-                  style={{ background: role.color }}
-                />
-                <span>{role.name}</span>
-                <span
-                  className={`text-xs px-2 py-0.5 rounded-full ${getRoleTypeBadgeColor(
-                    role.role_type
-                  )}`}
+                  `}
+                  onClick={() => handleSelectRole(role)}
                 >
-                  {getRoleTypeLabel(role.role_type)}
-                </span>
-              </div>
-            ))}
+                  <span
+                    className="w-3.5 h-3.5 rounded-full flex-shrink-0"
+                    style={{ background: role.color }}
+                  />
+                  <span>{role.name}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.5 rounded-full ${getRoleTypeBadgeColor(
+                      role.role_type
+                    )}`}
+                  >
+                    {getRoleTypeLabel(role.role_type)}
+                  </span>
+                </button>
+              ))}
+          </div>
         </div>
       </div>
 
       {categories.map((category) => (
-        <div key={category.id} className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-300">
-                {category.name}
-              </h2>
-              {category.description && (
-                <p className="text-sm text-gray-500">{category.description}</p>
-              )}
-            </div>
-            {canManageRoles && (
-              <button
-                className="text-red-400 hover:text-red-300 text-sm"
-                onClick={() => handleDeleteCategory(category.id)}
-              >
-                Delete Category
-              </button>
-            )}
-          </div>
-          <div className="flex gap-3 flex-wrap">
-            {(groupedRoles[category.id] || []).map((role) => (
-              <div
-                key={role.id}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer font-medium border-2 transition-all duration-200
-                  ${
-                    selectedRole?.id === role.id
-                      ? "border-[#ed4245] bg-[#23272a] scale-105"
-                      : "border-[#36393f] text-[#b5bac1] hover:bg-[#23272a] hover:scale-105"
-                  }
-                `}
-                onClick={() => handleSelectRole(role)}
-              >
-                <span
-                  className="w-4 h-4 rounded-full border border-[#72767d]"
-                  style={{ background: role.color }}
-                />
-                <span>{role.name}</span>
-                {role.is_self_assignable && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">
-                    Self-Assign
-                  </span>
+        <div key={category.id}>
+          <div className="border border-white/[0.06] rounded-lg bg-[#111214] p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-xs font-semibold text-[#72767d] uppercase tracking-wider">
+                  {category.name}
+                </h3>
+                {category.description && (
+                  <p className="text-sm text-[#72767d] mt-0.5">{category.description}</p>
                 )}
               </div>
-            ))}
-            {(!groupedRoles[category.id] ||
-              groupedRoles[category.id].length === 0) && (
-              <p className="text-gray-500 text-sm">No roles in this category</p>
-            )}
+              {canManageRoles && (
+                <button
+                  className="text-[#ed4245] hover:underline text-xs"
+                  onClick={() => handleDeleteCategory(category.id)}
+                >
+                  Delete
+                </button>
+              )}
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {(groupedRoles[category.id] || []).map((role) => (
+                <button
+                  key={role.id}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer font-medium text-sm border transition ${
+                    selectedRole?.id === role.id
+                      ? "border-[#FFC341] bg-[#FFC341]/10 text-white"
+                      : "border-white/[0.06] bg-[#18191c] text-[#b5bac1] hover:bg-[#23272a]"
+                  }
+                  `}
+                  onClick={() => handleSelectRole(role)}
+                >
+                  <span
+                    className="w-3.5 h-3.5 rounded-full flex-shrink-0"
+                    style={{ background: role.color }}
+                  />
+                  <span>{role.name}</span>
+                  {role.is_self_assignable && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#3ba55c]/20 text-[#3ba55c]">
+                      Self-Assign
+                    </span>
+                  )}
+                </button>
+              ))}
+              {(!groupedRoles[category.id] ||
+                groupedRoles[category.id].length === 0) && (
+                <p className="text-sm text-[#72767d]">No roles in this category</p>
+              )}
+            </div>
           </div>
         </div>
       ))}
@@ -677,45 +657,46 @@ function AdminRoleView({
       {groupedRoles["uncategorized"]?.filter(
         (r) => r.role_type !== "owner" && r.role_type !== "admin"
       ).length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold mb-4 text-gray-300">
-            Other Roles
-          </h2>
-          <div className="flex gap-3 flex-wrap">
-            {groupedRoles["uncategorized"]
-              ?.filter(
-                (r) => r.role_type !== "owner" && r.role_type !== "admin"
-              )
-              .map((role) => (
-                <div
-                  key={role.id}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer font-medium border-2 transition-all duration-200
-                    ${
+        <div>
+          <div className="border border-white/[0.06] rounded-lg bg-[#111214] p-4">
+            <h3 className="text-xs font-semibold text-[#72767d] uppercase tracking-wider mb-3">
+              Other Roles
+            </h3>
+            <div className="flex gap-2 flex-wrap">
+              {groupedRoles["uncategorized"]
+                ?.filter(
+                  (r) => r.role_type !== "owner" && r.role_type !== "admin"
+                )
+                .map((role) => (
+                  <button
+                    key={role.id}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer font-medium text-sm border transition ${
                       selectedRole?.id === role.id
-                        ? "border-[#ed4245] bg-[#23272a] scale-105"
-                        : "border-[#36393f] text-[#b5bac1] hover:bg-[#23272a] hover:scale-105"
+                        ? "border-[#FFC341] bg-[#FFC341]/10 text-white"
+                        : "border-white/[0.06] bg-[#18191c] text-[#b5bac1] hover:bg-[#23272a]"
                     }
-                  `}
-                  onClick={() => handleSelectRole(role)}
-                >
-                  <span
-                    className="w-4 h-4 rounded-full border border-[#72767d]"
-                    style={{ background: role.color }}
-                  />
-                  <span>{role.name}</span>
-                  {role.is_self_assignable && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">
-                      Self-Assign
-                    </span>
-                  )}
-                </div>
-              ))}
+                    `}
+                    onClick={() => handleSelectRole(role)}
+                  >
+                    <span
+                      className="w-3.5 h-3.5 rounded-full flex-shrink-0"
+                      style={{ background: role.color }}
+                    />
+                    <span>{role.name}</span>
+                    {role.is_self_assignable && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#3ba55c]/20 text-[#3ba55c]">
+                        Self-Assign
+                      </span>
+                    )}
+                  </button>
+                ))}
+            </div>
           </div>
         </div>
       )}
 
       {selectedRole && canManageRoles && (
-        <div className="bg-[#2f3136] rounded-lg p-6 mb-8">
+        <div className="border border-white/[0.06] rounded-lg bg-[#111214] p-5 mb-8">
           <div className="flex justify-between items-center mb-4">
             <h2 className="font-semibold text-[#ed4245]">
               Edit Role: {selectedRole.name}
@@ -733,7 +714,7 @@ function AdminRoleView({
             Role Name
           </label>
           <input
-            className="w-full bg-black text-white border-2 border-[#72767d] rounded px-4 py-3 mb-4 focus:border-[#b5bac1] focus:outline-none transition-all"
+            className="w-full bg-[#18191c] text-base text-white border border-white/[0.06] rounded px-3 py-2 mb-4 focus:border-[#FFC341] focus:outline-none transition-all"
             value={selectedRole.name}
             onChange={(e) => handleEditRole("name", e.target.value)}
             disabled={
@@ -746,7 +727,7 @@ function AdminRoleView({
             Role Color
           </label>
           <input
-            className="w-10 h-10 rounded border-2 border-[#72767d] mb-4 cursor-pointer"
+            className="w-10 h-10 rounded border border-white/[0.06] mb-4 cursor-pointer"
             type="color"
             value={selectedRole.color}
             onChange={(e) => handleEditRole("color", e.target.value)}
@@ -774,7 +755,7 @@ function AdminRoleView({
                   Category
                 </label>
                 <select
-                  className="w-full bg-black text-white border-2 border-[#72767d] rounded px-4 py-3 mb-4 focus:border-[#b5bac1] focus:outline-none"
+                  className="w-full bg-[#18191c] text-base text-white border border-white/[0.06] rounded px-3 py-2 mb-4 focus:border-[#FFC341] focus:outline-none"
                   value={selectedRole.category_id || ""}
                   onChange={(e) =>
                     handleEditRole("category_id", e.target.value || null)
@@ -792,14 +773,14 @@ function AdminRoleView({
 
           <div className="flex gap-2 mt-6">
             <button
-              className="bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold rounded px-6 py-2 transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50"
+              className="bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-medium text-sm rounded px-4 py-2 transition disabled:opacity-50"
               onClick={handleSaveRole}
               disabled={saving}
             >
               {saving ? "Saving..." : "Save"}
             </button>
             <button
-              className="bg-[#23272a] text-[#b5bac1] font-semibold rounded px-6 py-2 border border-[#72767d] transition hover:bg-[#2f3136]"
+              className="bg-[#23272a] text-[#b5bac1] font-medium text-sm rounded px-4 py-2 border border-white/[0.06] transition hover:bg-[#2f3136]"
               onClick={() => setSelectedRole(null)}
             >
               Cancel
@@ -807,7 +788,7 @@ function AdminRoleView({
             {selectedRole.role_type !== "owner" &&
               (selectedRole.role_type !== "admin" || isOwner) && (
             <button
-              className="bg-[#23272a] text-[#ed4245] font-semibold rounded px-6 py-2 border border-[#ed4245]/30 transition hover:bg-[#ed4245]/10 ml-auto"
+              className="bg-[#23272a] text-[#ed4245] font-medium text-sm rounded px-4 py-2 border border-[#ed4245]/30 transition hover:bg-[#ed4245]/10 ml-auto"
                   onClick={() => handleDeleteRole(selectedRole.id)}
                   disabled={saving}
                 >
@@ -819,7 +800,7 @@ function AdminRoleView({
       )}
 
       {showAddPopup && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-60">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/60">
           <div className="bg-[#23272a] rounded-lg p-8 shadow-lg w-full max-w-md relative">
             <button
               className="absolute top-3 right-3 text-[#b5bac1] hover:text-white text-2xl"
@@ -827,7 +808,7 @@ function AdminRoleView({
             >
               ×
             </button>
-            <h2 className="text-xl font-bold mb-6 text-white">
+            <h2 className="text-2xl font-bold mb-6 text-white">
               Create New Role
             </h2>
 
@@ -835,7 +816,7 @@ function AdminRoleView({
               Role Name
             </label>
             <input
-              className="w-full bg-black text-white border-2 border-[#72767d] rounded px-4 py-3 mb-4 focus:border-[#b5bac1] focus:outline-none"
+              className="w-full bg-[#18191c] text-base text-white border border-white/[0.06] rounded px-3 py-2 mb-4 focus:border-[#FFC341] focus:outline-none"
               type="text"
               placeholder="e.g., Gaming, Anime, Music"
               value={newRoleName}
@@ -846,7 +827,7 @@ function AdminRoleView({
               Role Color
             </label>
             <input
-              className="w-10 h-10 rounded border-2 border-[#72767d] mb-4 cursor-pointer"
+              className="w-10 h-10 rounded border border-white/[0.06] mb-4 cursor-pointer"
               type="color"
               value={newRoleColor}
               onChange={(e) => setNewRoleColor(e.target.value)}
@@ -869,7 +850,7 @@ function AdminRoleView({
               Category (Optional)
             </label>
             <select
-              className="w-full bg-black text-white border-2 border-[#72767d] rounded px-4 py-3 mb-6 focus:border-[#b5bac1] focus:outline-none"
+              className="w-full bg-[#18191c] text-base text-white border border-white/[0.06] rounded px-3 py-2 mb-6 focus:border-[#FFC341] focus:outline-none"
               value={newRoleCategory}
               onChange={(e) => setNewRoleCategory(e.target.value)}
             >
@@ -882,7 +863,7 @@ function AdminRoleView({
             </select>
 
             <button
-              className="w-full bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold rounded px-6 py-3 transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50"
+              className="w-full bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-medium text-sm rounded px-4 py-2.5 transition disabled:opacity-50"
               onClick={handleAddRole}
               disabled={saving || !newRoleName.trim()}
             >
@@ -893,7 +874,7 @@ function AdminRoleView({
       )}
 
       {showCategoryPopup && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-60">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/60">
           <div className="bg-[#23272a] rounded-lg p-8 shadow-lg w-full max-w-md relative">
             <button
               className="absolute top-3 right-3 text-[#b5bac1] hover:text-white text-2xl"
@@ -901,10 +882,10 @@ function AdminRoleView({
             >
               ×
             </button>
-            <h2 className="text-xl font-bold mb-6 text-white">
+            <h2 className="text-2xl font-bold mb-6 text-white">
               Create Role Category
             </h2>
-            <p className="text-gray-400 text-sm mb-4">
+            <p className="text-[#72767d] text-sm mb-4">
               Categories help organize self-assignable roles (e.g.,
               &quot;Interests&quot;, &quot;Pronouns&quot;, &quot;Region&quot;)
             </p>
@@ -913,7 +894,7 @@ function AdminRoleView({
               Category Name
             </label>
             <input
-              className="w-full bg-black text-white border-2 border-[#72767d] rounded px-4 py-3 mb-4 focus:border-[#b5bac1] focus:outline-none"
+              className="w-full bg-[#18191c] text-base text-white border border-white/[0.06] rounded px-3 py-2 mb-4 focus:border-[#FFC341] focus:outline-none"
               type="text"
               placeholder="e.g., Interests, Pronouns, Region"
               value={newCategoryName}
@@ -924,7 +905,7 @@ function AdminRoleView({
               Description (Optional)
             </label>
             <input
-              className="w-full bg-black text-white border-2 border-[#72767d] rounded px-4 py-3 mb-6 focus:border-[#b5bac1] focus:outline-none"
+              className="w-full bg-[#18191c] text-base text-white border border-white/[0.06] rounded px-3 py-2 mb-6 focus:border-[#FFC341] focus:outline-none"
               type="text"
               placeholder="e.g., Pick your interests"
               value={newCategoryDescription}
@@ -932,7 +913,7 @@ function AdminRoleView({
             />
 
             <button
-              className="w-full bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold rounded px-6 py-3 transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50"
+              className="w-full bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-medium text-sm rounded px-4 py-2.5 transition disabled:opacity-50"
               onClick={handleAddCategory}
               disabled={saving || !newCategoryName.trim()}
             >
