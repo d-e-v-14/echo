@@ -21,15 +21,15 @@ import {
   fetchFriendRequests,
   addFriend,
   removeFriend,
-  respondToFriendRequest,
   searchUsers,
 } from "@/api";
 import UserProfileModal from "@/components/UserProfileModal";
-import { useFriendNotifications } from "@/contexts/FriendNotificationContext";
 import { SearchUserResult } from "@/api/types/user.types";
 import { Socket } from "socket.io-client";
 import InlineSpinner from "@/components/loading/InlineSpinner";
-import { FriendGridSkeleton } from "@/components/loading/pageSkeletons";
+import { ConversationListSkeleton } from "@/components/loading/skeletons";
+
+type TabId = "all" | "add";
 
 type RelationshipStatus = SearchUserResult["relationshipStatus"];
 
@@ -55,7 +55,7 @@ interface FriendData {
 export default function FriendsPage() {
   const router = useRouter();
   const pageReady = usePageReady();
-  const { refreshCount: refreshFriendNotifications } = useFriendNotifications();
+  const [activeTab, setActiveTab] = useState<TabId>("all");
   const [friends, setFriends] = useState<FriendData[]>([]);
   const [requests, setRequests] = useState<FriendRequestData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -83,6 +83,11 @@ export default function FriendsPage() {
       return (a.username || "").localeCompare(b.username || "");
     });
   }, [friends]);
+
+  const tabs: { id: TabId; label: string }[] = [
+    { id: "all", label: "All" },
+    { id: "add", label: "Add Friend" },
+  ];
 
   useMemo(() => friends.filter((f) => f.status === "online").length, [friends]);
 
@@ -214,33 +219,6 @@ export default function FriendsPage() {
     }
   };
 
-  const handleAccept = async (requestId: string) => {
-    try {
-      await respondToFriendRequest(requestId, "accepted");
-      loadFriends();
-      loadRequests();
-      await refreshFriendNotifications();
-    } catch (err: any) {
-      console.error("Error accepting request:", err);
-      setError(
-        err?.response?.data?.message || "Failed to accept friend request"
-      );
-    }
-  };
-
-  const handleReject = async (requestId: string) => {
-    try {
-      await respondToFriendRequest(requestId, "rejected");
-      loadRequests();
-      await refreshFriendNotifications();
-    } catch (err: any) {
-      console.error("Error rejecting request:", err);
-      setError(
-        err?.response?.data?.message || "Failed to reject friend request"
-      );
-    }
-  };
-
   const getProfileRelationshipStatus = (
     userId?: string
   ): RelationshipStatus | undefined => {
@@ -265,268 +243,245 @@ export default function FriendsPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="flex min-h-screen">
-            <div className="w-80 border-r border-[#23272a] bg-black">
-          <div className="p-5">
-            {error && (
-              <div className="mt-3 rounded-lg border border-red-500/40 bg-red-500/10 p-2 text-xs text-red-200">
-                {error}
-              </div>
-            )}
+      <div className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8">
+        {/* Header */}
+        <div className="flex items-center gap-2.5 border-b border-white/[0.06] pb-4">
+          <FaUserFriends className="h-5 w-5 text-[#b5bac1]" />
+          <h1 className="text-xl font-bold tracking-tight text-white">
+            Friends
+          </h1>
+        </div>
 
-            <div className="mt-4">
-              <label className="group flex items-center gap-2 rounded-full border border-gray-800 bg-gray-900/60 px-3 py-2 text-sm text-white/70 shadow-inner focus-within:border-gray-700 focus-within:text-white">
-                <FaSearch className="h-4 w-4 flex-shrink-0" />
-                <input
-                  type="text"
-                  placeholder="Search by username..."
-                  className="flex-1 bg-transparent outline-none placeholder:text-gray-500"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </label>
-
-              {searching &&
-                searchQuery.trim() &&
-                searchResults.length === 0 && (
-                  <div className="mt-2 rounded-lg border border-gray-800 bg-gray-900/60 px-3 py-2 text-xs text-gray-400">
-                    <div className="flex items-center gap-2">
-                      <InlineSpinner size="xs" />
-                      Searching...
-                    </div>
-                  </div>
+        {/* Tabs */}
+        <nav
+          role="tablist"
+          className="mt-3 flex flex-wrap items-center gap-1 md:gap-2"
+        >
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setActiveTab(tab.id)}
+                className={`relative flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  isActive ? "text-white" : "text-[#b5bac1] hover:text-white"
+                }`}
+              >
+                {tab.label}
+                {isActive && (
+                  <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-white" />
                 )}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Error */}
+        {error && (
+          <div className="mt-4 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {error}
+          </div>
+        )}
+
+        {/* Content */}
+        <div className="mt-6">
+          {initialLoading ? (
+            <ConversationListSkeleton rows={6} />
+          ) : activeTab === "add" ? (
+            /* Add Friend */
+            <div className="max-w-lg">
+              <h2 className="text-lg font-semibold text-white">Add Friend</h2>
+              <p className="mt-1 text-sm text-[#b5bac1]">
+                You can add a friend with their Echo username.
+              </p>
+
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                <div className="relative flex-1">
+                  <FaSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#72767d]" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Enter a username to search"
+                    className="h-11 w-full rounded-lg border border-white/[0.06] bg-[#18191c] pl-10 pr-3 text-sm text-white outline-none transition placeholder:text-[#72767d] focus:border-[#FFC341]/50 focus:ring-2 focus:ring-[#FFC341]/20"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleSearch(searchQuery)}
+                  disabled={!searchQuery.trim() || searching}
+                  className="h-11 shrink-0 rounded-lg bg-gradient-to-r from-[#FFC341] to-[#FFD700] px-5 text-sm font-semibold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Add Friend
+                </button>
+              </div>
+
+              {searching && searchQuery.trim() && (
+                <div className="mt-4 flex items-center gap-2 text-xs text-[#b5bac1]">
+                  <InlineSpinner size="xs" /> Searching...
+                </div>
+              )}
 
               {searchResults.length > 0 && (
-                <div className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-gray-800 bg-black">
-                  {searchResults.map((user) => (
-                    <div
-                      key={user.id}
-                      className="flex items-center justify-between gap-2 border-b border-gray-800 p-2 last:border-b-0 hover:bg-gray-800"
-                    >
-                      <div
-                        className="flex min-w-0 flex-1 cursor-pointer items-center gap-2"
-                        onClick={() =>
-                          openUserProfile(
-                            user.id,
-                            user.username,
-                            user.avatar_url
-                          )
-                        }
+                <div className="mt-6">
+                  <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-[#72767d]">
+                    Results
+                  </h3>
+                  <ul className="divide-y divide-white/[0.06] overflow-hidden rounded-2xl border border-white/[0.06]">
+                    {searchResults.map((user) => (
+                      <li
+                        key={user.id}
+                        className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.04]"
                       >
                         <img
                           src={user.avatar_url || "/avatar.png"}
                           alt={user.username}
-                          className="h-8 w-8 rounded-full bg-gray-700 object-cover"
+                          className="h-9 w-9 shrink-0 rounded-full bg-[#23272a] object-cover"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
                             target.src = "/avatar.png";
                           }}
                         />
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-medium">
-                            {user.username}
+                        <div
+                          className="min-w-0 flex-1 cursor-pointer"
+                          onClick={() =>
+                            openUserProfile(
+                              user.id,
+                              user.username,
+                              user.avatar_url
+                            )
+                          }
+                        >
+                          <div className="truncate text-sm font-medium text-white">
+                            {user.fullname || user.username}
                           </div>
-                          <div className="truncate text-xs text-white/50">
-                            {user.fullname}
+                          <div className="truncate text-xs text-[#72767d]">
+                            @{user.username}
                           </div>
                         </div>
-                      </div>
-
-                      {user.relationshipStatus === "none" && (
-                        <button
-                          onClick={() => handleAddFriend(user.id)}
-                          disabled={loading}
-                          className="rounded-full bg-[#FFC341] px-3 py-1 text-xs font-semibold text-black hover:bg-[#FFD700] disabled:opacity-50"
-                        >
-                          <FaPlus className="mr-1 inline" /> Add
-                        </button>
-                      )}
-                      {user.relationshipStatus === "pending" && (
-                        <span className="rounded-full bg-gray-800 px-3 py-1 text-xs text-gray-300">
-                          Pending
-                        </span>
-                      )}
-                      {user.relationshipStatus === "accepted" && (
-                        <span className="rounded-full bg-gray-800 px-3 py-1 text-xs text-gray-300">
-                          Friends
-                        </span>
-                      )}
-                      {user.relationshipStatus === "rejected" && (
-                        <span className="rounded-full bg-gray-800 px-3 py-1 text-xs text-gray-300">
-                          Rejected
-                        </span>
-                      )}
-                    </div>
-                  ))}
+                        {user.relationshipStatus === "none" && (
+                          <button
+                            type="button"
+                            onClick={() => handleAddFriend(user.id)}
+                            disabled={loading}
+                            className="shrink-0 rounded-lg bg-gradient-to-r from-[#FFC341] to-[#FFD700] px-3 py-1.5 text-xs font-semibold text-black transition hover:opacity-90 disabled:opacity-50"
+                          >
+                            <FaPlus className="mr-1 inline h-3 w-3" /> Add
+                          </button>
+                        )}
+                        {user.relationshipStatus === "pending" && (
+                          <span className="shrink-0 rounded-full bg-white/[0.06] px-3 py-1 text-xs text-[#b5bac1]">
+                            Pending
+                          </span>
+                        )}
+                        {user.relationshipStatus === "accepted" && (
+                          <span className="shrink-0 rounded-full bg-white/[0.06] px-3 py-1 text-xs text-[#b5bac1]">
+                            Friends
+                          </span>
+                        )}
+                        {user.relationshipStatus === "rejected" && (
+                          <span className="shrink-0 rounded-full bg-white/[0.06] px-3 py-1 text-xs text-[#b5bac1]">
+                            Rejected
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
-            </div>
-
-            <div className="mt-6">
-              <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-xs uppercase text-white/50">
-                  Pending Requests
-                </h3>
-                <span className="text-xs text-white/40">{requests.length}</span>
-              </div>
-
-              {requests.length === 0 && (
-                <div className="rounded-lg border border-gray-800 bg-gray-900/60 p-3 text-xs text-gray-400">
-                  No pending requests right now.
-                </div>
-              )}
-
-              {requests.map((req) => (
-                <div
-                  key={req.friends_id}
-                  className="mt-2 rounded-xl border border-gray-800 bg-gray-900/60 p-3"
-                >
-                  <div
-                    className="mb-3 flex cursor-pointer items-center gap-2"
-                    onClick={() =>
-                      openUserProfile(
-                        req.user1_id,
-                        req.user1.username,
-                        req.user1.avatar_url
-                      )
-                    }
-                  >
-                    <div className="h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-gray-800 border border-gray-700">
-                      {req.user1.avatar_url ? (
-                        <img
-                          src={req.user1.avatar_url}
-                          alt={req.user1.username}
-                          className="h-9 w-9 object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                            const fallback = e.currentTarget
-                              .nextElementSibling as HTMLElement;
-                            if (fallback) fallback.style.display = "flex";
-                          }}
-                        />
-                      ) : null}
-                      <div
-                        style={{
-                          display: req.user1.avatar_url ? "none" : "flex",
-                        }}
-                        className="h-full w-full items-center justify-center text-xs font-semibold uppercase text-slate-300"
-                      >
-                        {req.user1.username?.slice(0, 2).toUpperCase() || "??"}
-                      </div>
-                    </div>
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium">
-                        {req.user1.username}
-                      </div>
-                      <div className="truncate text-xs text-white/50">
-                        {req.user1.fullname}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleAccept(req.friends_id)}
-                      className="flex-1 rounded-lg bg-gradient-to-r from-[#FFC341] to-[#FFD700] py-1.5 text-xs font-bold text-black hover:-translate-y-0.5 transition-all"
-                    >
-                      Accept
-                    </button>
-                    <button
-                      onClick={() => handleReject(req.friends_id)}
-                      className="flex-1 rounded-lg border border-gray-700 py-1.5 text-xs font-semibold text-gray-300 hover:bg-gray-800"
-                    >
-                      Reject
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex-1 p-8">
-          {initialLoading ? (
-            <FriendGridSkeleton rows={6} />
-          ) : friends.length === 0 ? (
-            <div className="rounded-2xl border border-gray-800 bg-gray-900/60 p-10 text-center">
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-gray-800 bg-gray-900">
-                <FaUserFriends className="text-gray-300" />
-              </div>
-              <p className="text-gray-200">No friends yet.</p>
-              <p className="mt-1 text-xs text-gray-500">
-                Search by username to start building your list.
-              </p>
             </div>
           ) : (
-            <>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {sortedFriends.map((f) => (
-                  <div
-                    key={f.id}
-                    className={`group relative overflow-hidden rounded-2xl border p-4 shadow-[0_20px_60px_rgba(0,0,0,0.25)] transition hover:-translate-y-1 ${
-                      f.status === "online"
-                        ? "border-emerald-500/20 bg-gray-900/60 hover:border-emerald-500/40"
-                        : "border-gray-800 bg-gray-900/40 hover:border-gray-700"
-                    }`}
-                  >
-                    <div className="relative flex items-center gap-3">
-                      <div className="relative flex-shrink-0">
-                        <img
-                          src={f.avatar_url}
-                          alt={f.username}
-                          className={`h-12 w-12 cursor-pointer rounded-xl bg-gray-700 object-cover transition ${
-                            f.status !== "online"
-                              ? "opacity-60 grayscale-[30%]"
-                              : ""
-                          }`}
-                          onClick={() =>
-                            openUserProfile(f.id, f.username, f.avatar_url)
-                          }
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = "/avatar.png";
-                          }}
-                        />
-                      </div>
-                      <div
-                        className="min-w-0 flex-1 cursor-pointer"
-                        onClick={() =>
-                          openUserProfile(f.id, f.username, f.avatar_url)
-                        }
-                      >
-                        <div
-                          className={`truncate text-base font-semibold ${
-                            f.status !== "online"
-                              ? "text-gray-400"
-                              : "text-white"
-                          }`}
-                        >
-                          {f.username}
-                        </div>
-                        <div className="truncate text-xs text-white/50">
-                          {f.fullname}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleSendDM(f.id)}
-                        className="rounded-full bg-[#23272a] border border-[#72767d] p-2 text-white shadow-lg transition hover:bg-[#2f3136] hover:border-[#FFC341]"
-                        title="Send message"
-                      >
-                        <FaCommentAlt className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleRemoveFriend(f.id)}
-                        disabled={removingFriendId === f.id}
-                        className="rounded-full border border-red-500/30 bg-red-500/10 p-2 text-red-200 shadow-lg transition hover:border-red-400/50 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                        title="Unfriend"
-                      >
-                        <FaUserMinus className="h-4 w-4" />
-                      </button>
-                    </div>
+            /* All */
+            <div>
+              {sortedFriends.length === 0 ? (
+                <div className="rounded-2xl border border-white/[0.06] bg-[#111214] p-10 text-center">
+                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-white/[0.06] bg-[#18191c]">
+                    <FaUserFriends className="h-5 w-5 text-[#72767d]" />
                   </div>
-                ))}
-              </div>
-            </>
+                  <p className="text-sm font-medium text-white">
+                    No friends yet.
+                  </p>
+                  <p className="mt-1 text-xs text-[#72767d]">
+                    Use Add Friend to start building your list.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-[#72767d]">
+                    All Friends — {sortedFriends.length}
+                  </p>
+                  <ul className="divide-y divide-white/[0.06] overflow-hidden rounded-2xl border border-white/[0.06]">
+                    {sortedFriends.map((f) => {
+                      const isOnline = f.status === "online";
+                      return (
+                        <li
+                          key={f.id}
+                          className="group flex items-center gap-4 px-4 py-3 transition-colors hover:bg-white/[0.04]"
+                        >
+                          <div className="relative shrink-0">
+                            <img
+                              src={f.avatar_url}
+                              alt={f.username}
+                              className={`h-10 w-10 rounded-full bg-[#23272a] object-cover ${
+                                isOnline ? "" : "opacity-60"
+                              }`}
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = "/avatar.png";
+                              }}
+                            />
+                            <span
+                              className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-black ${
+                                isOnline ? "bg-green-500" : "bg-[#80848e]"
+                              }`}
+                            />
+                          </div>
+                          <div
+                            className="min-w-0 flex-1 cursor-pointer"
+                            onClick={() =>
+                              openUserProfile(f.id, f.username, f.avatar_url)
+                            }
+                          >
+                            <div
+                              className={`truncate text-sm font-semibold ${
+                                isOnline ? "text-white" : "text-[#b5bac1]"
+                              }`}
+                            >
+                              {f.fullname || f.username}
+                            </div>
+                            <div className="truncate text-xs text-[#72767d]">
+                              {isOnline ? "Online" : `@${f.username}`}
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleSendDM(f.id)}
+                              title="Send message"
+                              className="flex h-9 w-9 items-center justify-center rounded-lg text-[#b5bac1] transition hover:text-white"
+                            >
+                              <FaCommentAlt className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveFriend(f.id)}
+                              disabled={removingFriendId === f.id}
+                              title="Remove friend"
+                              className="flex h-9 w-9 items-center justify-center rounded-lg text-red-300/80 transition hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <FaUserMinus className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
+              )}
+            </div>
           )}
         </div>
       </div>
