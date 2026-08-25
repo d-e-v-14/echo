@@ -34,11 +34,10 @@ import { tokenStore } from "@/lib/auth/tokenStore";
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { MessageVirtualizer } from "@/components/chat/MessageVirtualizer";
 import { ScrollToBottomButton } from "@/components/ScrollToBottomButton";
+import { resolveInitialScrollTarget } from "@/lib/channels/scrollBehavior";
+import { chatScrollStore } from "@/lib/chat/scrollStore";
 import { isNearBottom } from "@/lib/scrollUtils";
-import {
-  resolveInitialScrollTarget,
-  type ScrollAnchor,
-} from "@/lib/channels/scrollBehavior";
+import { useChatScroll } from "@/hooks/useChatScroll";
 import { MessageList } from "@/components/chat/MessageList";
 import { MessageComposer } from "@/components/chat/MessageComposer";
 
@@ -63,7 +62,7 @@ const UserProfileModal = dynamic(() => import("./UserProfileModal"), {
   ssr: false,
 });
 
-const channelScrollAnchors = new Map<string, ScrollAnchor>();
+const conversationScrollKey = (channelId: string) => `ch:${channelId}`;
 
 interface ChatWindowProps {
   onLoadOlderMessages?: () => void;
@@ -92,7 +91,6 @@ export default forwardRef(function ChatWindow(
   const { connected } = useSocket();
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Record<string | number, HTMLDivElement | null>>(
     {}
   );
@@ -102,7 +100,6 @@ export default forwardRef(function ChatWindow(
   const [micOn, setMicOn] = useState<boolean>(true);
   const [camOn, setCamOn] = useState<boolean>(true);
   const [isSending, setIsSending] = useState(false);
-  const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [toast, setToast] = useState<{
     message: string;
     type: "info" | "success" | "error";
@@ -131,11 +128,6 @@ export default forwardRef(function ChatWindow(
   } | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
-  const hasUserScrolledRef = useRef(false);
-  const isAutoScrollingRef = useRef(false);
-  const isManuallyScrollingRef = useRef(false);
-  const initialScrollDoneRef = useRef<string | null>(null);
-  const autoScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentChannelIdRef = useRef(channelId);
 
   useEffect(() => {
@@ -195,72 +187,6 @@ export default forwardRef(function ChatWindow(
     resolveAvatarUrl,
   });
 
-  const saveScrollAnchor = useCallback(() => {
-    const container = messagesContainerRef.current;
-    if (!container || messages.length === 0 || !channelId) return;
-
-    if (isNearBottom(container, 80)) {
-      channelScrollAnchors.delete(channelId);
-      return;
-    }
-
-    const viewportTop = container.scrollTop;
-    for (const msg of messages) {
-      const el = messageRefs.current[msg.id];
-      if (!el) continue;
-      const top = el.offsetTop;
-      const bottom = top + el.offsetHeight;
-      if (bottom >= viewportTop) {
-        channelScrollAnchors.set(channelId, {
-          messageId: msg.id,
-          offset: viewportTop - top,
-        });
-        break;
-      }
-    }
-  }, [messages, channelId]);
-
-  const updateScrollButtonVisibility = useCallback(() => {
-    const container = messagesContainerRef.current;
-    if (!container) return;
-    setShowScrollBtn(!isNearBottom(container));
-  }, []);
-
-  const finishAutoScroll = useCallback(() => {
-    if (autoScrollTimerRef.current) {
-      clearTimeout(autoScrollTimerRef.current);
-      autoScrollTimerRef.current = null;
-    }
-    isAutoScrollingRef.current = false;
-    updateScrollButtonVisibility();
-  }, [updateScrollButtonVisibility]);
-
-  const scheduleAutoScrollFinish = useCallback(
-    (delay: number) => {
-      if (autoScrollTimerRef.current) {
-        clearTimeout(autoScrollTimerRef.current);
-      }
-      autoScrollTimerRef.current = setTimeout(finishAutoScroll, delay);
-    },
-    [finishAutoScroll]
-  );
-
-  const scrollToBottom = useCallback(() => {
-    isAutoScrollingRef.current = true;
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    scheduleAutoScrollFinish(700);
-  }, [scheduleAutoScrollFinish]);
-
-  useEffect(() => {
-    return () => {
-      if (autoScrollTimerRef.current) {
-        clearTimeout(autoScrollTimerRef.current);
-      }
-      autoScrollTimerRef.current = null;
-      isAutoScrollingRef.current = false;
-    };
-  }, []);
-
   const { permissions, permissionError, setPermissionError } =
     useChannelPermissions(channelId, serverId);
 
@@ -292,10 +218,6 @@ export default forwardRef(function ChatWindow(
     []
   );
 
-  useEffect(() => {
-    messageRefs.current = {};
-    setShowScrollBtn(false);
-  }, [channelId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -396,287 +318,106 @@ export default forwardRef(function ChatWindow(
     onReconnect: handleReconnect,
   });
 
-  useEffect(() => {
-    if (
-      loadingMessages ||
-      isAutoScrollingRef.current ||
-      isManuallyScrollingRef.current ||
-      messages.length === 0
-    ) {
-      return;
-    }
-
-    const container = messagesContainerRef.current;
-    if (!container) return;
-
-    const replyBarHeight = replyingTo ? 52 : 0;
-    const isNearLatest = isNearBottom(container, 150 + replyBarHeight);
-
-    let frameId: number | null = null;
-
-    if (isNearLatest) {
-      frameId = requestAnimationFrame(() => {
-        if (currentChannelIdRef.current !== channelId) return;
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      });
-    }
-
-    return () => {
-      if (frameId !== null) cancelAnimationFrame(frameId);
-    };
-  }, [messages, loadingMessages, replyingTo, channelId]);
-
-  useEffect(() => {
-    if (
-      loadingMessages ||
-      messages.length === 0 ||
-      initialScrollDoneRef.current === channelId
-    ) {
-      return;
-    }
-
-    let cancelled = false;
-    let started = false;
-    let frameId: number | null = null;
-    let retryFrameId: number | null = null;
-
-    const performInitialScroll = () => {
-      if (cancelled) return;
-
-      started = true;
-      initialScrollDoneRef.current = channelId;
-      isAutoScrollingRef.current = true;
-      hasUserScrolledRef.current = false;
-
-      const done = () => {
-        if (!cancelled) scheduleAutoScrollFinish(500);
-      };
-
-      try {
-        const container = messagesContainerRef.current;
-        const target = resolveInitialScrollTarget(
-          messages,
-          currentUserId,
-          lastReadTimestamp,
-          channelScrollAnchors.get(channelId) ?? null
-        );
-
-        if (target.kind === "anchor" && container) {
-          const idx = messages.findIndex(
-            (message) =>
-              String(message.id) === String(target.anchor.messageId)
-          );
-          const el = idx !== -1 ? messageRefs.current[messages[idx].id] : null;
-          if (el) {
-            el.scrollIntoView({ behavior: "auto", block: "start" });
-            container.scrollTop += target.anchor.offset;
-            done();
-            return;
-          }
-        }
-
-        if (target.kind === "first-unread") {
-          const firstUnread = messages[target.index];
-          const el = messageRefs.current[firstUnread.id];
-          if (el) {
-            el.scrollIntoView({ behavior: "auto", block: "start" });
-            done();
-          } else {
-            retryFrameId = requestAnimationFrame(() => {
-              if (cancelled) return;
-              const retryEl = messageRefs.current[firstUnread.id];
-              if (retryEl) retryEl.scrollIntoView({ behavior: "auto", block: "start" });
-              else messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
-              done();
-            });
-          }
-          return;
-        }
-
-        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
-        const lastMsg = messages[messages.length - 1];
-        if (lastMsg) updateLastRead(lastMsg.timestamp);
-        void markUnreadMentionsAsRead();
-        done();
-      } catch {
-        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
-        done();
-      }
-    };
-
-    frameId = requestAnimationFrame(performInitialScroll);
-
-    return () => {
-      cancelled = true;
-      if (frameId !== null) cancelAnimationFrame(frameId);
-      if (retryFrameId !== null) cancelAnimationFrame(retryFrameId);
-      if (autoScrollTimerRef.current) {
-        clearTimeout(autoScrollTimerRef.current);
-        autoScrollTimerRef.current = null;
-      }
-      if (started) isAutoScrollingRef.current = false;
-    };
-  }, [
-    loadingMessages,
-    channelId,
-    currentUserId,
-    messages,
-    lastReadTimestamp,
-    markUnreadMentionsAsRead,
-    updateLastRead,
-    updateScrollButtonVisibility,
-    scheduleAutoScrollFinish,
-  ]);
-
-  const handleScroll = useCallback(() => {
-    const container = messagesContainerRef.current;
-    if (!container || loadingMore) return;
-
-    if (isAutoScrollingRef.current) return;
-
-    updateScrollButtonVisibility();
-
-    hasUserScrolledRef.current = true;
-    isManuallyScrollingRef.current = false;
-
-    const isAtBottom = isNearBottom(container, 50);
-
-    if (
-      isAtBottom &&
-      hasUserScrolledRef.current &&
-      messages.length > 0 &&
-      channelId &&
-      currentUserId
-    ) {
-      const last = messages[messages.length - 1];
-      updateLastRead(last.timestamp);
-      void markUnreadMentionsAsRead();
-    }
-
-    if (messages.length > 0 && channelId && currentUserId && !isAtBottom) {
-      const viewportBottom = container.scrollTop + container.clientHeight;
-
-      for (let i = messages.length - 1; i >= 0; i--) {
-        const msg = messages[i];
-        const el = messageRefs.current[msg.id];
-        if (!el) continue;
-
-        const elTop = el.offsetTop;
-        if (elTop <= viewportBottom) {
-          const ts = msg.timestamp;
-          const existing = lastReadTimestamp
-            ? new Date(lastReadTimestamp).getTime()
-            : 0;
-          const next = new Date(ts).getTime();
-
-          if (next > existing) {
-            updateLastRead(ts);
-            void markUnreadMentionsAsRead();
-          }
-          break;
-        }
-      }
-    }
-
-    saveScrollAnchor();
-
-    if (hasMore && container.scrollTop < 100) {
-      const previousScrollHeight = container.scrollHeight;
-      const previousScrollTop = container.scrollTop;
-      const requestedChannelId = channelId;
-
-      loadMessages(true).then((loaded) => {
-        if (
-          !loaded ||
-          currentChannelIdRef.current !== requestedChannelId
-        ) {
-          return;
-        }
-        requestAnimationFrame(() => {
-          if (
-            messagesContainerRef.current &&
-            currentChannelIdRef.current === requestedChannelId
-          ) {
-            const newScrollHeight = messagesContainerRef.current.scrollHeight;
-            messagesContainerRef.current.scrollTop =
-              previousScrollTop + (newScrollHeight - previousScrollHeight);
-          }
-        });
-      });
-    }
-  }, [
-    loadingMore,
-    hasMore,
-    loadMessages,
-    messages,
-    channelId,
-    currentUserId,
-    lastReadTimestamp,
-    updateLastRead,
-    markUnreadMentionsAsRead,
-    saveScrollAnchor,
-    updateScrollButtonVisibility,
-  ]);
-
   const handleReply = useCallback((message: ChannelMessage) => {
     setReplyingTo(message);
   }, []);
 
-  const scrollToMessage = useCallback((messageId: string | number) => {
-    const el = messageRefs.current[messageId];
-    if (!el) return;
+  const conversationKey = conversationScrollKey(channelId);
 
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, []);
+  // Read-only scroll side effects (read markers). Must never scroll.
+  const handleScrolledExtra = useCallback(
+    (container: HTMLDivElement) => {
+      if (messages.length === 0 || !currentUserId) return;
 
-  const scrollToMention = useCallback(
-    async (messageId: string, retries = 5): Promise<boolean> => {
-      for (let attempt = 0; attempt < retries; attempt++) {
-        const el = document.querySelector(
-          `[data-message-id="${messageId}"]`
-        ) as HTMLElement | null;
+      const isAtBottom = isNearBottom(container, 50);
 
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "center" });
-          el.classList.add("mention-highlight");
-          setTimeout(() => el.classList.remove("mention-highlight"), 1500);
-          return true;
-        }
-
-        if (hasMore && attempt < retries - 1) {
-          await loadMessages(true);
-          await new Promise((resolve) => setTimeout(resolve, 100));
-        } else {
-          await new Promise((resolve) =>
-            setTimeout(resolve, 100 * Math.pow(2, attempt))
-          );
-        }
+      if (isAtBottom) {
+        updateLastRead(messages[messages.length - 1].timestamp);
+        void markUnreadMentionsAsRead();
+        return;
       }
 
-      return false;
+      const viewportBottom = container.scrollTop + container.clientHeight;
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i];
+        const el = messageRefs.current[msg.id];
+        if (!el || el.offsetTop > viewportBottom) continue;
+        const existing = lastReadTimestamp
+          ? new Date(lastReadTimestamp).getTime()
+          : 0;
+        const next = new Date(msg.timestamp).getTime();
+        if (next > existing) {
+          updateLastRead(msg.timestamp);
+          void markUnreadMentionsAsRead();
+        }
+        break;
+      }
     },
-    [hasMore, loadMessages]
+    [messages, currentUserId, lastReadTimestamp, updateLastRead, markUnreadMentionsAsRead, messageRefs]
   );
+
+  const handlePositioned = useCallback(
+    (kind: "bottom" | "element") => {
+      if (kind !== "bottom") return;
+      const last = messages[messages.length - 1];
+      if (last) updateLastRead(last.timestamp);
+      void markUnreadMentionsAsRead();
+    },
+    [messages, updateLastRead, markUnreadMentionsAsRead]
+  );
+
+  const loadOlder = useCallback(
+    () => loadMessages(true),
+    [loadMessages]
+  );
+
+  const scroll = useChatScroll({
+    conversationKey,
+    containerRef: messagesContainerRef,
+    messages,
+    messageRefs,
+    ready: !loadingMessages && messages.length > 0,
+    hasMore,
+    loadingMore,
+    onLoadOlder: loadOlder,
+    resolveInitialTarget: (msgs) => {
+      const target = resolveInitialScrollTarget(
+        msgs as Parameters<typeof resolveInitialScrollTarget>[0],
+        currentUserId,
+        lastReadTimestamp,
+        chatScrollStore.get(conversationScrollKey(channelId)).anchor
+      );
+      if (target.kind === "anchor") {
+        return {
+          kind: "element",
+          messageId: target.anchor.messageId,
+          offset: target.anchor.offset,
+        };
+      }
+      if (target.kind === "first-unread") {
+        const firstUnread = msgs[target.index];
+        if (firstUnread) {
+          return { kind: "element", messageId: firstUnread.id };
+        }
+      }
+      return { kind: "bottom" };
+    },
+    onPositioned: handlePositioned,
+    onScrolledExtra: handleScrolledExtra,
+  });
+
+  useEffect(() => {
+    messageRefs.current = {};
+  }, [channelId]);
 
   const jumpToNextMention = useCallback(() => {
     if (unreadMentions.length === 0) return;
 
     const targetMention =
       unreadMentions[currentMentionIndex % unreadMentions.length];
-    const el = messageRefs.current[targetMention.messageId];
-
-    if (el) {
-      isManuallyScrollingRef.current = true;
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-      el.classList.add("mention-highlight");
-      setTimeout(() => el.classList.remove("mention-highlight"), 2000);
-      setTimeout(() => {
-        isManuallyScrollingRef.current = false;
-      }, 1000);
-    }
-
+    void scroll.scrollToMessage(targetMention.messageId, { highlightMs: 2000 });
     setCurrentMentionIndex((prev) => prev + 1);
-  }, [unreadMentions, currentMentionIndex]);
+  }, [unreadMentions, currentMentionIndex, scroll]);
 
   const openProfile = useCallback(
     async (userId: string, username?: string, fallbackAvatar?: string) => {
@@ -859,6 +600,7 @@ export default forwardRef(function ChatWindow(
       };
 
       addOptimistic(optimisticMessage);
+      scroll.stickNextRender();
 
       try {
         const response = await uploadMessage({
@@ -870,9 +612,6 @@ export default forwardRef(function ChatWindow(
         });
 
         setReplyingTo(null);
-        requestAnimationFrame(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-        });
 
         reconcileTemp(tempId, {
           id: String(response?.id ?? tempId),
@@ -912,6 +651,7 @@ export default forwardRef(function ChatWindow(
       markFailed,
       updateMessages,
       setPermissionError,
+      scroll,
     ]
   );
 
@@ -1017,7 +757,7 @@ export default forwardRef(function ChatWindow(
         return;
       }
 
-      const success = await scrollToMention(result.id, 6);
+      const success = await scroll.scrollToMessage(result.id, { highlightMs: 1500 });
       if (!success) {
         setToast({
           message: "Could not find that message in the loaded history.",
@@ -1026,7 +766,7 @@ export default forwardRef(function ChatWindow(
         });
       }
     },
-    [reactionMode, channelId, scrollToMention]
+    [reactionMode, channelId, scroll]
   );
 
   useImperativeHandle(
@@ -1036,50 +776,26 @@ export default forwardRef(function ChatWindow(
         messageId: string,
         options: { highlightDuration?: number } = { highlightDuration: 1500 }
       ) {
-        isAutoScrollingRef.current = true;
-        isManuallyScrollingRef.current = true;
-
-        try {
-          const success = await scrollToMention(messageId, 6);
-
-          if (success) {
-            const el = document.querySelector(
-              `[data-message-id="${messageId}"]`
-            ) as HTMLElement;
-            if (el && options.highlightDuration) {
-              el.classList.add("mention-highlight");
-              setTimeout(
-                () => el.classList.remove("mention-highlight"),
-                options.highlightDuration
-              );
-            }
-          }
-
-          return success;
-        } finally {
-          setTimeout(() => {
-            isAutoScrollingRef.current = false;
-            isManuallyScrollingRef.current = false;
-          }, 1000);
-        }
+        return scroll.scrollToMessage(messageId, {
+          highlightMs: options.highlightDuration ?? 1500,
+        });
       },
 
       async loadOlderPages(limitPages = 1) {
         if (!hasMore) return false;
         for (let i = 0; i < limitPages; i++) {
           await loadMessages(true);
-          await new Promise((r) => setTimeout(r, 60));
           if (!hasMore) break;
         }
         return true;
       },
 
       scrollToBottom() {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        scroll.jumpToLatest();
         return true;
       },
     }),
-    [scrollToMention, hasMore, loadMessages]
+    [scroll, hasMore, loadMessages]
   );
 
   useEffect(() => {
@@ -1195,7 +911,7 @@ export default forwardRef(function ChatWindow(
       <div className="relative flex-1 flex flex-col min-h-0">
         <MessageVirtualizer
           containerRef={messagesContainerRef}
-          onScroll={handleScroll}
+          onScroll={scroll.handleScroll}
         >
           <MessageList
             messages={messages}
@@ -1205,7 +921,6 @@ export default forwardRef(function ChatWindow(
             hasMore={hasMore}
             isInitialLoadDone={isInitialLoadDone}
             unreadDividerIndex={unreadDividerIndex}
-            messagesEndRef={messagesEndRef}
             registerRef={registerMessageRef}
             typingNames={typingUsers}
             renderContent={renderMessageContent}
@@ -1213,11 +928,16 @@ export default forwardRef(function ChatWindow(
             onProfileClick={(msg) =>
               openProfile(msg.senderId, msg.username, msg.avatarUrl)
             }
-            onReplyPreviewClick={scrollToMessage}
+            onReplyPreviewClick={(id) => void scroll.scrollToMessage(id)}
           />
         </MessageVirtualizer>
 
-        {showScrollBtn && <ScrollToBottomButton onClick={scrollToBottom} />}
+        {scroll.showJumpButton && (
+          <ScrollToBottomButton
+            onClick={scroll.jumpToLatest}
+            count={scroll.newMessageCount}
+          />
+        )}
       </div>
 
       <MessageComposer

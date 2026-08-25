@@ -30,7 +30,7 @@ import Toast from "@/components/Toast";
 import { useToast } from "@/contexts/ToastContext";
 import UserProfileModal from "./UserProfileModal";
 import { ScrollToBottomButton } from "@/components/ScrollToBottomButton";
-import { isNearBottom } from "@/lib/scrollUtils";
+import { useChatScroll } from "@/hooks/useChatScroll";
 import { MessageSearchResult } from "@/api/types/message.types";
 import { useDmMessages } from "@/hooks/useDmMessages";
 import {
@@ -228,7 +228,8 @@ const ChatList: React.FC<ChatListProps> = ({
 };
 
 interface ChatWindowProps {
-  onLoadOlderMessages?: (container: HTMLDivElement) => void;
+  onLoadOlder: () => Promise<boolean>;
+  hasMorePages?: boolean;
   isLoadingOlderMessages?: boolean;
   isLoadingMessages?: boolean;
   activeUser: User | null;
@@ -236,7 +237,6 @@ interface ChatWindowProps {
   currentUser: User | null;
   partnerId: string | null;
   threadId: string | null;
-  messagesContainerRef: React.RefObject<HTMLDivElement>;
   allUsers: User[];
   onSendMessage: (
     message: string,
@@ -253,7 +253,8 @@ interface ChatWindowProps {
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({
-  onLoadOlderMessages,
+  onLoadOlder,
+  hasMorePages,
   isLoadingOlderMessages,
   isLoadingMessages,
   activeUser,
@@ -263,7 +264,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   threadId,
   allUsers,
   onSendMessage,
-  messagesContainerRef,
   onToast,
   onOpenProfile,
 }) => {
@@ -271,17 +271,29 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   useToast();
   const [replyingTo, setReplyingTo] = useState<DMReplyTarget>(null);
   const [showSearch, setShowSearch] = useState(false);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
-  const dmAtBottomRef = useRef(true);
-  const prevThreadRef = useRef<string | null>(null);
   const replyingToRef = useRef<DMReplyTarget>(null);
 
-  const scrollDmToBottom = () => {
-    dmAtBottomRef.current = true;
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const registerMessageRef = useCallback(
+    (id: string | number, el: HTMLDivElement | null) => {
+      messageRefs.current[id] = el;
+    },
+    []
+  );
+
+  // One source of truth for DM scrolling: per-conversation anchors,
+  // restoration, follow-on-append and prepend compensation all live here.
+  const scroll = useChatScroll({
+    conversationKey: `dm:${threadId ?? partnerId ?? "none"}`,
+    containerRef: messagesContainerRef,
+    messages,
+    messageRefs,
+    ready: !isLoadingMessages && messages.length > 0,
+    hasMore: Boolean(hasMorePages),
+    loadingMore: Boolean(isLoadingOlderMessages),
+    onLoadOlder,
+  });
 
   const timeFormatter = useMemo(
     () =>
@@ -300,42 +312,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       }),
     []
   );
-
-  const handleDmScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const container = e.currentTarget;
-    const isAtBottom = isNearBottom(container);
-    dmAtBottomRef.current = isAtBottom;
-    setShowScrollToBottom(!isAtBottom);
-
-    if (container.scrollTop < 100) {
-      onLoadOlderMessages?.(container);
-    }
-  };
-
-  useEffect(() => {
-    const isThreadSwitch = prevThreadRef.current !== threadId;
-    prevThreadRef.current = threadId;
-
-    requestAnimationFrame(() => {
-      const container = messagesContainerRef.current;
-      if (!container) return;
-
-      if (isThreadSwitch) {
-        dmAtBottomRef.current = true;
-        bottomRef.current?.scrollIntoView({ behavior: "auto" });
-        setShowScrollToBottom(false);
-        return;
-      }
-
-      if (dmAtBottomRef.current) {
-        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-        setShowScrollToBottom(false);
-        return;
-      }
-
-      setShowScrollToBottom(!isNearBottom(container));
-    });
-  }, [messages, threadId]);
 
   const groupedMessages = useMemo<GroupedSection[]>(() => {
     if (!messages.length) return [];
@@ -394,22 +370,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     dayFormatter,
     timeFormatter,
   ]);
-  const scrollToMessage = useCallback(async (messageId: string | number) => {
-    const idStr = String(messageId);
-    const el =
-      messageRefs.current[idStr] ??
-      (document.querySelector(
-        `[data-message-id="${idStr}"]`
-      ) as HTMLElement | null);
-
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-      el.classList.add("mention-highlight");
-      setTimeout(() => el.classList.remove("mention-highlight"), 1500);
-      return true;
-    }
-    return false;
-  }, []);
 
   const handleSearch = useCallback(
     async (query: string) => {
@@ -421,12 +381,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   const handleSearchSelect = useCallback(
     async (result: MessageSearchResult) => {
-      const success = await scrollToMessage(result.id);
+      const success = await scroll.scrollToMessage(result.id, {
+        highlightMs: 1800,
+      });
       if (!success) {
         onToast("Could not find that message in this conversation.", "error");
       }
     },
-    [scrollToMessage, onToast]
+    [scroll, onToast]
   );
 
   useEffect(() => {
@@ -437,9 +399,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     (text: string, files: File[]) => {
       if (text.trim().length === 0 && files.length === 0) return;
       onSendMessage(text, files, replyingToRef.current);
+      scroll.stickNextRender();
       setReplyingTo(null);
     },
-    [onSendMessage]
+    [onSendMessage, scroll]
   );
 
   if (!activeUser) {
@@ -560,8 +523,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       <div className="relative flex-1 flex flex-col min-h-0">
         <div
           ref={messagesContainerRef}
-          onScroll={handleDmScroll}
-          className="chat-scroll flex-1 space-y-0 overflow-y-auto px-6 py-6 pr-3 scrollbar-thin scrollbar-thumb-slate-500 scrollbar-track-slate-900"
+          onScroll={scroll.handleScroll}
+          className="chat-scroll relative flex-1 space-y-0 overflow-y-auto px-6 py-6 pr-3 scrollbar-thin scrollbar-thumb-slate-500 scrollbar-track-slate-900"
         >
         {isLoadingOlderMessages && <LoadingOlderMessagesSkeleton />}
         {groupedMessages.length === 0 ? (
@@ -589,9 +552,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     {group.messages.map((msg, index) => (
                       <div
                         key={msg.id}
-                        ref={(el) => {
-                          messageRefs.current[msg.id] = el;
-                        }}
+                        ref={(el) => registerMessageRef(msg.id, el)}
                       >
                         <MessageBubble
                           isSender={group.isSender}
@@ -608,7 +569,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                               mediaType: msg.media_type,
                             });
                           }}
-                          onReplyPreviewClick={scrollToMessage}
+                          onReplyPreviewClick={(id) =>
+                            void scroll.scrollToMessage(id)
+                          }
                           timestamp={msg.timeLabel}
                           name={
                             !group.isSender && index === 0
@@ -642,12 +605,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             </div>
           ))
         )}
-        <div ref={bottomRef} />
         </div>
 
-        {showScrollToBottom && (
+        {scroll.showJumpButton && (
           <ScrollToBottomButton
-            onClick={scrollDmToBottom}
+            onClick={scroll.jumpToLatest}
+            count={scroll.newMessageCount}
             className="bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
           />
         )}
@@ -748,8 +711,6 @@ function MessagesPageContentInner() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [, setFileError] = useState<string | null>(null);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const lastAutoScrollDmRef = useRef<string | null>(null);
   const queryClient = useQueryClient();
   const [selectedUser, setSelectedUser] = useState<{
     id: string;
@@ -1101,40 +1062,16 @@ function MessagesPageContentInner() {
     }
   }, [currentUser]);
 
-  const loadingOlderStateRef = useRef<{
-    node: HTMLDivElement | null;
-    height: number;
-    top: number;
-  } | null>(null);
-
-  const loadOlderMessages = useCallback(
-    (container?: HTMLDivElement | null) => {
-      if (isFetchingPreviousPage || !hasPreviousPage) return;
-
-      const node = container ?? messagesContainerRef.current;
-      if (node) {
-        loadingOlderStateRef.current = {
-          node,
-          height: node.scrollHeight,
-          top: node.scrollTop,
-        };
-      }
-      fetchPreviousPage();
-    },
-    [isFetchingPreviousPage, hasPreviousPage, fetchPreviousPage]
-  );
-
-  useEffect(() => {
-    if (isFetchingPreviousPage) return;
-    const saved = loadingOlderStateRef.current;
-    if (!saved) return;
-    loadingOlderStateRef.current = null;
-
-    requestAnimationFrame(() => {
-      if (!saved.node) return;
-      saved.node.scrollTop = saved.top + (saved.node.scrollHeight - saved.height);
-    });
-  }, [isFetchingPreviousPage]);
+  // Loads one older page; prepend compensation is handled by useChatScroll.
+  const loadOlderMessages = useCallback(async () => {
+    if (isFetchingPreviousPage || !hasPreviousPage) return false;
+    try {
+      await fetchPreviousPage();
+      return true;
+    } catch {
+      return false;
+    }
+  }, [isFetchingPreviousPage, hasPreviousPage, fetchPreviousPage]);
 
   useEffect(() => {
     if (!selectedDM || !currentUser) return;
@@ -1577,35 +1514,6 @@ queryClient.setQueryData(
     return allUsers.find((u) => u.id === activeDmId) || null;
   }, [allUsers, activeDmId]);
 
-  const lastMessageId = activeMessages[activeMessages.length - 1]?.id;
-
-  useEffect(() => {
-    lastAutoScrollDmRef.current = null;
-  }, [activeDmId]);
-
-  useEffect(() => {
-    if (!activeDmId || !lastMessageId) return;
-
-    const container = messagesContainerRef.current;
-    if (!container) return;
-
-    setTimeout(() => {
-      const isInitialLoad = lastAutoScrollDmRef.current !== activeDmId;
-
-      const isNearBottom =
-        container.scrollHeight - container.scrollTop - container.clientHeight <
-        400;
-
-      if (isInitialLoad || isNearBottom) {
-        container.scrollTo({
-          top: container.scrollHeight,
-          behavior: isInitialLoad ? "auto" : "smooth",
-        });
-        lastAutoScrollDmRef.current = activeDmId;
-      }
-    }, 100);
-  }, [activeDmId, lastMessageId]);
-
   return (
     <div className="flex h-screen min-h-0 w-full bg-slate-950 text-slate-100">
       {toast && (
@@ -1674,7 +1582,8 @@ queryClient.setQueryData(
         </div>
         <div className="flex flex-1 overflow-hidden">
           <ChatWindow
-            onLoadOlderMessages={loadOlderMessages}
+            onLoadOlder={loadOlderMessages}
+            hasMorePages={hasPreviousPage}
             isLoadingOlderMessages={isFetchingPreviousPage}
             isLoadingMessages={isLoadingDmMessages}
             activeUser={activeUser}
@@ -1682,7 +1591,6 @@ queryClient.setQueryData(
             currentUser={currentUser}
             partnerId={activeDmId}
             threadId={activeThreadId}
-            messagesContainerRef={messagesContainerRef}
             allUsers={allUsers}
             onSendMessage={handleSendMessage}
             onFileError={(msg) => setFileError(msg)}

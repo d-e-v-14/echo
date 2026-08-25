@@ -18,7 +18,7 @@ export interface MessageListProps {
   hasMore: boolean;
   isInitialLoadDone: boolean;
   unreadDividerIndex: number;
-  messagesEndRef: React.RefObject<HTMLDivElement>;
+  messagesEndRef?: React.RefObject<HTMLDivElement>;
   registerRef?: (id: string | number, el: HTMLDivElement | null) => void;
   typingNames?: string[];
   renderContent: (message: ChannelMessage) => React.ReactNode;
@@ -113,7 +113,7 @@ export const MessageList: React.FC<MessageListProps> = ({
 
           <TypingIndicator names={typingNames} />
 
-          <div ref={messagesEndRef} />
+          {messagesEndRef && <div ref={messagesEndRef} />}
         </>
       )}
     </>

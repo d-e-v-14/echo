@@ -1448,7 +1448,7 @@ const ServersPageContent: React.FC = () => {
                 </div>
 
                 <div
-                  className={`flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900 ${
+                  className={`flex-1 overflow-hidden ${
                     !showVoiceUI && activeChannel ? "flex flex-col" : "hidden"
                   }`}
                 >

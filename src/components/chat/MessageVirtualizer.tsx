@@ -17,7 +17,7 @@ export const MessageVirtualizer: React.FC<MessageVirtualizerProps> = ({
     <div
       ref={containerRef}
       onScroll={onScroll}
-      className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900"
+      className="relative flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900"
     >
       {children}
     </div>
