@@ -6,7 +6,7 @@ import React, { useEffect, useState } from "react";
 import Navbar from "@/components/navbar";
 import SharkWithEyes from "@/components/shark";
 import AOS from "aos";
-import "aos/dist/aos.css";
+// import "aos/dist/aos.css";
 import { useRouter } from "next/navigation";
 import Modal from "react-modal";
 import { FaGoogle } from "react-icons/fa";
@@ -17,6 +17,7 @@ Modal.setAppElement("body");
 
 export default function Home() {
   const router = useRouter();
+
   const [loading, setLoading] = useState(true);
   const [faq, setfaq] = useState<number | null>(null);
   const [showNavbar, setShowNavbar] = useState(true);
@@ -46,10 +47,12 @@ export default function Home() {
   useEffect(() => {
     let didFinish = false;
     const bgImage = new Image();
+
     bgImage.src = "/bg1.webp";
 
     const finalize = () => {
       if (didFinish) return;
+
       didFinish = true;
       setLoading(false);
     };
@@ -73,6 +76,7 @@ export default function Home() {
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
+
       if (currentScrollY < 10) {
         setShowNavbar(true);
       } else if (currentScrollY > lastScrollY) {
@@ -80,10 +84,12 @@ export default function Home() {
       } else {
         setShowNavbar(true);
       }
+
       setLastScrollY(currentScrollY);
     };
 
     window.addEventListener("scroll", handleScroll);
+
     return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScrollY]);
 
@@ -91,8 +97,11 @@ export default function Home() {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
     };
+
     handleResize();
+
     window.addEventListener("resize", handleResize);
+
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
@@ -114,25 +123,65 @@ export default function Home() {
     } else {
       document.body.style.overflow = "";
     }
+
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [showPopup, isMobile]);
 
   useEffect(() => {
-    AOS.init({ duration: 800, once: true });
+    AOS.init({
+      duration: 800,
+      once: true,
+    });
+  }, []);
+
+  /* Hide scrollbar visually while preserving scrolling */
+  useEffect(() => {
+    const style = document.createElement("style");
+
+    style.innerHTML = `
+      html {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+
+      html::-webkit-scrollbar {
+        display: none;
+        width: 0;
+        height: 0;
+      }
+
+      body {
+        overflow-x: hidden;
+      }
+    `;
+
+    document.head.appendChild(style);
+
+    return () => {
+      document.head.removeChild(style);
+    };
   }, []);
 
   return (
     <>
+      {/* Initial Loading Screen */}
       <div
         className={`
-          fixed inset-0 z-[9999] flex items-center justify-center
-          bg-black transition-opacity duration-700 ease-in-out
-          ${loading ? "opacity-100" : "opacity-0 pointer-events-none"}
+          fixed inset-0 z-[9999]
+          flex items-center justify-center
+          bg-black
+          transition-opacity duration-700 ease-in-out
+          ${loading ? "opacity-100" : "pointer-events-none opacity-0"}
         `}
       >
         <div
           className={`
-            text-center transition-all duration-700
-            ${loading ? "opacity-100 scale-100" : "opacity-0 scale-95"}
+            flex flex-col items-center
+            text-center
+            transition-all duration-700
+            ${loading ? "scale-100 opacity-100" : "scale-95 opacity-0"}
           `}
         >
           <div className="mb-6">
@@ -140,6 +189,7 @@ export default function Home() {
               <div className="font-jersey text-[64px] font-normal text-white">
                 echo
               </div>
+
               <svg
                 width="13"
                 height="34"
@@ -152,6 +202,7 @@ export default function Home() {
                   strokeWidth="4"
                 />
               </svg>
+
               <svg
                 width="16"
                 height="46"
@@ -166,387 +217,178 @@ export default function Home() {
               </svg>
             </div>
           </div>
-          <div className="mb-4">
-            <InlineSpinner size="lg" className="mx-auto" label="Loading" />
-          </div>
+
+          <InlineSpinner
+            size="lg"
+            className="mx-auto"
+            label="Loading"
+          />
         </div>
       </div>
 
-      <div className="relative w-screen overflow-x-hidden">
+      {/* Main Page */}
+      <div className="relative min-h-screen w-screen overflow-x-hidden">
+        {/* Background */}
         <div
-          className="fixed inset-0 bg-[url('/bg1.webp')] bg-cover bg-center -z-20 transition-transform duration-500"
+          className="fixed inset-0 -z-20 bg-[url('/bg1.webp')] bg-cover bg-center"
           aria-hidden="true"
         />
 
+        {/* Navbar */}
         <div
-          className={`fixed top-0 left-0 w-full z-50 transition-transform duration-300 ${
-            showNavbar ? "translate-y-0" : "-translate-y-full"
-          }`}
+          className={`
+            fixed left-0 top-0 z-50 w-full
+            transition-transform duration-300
+            ${showNavbar ? "translate-y-0" : "-translate-y-full"}
+          `}
         >
           <Navbar />
         </div>
 
-        <section className="min-h-screen flex items-center justify-between px-6 md:px-12 lg:px-24">
-          <div className="w-full md:w-1/2 text-white">
-            <h1
-              className="text-[36px] md:text-[60px] font-semibold leading-tight"
-              data-aos="fade-right"
-            >
-              Say it once. <br /> Echo it forever.
-            </h1>
-            <p
-              className="mt-4 text-lg md:text-xl opacity-90"
-              data-aos="fade-right"
-              data-aos-delay="100"
-            >
-              Your space to connect, collaborate, and echo your voice—louder,
-              clearer, and together.
-            </p>
-            <button
-              onClick={handleGoogleSignIn}
-              className="mt-8 flex items-center gap-3 bg-white text-gray-800 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-all shadow-lg"
-            >
-              <FaGoogle className="text-xl text-[#4285F4]" />
-              <span>Sign in with Google</span>
-            </button>
-          </div>
-          <div className="hidden md:block w-1/2" data-aos="zoom-in">
-            <SharkWithEyes />
-          </div>
-        </section>
-
+        {/* Hero */}
         <section
-          id="about-us"
-          className="relative min-h-screen py-20 px-4 md:px-8"
+          className="
+            relative
+            flex h-screen
+            items-center
+            overflow-hidden
+            px-6
+            pt-24
+            pb-12
+            md:px-12
+            md:pt-28
+            md:pb-16
+            lg:px-20
+            xl:px-28
+          "
         >
-          <h2 className="text-3xl md:text-5xl font-semibold text-white text-center mb-4">
-            Explore Echo Spaces
-          </h2>
-          <p className="text-center text-white/80 mb-12 max-w-2xl mx-auto">
-            Discover vibrant spaces tailored to your passions—from project repos
-            to gaming squads, study zones to hackathons.
-          </p>
+          <div
+            className="
+              mx-auto
+              flex w-full max-w-[1500px]
+              items-center
+              justify-between
+              gap-10
+              lg:gap-14
+              xl:gap-20
+            "
+          >
+            {/* Left Content */}
+            <div
+              className="
+                flex w-full
+                max-w-[620px]
+                flex-col
+                justify-center
+                text-white
+                md:w-[54%]
+                lg:w-[48%]
+              "
+              data-aos="fade-right"
+            >
+              <h1
+                className="
+                  max-w-[620px]
+                  text-[40px]
+                  font-semibold
+                  leading-[1.08]
+                  tracking-[-0.02em]
+                  sm:text-[48px]
+                  md:text-[56px]
+                  lg:text-[60px]
+                  xl:text-[68px]
+                "
+              >
+                IEEE
+                <br />
+                Computer Society
+              </h1>
 
-          <div className="max-w-7xl mx-auto flex flex-col gap-4">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-auto md:h-[300px]">
-              <div
-                data-aos="fade-down"
-                className="md:col-span-4 border-[4px] rounded-xl border-[#1C5889] bg-[url('/techonology.png')] bg-cover bg-center text-white font-bold text-xl flex items-end justify-start p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl cursor-pointer"
-              >
-                TECHNOLOGY
-              </div>
-              <div
-                data-aos="fade-down"
-                data-aos-delay="100"
-                className="md:col-span-3 border-[4px] rounded-xl border-[#1C5889] bg-[url('/gaming_1.jpg')] bg-cover bg-center text-white font-bold text-xl flex items-end justify-start p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl cursor-pointer"
-              >
-                GAMING
-              </div>
-              <div
-                data-aos="fade-down"
-                data-aos-delay="200"
-                className="md:col-span-5 border-[4px] rounded-xl border-[#FCBA4B] bg-[url('/study.png')] bg-cover bg-center text-white font-bold text-xl flex items-end justify-start p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl cursor-pointer"
-              >
-                STUDY
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-auto md:min-h-[400px]">
-              <div
+              <p
+                className="
+                  mt-5
+                  max-w-[540px]
+                  text-[16px]
+                  leading-7
+                  text-white/85
+                  sm:text-[17px]
+                  md:text-lg
+                  lg:text-xl
+                "
                 data-aos="fade-right"
-                data-aos-delay="300"
-                className="md:col-span-4 border-[4px] rounded-xl border-[#1C5889] bg-[url('/contactus.png')] bg-cover bg-center text-white font-bold text-xl flex items-end justify-start p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl cursor-pointer min-h-[200px]"
+                data-aos-delay="100"
               >
-                CONTACT US
-              </div>
+                We promote learning, innovation, and collaboration in
+                technology. Explore new ideas, build meaningful projects,
+                sharpen your skills, and grow alongside a community of
+                passionate computer science enthusiasts.
+              </p>
 
+              {/* Google Login */}
               <div
-                data-aos="fade-up"
-                data-aos-delay="400"
-                className="md:col-span-3 border-[4px] rounded-xl border-[#1C5889] bg-[url('/hackathons.png')] bg-cover bg-center text-white font-bold text-xl flex items-end justify-start p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl cursor-pointer min-h-[200px]"
+                className="mt-8"
+                data-aos="fade-right"
+                data-aos-delay="180"
               >
-                HACKATHONS
-              </div>
-
-              <div className="md:col-span-5 flex flex-col gap-4">
-                <div className="grid grid-cols-2 gap-4 h-1/2">
-                  <div
-                    data-aos="fade-left"
-                    data-aos-delay="500"
-                    className="border-[4px] rounded-xl border-[#FCBA4B] bg-[url('/projectrepos.png')] bg-cover bg-center text-white font-bold text-lg flex items-end justify-start p-6 transition-all duration-300 hover:scale-[1.02] cursor-pointer"
-                  >
-                    PROJECT REPOS
-                  </div>
-                  <div
-                    data-aos="fade-left"
-                    data-aos-delay="600"
-                    className="border-[4px] rounded-xl border-[#FCBA4B] bg-[url('/aboutus.png')] bg-cover bg-center text-white font-bold text-lg flex items-end justify-start p-6 transition-all duration-300 hover:scale-[1.02] cursor-pointer"
-                  >
-                    ABOUT US
-                  </div>
-                </div>
-
-                <div
-                  data-aos="fade-up"
-                  data-aos-delay="700"
-                  className="h-1/2 border-[4px] rounded-xl border-[#FCBA4B] bg-[url('/popular.png')] bg-cover bg-center text-white font-bold text-2xl flex items-end justify-start p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl cursor-pointer min-h-[150px]"
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  className="
+                    inline-flex
+                    min-h-[50px]
+                    items-center
+                    gap-3
+                    rounded-lg
+                    bg-white
+                    px-5
+                    py-3
+                    text-[15px]
+                    font-semibold
+                    text-gray-800
+                    shadow-lg
+                    transition-all
+                    duration-200
+                    hover:-translate-y-0.5
+                    hover:bg-gray-100
+                    hover:shadow-xl
+                    active:translate-y-0
+                  "
                 >
-                  POPULAR
-                </div>
+                  <FaGoogle className="text-[19px] text-[#4285F4]" />
+
+                  <span>Continue with Google</span>
+                </button>
               </div>
             </div>
-          </div>
-        </section>
 
-        <section className="mt-20 flex flex-col lg:flex-row items-center justify-between px-0 md:px-8">
-          <div className="text-center lg:text-left mt-8 lg:mt-0 max-w-xl md:pl-12">
-            <h1 className="text-white font-semibold text-2xl md:text-[52px] md:leading-[70px]">
-              Build Your Space. <br /> Stay in Touch.
-            </h1>
-            <p className="text-white text-base md:text-[20px] mt-4">
-              Create and customize servers <br /> on web — chat effortlessly
-              with your community on mobile.
-            </p>
-          </div>
-
-          <div className="relative w-[70vw] lg:w-[60%] max-w-[700px] h-[300px] md:h-[500px] lg:h-[600px] ml-14 md:ml-0">
-            <img
-              src="websample.svg"
-              alt="Web Sample"
-              loading="lazy"
-              className="absolute z-10 w-full h-auto object-contain top-20 -left-10"
-            />
-            <img
-              src="phonesample.svg"
-              alt="Phone Sample"
-              loading="lazy"
-              className="absolute z-20 w-1/2 md:w-1/3 h-[50vw] lg:h-[70vh] object-contain top-20 md:top-28 left-[80%] transform -translate-x-1/2"
-            />
+            {/* Right Visual */}
+            <div
+              className="
+                hidden
+                w-[46%]
+                items-center
+                justify-center
+                md:flex
+                lg:w-[50%]
+              "
+              data-aos="zoom-in"
+            >
+              <div
+                className="
+                  flex
+                  w-full
+                  max-w-[720px]
+                  items-center
+                  justify-center
+                "
+              >
+                <SharkWithEyes />
+              </div>
+            </div>
           </div>
         </section>
       </div>
-
-      <section id="faqs" className="relative py-24 px-6 overflow-hidden">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col items-center mb-16">
-            <h2 className="text-white font-bold text-4xl mb-2">
-              Frequently Asked Questions
-            </h2>
-            <div className="w-24 h-1 bg-[#FFAF00] rounded-full" />
-          </div>
-
-          <div className="flex flex-col md:flex-row gap-4 h-auto md:h-[400px]">
-            {[
-              {
-                q: "How do I join?",
-                a: "Click the '+' button to create a space or enter a code to join.",
-              },
-              {
-                q: "Is it secure?",
-                a: "Yes, we use end-to-end encryption for all your voice data.",
-              },
-              {
-                q: "Mic not working?",
-                a: "Ensure you've granted microphone permissions in your browser settings.",
-              },
-              {
-                q: "Mobile App?",
-                a: "Currently, you can use our responsive web app on any mobile device.",
-              },
-            ].map((item, index) => (
-              <div
-                key={index}
-                onClick={() => setfaq(faq === index ? null : index)}
-                className={`relative flex-1 group cursor-pointer transition-all duration-700 ease-in-out overflow-hidden rounded-3xl border border-white/10 backdrop-blur-xl
-                  ${faq === index ? "flex-[2.5] bg-blue-500/20 border-blue-400/50" : "hover:bg-white/5 bg-white/5"}
-                `}
-              >
-                {faq === index && (
-                  <div className="absolute inset-0 shadow-[inset_0_0_50px_rgba(59,130,246,0.3)] pointer-events-none" />
-                )}
-                <div className="p-8 h-full flex flex-col justify-center">
-                  <h3
-                    className={`text-xl font-bold transition-colors duration-300 ${faq === index ? "text-blue-300" : "text-white"}`}
-                  >
-                    {item.q}
-                  </h3>
-                  <div
-                    className={`mt-4 text-gray-200 transition-all duration-500 ${faq === index ? "opacity-100 max-h-40" : "opacity-0 max-h-0"}`}
-                  >
-                    <p className="leading-relaxed border-l-2 border-blue-400 pl-4">
-                      {item.a}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section
-        id="contact-us"
-        className="mt-40 flex flex-grow min-h-[100vh] overflow-x-hidden"
-      >
-        <div className="w-[70vw] h-[560px] py-5 border mx-auto bg-white/10 backdrop-blur-md rounded-xl border-white/20">
-          <h1 className="text-white text-center font-bold text-4xl mb-2">
-            CONTACT US
-          </h1>
-          <div className="w-24 h-1 mx-auto bg-[#FFAF00] rounded-full" />
-
-          <form className="max-w-md mx-auto mt-5 p-8 space-y-6">
-            <input
-              id="name"
-              type="text"
-              onChange={(e) => setname(e.target.value)}
-              className="w-full bg-[#4687CC] text-white rounded px-3 py-2 focus:outline-none focus:ring-blue-500"
-              placeholder="Your name"
-            />
-            <input
-              id="email"
-              type="email"
-              onChange={(e) => setemail(e.target.value)}
-              className="w-full bg-[#4687CC] text-white rounded px-3 py-2 focus:outline-none focus:ring-blue-500"
-              placeholder="Your email"
-            />
-            <textarea
-              id="message"
-              onChange={(e) => setmessage(e.target.value)}
-              className="w-full bg-[#4687CC] text-white rounded px-3 py-2 focus:outline-none focus:ring-blue-500"
-              placeholder="Your message"
-              rows={4}
-            />
-            <button
-              type="submit"
-              className="w-full bg-[#EFCA53] rounded-lg font-semibold py-2 hover:bg-[#94803d] transition"
-            >
-              Submit
-            </button>
-          </form>
-
-          <div className="flex justify-center items-center gap-5 md:gap-10">
-            <a
-              href="https://www.instagram.com/ieeecs_vit/?hl=en"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <img
-                src="instagram.svg"
-                alt="instagram"
-                className="h-5 w-5 md:h-12 md:w-12 cursor-pointer"
-                loading="lazy"
-              />
-            </a>
-            <a
-              href="https://x.com/ieeecsvit"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <img
-                src="x.svg"
-                alt="x"
-                className="h-5 w-5 md:h-12 md:w-12 cursor-pointer"
-                loading="lazy"
-              />
-            </a>
-            <a
-              href="https://www.linkedin.com/company/ieee-cs-vit/?originalSubdomain=in"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <img
-                src="linkedin.svg"
-                alt="linkedin"
-                className="h-5 w-5 md:h-12 md:w-12 cursor-pointer"
-                loading="lazy"
-              />
-            </a>
-            <a
-              href="https://www.facebook.com/ieeecsvit"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <img
-                src="facebook.svg"
-                alt="facebook"
-                className="h-5 w-5 md:h-12 md:w-12 cursor-pointer"
-                loading="lazy"
-              />
-            </a>
-          </div>
-        </div>
-      </section>
-
-      <footer className="mt-20 relative border-t border-white/10 bg-[#020617]/80 backdrop-blur-md">
-        <div className="flex items-center justify-center pt-8 pb-4">
-          <div className="flex items-center w-full px-4 max-w-7xl">
-            <div className="flex-grow h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
-            <span className="px-6 text-xs font-black tracking-[0.3em] text-white uppercase">
-              Echo
-            </span>
-            <div className="flex-grow h-px bg-gradient-to-l from-transparent via-white/20 to-transparent"></div>
-          </div>
-        </div>
-
-        <div className="max-w-7xl mx-auto px-6 py-16 grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-12">
-          <div className="space-y-6 flex flex-col items-center md:items-start lg:col-span-1">
-            <div className="h-12 w-48 relative flex items-center justify-center md:justify-start">
-              <img
-                src="ieeecs.svg"
-                alt="logo"
-                className="h-full w-auto object-contain max-w-full"
-                loading="lazy"
-              />
-            </div>
-            <p className="text-xs text-blue-200/40 uppercase tracking-widest font-bold">
-              Activate Your Knowledge
-            </p>
-          </div>
-
-          <div className="flex flex-col items-center md:items-start space-y-4">
-            <h3 className="text-sm font-black text-white uppercase tracking-tighter">
-              Quick Menu
-            </h3>
-            <nav className="flex flex-col space-y-2 text-center md:text-left">
-              {["About", "Events", "Team", "Content"].map((item) => (
-                <a
-                  key={item}
-                  href="#"
-                  className="text-sm text-white/60 hover:text-[#EFCA53] transition-colors"
-                >
-                  {item}
-                </a>
-              ))}
-            </nav>
-          </div>
-
-          <div className="flex flex-col items-center md:items-start space-y-4">
-            <h3 className="text-sm font-black text-white uppercase tracking-tighter">
-              Direct Lines
-            </h3>
-            <div className="flex flex-col space-y-2 text-center md:text-left">
-              <a
-                href="mailto:ieeecs@vit.ac.in"
-                className="text-sm text-white/60 hover:text-white transition-colors"
-              >
-                ieeecs@vit.ac.in
-              </a>
-              <span className="text-sm text-white/60">+91 8700945939</span>
-            </div>
-          </div>
-
-          <div className="md:col-span-1 lg:col-span-2 space-y-4 text-center md:text-right">
-            <h3 className="text-sm font-black text-white uppercase tracking-tighter">
-              The VIT Chapter
-            </h3>
-            <p className="text-xs text-white/40 leading-relaxed font-medium">
-              We at IEEECS nurture the coders and leaders of tomorrow.
-              Supporting new ideas and giving them a platform to shine, our home
-              is where great ideas transform the world.
-            </p>
-          </div>
-        </div>
-      </footer>
     </>
   );
 }
+

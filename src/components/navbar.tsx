@@ -7,24 +7,10 @@ export default function Navbar() {
   return (
     <nav className="w-screen px-6 py-4 ">
       <div className="flex items-center justify-between max-w-7xl mx-auto">
-        <div className="flex items-center space-x-2">
+        {/* <div className="flex items-center space-x-2">
           <img src="/logo.png" alt="logo" className="h-16 w-20" />
-        </div>
+        </div> */}
 
-        <nav className="hidden md:flex items-center space-x-8">
-          <Link href="/" className="text-white text-xl font-semibold">
-            Home
-          </Link>
-          <Link href="#about-us" className="text-white text-xl font-semibold">
-            About Us
-          </Link>
-          <Link href="#faqs" className="text-white text-xl font-semibold">
-            FAQs
-          </Link>
-          <Link href="#contact-us" className="text-white text-xl font-semibold">
-            Contact Us
-          </Link>
-        </nav>
 
       </div>
     </nav>
