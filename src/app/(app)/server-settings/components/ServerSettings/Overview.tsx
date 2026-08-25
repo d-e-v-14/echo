@@ -169,13 +169,13 @@ export default function Overview({
       </div>
 
       {successMessage && (
-        <div className="mb-4 p-3 bg-green-600 text-white rounded">
+        <div className="mb-4 p-3 bg-[#3ba55c]/10 border border-[#3ba55c]/30 text-[#3ba55c] rounded">
           {successMessage}
         </div>
       )}
 
       {errorMessage && (
-        <div className="mb-4 p-3 bg-red-600 text-white rounded">
+        <div className="mb-4 p-3 bg-[#ed4245]/10 border border-[#ed4245]/30 text-[#ed4245] rounded">
           {errorMessage}
         </div>
       )}
@@ -185,26 +185,11 @@ export default function Overview({
           <button
             onClick={handleSaveChanges}
             disabled={!hasChanges || isLoading}
-            className={`font-bold rounded px-6 py-3 shadow transition-all duration-200 focus:outline-none ${
+            className={`font-bold rounded px-6 py-3 transition-all duration-200 ${
               hasChanges && !isLoading
-                ? "bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black hover:from-[#FFD700] hover:to-[#FFC341] hover:-translate-y-1 hover:scale-105"
-                : "bg-gray-600 text-gray-400 cursor-not-allowed"
+                ? "bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black hover:-translate-y-0.5"
+                : "bg-[#23272a] text-[#72767d] cursor-not-allowed border border-[#72767d]"
             }`}
-            style={{
-              backgroundSize: "200% 200%",
-              backgroundPosition: "left center",
-              transition: "background-position 0.5s, transform 0.2s",
-            }}
-            onMouseEnter={(e) =>
-              hasChanges &&
-              !isLoading &&
-              (e.currentTarget.style.backgroundPosition = "right center")
-            }
-            onMouseLeave={(e) =>
-              hasChanges &&
-              !isLoading &&
-              (e.currentTarget.style.backgroundPosition = "left center")
-            }
           >
             {isLoading ? "Saving..." : "Save Changes"}
           </button>

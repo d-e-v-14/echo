@@ -4,55 +4,74 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --echo-bg: #000000;
+  --echo-bg-elevated: #1e1f22;
+  --echo-bg-surface: #23272a;
+  --echo-bg-surface-hover: #2f3136;
+  --echo-bg-modal: #23272a;
+  --echo-border: #72767d;
+  --echo-border-subtle: #23272a;
+  --echo-border-focus: #b5bac1;
+  --echo-text: #ffffff;
+  --echo-text-secondary: #b5bac1;
+  --echo-text-muted: #72767d;
+  --echo-accent: #FFC341;
+  --echo-accent-hover: #FFD700;
+  --echo-danger: #ed4245;
+  --echo-success: #3ba55c;
+  --echo-radius: 0.375rem;
+}
+
 .scrollbar::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 .scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.9);
-  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+.scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.25);
 }
 
 .scrollbar::-webkit-scrollbar-track {
-  background: #1a1a1a;
+  background: transparent;
 }
 
 body {
   overflow-x: hidden;
 }
 
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
 .chat-scroll {
   scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }
 
 .chat-scroll::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 .chat-scroll::-webkit-scrollbar-thumb {
-  background: linear-gradient(
-    180deg,
-    rgba(148, 163, 184, 0.45),
-    rgba(99, 102, 241, 0.45)
-  );
-  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+.chat-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .chat-scroll::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.4);
+  background: transparent;
 }
 
 @layer utilities {
-  /* Act as a border */
-  .card-wrapper-1 {
-    @apply relative overflow-hidden rounded-full bg-gradient-to-br from-[#3D7DFD] from-5% to-[#FA2626] to-50% py-5;
-  }
-  .card-wrapper-2 {
-    @apply relative overflow-hidden rounded-full bg-gradient-to-br from-[#1E5989] to-[#FDC03D];
-  }
-
-  /* Voice notification animations */
   .animate-slide-in-right {
     animation: slideInRight 0.3s ease-out;
   }
@@ -69,41 +88,18 @@ body {
   }
 }
 
-/* Gradient */
-.card-wrapper-1::before {
-  background: conic-gradient(
-    rgba(241, 10, 10, 0.4) 0deg,
-    rgba(244, 114, 182, 0.4) 0deg,
-    transparent 80deg
-  );
-
-  @apply absolute left-[-25%] top-[-25%] h-[150%] w-[150%] animate-border-spin content-[''];
-}
-
-/* Body */
-.card-content-1 {
-  @apply absolute left-[8px] top-[8px] h-[calc(100%-16px)] w-[calc(100%-16px)] rounded-full bg-gradient-to-r from-[#0B1450] to-[#2A3AA3];
-}
-.card-content-2 {
-  @apply absolute left-[8px] top-[8px] h-[calc(100%-16px)] w-[calc(100%-16px)] rounded-full bg-[#D85D29];
-}
-
-.gradient-border {
-  @apply p-[2px] bg-gradient-to-r from-cyan-500 to-blue-500 rounded-lg inline-block;
-}
-
 .mention-highlight {
-  border-radius: 10px;
+  border-radius: 4px;
   transition: background-color 0.3s ease;
   animation: mentionBlink 1.2s ease;
 }
 
 @keyframes mentionPulse {
   0% {
-    background-color: rgba(88, 101, 242, 0.6);
+    background-color: rgba(255, 195, 65, 0.2);
   }
   100% {
-    background-color: rgba(88, 101, 242, 0);
+    background-color: transparent;
   }
 }
 
@@ -125,7 +121,8 @@ body {
 .skeleton {
   position: relative;
   overflow: hidden;
-  background-color: rgba(255, 255, 255, 0.07);
+  background-color: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
 }
 
 .skeleton::after {
@@ -136,7 +133,7 @@ body {
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(255, 255, 255, 0.06),
+    rgba(255, 255, 255, 0.04),
     transparent
   );
   animation: skeleton-shimmer 1.6s infinite;
@@ -151,20 +148,19 @@ body {
 .animate-in {
   animation: fade-in 0.2s ease-out;
 }
+
 .message-text {
   overflow-wrap: anywhere;
 }
 
 @keyframes mentionBlink {
   0% {
-    background-color: rgba(255, 255, 150, 0.15);
+    background-color: rgba(255, 195, 65, 0.15);
   }
-
   50% {
-    background-color: (255, 255, 150, 0.35);
+    background-color: rgba(255, 195, 65, 0.3);
   }
-
   100% {
-    background-color: (255, 255, 150, 0.15);
+    background-color: rgba(255, 195, 65, 0.15);
   }
 }

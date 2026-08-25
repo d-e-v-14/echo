@@ -175,7 +175,7 @@ export default function JoinServerModal({
             placeholder="abc123 or https://echo.ieeecsvit.com/invite/abc123"
             autoComplete="off"
             spellCheck={false}
-            className="w-full rounded-lg border border-[#2b2d31] bg-[#2f3136] px-4 py-3 text-sm text-white placeholder-gray-500 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 disabled:opacity-60"
+            className="w-full rounded-lg border border-[#72767d] bg-black px-4 py-3 text-sm text-white placeholder-[#72767d] outline-none transition focus:border-[#FFC341] focus:ring-2 focus:ring-[#FFC341]/30 disabled:opacity-60"
           />
 
           {error && (
@@ -191,7 +191,7 @@ export default function JoinServerModal({
           <button
             type="submit"
             disabled={!canSubmit}
-            className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-6 flex w-full items-center justify-center gap-2 rounded bg-gradient-to-r from-[#FFC341] to-[#FFD700] py-3 text-sm font-bold text-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
           >
             {isJoining && <InlineSpinner size="sm" />}
             {isJoining ? "Joining..." : "Join Server"}

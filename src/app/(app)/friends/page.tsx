@@ -300,7 +300,7 @@ export default function FriendsPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="flex min-h-screen">
-        <div className="w-80 border-r border-gray-800 bg-black">
+            <div className="w-80 border-r border-[#23272a] bg-black">
           <div className="p-5">
             {error && (
               <div className="mt-3 rounded-lg border border-red-500/40 bg-red-500/10 p-2 text-xs text-red-200">
@@ -371,7 +371,7 @@ export default function FriendsPage() {
                         <button
                           onClick={() => handleAddFriend(user.id)}
                           disabled={loading}
-                          className="rounded-full bg-gray-800 px-3 py-1 text-xs font-semibold text-white hover:bg-gray-700 disabled:opacity-50"
+                          className="rounded-full bg-[#FFC341] px-3 py-1 text-xs font-semibold text-black hover:bg-[#FFD700] disabled:opacity-50"
                         >
                           <FaPlus className="mr-1 inline" /> Add
                         </button>
@@ -461,7 +461,7 @@ export default function FriendsPage() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleAccept(req.friends_id)}
-                      className="flex-1 rounded-lg bg-gray-800 py-1.5 text-xs font-semibold text-white hover:bg-gray-700"
+                      className="flex-1 rounded-lg bg-gradient-to-r from-[#FFC341] to-[#FFD700] py-1.5 text-xs font-bold text-black hover:-translate-y-0.5 transition-all"
                     >
                       Accept
                     </button>
@@ -543,7 +543,7 @@ export default function FriendsPage() {
                       </div>
                       <button
                         onClick={() => handleSendDM(f.id)}
-                        className="rounded-full bg-gray-800 p-2 text-white shadow-lg transition hover:bg-gray-700"
+                        className="rounded-full bg-[#23272a] border border-[#72767d] p-2 text-white shadow-lg transition hover:bg-[#2f3136] hover:border-[#FFC341]"
                         title="Send message"
                       >
                         <FaCommentAlt className="h-4 w-4" />

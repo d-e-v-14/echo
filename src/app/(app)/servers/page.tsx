@@ -793,7 +793,7 @@ const ServersPageContent: React.FC = () => {
                     prev ? { ...prev, name: e.target.value } : prev
                   )
                 }
-                className="mt-2 w-full rounded-md border border-gray-700 bg-black px-3 py-2 text-sm text-white outline-none transition focus:border-indigo-500"
+                className="mt-2 w-full rounded-md border border-[#72767d] bg-black px-3 py-2 text-sm text-white outline-none transition focus:border-[#FFC341]"
                 placeholder="channel-name"
                 disabled={isSavingChannel || isDeletingChannel}
               />
@@ -803,7 +803,7 @@ const ServersPageContent: React.FC = () => {
                   type="button"
                   onClick={handleDeleteChannel}
                   disabled={isSavingChannel || isDeletingChannel}
-                  className="flex w-full items-center justify-center gap-2 rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-500 disabled:opacity-60"
+                  className="flex w-full items-center justify-center gap-2 rounded-md border border-[#ed4245] bg-[#ed4245]/10 px-3 py-2 text-sm font-semibold text-[#ed4245] transition hover:bg-[#ed4245]/20 disabled:opacity-60"
                 >
                   <FaTrash className="h-3.5 w-3.5" />
                   {isDeletingChannel ? "Deleting..." : "Delete"}
@@ -813,7 +813,7 @@ const ServersPageContent: React.FC = () => {
                   type="button"
                   onClick={closeChannelSettings}
                   disabled={isSavingChannel || isDeletingChannel}
-                  className="rounded-md px-4 py-2 text-sm font-medium text-gray-300 transition hover:bg-[#2f3136] hover:text-white disabled:opacity-60"
+                  className="rounded-md bg-[#23272a] px-4 py-2 text-sm font-medium text-[#b5bac1] border border-[#72767d] transition hover:bg-[#2f3136] hover:text-white disabled:opacity-60"
                 >
                   Cancel
                 </button>
@@ -821,7 +821,7 @@ const ServersPageContent: React.FC = () => {
                   type="button"
                   onClick={handleSaveChannel}
                   disabled={isSavingChannel || isDeletingChannel}
-                  className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
+                  className="rounded-md bg-gradient-to-r from-[#FFC341] to-[#FFD700] px-4 py-2 text-sm font-bold text-black transition hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0"
                 >
                   {isSavingChannel ? "Saving..." : "Save"}
                 </button>
@@ -897,7 +897,7 @@ const ServersPageContent: React.FC = () => {
               <p className="text-gray-400 mb-4">{error}</p>
               <button
                 onClick={() => window.location.reload()}
-                className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700"
+                className="px-4 py-2 rounded bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold hover:-translate-y-0.5 transition-all"
               >
                 Retry
               </button>
@@ -915,13 +915,13 @@ const ServersPageContent: React.FC = () => {
               <div className="flex justify-center space-x-4">
                 <button
                   onClick={openJoinServerModal}
-                  className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700"
+                className="px-4 py-2 rounded bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold hover:-translate-y-0.5 transition-all"
                 >
                   Join Server
                 </button>
                 <button
                   onClick={() => router.push("/create-server")}
-                  className="px-4 py-2 rounded bg-yellow-300 hover:bg-green-700"
+                  className="px-4 py-2 rounded bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold hover:-translate-y-0.5 transition-all"
                 >
                   Create Server
                 </button>
@@ -1174,7 +1174,7 @@ const ServersPageContent: React.FC = () => {
                     </p>
                     <button
                       onClick={() => void refetchChannels()}
-                      className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-sm text-white"
+                      className="px-3 py-1.5 rounded bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold hover:-translate-y-0.5 transition-all text-sm"
                     >
                       Retry
                     </button>

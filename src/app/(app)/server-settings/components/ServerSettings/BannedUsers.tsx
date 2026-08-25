@@ -95,7 +95,7 @@ export default function BannedUsers({
 
         <button
           onClick={loadBannedUsers}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          className="bg-[#23272a] text-white px-4 py-2 rounded border border-[#72767d] hover:bg-[#2f3136] transition"
           disabled={loading}
         >
           Refresh
@@ -162,7 +162,7 @@ export default function BannedUsers({
                       banned.users?.username || "this user"
                     )
                   }
-                  className="bg-gradient-to-r from-green-600 to-green-500 text-white px-4 py-2 rounded font-medium hover:from-green-500 hover:to-green-400 transition"
+                  className="bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold px-4 py-2 rounded transition-all duration-200 hover:-translate-y-0.5"
                 >
                   Unban
                 </button>

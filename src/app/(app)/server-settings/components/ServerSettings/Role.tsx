@@ -295,10 +295,10 @@ function MemberRoleView({ serverId }: { serverId: string }) {
 
       <div className="mt-8 flex justify-end">
         <button
-          className={`px-6 py-3 rounded-lg font-bold transition-all duration-200 ${
+          className={`px-6 py-3 rounded font-bold transition-all duration-200 ${
             hasChanges && !saving
-              ? "bg-gradient-to-r from-[#ffb347] to-[#ffcc33] text-[#23272a] hover:from-[#ffcc33] hover:to-[#ffb347]"
-              : "bg-gray-600 text-gray-400 cursor-not-allowed"
+              ? "bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black hover:-translate-y-0.5"
+              : "bg-[#23272a] text-[#72767d] cursor-not-allowed border border-[#72767d]"
           }`}
           onClick={handleSave}
           disabled={!hasChanges || saving}
@@ -314,8 +314,8 @@ function MemberRoleView({ serverId }: { serverId: string }) {
         </button>
       </div>
 
-      <div className="mt-6 p-4 bg-[#36393f] rounded-lg">
-        <p className="text-xs text-gray-400">
+      <div className="mt-6 p-4 bg-[#23272a] rounded border border-[#72767d]">
+        <p className="text-xs text-[#b5bac1]">
           <strong>Tip:</strong> Click roles to select/deselect them, then click
           &quot;Save Changes&quot; to apply. Roles help you access specific
           channels and show your interests to other members.
@@ -556,14 +556,14 @@ function AdminRoleView({
         {canManageRoles && (
           <div className="flex gap-2">
             <button
-              className="bg-[#36393f] text-white px-4 py-2 rounded-lg hover:bg-[#40444b] transition"
+              className="bg-[#23272a] text-white px-4 py-2 rounded border border-[#72767d] hover:bg-[#2f3136] transition"
               onClick={() => setShowCategoryPopup(true)}
               title="Create Category"
             >
               + Category
             </button>
             <button
-              className="bg-gradient-to-r from-[#ffb347] to-[#ffcc33] text-[#23272a] font-bold rounded-lg px-4 py-2 shadow hover:from-[#ffcc33] hover:to-[#ffb347] transition"
+              className="bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold rounded px-4 py-2 transition-all duration-200 hover:-translate-y-0.5"
               onClick={() => setShowAddPopup(true)}
               title="Create New Role"
             >
@@ -792,22 +792,22 @@ function AdminRoleView({
 
           <div className="flex gap-2 mt-6">
             <button
-              className="bg-gradient-to-r from-[#ed4245] to-[#a32224] text-white font-bold rounded px-6 py-2 shadow transition hover:from-[#a32224] hover:to-[#ed4245] disabled:opacity-50"
+              className="bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold rounded px-6 py-2 transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50"
               onClick={handleSaveRole}
               disabled={saving}
             >
               {saving ? "Saving..." : "Save"}
             </button>
             <button
-              className="bg-[#23272a] text-gray-400 font-semibold rounded px-6 py-2 border-2 border-gray-600 transition hover:bg-gray-700"
+              className="bg-[#23272a] text-[#b5bac1] font-semibold rounded px-6 py-2 border border-[#72767d] transition hover:bg-[#2f3136]"
               onClick={() => setSelectedRole(null)}
             >
               Cancel
             </button>
             {selectedRole.role_type !== "owner" &&
               (selectedRole.role_type !== "admin" || isOwner) && (
-                <button
-                  className="bg-[#23272a] text-[#ed4245] font-semibold rounded px-6 py-2 border-2 border-[#ed4245] transition hover:bg-[#ed4245] hover:text-white ml-auto"
+            <button
+              className="bg-[#23272a] text-[#ed4245] font-semibold rounded px-6 py-2 border border-[#ed4245]/30 transition hover:bg-[#ed4245]/10 ml-auto"
                   onClick={() => handleDeleteRole(selectedRole.id)}
                   disabled={saving}
                 >
@@ -882,7 +882,7 @@ function AdminRoleView({
             </select>
 
             <button
-              className="w-full bg-gradient-to-r from-[#ffb347] to-[#ffcc33] text-[#23272a] font-bold rounded px-6 py-3 shadow transition hover:from-[#ffcc33] hover:to-[#ffb347] disabled:opacity-50"
+              className="w-full bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold rounded px-6 py-3 transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50"
               onClick={handleAddRole}
               disabled={saving || !newRoleName.trim()}
             >
@@ -932,7 +932,7 @@ function AdminRoleView({
             />
 
             <button
-              className="w-full bg-gradient-to-r from-[#5865f2] to-[#4752c4] text-white font-bold rounded px-6 py-3 shadow transition hover:from-[#4752c4] hover:to-[#5865f2] disabled:opacity-50"
+              className="w-full bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold rounded px-6 py-3 transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50"
               onClick={handleAddCategory}
               disabled={saving || !newCategoryName.trim()}
             >

@@ -240,7 +240,7 @@ export default function Members({
         <div className="flex gap-3">
           <button
             onClick={loadMembers}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            className="bg-[#23272a] text-white px-4 py-2 rounded border border-[#72767d] hover:bg-[#2f3136] transition"
           >
             Refresh
           </button>
@@ -251,7 +251,7 @@ export default function Members({
                 setAddMemberError("");
                 setAddMemberSuccess("");
               }}
-              className="bg-gradient-to-r from-[#ffb347] to-[#ffcc33] text-[#23272a] font-bold rounded px-4 py-2 shadow transition-all duration-200 hover:from-[#ffcc33] hover:to-[#ffb347] hover:-translate-y-1 hover:scale-105"
+              className="bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold rounded px-4 py-2 transition-all duration-200 hover:-translate-y-0.5"
             >
               {showAddMember ? "Cancel" : "Add Member"}
             </button>
@@ -260,9 +260,9 @@ export default function Members({
       </div>
 
       {addMemberError && (
-        <div className="mb-4 bg-red-500 border border-red-600 text-white px-4 py-3 rounded flex items-start">
+        <div className="mb-4 bg-[#ed4245]/10 border border-[#ed4245]/30 text-[#ed4245] px-4 py-3 rounded flex items-start">
           <svg
-            className="w-6 h-6 mr-3 flex-shrink-0"
+            className="w-5 h-5 mr-3 flex-shrink-0 mt-0.5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -279,9 +279,9 @@ export default function Members({
       )}
 
       {addMemberSuccess && (
-        <div className="mb-4 bg-green-500 border border-green-600 text-white px-4 py-3 rounded flex items-start">
+        <div className="mb-4 bg-[#3ba55c]/10 border border-[#3ba55c]/30 text-[#3ba55c] px-4 py-3 rounded flex items-start">
           <svg
-            className="w-6 h-6 mr-3 flex-shrink-0"
+            className="w-5 h-5 mr-3 flex-shrink-0 mt-0.5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -335,7 +335,7 @@ export default function Members({
                   </div>
                   <button
                     onClick={() => handleAddMemberToServer(user)}
-                    className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                    className="bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold px-3 py-1 rounded text-sm transition-all duration-200 hover:-translate-y-0.5"
                   >
                     Add
                   </button>
@@ -401,19 +401,19 @@ export default function Members({
                         showRolePopupFor === member.id ? null : member.id
                       )
                     }
-                    className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
+                    className="bg-[#23272a] text-white px-3 py-1 rounded text-sm border border-[#72767d] hover:bg-[#2f3136] transition"
                   >
                     Manage Roles
                   </button>
                   <button
                     onClick={() => handleKickMember(member.id, member.username)}
-                    className="bg-orange-600 text-white px-3 py-1 rounded text-sm hover:bg-orange-700"
+                    className="bg-[#23272a] text-[#e67e22] px-3 py-1 rounded text-sm border border-[#e67e22]/30 hover:bg-[#e67e22]/10 transition"
                   >
                     Kick
                   </button>
                   <button
                     onClick={() => handleBanMember(member.id, member.username)}
-                    className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
+                    className="bg-[#23272a] text-[#ed4245] px-3 py-1 rounded text-sm border border-[#ed4245]/30 hover:bg-[#ed4245]/10 transition"
                   >
                     Ban
                   </button>
@@ -522,7 +522,7 @@ export default function Members({
 
             <button
               onClick={() => setShowRolePopupFor(null)}
-              className="w-full bg-[#72767d] text-white px-4 py-2 rounded hover:bg-[#5d6269]"
+              className="w-full bg-[#23272a] text-white px-4 py-2 rounded border border-[#72767d] hover:bg-[#2f3136] transition"
             >
               Close
             </button>

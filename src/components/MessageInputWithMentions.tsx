@@ -604,7 +604,7 @@ export default function MessageInputWithMentions({
           value={text}
           onChange={handleTextChange}
           onKeyDown={handleKeyDown}
-          placeholder="Type a message…"
+          placeholder="Message"
           className="max-h-32 min-h-6 flex-1 resize-none overflow-y-auto bg-transparent py-0 leading-6 text-white outline-none placeholder:text-gray-400"
         />
 

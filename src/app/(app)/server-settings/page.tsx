@@ -216,7 +216,7 @@ export default function ServerSettingsPage() {
           className="absolute top-6 left-6 flex items-center gap-2 text-gray-400 hover:text-white transition"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span className="font-medium">Back to Servers</span>
+          <span className="font-medium">Back</span>
         </button>
 
         <div className="mt-14">{Content}</div>

@@ -134,13 +134,11 @@ const ChatList: React.FC<ChatListProps> = ({
 
   return (
     <aside className="hidden h-full w-80 flex-col border-r border-slate-800 bg-black p-4 backdrop-blur-lg lg:flex">
-      <div className="mb-5">
+      <div className="mb-5 text-center">
         <h2 className="text-lg font-semibold text-slate-100">
-          Direct Messages
+          Messages
         </h2>
-        <p className="mt-1 text-xs text-slate-400">
-          Catch up with teammates and friends in real time.
-        </p>
+     
       </div>
 
       <label className="group mb-4 flex items-center gap-2 rounded-full border border-slate-800/70 bg-slate-900/70 px-3 py-2 text-sm text-slate-300 focus-within:border-indigo-500/60 focus-within:text-indigo-300">
@@ -172,11 +170,11 @@ const ChatList: React.FC<ChatListProps> = ({
                 <li
                   key={user.id}
                   onClick={() => onSelectDm(user.id)}
-                  className={`group flex cursor-pointer items-center gap-3 rounded-2xl border border-transparent p-3 transition-colors hover:border-indigo-500/40 hover:bg-slate-800/40 ${
-                    isActive
-                      ? "border-indigo-500/50 bg-indigo-500/10 shadow-[0_0_0_1px_rgba(99,102,241,0.2)]"
-                      : ""
-                  }`}
+           className={`group flex cursor-pointer items-center gap-3 rounded-2xl border p-3 transition-colors ${
+  isActive
+    ? "border-[#FFC341] bg-white/[0.08] text-white shadow-[0_0_0_1px_rgba(255,195,65,0.2)]"
+    : "border-transparent text-white hover:border-[#FFC341]/30 hover:bg-white/[0.04]"
+}`}
                 >
                   <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-full border border-slate-700/60 bg-slate-800/60">
                     {user.avatar_url ? (
@@ -219,9 +217,9 @@ const ChatList: React.FC<ChatListProps> = ({
                       {lastMessage || "No messages yet."}
                     </p>
                   </div>
-                  {isActive && (
+                  {/* {isActive && (
                     <div className="h-2 w-2 rounded-full bg-indigo-400" />
-                  )}
+                  )} */}
                 </li>
               );
             })}

@@ -1,4 +1,5 @@
 "use client";
+
 import { logout } from "@/api/auth.api";
 import { useUser } from "@/components/UserContext";
 
@@ -7,9 +8,6 @@ import {
   MessageSquareText,
   User as UserIcon,
   Bell,
-  Settings,
-  ChevronsLeft,
-  ChevronsRight,
   LogOut,
   Cross,
 } from "lucide-react";
@@ -17,7 +15,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNotifications } from "../hooks/useNotifications";
 import { useFriendNotifications } from "../contexts/FriendNotificationContext";
 import { useMessageNotifications } from "../contexts/MessageNotificationContext";
@@ -36,15 +34,18 @@ export default function Sidebar() {
   const { openJoinServerModal } = useJoinServerModal();
 
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
-
-  const [error] = useState<string | null>(null);
 
   const { unreadCount } = useNotifications();
-  const { friendRequestCount, refreshCount: refreshFriendCount } =
-    useFriendNotifications();
-  const { unreadMessageCount, refreshCount: refreshMessageCount } =
-    useMessageNotifications();
+
+  const {
+    friendRequestCount,
+    refreshCount: refreshFriendCount,
+  } = useFriendNotifications();
+
+  const {
+    unreadMessageCount,
+    refreshCount: refreshMessageCount,
+  } = useMessageNotifications();
 
   const handleNavClick = async (path: string) => {
     if (path === "/friends") {
@@ -60,31 +61,21 @@ export default function Sidebar() {
         await Promise.all(
           [refreshFriendCount?.(), refreshMessageCount?.()].filter(Boolean)
         );
-
       } catch (error) {
         console.error("Failed to refresh counts on focus:", error);
       }
     };
 
     window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
   }, [refreshFriendCount, refreshMessageCount]);
 
-  useEffect(() => {
-    const stored = localStorage.getItem("sidebarCollapsed");
-    if (stored !== null) {
-      setCollapsed(JSON.parse(stored));
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("sidebarCollapsed", JSON.stringify(collapsed));
-  }, [collapsed]);
-
-  if (error) return <div className="text-red-500">{error}</div>;
   if (!user) {
     return (
-      <aside className="w-64 h-screen bg-black flex items-center justify-center text-white"></aside>
+      <aside className="flex h-screen w-64 items-center justify-center bg-black text-white" />
     );
   }
 
@@ -102,43 +93,69 @@ export default function Sidebar() {
   };
 
   return (
-    <aside
-      className={clsx(
-        "relative h-screen flex flex-col justify-between overflow-hidden transition-all duration-300 ease-in-out select-none shrink-0",
-        collapsed ? "w-20" : "w-64"
-      )}
-    >
-      <div className="absolute inset-0 z-0 bg-no-repeat bg-cover opacity-90 border-r border-gray-800" />
+    <aside className="relative flex h-screen w-52 shrink-0 flex-col overflow-hidden select-none">
+      {/* Background */}
+      <div className="absolute inset-0 z-0 border-r border-gray-800 bg-black" />
 
-      <div className="relative z-10 flex flex-col h-full justify-between">
-        <div>
-          <div className="flex items-center justify-between p-4">
-            <Image
-              src="/echo-logo.png"
-              alt="Echo Logo"
-              width={collapsed ? 0 : 100}
-              height={32}
-              className={clsx(
-                "object-contain transition-opacity duration-300",
-                collapsed && "opacity-0"
-              )}
-            />
-            <button
-              onClick={() => setCollapsed((prev) => !prev)}
-              className="text-white hover:text-gray-400 transition"
-            >
-              {collapsed ? (
-                <ChevronsRight size={20} />
-              ) : (
-                <ChevronsLeft size={20} />
-              )}
-            </button>
-          </div>
+      <div className="relative z-10 flex h-full flex-col">
+        {/* Profile */}
+        <div className="px-1 pb-2 pt-2">
+          <Link
+            href="/profile-settings"
+            className="
+              group
+              flex items-center gap-3
+              rounded-lg
+              px-2.5 py-2.5
+              transition-colors
+              hover:bg-white/[0.06]
+            "
+          >
+            {/* Avatar */}
+            <div className="relative shrink-0">
+              <div className="rounded-full bg-[#FFC341] p-[2px]">
+                <div className="relative h-10 w-10 overflow-hidden rounded-full bg-white">
+                  <Image
+                    src={user.avatar_url || "/avatar.png"}
+                    alt="User"
+                    fill
+                    sizes="40px"
+                    className="object-cover"
+                  />
+                </div>
+              </div>
 
-          <nav className="flex flex-col gap-1 px-2">
+              {/* Online indicator */}
+              <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-black bg-green-500" />
+            </div>
+
+            {/* User information */}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-white">
+                {user.fullname}
+              </p>
+
+              <p
+                className="max-w-[150px] truncate text-xs text-gray-400"
+                title={user.username}
+              >
+                @{user.username}
+              </p>
+            </div>
+          </Link>
+        </div>
+
+        {/* Divider */}
+        <div className="mx-3 border-t border-white/[0.06]" />
+
+        {/* Navigation */}
+        <nav className="flex-1 px-1 pt-3">
+          <div className="flex flex-col gap-1">
             {navItems.map((item) => {
               const isActive = pathname === item.path;
+
               let notificationCount = 0;
+
               if (item.label === "Notifications") {
                 notificationCount = unreadCount;
               } else if (item.label === "Messages") {
@@ -148,114 +165,88 @@ export default function Sidebar() {
               }
 
               const isJoinServer = item.label === "Join Server";
+
               const itemClassName = clsx(
-                "flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all",
+                "flex w-full items-center gap-3 rounded-lg px-4 py-3",
+                "font-medium transition-all duration-150",
                 isActive
-                  ? "bg-white/20 text-white shadow-md"
-                  : "text-gray-300 hover:bg-white/10 hover:text-white"
+  ? "bg-white/[0.08] text-white"
+  : "text-gray-300 hover:bg-white/[0.05] hover:text-white"
               );
+
               const itemContent = (
                 <>
-                  <div className="relative">
-                    <item.icon className="w-5 h-5" />
+                  <div className="relative shrink-0">
+                    <item.icon className="h-5 w-5" />
+
                     {notificationCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1 font-bold">
+                      <span
+                        className="
+                          absolute -right-1 -top-1
+                          flex h-4 min-w-4
+                          items-center justify-center
+                          rounded-full
+                          bg-red-500
+                          px-1
+                          text-[10px]
+                          font-bold
+                          leading-none
+                          text-white
+                        "
+                      >
                         {notificationCount > 99 ? "99+" : notificationCount}
                       </span>
                     )}
                   </div>
 
-                  {!collapsed && <span>{item.label}</span>}
+                  <span className="truncate">{item.label}</span>
                 </>
               );
 
-              return (
-                <div className="relative group" key={item.label}>
-                  {isJoinServer ? (
-                    <button
-                      type="button"
-                      onClick={openJoinServerModal}
-                      className={clsx(itemClassName, "w-full text-left")}
-                    >
-                      {itemContent}
-                    </button>
-                  ) : (
-                    <Link
-                      href={item.path}
-                      onClick={() => handleNavClick(item.path)}
-                      className={itemClassName}
-                    >
-                      {itemContent}
-                    </Link>
-                  )}
-
-                  {collapsed && (
-                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-20 px-3 py-1 text-sm text-white bg-black rounded shadow-lg opacity-0 group-hover:opacity-100 transition">
-                      {item.label}
-                      {notificationCount > 0 && ` (${notificationCount})`}
-                    </div>
-                  )}
-                </div>
+              return isJoinServer ? (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={openJoinServerModal}
+                  className={clsx(itemClassName, "text-left")}
+                >
+                  {itemContent}
+                </button>
+              ) : (
+                <Link
+                  key={item.label}
+                  href={item.path}
+                  onClick={() => handleNavClick(item.path)}
+                  className={itemClassName}
+                >
+                  {itemContent}
+                </Link>
               );
             })}
-          </nav>
-        </div>
-
-        <div>
-          <div className="px-2 mb-2">
-            <div className="relative group">
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-300 hover:bg-red-500/20 hover:text-red-400 transition-all"
-              >
-                <LogOut className="w-5 h-5" />
-                {!collapsed && <span>Logout</span>}
-              </button>
-
-              {collapsed && (
-                <button
-                  onClick={handleLogout}
-                  className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-20 px-3 py-1 text-sm text-white bg-black rounded shadow-lg opacity-0 group-hover:opacity-100 transition"
-                >
-                  Logout
-                </button>
-              )}
-            </div>
           </div>
+        </nav>
 
-          <Link href="/profile-settings">
-            <div className="p-4 flex items-center gap-3 mt-auto cursor-pointer group hover:bg-white/10 transition rounded-lg">
-              <div className="relative shrink-0">
-                <div className="p-[2px] rounded-full bg-gradient-to-tr from-purple-500 via-pink-500 to-indigo-500">
-                  <div className="relative w-10 h-10 rounded-full overflow-hidden bg-white">
-                    <Image
-                      src={user?.avatar_url || "/avatar.png"}
-                      alt="User"
-                      fill
-                      sizes="40px"
-                      className="object-cover"
-                    />
-                  </div>
-                </div>
-                <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-[#1a1a1a] rounded-full" />
-              </div>
-
-              {!collapsed && (
-                <div className="flex justify-between items-center flex-1">
-                  <div className="flex flex-col">
-                    <span className="font-semibold text-white truncate max-w-[140px]">
-                      {user.fullname}
-                    </span>
-
-                    <span className="text-xs text-gray-400 truncate max-w-[140px]">
-                      {user.username}
-                    </span>
-                  </div>
-                  <Settings className="text-gray-400 w-5 h-5 group-hover:text-white" />
-                </div>
-              )}
-            </div>
-          </Link>
+        {/* Logout */}
+        <div className="border-t border-white/[0.06] px-3 pb-4 pt-3">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="
+              flex h-9 w-full
+              items-center justify-center gap-2
+              rounded-md
+              px-3
+              text-sm
+              font-medium
+              text-gray-400
+              transition-colors
+              hover:bg-red-500/10
+              hover:text-red-400
+            "
+          >
+            <LogOut className="h-4 w-4" />
+            <span>Logout</span>
+          </button>
         </div>
       </div>
     </aside>

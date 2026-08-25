@@ -335,7 +335,7 @@ export default function MessageInput({
           value={text}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          placeholder="Type a message"
+          placeholder="Message"
           className="flex-1 bg-transparent resize-none
                      text-white caret-white
                      placeholder-white/60

@@ -267,7 +267,7 @@ export default function InvitePage() {
                 onClick={() => router.push("/servers")}
                 className="w-full mt-2 py-2.5 rounded-md text-sm text-[#a3a6aa] hover:text-white bg-transparent hover:bg-[#2b2d31] transition-all"
               >
-                Back to Servers
+                Back 
               </button>
 
               <div className="mt-5 pt-4 border-t border-[#2b2d31]">
@@ -300,7 +300,7 @@ export default function InvitePage() {
                 onClick={() => router.push("/servers")}
                 className="w-full py-2.5 rounded-md text-white font-medium bg-[#5865f2] hover:bg-[#4752c4] transition-all text-sm"
               >
-                Back to Servers
+                Back 
               </button>
             </>
           )}
@@ -317,7 +317,7 @@ export default function InvitePage() {
                 onClick={() => router.push("/servers")}
                 className="w-full py-2.5 rounded-md text-white font-medium bg-[#5865f2] hover:bg-[#4752c4] transition-all text-sm"
               >
-                Back to Servers
+                Back
               </button>
             </>
           )}

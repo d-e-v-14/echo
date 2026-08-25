@@ -129,7 +129,7 @@ export default function CreateServerPage() {
           onClick={() => router.push("/servers")}
           className="mt-6 w-full py-2 text-sm rounded-md bg-gray-700 hover:bg-gray-600 transition-all"
         >
-          Back to Servers
+          Back 
         </button>
       </div>
     </div>

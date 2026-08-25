@@ -117,10 +117,10 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
     return (
       <div className="max-w-lg mx-auto p-8 text-white">
         <h1 className="text-2xl font-bold mb-8">Invite People</h1>
-        <div className="bg-yellow-600 border border-yellow-500 rounded-lg p-6">
+        <div className="bg-[#FFC341]/10 border border-[#FFC341]/30 rounded p-6">
           <div className="flex items-center mb-4">
             <svg
-              className="w-6 h-6 text-yellow-300 mr-3"
+              className="w-6 h-6 text-[#FFC341] mr-3"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -132,15 +132,15 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
                 d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.664-.833-2.464 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
               />
             </svg>
-            <h3 className="text-lg font-semibold text-yellow-300">
+            <h3 className="text-lg font-semibold text-[#FFC341]">
               Access Restricted
             </h3>
           </div>
-          <p className="text-yellow-100 mb-4">
+          <p className="text-[#b5bac1] mb-4">
             You don&apos;t have permission to view or manage server invites.
             Only server admins and owners can access this feature.
           </p>
-          <p className="text-yellow-200 text-sm">
+          <p className="text-[#72767d] text-sm">
             Contact a server administrator if you need to invite someone to this
             server.
           </p>
@@ -154,11 +154,11 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
       <h1 className="text-2xl font-bold mb-8">Invite People</h1>
 
       {error && (
-        <div className="bg-red-500 text-white p-3 rounded mb-4">{error}</div>
+        <div className="bg-[#ed4245]/10 border border-[#ed4245]/30 text-[#ed4245] p-3 rounded mb-4">{error}</div>
       )}
 
       {success && (
-        <div className="bg-green-500 text-white p-3 rounded mb-4">
+        <div className="bg-[#3ba55c]/10 border border-[#3ba55c]/30 text-[#3ba55c] p-3 rounded mb-4">
           {success}
         </div>
       )}
@@ -175,19 +175,7 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
             className="bg-black text-white border-2 border-[#72767d] rounded px-4 py-3 text-base flex-1 focus:border-[#b5bac1] focus:outline-none transition-all duration-200"
           />
           <button
-            className="bg-gradient-to-r from-[#ffb347] to-[#ffcc33] text-[#23272a] font-bold rounded px-4 py-2 shadow transition-all duration-200
-              hover:from-[#ffcc33] hover:to-[#ffb347] hover:-translate-y-1 hover:scale-105 focus:outline-none disabled:opacity-50"
-            style={{
-              backgroundSize: "200% 200%",
-              backgroundPosition: "left center",
-              transition: "background-position 0.5s, transform 0.2s",
-            }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.backgroundPosition = "right center")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.backgroundPosition = "left center")
-            }
+            className="bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold rounded px-4 py-2.5 transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={handleCopyLink}
             disabled={!inviteLink}
           >
@@ -262,19 +250,7 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
       </div>
       <div className="flex justify-end">
         <button
-          className="bg-gradient-to-r from-[#ffb347] to-[#ffcc33] text-[#23272a] font-bold rounded px-6 py-2 shadow transition-all duration-200
-            hover:from-[#ffcc33] hover:to-[#ffb347] hover:-translate-y-1 hover:scale-105 focus:outline-none"
-          style={{
-            backgroundSize: "200% 200%",
-            backgroundPosition: "left center",
-            transition: "background-position 0.5s, transform 0.2s",
-          }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.backgroundPosition = "right center")
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.backgroundPosition = "left center")
-          }
+          className="bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold rounded px-6 py-2.5 transition-all duration-200 hover:-translate-y-0.5"
           onClick={handleGenerateLink}
         >
           Generate New Link
@@ -319,13 +295,13 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
                       setSuccess("Invite link copied to clipboard");
                       setTimeout(() => setSuccess(""), 2000);
                     }}
-                    className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
+                    className="bg-[#23272a] text-white px-3 py-1 rounded text-sm border border-[#72767d] hover:bg-[#2f3136] transition"
                   >
                     Copy
                   </button>
                   <button
                     onClick={() => handleDeleteInvite(invite.id)}
-                    className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
+                    className="bg-[#23272a] text-[#ed4245] px-3 py-1 rounded text-sm border border-[#ed4245]/30 hover:bg-[#ed4245]/10 transition"
                   >
                     Delete
                   </button>

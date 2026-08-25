@@ -53,8 +53,6 @@ export default function ProfilePage() {
     const fetchProfile = async () => {
       try {
         const res = await apiClient.get("/api/profile/getProfile");
-        console.log("PROFILE RESPONSE:", res.data);
-
         const profile = res.data.user;
 
         setDisplayName(profile.fullname || "");
@@ -134,7 +132,7 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-black px-6 py-16 flex justify-center">
-        <div className="w-full max-w-6xl mx-auto grid md:grid-cols-2 gap-16 opacity-70">
+        <div className="w-full max-w-4xl mx-auto grid md:grid-cols-2 gap-12 opacity-70">
           <SettingsFormSkeleton fields={4} />
           <SettingsFormSkeleton fields={2} titleWidth="w-32" />
         </div>
@@ -143,61 +141,55 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white px-6 py-16 flex justify-center">
+    <div className="min-h-screen bg-black text-white px-6 py-12 flex justify-center">
       {toast && (
-        <div className="fixed top-6 right-6 bg-green-600 px-6 py-3 rounded-xl shadow-lg z-50">
+        <div className="fixed top-6 right-6 bg-[#3ba55c] text-white px-6 py-3 rounded shadow-lg z-50 text-sm font-medium">
           {toast}
         </div>
       )}
 
-      <div className="w-full max-w-6xl mx-auto grid md:grid-cols-2 gap-16">
-        <div className="space-y-12 h-full flex flex-col">
-          <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-white/10">
+      <div className="w-full max-w-4xl mx-auto grid md:grid-cols-2 gap-12">
+        <div className="space-y-8">
+          <div className="bg-[#18191c] border border-[#23272a] rounded p-8 flex flex-col items-center gap-5">
             <div
-              className="absolute inset-0 bg-cover bg-center scale-110"
-              style={{ backgroundImage: "url('/profile-bg.png')" }}
+              className="group relative cursor-pointer"
+              onClick={() => avatarInput.current?.click()}
+            >
+              <div className="relative h-28 w-28 rounded-full border-2 border-[#72767d] overflow-hidden transition-all group-hover:border-[#FFC341]">
+                <Image
+                  src={avatar}
+                  alt="Avatar"
+                  fill
+                  sizes="112px"
+                  className="object-cover"
+                />
+              </div>
+              <div className="absolute bottom-0 right-0 bg-[#72767d] rounded-full p-1 cursor-pointer hover:bg-[#b5bac1] transition">
+                <Pencil size={14} className="text-[#23272a]" />
+              </div>
+            </div>
+
+            <input
+              ref={avatarInput}
+              type="file"
+              hidden
+              accept="image/*"
+              onChange={handleAvatarChange}
             />
-            <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/60 to-black/90 backdrop-blur-md" />
 
-            <div className="relative p-12 flex flex-col items-center gap-5">
-              <div
-                className="group relative cursor-pointer"
-                onClick={() => avatarInput.current?.click()}
-              >
-                <div className="absolute inset-0 rounded-full blur-lg bg-blue-500/40 opacity-0 group-hover:opacity-100 transition" />
-                <div className="relative h-32 w-32 rounded-full border-4 border-blue-400 overflow-hidden shadow-xl">
-                  <Image
-                    src={avatar}
-                    alt="Avatar"
-                    fill
-                    sizes="132px"
-                    className="object-cover"
-                  />
-                </div>
-              </div>
-
-              <input
-                ref={avatarInput}
-                type="file"
-                hidden
-                accept="image/*"
-                onChange={handleAvatarChange}
-              />
-
-              <div className="text-center">
-                <h2 className="text-2xl font-semibold tracking-tight text-white truncate max-w-[220px]">
-                  {displayName}
-                </h2>
-                <p className="text-sm text-gray-400">@{username}</p>
-              </div>
+            <div className="text-center">
+              <h2 className="text-xl font-bold text-white truncate max-w-[220px]">
+                {displayName}
+              </h2>
+              <p className="text-sm text-[#b5bac1]">@{username}</p>
             </div>
           </div>
 
           <div className="flex-1 flex flex-col">
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-xs uppercase tracking-wider text-gray-400">
+            <div className="flex justify-between items-center mb-2">
+              <label className="block font-semibold text-[#b5bac1]">
                 About
-              </span>
+              </label>
               <button
                 onClick={() => {
                   setPrevAbout(about);
@@ -205,8 +197,8 @@ export default function ProfilePage() {
                 }}
                 className={`text-xs flex items-center gap-1 transition ${
                   editing.about
-                    ? "text-blue-400"
-                    : "text-gray-400 hover:text-blue-400"
+                    ? "text-[#FFC341]"
+                    : "text-[#72767d] hover:text-[#b5bac1]"
                 }`}
               >
                 <Pencil size={14} /> Edit
@@ -245,18 +237,18 @@ export default function ProfilePage() {
                 }
               }}
               onBlur={() => setEditing((p) => ({ ...p, about: false }))}
-              className="w-full flex-1 resize-none p-5 rounded-2xl bg-[#1f2937] text-white border border-white/20 backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+              className="w-full flex-1 resize-none p-4 rounded bg-black text-white border-2 border-[#72767d] focus:border-[#b5bac1] focus:outline-none transition-all duration-200 min-h-[120px]"
             />
-            <div className="mt-2 text-right text-xs text-gray-400">
+            <div className="mt-2 text-right text-xs text-[#72767d]">
               {about.length}/{BIO_MAX_LENGTH}
             </div>
           </div>
         </div>
 
-        <div className="relative rounded-3xl bg-white/5 border border-white/10 backdrop-blur-xl p-10 shadow-xl space-y-12">
+        <div className="space-y-8">
           <div>
             <div className="flex justify-between items-center">
-              <label className="text-xs uppercase tracking-wider text-gray-400">
+              <label className="block font-semibold text-[#b5bac1]">
                 Display Name
               </label>
               <button
@@ -266,8 +258,8 @@ export default function ProfilePage() {
                 }}
                 className={`text-xs flex items-center gap-1 transition ${
                   editing.name
-                    ? "text-blue-400"
-                    : "text-gray-400 hover:text-blue-400"
+                    ? "text-[#FFC341]"
+                    : "text-[#72767d] hover:text-[#b5bac1]"
                 }`}
               >
                 <Pencil size={14} /> Edit
@@ -281,46 +273,45 @@ export default function ProfilePage() {
               readOnly={!editing.name}
               onChange={(e) => setDisplayName(e.target.value)}
               onBlur={() => setEditing((p) => ({ ...p, name: false }))}
-              className="w-full mt-3 p-4 rounded-xl bg-[#1f2937] text-white border border-white/20 backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+              className="w-full mt-3 px-4 py-3 rounded bg-black text-white border-2 border-[#72767d] focus:border-[#b5bac1] focus:outline-none transition-all duration-200"
             />
           </div>
 
           <div>
-            <label className="text-xs uppercase tracking-wider text-gray-400">
+            <label className="block font-semibold text-[#b5bac1]">
               Username
             </label>
             <input
               value={username}
               readOnly
-              className="w-full mt-3 p-4 rounded-xl bg-[#111827] text-gray-500 border border-white/10 cursor-not-allowed shadow-inner"
+              className="w-full mt-3 px-4 py-3 rounded bg-black text-[#72767d] border-2 border-[#72767d] cursor-not-allowed opacity-70"
             />
           </div>
 
           <div>
-            <label className="text-xs uppercase tracking-wider text-gray-400">
+            <label className="block font-semibold text-[#b5bac1]">
               Email
             </label>
             <input
               value={email}
               readOnly
-              className="w-full mt-3 p-4 rounded-xl bg-[#111827] text-gray-500 border border-white/10 cursor-not-allowed shadow-inner"
+              className="w-full mt-3 px-4 py-3 rounded bg-black text-[#72767d] border-2 border-[#72767d] cursor-not-allowed opacity-70"
             />
           </div>
 
-          <div className="pt-8 border-t border-white/10">
-            <div className="flex gap-5">
+          <div className="pt-6 border-t border-[#23272a]">
+            <div className="flex justify-end">
               <button
                 onClick={handleSave}
                 disabled={!changed || isSaving}
-                className={`px-7 py-3 rounded-xl font-semibold tracking-wide transition-all ${
-                  changed
-                    ? "bg-gradient-to-r from-green-500 to-emerald-600 hover:scale-[1.02] hover:shadow-lg"
-                    : "bg-gray-700 opacity-50 cursor-not-allowed"
+                className={`font-bold rounded px-6 py-3 transition-all duration-200 ${
+                  changed && !isSaving
+                    ? "bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black hover:-translate-y-0.5"
+                    : "bg-[#23272a] text-[#72767d] cursor-not-allowed border border-[#72767d]"
                 }`}
               >
-                {isSaving ? "Saving…" : "Save Changes"}
+                {isSaving ? "Saving..." : "Save Changes"}
               </button>
-
             </div>
           </div>
         </div>

@@ -209,7 +209,7 @@ export default function NotificationsPage() {
                   onClick={() => setFilter("all")}
                   className={`px-2 md:px-3 py-1 rounded text-xs md:text-sm transition-colors ${
                     filter === "all"
-                      ? "bg-blue-600 text-white"
+                      ? "bg-[#FFC341] text-black"
                       : "text-gray-400 hover:text-white"
                   }`}
                 >
@@ -219,7 +219,7 @@ export default function NotificationsPage() {
                   onClick={() => setFilter("unread")}
                   className={`px-2 md:px-3 py-1 rounded text-xs md:text-sm transition-colors ${
                     filter === "unread"
-                      ? "bg-blue-600 text-white"
+                      ? "bg-[#FFC341] text-black"
                       : "text-gray-400 hover:text-white"
                   }`}
                 >
@@ -230,7 +230,7 @@ export default function NotificationsPage() {
               {unreadCount > 0 && (
                 <button
                   onClick={handleMarkAllAsRead}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 md:px-4 py-2 rounded-lg transition-colors text-xs md:text-sm"
+                  className="flex items-center gap-2 bg-[#23272a] border border-[#FFC341] hover:bg-[#2f3136] text-[#FFC341] px-3 md:px-4 py-2 rounded transition-colors text-xs md:text-sm"
                 >
                   <CheckCheck size={16} />
                   <span className="hidden sm:inline">Mark All Read</span>
@@ -288,7 +288,7 @@ export default function NotificationsPage() {
                   className={`p-4 rounded-lg border transition-all hover:shadow-lg cursor-pointer ${
                     notification.is_read
                       ? "bg-[#2f3136] border-[#4f545c] hover:bg-[#36393f]"
-                      : "bg-blue-600/10 border-blue-500/30 border-l-4 border-l-blue-500 hover:bg-blue-600/15"
+                      : "bg-[#FFC341]/10 border-[#FFC341]/30 border-l-4 border-l-[#FFC341] hover:bg-[#FFC341]/15"
                   }`}
                   onClick={() => {
                     if (!notification.is_read) {
@@ -325,7 +325,7 @@ export default function NotificationsPage() {
                             <span className="text-gray-400 text-sm">
                               mentioned you in
                             </span>
-                            <span className="text-blue-400 font-medium text-sm">
+                            <span className="text-[#FFC341] font-medium text-sm">
                               #
                               {notification.message?.channels?.name ||
                                 "unknown"}
@@ -371,8 +371,8 @@ export default function NotificationsPage() {
 
                       {!notification.is_read && (
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                          <span className="text-blue-400 text-sm font-medium">
+                          <div className="w-2 h-2 bg-[#FFC341] rounded-full" />
+                          <span className="text-[#FFC341] text-sm font-medium">
                             Unread
                           </span>
                         </div>

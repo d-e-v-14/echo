@@ -171,7 +171,7 @@ export default function DangerZone({
           </p>
           <button
             onClick={openTransferModal}
-            className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-md font-medium transition-colors"
+            className="px-4 py-2 bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold rounded transition-all duration-200 hover:-translate-y-0.5"
           >
             Transfer Ownership
           </button>
@@ -183,10 +183,10 @@ export default function DangerZone({
             Permanently delete this server and all its data. This action cannot
             be undone.
           </p>
-          <button
-            onClick={() => setShowDeleteModal(true)}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium transition-colors"
-          >
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                className="px-4 py-2 bg-[#23272a] text-[#ed4245] font-medium rounded border border-[#ed4245]/30 hover:bg-[#ed4245]/10 transition-colors"
+              >
             Delete Server
           </button>
         </div>
@@ -212,10 +212,10 @@ export default function DangerZone({
                     <div
                       key={member.id}
                       onClick={() => setSelectedNewOwner(member.id)}
-                      className={`flex items-center p-3 rounded-md cursor-pointer transition ${
+                      className={`flex items-center p-3 rounded cursor-pointer transition ${
                         selectedNewOwner === member.id
-                          ? "bg-blue-600"
-                          : "bg-[#2f3136] hover:bg-[#404249]"
+                          ? "bg-[#FFC341]/10 border border-[#FFC341]/30"
+                          : "bg-[#2f3136] hover:bg-[#404249] border border-transparent"
                       }`}
                     >
                       <div className="w-8 h-8 rounded-full bg-gray-500 flex items-center justify-center mr-3">
@@ -245,14 +245,14 @@ export default function DangerZone({
             <div className="flex gap-3">
               <button
                 onClick={() => setShowTransferModal(false)}
-                className="flex-1 bg-gray-600 hover:bg-gray-700 py-2 rounded"
+                className="flex-1 bg-[#23272a] hover:bg-[#2f3136] text-white py-2 rounded border border-[#72767d] transition"
               >
                 Cancel
               </button>
               <button
                 onClick={handleTransferOwnership}
                 disabled={!selectedNewOwner || loading}
-                className="flex-1 bg-yellow-600 hover:bg-yellow-700 py-2 rounded disabled:bg-gray-600"
+                className="flex-1 bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:-translate-y-0.5"
               >
                 {loading ? "Transferring…" : "Transfer"}
               </button>
@@ -282,14 +282,14 @@ export default function DangerZone({
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="flex-1 bg-gray-600 hover:bg-gray-700 py-2 rounded"
+                className="flex-1 bg-[#23272a] hover:bg-[#2f3136] text-white py-2 rounded border border-[#72767d] transition"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteServer}
                 disabled={deleteConfirmText !== serverName || loading}
-                className="flex-1 bg-red-600 hover:bg-red-700 py-2 rounded disabled:bg-gray-600"
+                className="flex-1 bg-[#ed4245] hover:bg-[#a32224] text-white font-bold py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
                 {loading ? "Deleting…" : "Delete Server"}
               </button>
