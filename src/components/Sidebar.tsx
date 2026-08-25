@@ -14,6 +14,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { useEffect } from "react";
+import Skeleton from "@/components/loading/Skeleton";
 import { useNotifications } from "../hooks/useNotifications";
 import { useFriendNotifications } from "../contexts/FriendNotificationContext";
 import { useMessageNotifications } from "../contexts/MessageNotificationContext";
@@ -73,7 +74,40 @@ export default function Sidebar() {
 
   if (!user) {
     return (
-      <aside className="flex h-screen w-64 items-center justify-center bg-black text-white" />
+      <aside className="relative flex h-screen w-52 shrink-0 flex-col overflow-hidden select-none">
+        <div className="absolute inset-0 z-0 border-r border-gray-800 bg-black" />
+        <div className="relative z-10 flex h-full flex-col px-3 pb-3 pt-3">
+          <div className="flex items-center gap-2.5 px-1">
+            <Skeleton className="h-9 w-9 shrink-0 rounded-lg" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-3.5 w-14 rounded-full" />
+              <Skeleton className="h-3 w-24 rounded-full" />
+            </div>
+          </div>
+
+          <div className="mx-1 mt-3 border-t border-white/[0.06]" />
+
+          <nav className="flex-1 space-y-1 px-1 pt-3">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="flex items-center gap-3 rounded-lg px-4 py-3"
+              >
+                <Skeleton className="h-5 w-5 shrink-0 rounded-md" />
+                <Skeleton className="h-3.5 w-24 rounded-full" />
+              </div>
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-3 rounded-lg px-2 py-2">
+            <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-3.5 w-20 rounded-full" />
+              <Skeleton className="h-3 w-14 rounded-full" />
+            </div>
+          </div>
+        </div>
+      </aside>
     );
   }
 
