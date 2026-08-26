@@ -4,53 +4,6 @@ import React from "react";
 import clsx from "clsx";
 import Skeleton from "./Skeleton";
 
-export function NotificationListSkeleton({ rows = 5 }: { rows?: number }) {
-  return (
-    <div aria-hidden className="animate-in space-y-3 p-6 opacity-70">
-      {Array.from({ length: rows }).map((_, i) => (
-        <div
-          key={i}
-          className="rounded-lg border border-slate-800/60 bg-slate-900/40 p-4"
-        >
-          <div className="flex items-start gap-4">
-            <Skeleton className="h-12 w-12 shrink-0 rounded-full" />
-            <div className="min-w-0 flex-1 space-y-2">
-              <div className="flex items-center gap-2">
-                <Skeleton className="h-4 w-28 rounded" />
-                <Skeleton className="h-4 w-36 rounded" />
-              </div>
-              <Skeleton className="h-3.5 w-3/4 rounded" />
-              <Skeleton className="h-3 w-16 rounded" />
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-export function NotificationDropdownSkeleton({ rows = 3 }: { rows?: number }) {
-  return (
-    <div aria-hidden className="animate-in space-y-2 p-3 opacity-70">
-      {Array.from({ length: rows }).map((_, i) => (
-        <div
-          key={i}
-          className="rounded-xl border border-gray-800 bg-gray-900/50 p-3"
-        >
-          <div className="flex items-start gap-2">
-            <Skeleton className="mt-0.5 h-4 w-4 shrink-0 rounded" />
-            <div className="min-w-0 flex-1 space-y-1.5">
-              <Skeleton className="h-3.5 w-2/3 rounded" />
-              <Skeleton className="h-3 w-full rounded" />
-              <Skeleton className="h-3 w-14 rounded" />
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export function SearchResultListSkeleton({ rows = 4 }: { rows?: number }) {
   return (
     <div aria-hidden className="animate-in space-y-2 opacity-70">

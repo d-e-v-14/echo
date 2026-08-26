@@ -6,7 +6,6 @@ import {
   Users,
   MessageSquareText,
   User as UserIcon,
-  Bell,
   Cross,
 } from "lucide-react";
 import Image from "next/image";
@@ -15,7 +14,6 @@ import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { useEffect } from "react";
 import Skeleton from "@/components/loading/Skeleton";
-import { useNotifications } from "../hooks/useNotifications";
 import { useFriendNotifications } from "../contexts/FriendNotificationContext";
 import { useMessageNotifications } from "../contexts/MessageNotificationContext";
 import { useJoinServerModal } from "@/contexts/JoinServerModalContext";
@@ -24,7 +22,6 @@ const navItems = [
   { label: "Servers", icon: Users, path: "/servers" },
   { label: "Messages", icon: MessageSquareText, path: "/messages" },
   { label: "Friends", icon: UserIcon, path: "/friends" },
-  { label: "Notifications", icon: Bell, path: "/notifications" },
   { label: "Join Server", icon: Cross, path: "" },
 ];
 
@@ -33,8 +30,6 @@ export default function Sidebar() {
   const { openJoinServerModal } = useJoinServerModal();
 
   const pathname = usePathname();
-
-  const { unreadCount } = useNotifications();
 
   const {
     friendRequestCount,
@@ -151,9 +146,7 @@ export default function Sidebar() {
 
               let notificationCount = 0;
 
-              if (item.label === "Notifications") {
-                notificationCount = unreadCount;
-              } else if (item.label === "Messages") {
+              if (item.label === "Messages") {
                 notificationCount = unreadMessageCount;
               } else if (item.label === "Friends") {
                 notificationCount = friendRequestCount;

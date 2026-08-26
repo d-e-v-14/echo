@@ -14,6 +14,8 @@ import {
   FaSearch,
   FaCommentAlt,
   FaUserMinus,
+  FaCheck,
+  FaTimes,
 } from "react-icons/fa";
 import { useRouter } from "next/navigation";
 import {
@@ -22,14 +24,16 @@ import {
   addFriend,
   removeFriend,
   searchUsers,
+  respondToFriendRequest,
 } from "@/api";
 import UserProfileModal from "@/components/UserProfileModal";
+import { useFriendNotifications } from "@/contexts/FriendNotificationContext";
 import { SearchUserResult } from "@/api/types/user.types";
 import { Socket } from "socket.io-client";
 import InlineSpinner from "@/components/loading/InlineSpinner";
 import { ConversationListSkeleton } from "@/components/loading/skeletons";
 
-type TabId = "all" | "add";
+type TabId = "all" | "pending" | "add";
 
 type RelationshipStatus = SearchUserResult["relationshipStatus"];
 
@@ -55,6 +59,7 @@ interface FriendData {
 export default function FriendsPage() {
   const router = useRouter();
   const pageReady = usePageReady();
+  const { refreshCount: refreshFriendCount } = useFriendNotifications();
   const [activeTab, setActiveTab] = useState<TabId>("all");
   const [friends, setFriends] = useState<FriendData[]>([]);
   const [requests, setRequests] = useState<FriendRequestData[]>([]);
@@ -72,6 +77,7 @@ export default function FriendsPage() {
     avatarUrl: string;
   } | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [respondingId, setRespondingId] = useState<string | null>(null);
   useRef<Socket | null>(null);
   useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -86,6 +92,7 @@ export default function FriendsPage() {
 
   const tabs: { id: TabId; label: string }[] = [
     { id: "all", label: "All" },
+    { id: "pending", label: "Pending" },
     { id: "add", label: "Add Friend" },
   ];
 
@@ -219,6 +226,32 @@ export default function FriendsPage() {
     }
   };
 
+  const handleRespondToRequest = async (
+    requestId: string,
+    status: "accepted" | "rejected"
+  ) => {
+    if (!requestId || respondingId) return;
+
+    setRespondingId(requestId);
+    setError("");
+    try {
+      await respondToFriendRequest(requestId, status);
+      setRequests((prev) => prev.filter((req) => req.friends_id !== requestId));
+      if (status === "accepted") {
+        loadFriends();
+      }
+      void refreshFriendCount();
+    } catch (err: any) {
+      console.error("Error responding to friend request:", err);
+      setError(
+        err?.response?.data?.message ||
+          `Failed to ${status === "accepted" ? "accept" : "decline"} request`
+      );
+    } finally {
+      setRespondingId(null);
+    }
+  };
+
   const getProfileRelationshipStatus = (
     userId?: string
   ): RelationshipStatus | undefined => {
@@ -271,6 +304,11 @@ export default function FriendsPage() {
                 }`}
               >
                 {tab.label}
+                {tab.id === "pending" && requests.length > 0 && (
+                  <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#ed4245] px-1 text-[10px] font-bold leading-none text-white">
+                    {requests.length}
+                  </span>
+                )}
                 {isActive && (
                   <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-white" />
                 )}
@@ -391,6 +429,88 @@ export default function FriendsPage() {
                     ))}
                   </ul>
                 </div>
+              )}
+            </div>
+          ) : activeTab === "pending" ? (
+            /* Pending Requests */
+            <div>
+              {requests.length === 0 ? (
+                <div className="rounded-2xl border border-white/[0.06] bg-[#111214] p-10 text-center">
+                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-white/[0.06] bg-[#18191c]">
+                    <FaUserFriends className="h-5 w-5 text-[#72767d]" />
+                  </div>
+                  <p className="text-sm font-medium text-white">
+                    No pending requests.
+                  </p>
+                  <p className="mt-1 text-xs text-[#72767d]">
+                    You&apos;re all caught up!
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-[#72767d]">
+                    Incoming Requests — {requests.length}
+                  </p>
+                  <ul className="divide-y divide-white/[0.06] overflow-hidden rounded-2xl border border-white/[0.06]">
+                    {requests.map((req) => (
+                      <li
+                        key={req.friends_id}
+                        className="flex items-center gap-4 px-4 py-3 transition-colors hover:bg-white/[0.04]"
+                      >
+                        <img
+                          src={req.user1?.avatar_url || "/avatar.png"}
+                          alt={req.user1?.username}
+                          className="h-10 w-10 shrink-0 rounded-full bg-[#23272a] object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = "/avatar.png";
+                          }}
+                        />
+                        <div
+                          className="min-w-0 flex-1 cursor-pointer"
+                          onClick={() =>
+                            openUserProfile(
+                              req.user1_id,
+                              req.user1?.username,
+                              req.user1?.avatar_url
+                            )
+                          }
+                        >
+                          <div className="truncate text-sm font-semibold text-white">
+                            {req.user1?.fullname || req.user1?.username}
+                          </div>
+                          <div className="truncate text-xs text-[#72767d]">
+                            Incoming Friend Request
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleRespondToRequest(req.friends_id, "accepted")
+                            }
+                            disabled={respondingId === req.friends_id}
+                            title="Accept"
+                            className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-600/20 text-green-400 transition hover:bg-green-600/30 hover:text-green-300 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <FaCheck className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleRespondToRequest(req.friends_id, "rejected")
+                            }
+                            disabled={respondingId === req.friends_id}
+                            title="Ignore"
+                            className="flex h-9 w-9 items-center justify-center rounded-lg text-red-300/80 transition hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <FaTimes className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </>
               )}
             </div>
           ) : (

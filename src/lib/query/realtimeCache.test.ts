@@ -105,7 +105,6 @@ describe("realtimeEventToCommands", () => {
   it("returns no commands on notification events (store patches itself)", () => {
     expect(realtimeEventToCommands("mention_notification", {})).toEqual([]);
     expect(realtimeEventToCommands("mention_marked_read", {})).toEqual([]);
-    expect(realtimeEventToCommands("new_notification", {})).toEqual([]);
   });
 
   it("returns no commands on friend/presence events (state patches itself)", () => {

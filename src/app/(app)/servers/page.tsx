@@ -30,16 +30,22 @@ import {
   FaVideoSlash,
 } from "react-icons/fa";
 import VoiceChannel from "@/components/EnhancedVoiceChannel";
-import { updateChannel, deleteChannel, fetchChannelsByServer } from "@/api";
+import { updateChannel, deleteChannel } from "@/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServers } from "@/hooks/query/useServers";
 import { useChannels } from "@/hooks/query/useChannels";
-import { queryKeys, policyForQueryKey } from "@/lib/query";
+import { queryKeys } from "@/lib/query";
 import { EMPTY_ARRAY } from "@/lib/query/constants";
 import { resolvePreferredServer } from "@/lib/servers/serverSelection";
 import Chatwindow from "@/components/ChatWindow";
-import NotificationBell from "@/components/NotificationBell";
-import { useNotifications } from "@/hooks/useNotifications";
+import {
+  useServerUnreadCounts,
+  useMentionUnreadCount,
+} from "@/hooks/useMentionUnread";
+import {
+  pruneServerChannels,
+  pruneServers,
+} from "@/lib/mentions/unreadStore";
 import { useSearchParams } from "next/navigation";
 import { useVoiceCall } from "@/contexts/VoiceCallContext";
 import { useJoinServerModal } from "@/contexts/JoinServerModalContext";
@@ -81,6 +87,94 @@ const serverIcons: string[] = [
   "/hackbattle.png",
 ];
 
+interface RailServer {
+  id: string;
+  name: string;
+  icon_url?: string | null;
+}
+
+const ServerRail: React.FC<{
+  loading: boolean;
+  servers: RailServer[];
+  selectedServerId: string | null;
+  onSelect: (id: string, name: string) => void;
+  showAddMenu: boolean;
+  onToggleAddMenu: () => void;
+  onOpenJoinModal: () => void;
+}> = React.memo(function ServerRail({
+  loading,
+  servers,
+  selectedServerId,
+  onSelect,
+  showAddMenu,
+  onToggleAddMenu,
+  onOpenJoinModal,
+}) {
+  const serverUnreadCounts = useServerUnreadCounts();
+
+  return (
+    <div className="w-16 p-2 flex flex-col items-center bg-black space-y-3 relative">
+      {loading ? (
+        <ServerRailSkeleton />
+      ) : servers.length === 0 ? (
+        <div className="text-white text-xs text-center px-2" />
+      ) : (
+        servers.map((server, idx) => {
+          const hasUnread = (serverUnreadCounts[server.id] ?? 0) > 0;
+          return (
+            <div key={server.id} className="relative">
+              <img
+                src={server.icon_url || serverIcons[idx % serverIcons.length]}
+                alt={server.name}
+                className={`w-12 h-12 rounded-full hover:scale-105 transition-transform cursor-pointer shadow-[0_0_18px_rgba(0,0,0,0.4)] ${
+                  selectedServerId === server.id ? "ring-2 ring-white" : ""
+                }`}
+                onClick={() => onSelect(server.id, server.name)}
+              />
+              {hasUnread && (
+                <span
+                  className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-red-500 border-2 border-black"
+                  title={`Unread activity in ${server.name}`}
+                  aria-label={`Unread activity in ${server.name}`}
+                />
+              )}
+            </div>
+          );
+        })
+      )}
+      <div className="relative bottom-0">
+        <div className="relative group">
+          {showAddMenu && (
+            <div className="absolute left-14 bottom-0 bg-[#1e1f22] text-white text-sm rounded-lg shadow-lg p-2 w-36 z-10">
+              <button
+                onClick={() => {
+                  onToggleAddMenu();
+                  onOpenJoinModal();
+                }}
+                className="block w-full text-left px-3 py-2 rounded hover:bg-[#2f3136] transition"
+              >
+                Join Server
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const ChannelMentionBadge: React.FC<{ channelId: string }> = ({
+  channelId,
+}) => {
+  const count = useMentionUnreadCount(channelId);
+  if (count <= 0) return null;
+  return (
+    <span className="bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1">
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+};
+
 const ServersPageContent: React.FC = () => {
   const pageReady = usePageReady();
   const { openJoinServerModal } = useJoinServerModal();
@@ -105,7 +199,6 @@ const ServersPageContent: React.FC = () => {
   );
   const lastChannelByServerRef = useRef<Record<string, string>>({});
   const chatWindowRef = useRef<any>(null);
-  const { notifications: mentionNotifications } = useNotifications();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"voice" | "chat">("chat");
@@ -332,16 +425,6 @@ const ServersPageContent: React.FC = () => {
     }
   }, []);
 
-  const unreadMentionsByChannel = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const n of mentionNotifications) {
-      if (!n.isRead && n.channelId) {
-        map.set(n.channelId, (map.get(n.channelId) || 0) + 1);
-      }
-    }
-    return map;
-  }, [mentionNotifications]);
-
   const textChannels = useMemo(
     () => channels.filter((c) => c.type === "text"),
     [channels]
@@ -438,6 +521,19 @@ const ServersPageContent: React.FC = () => {
   useEffect(() => {
     setLoading(serversLoading);
   }, [serversLoading]);
+
+  useEffect(() => {
+    if (serversLoading || servers.length === 0) return;
+    pruneServers(new Set(servers.map((s) => s.id)));
+  }, [servers, serversLoading]);
+
+  useEffect(() => {
+    if (!selectedServerId || channelsLoading || channels.length === 0) return;
+    pruneServerChannels(
+      selectedServerId,
+      new Set(channels.map((c) => c.id))
+    );
+  }, [selectedServerId, channels, channelsLoading]);
 
   useEffect(() => {
     if (serversLoading) return;
@@ -806,42 +902,15 @@ const ServersPageContent: React.FC = () => {
       )}
 
       <div className="relative flex h-screen z-0 bg-black select-none">
-        <div className="w-16 p-2 flex flex-col items-center bg-black space-y-3 relative">
-          {loading ? (
-            <ServerRailSkeleton />
-          ) : servers.length === 0 ? (
-            <div className="text-white text-xs text-center px-2" />
-          ) : (
-            servers.map((server, idx) => (
-              <img
-                key={server.id}
-                src={server.icon_url || serverIcons[idx % serverIcons.length]}
-                alt={server.name}
-                className={`w-12 h-12 rounded-full hover:scale-105 transition-transform cursor-pointer shadow-[0_0_18px_rgba(0,0,0,0.4)] ${
-                  selectedServerId === server.id ? "ring-2 ring-white" : ""
-                }`}
-                onClick={() => handleServerSelect(server.id, server.name)}
-              />
-            ))
-          )}
-          <div className="relative bottom-0">
-            <div className="relative group">
-              {showAddMenu && (
-                <div className="absolute left-14 bottom-0 bg-[#1e1f22] text-white text-sm rounded-lg shadow-lg p-2 w-36 z-10">
-                  <button
-                    onClick={() => {
-                      setShowAddMenu(false);
-                      openJoinServerModal();
-                    }}
-                    className="block w-full text-left px-3 py-2 rounded hover:bg-[#2f3136] transition"
-                  >
-                    Join Server
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <ServerRail
+          loading={loading}
+          servers={servers as RailServer[]}
+          selectedServerId={selectedServerId}
+          onSelect={handleServerSelect}
+          showAddMenu={showAddMenu}
+          onToggleAddMenu={() => setShowAddMenu((v) => !v)}
+          onOpenJoinModal={openJoinServerModal}
+        />
 
         {loading ? (
           <div className="relative flex-1 flex">
@@ -919,69 +988,6 @@ const ServersPageContent: React.FC = () => {
                 <div className="flex items-center justify-between px-2 mb-2">
                   <h2 className="text-xl font-bold">{selectedServerName}</h2>
                   <div className="flex items-center gap-2">
-                    <NotificationBell
-                      onNavigateToMessage={async (
-                        channelId,
-                        messageId,
-                        serverId
-                      ) => {
-                        if (serverId && serverId !== selectedServerId) {
-                          const server = servers.find((s) => s.id === serverId);
-                          handleServerSelect(serverId, server?.name ?? "Server");
-                        }
-                        if (serverId) {
-                          try {
-                            await queryClient.ensureQueryData({
-                              queryKey: queryKeys.serverChannels(serverId),
-                              queryFn: () => fetchChannelsByServer(serverId),
-                              staleTime: policyForQueryKey(
-                                queryKeys.serverChannels(serverId)
-                              ).staleTimeMs,
-                            });
-                          } catch {
-                          }
-                        }
-                        const targetChannels =
-                          (queryClient.getQueryData(
-                            queryKeys.serverChannels(serverId ?? "")
-                          ) as Channel[] | null) ?? [];
-                        const targetChannel = targetChannels.find(
-                          (c) => c.id === channelId
-                        );
-                        if (targetChannel) {
-                          setSelectedChannelId(targetChannel.id);
-                          setViewMode("chat");
-                        }
-                        await new Promise((r) => setTimeout(r, 300));
-                        const MAX_PAGES = 8;
-                        let found = false;
-                        for (let i = 0; i <= MAX_PAGES && !found; i++) {
-                          if (chatWindowRef.current) {
-                            const scrolled =
-                              await chatWindowRef.current.scrollToMessage(
-                                messageId
-                              );
-                            if (scrolled) {
-                              found = true;
-                              break;
-                            }
-                          }
-                          if (chatWindowRef.current) {
-                            const loaded =
-                              await chatWindowRef.current.loadOlderPages(1);
-                            if (!loaded) break;
-                          } else break;
-                          await new Promise((r) => setTimeout(r, 200));
-                        }
-                        if (!found) {
-                          setViewMode("chat");
-                          setTimeout(() => {
-                            if (chatWindowRef.current)
-                              chatWindowRef.current.scrollToMessage("last");
-                          }, 300);
-                        }
-                      }}
-                    />
                     <button
                       className={`p-2 rounded-full transition ${
                         !selectedServerId ? "opacity-50" : "hover:bg-[#23272a]"
@@ -1036,8 +1042,6 @@ const ServersPageContent: React.FC = () => {
                     Text Channels
                   </h3>
                   {textChannels.map((channel) => {
-                    const mentionCount =
-                      unreadMentionsByChannel.get(channel.id) || 0;
                     return (
                       <div
                         key={channel.id}
@@ -1072,11 +1076,7 @@ const ServersPageContent: React.FC = () => {
                           </span>
                         </span>
                         <div className="flex items-center gap-1">
-                          {mentionCount > 0 && (
-                            <span className="bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1">
-                              {mentionCount > 99 ? "99+" : mentionCount}
-                            </span>
-                          )}
+                          <ChannelMentionBadge channelId={channel.id} />
                           <button
                             type="button"
                             title="Channel Settings"

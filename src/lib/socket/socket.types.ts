@@ -18,8 +18,6 @@ export interface EchoSocketEvents {
   friend_request_accepted: SocketEventEnvelope<SocketEventPayload>;
   presence_updated: SocketEventEnvelope<SocketEventPayload>;
   receive_dm: SocketEventEnvelope<SocketEventPayload>;
-  new_notification: SocketEventEnvelope<SocketEventPayload>;
-  notification_created: SocketEventEnvelope<SocketEventPayload>;
   mention_notification: SocketEventEnvelope<SocketEventPayload>;
   mention_marked_read: SocketEventEnvelope<SocketEventPayload>;
   mention_read: SocketEventEnvelope<SocketEventPayload>;

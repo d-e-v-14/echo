@@ -12,12 +12,14 @@ import "../globals.css";
 import { UserProvider } from "@/components/UserContext";
 import { SocketProvider } from "@/lib/socket/SocketProvider";
 import { RealtimeCacheSync } from "@/lib/query/RealtimeCacheSync";
+import { MentionUnreadProvider } from "@/contexts/MentionUnreadProvider";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <UserProvider>
       <SocketProvider>
         <RealtimeCacheSync />
+        <MentionUnreadProvider />
         <FriendNotificationProvider>
           <MessageNotificationProvider>
             <VoiceCallProvider>

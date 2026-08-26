@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import type { EmojiClickData } from "emoji-picker-react";
 import { Theme } from "emoji-picker-react";
-import { Paperclip, Clock, CheckCheck, CircleAlert } from "lucide-react";
+import { Paperclip, Clock, Check, CircleAlert } from "lucide-react";
 
 export interface ChatMessage {
   id?: string | number;
@@ -493,7 +493,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               aria-label="Delivered"
               title="Delivered"
             >
-              <CheckCheck className="h-3.5 w-3.5" />
+              <Check className="h-3.5 w-3.5" />
             </span>
           )}
           {isSender && isFailed && (

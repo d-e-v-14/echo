@@ -11,8 +11,6 @@ export const REALTIME_CACHE_EVENTS = [
   "channel_updated",
   "permissions_updated",
   "receive_dm",
-  "new_notification",
-  "notification_created",
   "mention_notification",
   "mention_marked_read",
   "mention_read",
@@ -153,8 +151,6 @@ export function realtimeEventToCommands(
         : [invalidate(["channel"])];
     }
 
-    case "new_notification":
-    case "notification_created":
     case "mention_notification":
     case "mention_marked_read":
     case "mention_read":

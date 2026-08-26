@@ -28,14 +28,16 @@ import { useChannelRealtime } from "@/hooks/useChannelRealtime";
 import { useChannelPermissions } from "@/hooks/useChannelPermissions";
 import { useChannelMembers } from "@/hooks/useChannelMembers";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
+import {
+  useMentionUnreadCount,
+  markChannelRead,
+} from "@/hooks/useMentionUnread";
 import { useTyping } from "@/hooks/useTyping";
 import { tokenStore } from "@/lib/auth/tokenStore";
 
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { MessageVirtualizer } from "@/components/chat/MessageVirtualizer";
 import { ScrollToBottomButton } from "@/components/ScrollToBottomButton";
-import { resolveInitialScrollTarget } from "@/lib/channels/scrollBehavior";
-import { chatScrollStore } from "@/lib/chat/scrollStore";
 import { isNearBottom } from "@/lib/scrollUtils";
 import { useChatScroll } from "@/hooks/useChatScroll";
 import { MessageList } from "@/components/chat/MessageList";
@@ -207,6 +209,22 @@ export default forwardRef(function ChatWindow(
 
   const { typingUsers, sendTyping } = useTyping({ channelId, currentUserId });
 
+  const channelUnreadCount = useMentionUnreadCount(channelId);
+
+  const positionedRef = useRef(false);
+  const isNearBottomRef = useRef<() => boolean>(() => false);
+
+  useEffect(() => {
+    positionedRef.current = false;
+  }, [channelId]);
+
+  useEffect(() => {
+    if (!positionedRef.current) return;
+    if (channelUnreadCount > 0 && isNearBottomRef.current()) {
+      void markChannelRead(channelId);
+    }
+  }, [channelUnreadCount, channelId]);
+
   const reactionMode = threadId && !serverId ? "dm" : "channel";
 
   const registerMessageRef = useCallback(
@@ -356,6 +374,7 @@ export default forwardRef(function ChatWindow(
 
   const handlePositioned = useCallback(
     (kind: "bottom" | "element") => {
+      positionedRef.current = true;
       if (kind !== "bottom") return;
       const last = messages[messages.length - 1];
       if (last) updateLastRead(last.timestamp);
@@ -378,31 +397,11 @@ export default forwardRef(function ChatWindow(
     hasMore,
     loadingMore,
     onLoadOlder: loadOlder,
-    resolveInitialTarget: (msgs) => {
-      const target = resolveInitialScrollTarget(
-        msgs as Parameters<typeof resolveInitialScrollTarget>[0],
-        currentUserId,
-        lastReadTimestamp,
-        chatScrollStore.get(conversationScrollKey(channelId)).anchor
-      );
-      if (target.kind === "anchor") {
-        return {
-          kind: "element",
-          messageId: target.anchor.messageId,
-          offset: target.anchor.offset,
-        };
-      }
-      if (target.kind === "first-unread") {
-        const firstUnread = msgs[target.index];
-        if (firstUnread) {
-          return { kind: "element", messageId: firstUnread.id };
-        }
-      }
-      return { kind: "bottom" };
-    },
     onPositioned: handlePositioned,
     onScrolledExtra: handleScrolledExtra,
   });
+
+  isNearBottomRef.current = scroll.isNearBottomNow;
 
   useEffect(() => {
     messageRefs.current = {};

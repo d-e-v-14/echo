@@ -2,26 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isNearBottom } from "@/lib/scrollUtils";
-import { chatScrollStore } from "@/lib/chat/scrollStore";
 
 export interface ScrollTrackedMessage {
   id: string | number;
 }
-
-export interface ElementScrollTarget {
-  kind: "element";
-  messageId: string | number;
-  offset?: number;
-}
-
-export type InitialTarget = { kind: "bottom" } | ElementScrollTarget;
 
 type MessageRefs = React.MutableRefObject<
   Record<string | number, HTMLDivElement | null>
 >;
 
 export interface UseChatScrollOptions {
-  /** Stable per-conversation id. All scroll state is keyed by this. */
+  /** Stable per-conversation id. Resets per-visit scroll state on change. */
   conversationKey: string;
   containerRef: React.RefObject<HTMLDivElement | null>;
   messages: ScrollTrackedMessage[];
@@ -34,11 +25,6 @@ export interface UseChatScrollOptions {
   onLoadOlder: () => Promise<boolean>;
   nearBottomThreshold?: number;
   topLoadThreshold?: number;
-  /**
-   * Optional first-open positioning policy (e.g. jump to first unread).
-   * Anchor restoration always takes precedence and is handled internally.
-   */
-  resolveInitialTarget?: (messages: ScrollTrackedMessage[]) => InitialTarget;
   /** Fired once after the conversation has been positioned on open. */
   onPositioned?: (kind: "bottom" | "element") => void;
   /** Extra read-only scroll handling (e.g. read markers). Must not scroll. */
@@ -54,14 +40,12 @@ export interface UseChatScrollResult {
   jumpToLatest: () => void;
   /** Pin to bottom after the next message-list commit (used when sending). */
   stickNextRender: () => void;
-  saveAnchorNow: () => void;
   scrollToMessage: (
     messageId: string | number,
     opts?: { highlightMs?: number }
   ) => Promise<boolean>;
 }
 
-const ANCHOR_SAVE_INTERVAL_MS = 150;
 const SUPPRESS_ANCHOR_MS = 120;
 const SUPPRESS_SMOOTH_MS = 800;
 
@@ -76,7 +60,6 @@ export function useChatScroll({
   onLoadOlder,
   nearBottomThreshold = 140,
   topLoadThreshold = 120,
-  resolveInitialTarget,
   onPositioned,
   onScrolledExtra,
 }: UseChatScrollOptions): UseChatScrollResult {
@@ -93,7 +76,6 @@ export function useChatScroll({
   const lastSeenIdRef = useRef<string | null>(null);
   const prevCountRef = useRef(0);
   const suppressUntilRef = useRef(0);
-  const lastAnchorSaveRef = useRef(0);
   const rafScrollRef = useRef<number | null>(null);
   const followRafRef = useRef<number | null>(null);
 
@@ -105,7 +87,6 @@ export function useChatScroll({
     onLoadOlder,
     nearBottomThreshold,
     topLoadThreshold,
-    resolveInitialTarget,
     onPositioned,
     onScrolledExtra,
     ready,
@@ -117,7 +98,6 @@ export function useChatScroll({
     onLoadOlder,
     nearBottomThreshold,
     topLoadThreshold,
-    resolveInitialTarget,
     onPositioned,
     onScrolledExtra,
     ready,
@@ -147,32 +127,6 @@ export function useChatScroll({
     setNewMessageCount(0);
     setShowJumpButton(false);
   }, []);
-
-  const saveAnchorNow = useCallback(() => {
-    const key = keyRef.current;
-    const container = containerRef.current;
-    const currentMessages = optionsRef.current.messages;
-    if (!container || currentMessages.length === 0) return;
-
-    if (isNearBottom(container, 80)) {
-      chatScrollStore.setAnchor(key, null);
-      return;
-    }
-
-    const viewportTop = container.scrollTop;
-    for (const msg of currentMessages) {
-      const el = messageRefs.current[msg.id];
-      if (!el) continue;
-      const top = el.offsetTop;
-      if (top + el.offsetHeight >= viewportTop) {
-        chatScrollStore.setAnchor(key, {
-          messageId: msg.id,
-          offset: viewportTop - top,
-        });
-        return;
-      }
-    }
-  }, [containerRef, messageRefs]);
 
   const syncAtBottomUi = useCallback(
     (container: HTMLDivElement) => {
@@ -219,14 +173,13 @@ export function useChatScroll({
             if (!node || keyRef.current !== requestedKey) return;
             node.scrollTop =
               previousTop + (node.scrollHeight - previousHeight);
-            saveAnchorNow();
           });
         })
         .catch(() => {
           olderInFlightRef.current = false;
         });
     },
-    [containerRef, saveAnchorNow, suppress]
+    [containerRef, suppress]
   );
 
   const handleScroll = useCallback(() => {
@@ -239,11 +192,6 @@ export function useChatScroll({
       syncAtBottomUi(container);
 
       if (!isSuppressed()) {
-        const now = performance.now();
-        if (now - lastAnchorSaveRef.current >= ANCHOR_SAVE_INTERVAL_MS) {
-          lastAnchorSaveRef.current = now;
-          saveAnchorNow();
-        }
         optionsRef.current.onScrolledExtra?.(container);
         maybeRequestOlder(container);
       }
@@ -252,7 +200,6 @@ export function useChatScroll({
     containerRef,
     syncAtBottomUi,
     isSuppressed,
-    saveAnchorNow,
     maybeRequestOlder,
   ]);
 
@@ -319,7 +266,6 @@ export function useChatScroll({
             const node = containerRef.current;
             if (node && keyRef.current === requestedKey) {
               syncAtBottomUi(node);
-              saveAnchorNow();
             }
           });
           return true;
@@ -346,14 +292,13 @@ export function useChatScroll({
     [
       containerRef,
       findElement,
-      saveAnchorNow,
       suppress,
       syncAtBottomUi,
     ]
   );
 
   // Conversation switch: reset all per-visit refs so the new conversation
-  // positions itself. Anchors were already persisted by the scroll handler.
+  // positions itself at the latest message.
   useEffect(() => {
     keyRef.current = conversationKey;
     visitPositionedKeyRef.current = null;
@@ -365,10 +310,11 @@ export function useChatScroll({
     setNewMessageCount(0);
     setShowJumpButton(false);
     nearBottomRef.current = true;
-  }, [conversationKey, saveAnchorNow]);
+  }, [conversationKey]);
 
-  // Initial positioning + restoration. Runs exactly once per visit, only
-  // after real content is rendered (ready), never mid-skeleton.
+  // Initial positioning: every chat opens at the latest message. Runs exactly
+  // once per visit, only after real content is rendered (ready), never
+  // mid-skeleton.
   //
   // Deliberately does NOT depend on `messages`: it reads the freshest list
   // from optionsRef at fire time, so a socket append or cache update landing
@@ -382,7 +328,7 @@ export function useChatScroll({
     initPendingRef.current = true;
 
     // Hide until positioned so the user never glimpses a wrong scroll
-    // position before restore/bottom jump happens (no flash, no animation).
+    // position before the bottom jump happens (no flash, no animation).
     container.style.visibility = "hidden";
 
     let cancelled = false;
@@ -403,36 +349,13 @@ export function useChatScroll({
         return;
       }
 
-      const messages = optionsRef.current.messages;
-      const state = chatScrollStore.get(conversationKey);
-      let kind: "bottom" | "element" = "bottom";
+      liveContainer.scrollTop = liveContainer.scrollHeight;
 
-      const anchorEl = state.anchor
-        ? findElement(state.anchor.messageId)
-        : null;
-      if (state.anchor && anchorEl) {
-        anchorEl.scrollIntoView({ behavior: "auto", block: "start" });
-        liveContainer.scrollTop += state.anchor.offset;
-        kind = "element";
-      } else {
-        const target = resolveInitialTarget?.(messages);
-        const targetEl =
-          target?.kind === "element" ? findElement(target.messageId) : null;
-        if (target?.kind === "element" && targetEl) {
-          targetEl.scrollIntoView({ behavior: "auto", block: "start" });
-          liveContainer.scrollTop += target.offset ?? 0;
-          kind = "element";
-        } else {
-          liveContainer.scrollTop = liveContainer.scrollHeight;
-        }
-      }
-
-      chatScrollStore.markInitialized(conversationKey);
       visitPositionedKeyRef.current = conversationKey;
       initPendingRef.current = false;
       suppress(SUPPRESS_ANCHOR_MS);
       syncAtBottomUi(liveContainer);
-      onPositioned?.(kind);
+      onPositioned?.("bottom");
     };
 
     frameId = requestAnimationFrame(() => {
@@ -493,12 +416,11 @@ export function useChatScroll({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, conversationKey]);
 
-  // Unmount: persist final anchor and release pending frames.
+  // Release pending frames.
   useEffect(() => {
     return () => {
       if (rafScrollRef.current !== null) cancelAnimationFrame(rafScrollRef.current);
       if (followRafRef.current !== null) cancelAnimationFrame(followRafRef.current);
-      saveAnchorNow();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -516,7 +438,6 @@ export function useChatScroll({
     scrollToBottom,
     jumpToLatest,
     stickNextRender,
-    saveAnchorNow,
     scrollToMessage,
   };
 }

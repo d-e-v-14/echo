@@ -1,9 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNotifications } from "@/hooks/useNotifications";
 import { ChannelMessage } from "@/lib/channels/types";
 import { findUnreadDividerIndex } from "@/lib/channels/messageUtils";
+import {
+  useChannelUnreadMentions,
+  markChannelRead,
+} from "@/hooks/useMentionUnread";
+import type { MentionUnreadEntry } from "@/lib/mentions/unreadStore";
 
 export interface UseUnreadMessagesOptions {
   channelId: string;
@@ -13,12 +17,7 @@ export interface UseUnreadMessagesOptions {
 
 export interface UseUnreadMessagesResult {
   lastReadTimestamp: string | null;
-  unreadMentions: Array<{
-    id: string;
-    messageId: string;
-    channelId: string;
-    isRead?: boolean;
-  }>;
+  unreadMentions: ReadonlyArray<MentionUnreadEntry>;
   unreadMentionCount: number;
   unreadDividerIndex: number;
   markUnreadMentionsAsRead: () => Promise<void>;
@@ -33,8 +32,6 @@ export function useUnreadMessages({
   currentUserId,
   messages,
 }: UseUnreadMessagesOptions): UseUnreadMessagesResult {
-  const { notifications: mentionNotifications, markAsRead } =
-    useNotifications();
   const [lastReadTimestamp, setLastReadTimestamp] = useState<string | null>(
     null
   );
@@ -54,15 +51,7 @@ export function useUnreadMessages({
     }
   }, [channelId, currentUserId]);
 
-  const unreadMentions = useMemo(
-    () =>
-      mentionNotifications.filter(
-        (notification) =>
-          notification.channelId === channelId && !notification.isRead
-      ),
-    [mentionNotifications, channelId]
-  );
-
+  const unreadMentions = useChannelUnreadMentions(channelId);
   const unreadMentionCount = unreadMentions.length;
 
   const unreadDividerIndex = useMemo(
@@ -71,12 +60,8 @@ export function useUnreadMessages({
   );
 
   const markUnreadMentionsAsRead = useCallback(async () => {
-    if (unreadMentions.length === 0) return;
-
-    await Promise.all(
-      unreadMentions.map((notification) => markAsRead(notification.id))
-    );
-  }, [unreadMentions, markAsRead]);
+    await markChannelRead(channelId);
+  }, [channelId]);
 
   const updateLastRead = useCallback(
     (timestamp: string) => {
