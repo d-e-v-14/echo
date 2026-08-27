@@ -64,6 +64,7 @@ export default function FriendsPage() {
   const [friends, setFriends] = useState<FriendData[]>([]);
   const [requests, setRequests] = useState<FriendRequestData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [friendSearchQuery, setFriendSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchUserResult[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -81,14 +82,24 @@ export default function FriendsPage() {
   useRef<Socket | null>(null);
   useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const filteredFriends = useMemo(() => {
+    const query = friendSearchQuery.trim().toLowerCase();
+    if (!query) return friends;
+    return friends.filter(
+      (f) =>
+        (f.username || "").toLowerCase().includes(query) ||
+        (f.fullname || "").toLowerCase().includes(query)
+    );
+  }, [friends, friendSearchQuery]);
+
   const sortedFriends = useMemo(() => {
-    return [...friends].sort((a, b) => {
+    return [...filteredFriends].sort((a, b) => {
       const aOnline = a.status === "online" ? 0 : 1;
       const bOnline = b.status === "online" ? 0 : 1;
       if (aOnline !== bOnline) return aOnline - bOnline;
       return (a.username || "").localeCompare(b.username || "");
     });
-  }, [friends]);
+  }, [filteredFriends]);
 
   const tabs: { id: TabId; label: string }[] = [
     { id: "all", label: "All" },
@@ -516,16 +527,30 @@ export default function FriendsPage() {
           ) : (
             /* All */
             <div>
+              <div className="relative mb-4 max-w-lg">
+                <FaSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#72767d]" />
+                <input
+                  type="text"
+                  value={friendSearchQuery}
+                  onChange={(e) => setFriendSearchQuery(e.target.value)}
+                  placeholder="Search your friends"
+                  className="h-11 w-full rounded-lg border border-white/[0.06] bg-[#18191c] pl-10 pr-3 text-sm text-white outline-none transition placeholder:text-[#72767d] focus:border-[#FFC341]/50 focus:ring-2 focus:ring-[#FFC341]/20"
+                />
+              </div>
               {sortedFriends.length === 0 ? (
                 <div className="rounded-2xl border border-white/[0.06] bg-[#111214] p-10 text-center">
                   <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-white/[0.06] bg-[#18191c]">
-                    <FaUserFriends className="h-5 w-5 text-[#72767d]" />
+                    <FaSearch className="h-5 w-5 text-[#72767d]" />
                   </div>
                   <p className="text-sm font-medium text-white">
-                    No friends yet.
+                    {friendSearchQuery.trim()
+                      ? "No friends found."
+                      : "No friends yet."}
                   </p>
                   <p className="mt-1 text-xs text-[#72767d]">
-                    Use Add Friend to start building your list.
+                    {friendSearchQuery.trim()
+                      ? "Try a different search term."
+                      : "Use Add Friend to start building your list."}
                   </p>
                 </div>
               ) : (
