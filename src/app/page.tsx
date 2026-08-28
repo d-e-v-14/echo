@@ -104,11 +104,17 @@ export default function Home() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const hash = window.location.hash;
-      const match = hash.match(/access_token=([^&]+)/);
-      const token = match ? match[1] : null;
+      if (!hash) return;
+      const params = new URLSearchParams(hash.substring(1));
+      const type = params.get("type");
+      const token = params.get("access_token");
 
-      if (token) {
-        router.replace(`/reset-password?token=${token}`);
+      if (token && type === "recovery") {
+        // Let Supabase ingest the recovery hash into the local session, then
+        // forward to the reset page without leaking the token in the URL.
+        supabase.auth.getSession().then(() => {
+          router.replace("/reset-password");
+        });
       }
     }
   }, [router]);

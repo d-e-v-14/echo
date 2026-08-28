@@ -79,10 +79,29 @@ export const logout = async () => {
       sessionStorage.setItem("skipGlobalLoader", "1");
     }
 
-    const res = await api.get("/api/auth/logout");
+    // Backend revokes the server-side session on logout, so the access token
+    // must travel with the request (Bearer header via interceptor, body fallback,
+    // or the httpOnly access cookie for web).
+    const res = await api.post("/api/auth/logout", {
+      accessToken: tokenStore.getAccessToken() ?? undefined,
+    });
 
     return res.data;
-  } catch (err) {
+  } catch (err: unknown) {
+    // 400 = session already gone server-side; 429 = auth endpoint rate-limited.
+    // Either way the local logout still succeeds (state is cleared in finally).
+    if (
+      err &&
+      typeof err === "object" &&
+      "response" in err &&
+      typeof (err as { response?: { status?: number } }).response?.status ===
+        "number" &&
+      [400, 429].includes(
+        (err as { response: { status: number } }).response.status
+      )
+    ) {
+      return { message: "Logged out successfully" };
+    }
     console.error("Logout error:", err);
     throw err;
   } finally {

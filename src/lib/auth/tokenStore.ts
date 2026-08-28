@@ -90,42 +90,58 @@ export const tokenStore = {
     return refreshInFlight;
   },
 
-  async doRefresh(): Promise<boolean> {
-    const refreshToken = this.getRefreshToken();
-    if (!refreshToken) {
-      this.clear();
-      return false;
-    }
-
+  async attemptRefresh(token: string | null): Promise<TokenBundle | null> {
     try {
       const response = await fetch(`${API_URL}/api/auth/refresh`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken }),
+        body: JSON.stringify(token ? { refreshToken: token } : {}),
       });
 
       if (!response.ok) {
-        this.clear();
-        return false;
+        return null;
       }
 
       const data = await response.json();
       if (!data.accessToken) {
-        this.clear();
-        return false;
+        return null;
       }
 
-      this.setTokens({
+      return {
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,
         expiresIn: data.expiresIn,
-      });
-      return true;
+      };
     } catch {
-      this.clear();
-      return false;
+      return null;
     }
+  },
+
+  async doRefresh(): Promise<boolean> {
+    const refreshToken = this.getRefreshToken();
+
+    if (refreshToken) {
+      const bundle = await this.attemptRefresh(refreshToken);
+      if (bundle) {
+        this.setTokens(bundle);
+        return true;
+      }
+    }
+
+    // Stored refresh token may be stale (the web server rotates the httpOnly
+    // refresh cookie on its own). Fall back to the cookie session so a
+    // middleware-driven rotation doesn't log the user out. For web this also
+    // covers the reload case where localStorage was cleared but the cookie
+    // session is still valid.
+    const cookieBundle = await this.attemptRefresh(null);
+    if (cookieBundle) {
+      this.setTokens(cookieBundle);
+      return true;
+    }
+
+    this.clear();
+    return false;
   },
 
   clear() {
