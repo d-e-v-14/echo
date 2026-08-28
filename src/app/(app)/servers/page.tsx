@@ -502,11 +502,9 @@ const ServersPageContent: React.FC = () => {
     const socket = getVoicePresenceSocket(user.id);
     if (!socket) return;
     socket.on("voice_channel_roster", handleRoster);
-    const interval = setInterval(fetchAllRosters, 5000);
 
     return () => {
       socket.off("voice_channel_roster", handleRoster);
-      clearInterval(interval);
       disconnectVoicePresenceSocket();
     };
   }, [voiceChannels, user?.id, activeCall?.channelId]);

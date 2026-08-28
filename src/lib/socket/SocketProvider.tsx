@@ -21,14 +21,16 @@ const USE_CREDENTIALS =
 
 const HEARTBEAT_INTERVAL_MS = 30000;
 
+// Give up reconnecting after a bounded number of attempts so a down/unreachable
+// server can't trigger an endless stream of connection + token-refresh requests.
 const SOCKET_CONFIG = {
   transports: ["websocket", "polling"],
   upgrade: true,
   timeout: 20000,
   reconnection: true,
-  reconnectionAttempts: Infinity,
-  reconnectionDelay: 500,
-  reconnectionDelayMax: 5000,
+  reconnectionAttempts: 10,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 10000,
   randomizationFactor: 0.5,
   withCredentials: USE_CREDENTIALS,
   forceNew: true,
@@ -57,6 +59,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const socketRef = useRef<Socket | null>(null);
   const joinedRoomsRef = useRef<Set<string>>(new Set());
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastTokenCheckRef = useRef(0);
 
   const stopHeartbeat = useCallback(() => {
     if (heartbeatRef.current) {
@@ -117,8 +120,14 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
       const handleConnectError = async (err: Error) => {
         console.error("Socket connect_error:", { message: err?.message });
-        const ok = await tokenStore.refresh();
-        if (!ok) {
+        // Reconnect loops can fire connect_error repeatedly in quick succession.
+        // Throttle, and only refresh when a fresh access token is actually
+        // missing, so a failing connection can't hammer /api/auth/refresh.
+        const now = Date.now();
+        if (now - lastTokenCheckRef.current < 30000) return;
+        lastTokenCheckRef.current = now;
+        const token = await tokenStore.ensureAccessToken();
+        if (!token) {
           newSocket.disconnect();
         }
       };
