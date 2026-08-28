@@ -13,6 +13,7 @@ export interface UseUnreadMessagesOptions {
   channelId: string;
   currentUserId: string;
   messages: ChannelMessage[];
+  serverId?: string;
 }
 
 export interface UseUnreadMessagesResult {
@@ -31,6 +32,7 @@ export function useUnreadMessages({
   channelId,
   currentUserId,
   messages,
+  serverId,
 }: UseUnreadMessagesOptions): UseUnreadMessagesResult {
   const [lastReadTimestamp, setLastReadTimestamp] = useState<string | null>(
     null
@@ -60,8 +62,8 @@ export function useUnreadMessages({
   );
 
   const markUnreadMentionsAsRead = useCallback(async () => {
-    await markChannelRead(channelId);
-  }, [channelId]);
+    await markChannelRead(channelId, serverId);
+  }, [channelId, serverId]);
 
   const updateLastRead = useCallback(
     (timestamp: string) => {

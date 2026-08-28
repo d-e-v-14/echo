@@ -60,6 +60,7 @@ export const isContentMentioningMe = (
     username?: string;
     roleIds: string[];
     roles: ChatRole[];
+    validUsernames?: Set<string>;
   }
 ): boolean => {
   if (!content) return false;
@@ -80,6 +81,14 @@ export const isContentMentioningMe = (
 
     const escapedRole = role.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     if (new RegExp(`@&${escapedRole}\\b`, "i").test(content)) return true;
+
+    // Single-token `@Role` form: only a role mention when no server member
+    // owns that name (matches backend user-first resolution).
+    const tokenMentioned = new RegExp(`@${escapedRole}\\b`, "i").test(content);
+    if (tokenMentioned) {
+      const nameIsAlsoAUser = (options.validUsernames?.has(role.name.toLowerCase()) ?? false);
+      if (!nameIsAlsoAUser) return true;
+    }
   }
 
   return false;

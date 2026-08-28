@@ -3,6 +3,11 @@ import {
   resetUnreadStore,
   configureUnreadStore,
   addUnreadMention,
+  applyMentionCreated,
+  applyMentionRead,
+  setAuthoritativeCounts,
+  deriveCountsFromEntries,
+  restoreUnreadEntries,
   hydrateUnread,
   normalizeMentionEntry,
   removeUnreadMention,
@@ -193,5 +198,255 @@ describe("pruning", () => {
     const snapshot = getSnapshot();
     expect(snapshot.channelCounts["ch-1"]).toBeUndefined();
     expect(snapshot.channelCounts["ch-2"]).toBe(1);
+  });
+});
+
+describe("authoritative counts contract", () => {
+  it("applies mention_notification counts verbatim without drifting", () => {
+    configureUnreadStore({ userId: "user-1", socket: null });
+
+    const createEvent = (channelUnreadCount: number) =>
+      flatMention({
+        id: "m1",
+        message_id: "m1",
+        channel_id: "ch-1",
+        server_id: "s1",
+        channelUnreadCount,
+        serverUnreadCount: 5,
+        totalUnreadCount: 8,
+      });
+
+    applyMentionCreated(createEvent(3), "user-1");
+    applyMentionCreated(createEvent(3), "user-1");
+
+    const snapshot = getSnapshot();
+    expect(snapshot.channelCounts["ch-1"]).toBe(3);
+    expect(snapshot.serverCounts["s1"]).toBe(5);
+    expect(snapshot.totalUnread).toBe(8);
+    expect(snapshot.channelMentions.get("ch-1")?.length).toBe(1);
+  });
+
+  it("increments derived counts for legacy payloads without counts", () => {
+    configureUnreadStore({ userId: "user-1", socket: null });
+    applyMentionCreated(
+      flatMention({ id: "a", message_id: "m1", channel_id: "ch-1", server_id: "s1" }),
+      "user-1"
+    );
+    applyMentionCreated(
+      flatMention({ id: "b", message_id: "m2", channel_id: "ch-1", server_id: "s1" }),
+      "user-1"
+    );
+
+    const snapshot = getSnapshot();
+    expect(snapshot.channelCounts["ch-1"]).toBe(2);
+    expect(snapshot.serverCounts["s1"]).toBe(2);
+    expect(snapshot.totalUnread).toBe(2);
+  });
+
+  it("applies mention_read for a channel: removes entries and sets counts", () => {
+    configureUnreadStore({ userId: "user-1", socket: null });
+    applyMentionCreated(flatMention({ id: "a", message_id: "m1" }), "user-1");
+    applyMentionCreated(flatMention({ id: "b", message_id: "m2" }), "user-1");
+
+    applyMentionRead({
+      notificationIds: ["a", "b"],
+      channelId: "ch-1",
+      serverId: "server-1",
+      channelUnreadCount: 0,
+      serverUnreadCount: 0,
+      totalUnreadCount: 0,
+    });
+
+    const snapshot = getSnapshot();
+    expect(snapshot.channelCounts["ch-1"]).toBe(0);
+    expect(snapshot.channelMentions.get("ch-1") ?? []).toEqual([]);
+    expect(snapshot.serverUnread["server-1"]).toBe(false);
+    expect(snapshot.totalUnread).toBe(0);
+  });
+
+  it("clears every channel of a server on a server-level read", () => {
+    configureUnreadStore({ userId: "user-1", socket: null });
+    applyMentionCreated(
+      flatMention({
+        id: "a",
+        message_id: "m1",
+        channel_id: "ch-1",
+        server_id: "s1",
+        serverUnreadCount: 2,
+        totalUnreadCount: 2,
+      }),
+      "user-1"
+    );
+    applyMentionCreated(
+      flatMention({
+        id: "b",
+        message_id: "m2",
+        channel_id: "ch-2",
+        server_id: "s1",
+        serverUnreadCount: 2,
+        totalUnreadCount: 1,
+      }),
+      "user-1"
+    );
+
+    applyMentionRead({
+      notificationIds: ["a", "b"],
+      serverId: "s1",
+      serverUnreadCount: 0,
+      totalUnreadCount: 0,
+    });
+
+    const snapshot = getSnapshot();
+    expect(snapshot.serverCounts["s1"]).toBe(0);
+    expect(snapshot.channelCounts["ch-1"]).toBeUndefined();
+    expect(snapshot.channelCounts["ch-2"]).toBeUndefined();
+    expect(snapshot.channelMentions.get("ch-1") ?? []).toEqual([]);
+    expect(snapshot.totalUnread).toBe(0);
+  });
+
+  it("replaces counts authoritatively and reconciles stale entries", () => {
+    configureUnreadStore({ userId: "user-1", socket: null });
+    applyMentionCreated(
+      flatMention({ id: "a", message_id: "m1", channel_id: "ch-1", server_id: "s1" }),
+      "user-1"
+    );
+    applyMentionCreated(
+      flatMention({ id: "b", message_id: "m2", channel_id: "ch-2", server_id: "s1" }),
+      "user-1"
+    );
+
+    setAuthoritativeCounts({
+      serverCounts: { s1: 1 },
+      channelCounts: { "ch-1": { serverId: "s1", count: 1 } },
+      totalUnread: 1,
+    });
+
+    const snapshot = getSnapshot();
+    expect(snapshot.channelMentions.get("ch-1")?.length).toBe(1);
+    expect(snapshot.channelMentions.get("ch-2") ?? []).toEqual([]);
+    expect(snapshot.serverCounts["s1"]).toBe(1);
+    expect(snapshot.serverChannels.get("s1")).toEqual(["ch-1"]);
+    expect(snapshot.totalUnread).toBe(1);
+  });
+
+  it("normalizes the per-server counts variant", () => {
+    configureUnreadStore({ userId: "user-1", socket: null });
+
+    setAuthoritativeCounts({
+      serverId: "s1",
+      serverCount: 2,
+      channelCounts: { "ch-1": 2 },
+      totalUnread: 2,
+    });
+
+    const snapshot = getSnapshot();
+    expect(snapshot.channelCounts["ch-1"]).toBe(2);
+    expect(snapshot.serverCounts["s1"]).toBe(2);
+    expect(snapshot.channelServer["ch-1"]).toBe("s1");
+  });
+
+  it("a newer socket event wins over an older-arriving snapshot count", () => {
+    configureUnreadStore({ userId: "user-1", socket: null });
+    setAuthoritativeCounts({
+      serverCounts: { s1: 3 },
+      channelCounts: { "ch-1": { serverId: "s1", count: 3 } },
+      totalUnread: 3,
+    });
+
+    applyMentionCreated(
+      flatMention({
+        id: "a",
+        message_id: "m1",
+        channel_id: "ch-1",
+        server_id: "s1",
+        channelUnreadCount: 4,
+        serverUnreadCount: 4,
+        totalUnreadCount: 4,
+      }),
+      "user-1"
+    );
+
+    const snapshot = getSnapshot();
+    expect(snapshot.channelCounts["ch-1"]).toBe(4);
+    expect(snapshot.serverCounts["s1"]).toBe(4);
+    expect(snapshot.totalUnread).toBe(4);
+  });
+
+  it("trims local entries when the count reports fewer than stored entries", () => {
+    configureUnreadStore({ userId: "user-1", socket: null });
+    applyMentionCreated(
+      flatMention({
+        id: "a",
+        message_id: "m1",
+        channel_id: "ch-1",
+        server_id: "s1",
+        channelUnreadCount: 2,
+        serverUnreadCount: 2,
+        totalUnreadCount: 2,
+      }),
+      "user-1"
+    );
+    applyMentionCreated(
+      flatMention({
+        id: "b",
+        message_id: "m2",
+        channel_id: "ch-1",
+        server_id: "s1",
+        channelUnreadCount: 2,
+        serverUnreadCount: 2,
+        totalUnreadCount: 2,
+      }),
+      "user-1"
+    );
+    applyMentionCreated(
+      flatMention({
+        id: "c",
+        message_id: "m3",
+        channel_id: "ch-1",
+        server_id: "s1",
+        channelUnreadCount: 2,
+        serverUnreadCount: 1,
+        totalUnreadCount: 1,
+      }),
+      "user-1"
+    );
+
+    const snapshot = getSnapshot();
+    const ids = snapshot.channelMentions.get("ch-1")?.map((e) => e.id) ?? [];
+    expect(ids).toHaveLength(2);
+    expect(ids).toContain("b");
+    expect(ids).toContain("c");
+    expect(ids).not.toContain("a");
+  });
+
+  it("restores entries and counts on optimistic-read rollback", () => {
+    configureUnreadStore({ userId: "user-1", socket: null });
+    applyMentionCreated(flatMention({ id: "a", message_id: "m1" }), "user-1");
+
+    const removed = removeChannelUnreadLocal("ch-1");
+    expect(getSnapshot().channelCounts["ch-1"]).toBeUndefined();
+
+    restoreUnreadEntries(removed);
+
+    const snapshot = getSnapshot();
+    expect(snapshot.channelCounts["ch-1"]).toBe(1);
+    expect(snapshot.serverCounts["server-1"]).toBe(1);
+    expect(snapshot.totalUnread).toBe(1);
+  });
+
+  it("derives counts from entries for backends without the counts endpoint", () => {
+    configureUnreadStore({ userId: "user-1", socket: null });
+    hydrateUnread([
+      normalizeMentionEntry(flatMention({ id: "a", message_id: "m1", channel_id: "ch-1", server_id: "s1" }))!,
+      normalizeMentionEntry(flatMention({ id: "b", message_id: "m2", channel_id: "ch-2", server_id: "s1" }))!,
+    ]);
+
+    deriveCountsFromEntries();
+
+    const snapshot = getSnapshot();
+    expect(snapshot.channelCounts["ch-1"]).toBe(1);
+    expect(snapshot.channelCounts["ch-2"]).toBe(1);
+    expect(snapshot.serverCounts["s1"]).toBe(2);
+    expect(snapshot.totalUnread).toBe(2);
   });
 });

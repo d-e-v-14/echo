@@ -120,7 +120,8 @@ const ServerRail: React.FC<{
         <div className="text-white text-xs text-center px-2" />
       ) : (
         servers.map((server, idx) => {
-          const hasUnread = (serverUnreadCounts[server.id] ?? 0) > 0;
+          const unreadCount = serverUnreadCounts[server.id] ?? 0;
+          const hasUnread = unreadCount > 0;
           return (
             <div key={server.id} className="relative">
               <img
@@ -133,10 +134,12 @@ const ServerRail: React.FC<{
               />
               {hasUnread && (
                 <span
-                  className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-red-500 border-2 border-black"
-                  title={`Unread activity in ${server.name}`}
-                  aria-label={`Unread activity in ${server.name}`}
-                />
+                  className="absolute -bottom-1 -right-1 min-w-[17px] h-[17px] rounded-full bg-red-500 border-2 border-black text-white text-[10px] font-bold flex items-center justify-center px-[3px] leading-none"
+                  title={`${unreadCount} unread mention${unreadCount === 1 ? "" : "s"} in ${server.name}`}
+                  aria-label={`${unreadCount} unread mentions in ${server.name}`}
+                >
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
               )}
             </div>
           );

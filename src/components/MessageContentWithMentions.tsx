@@ -127,16 +127,35 @@ export default function MessageContentWithMentions({
 
       const mentionText = match[0];
 
-      if (!isValidUsernameMention(mentionText)) {
+      if (isValidUsernameMention(mentionText)) {
+        mentions.push({
+          start: match.index!,
+          end: match.index! + match[0].length,
+          type: "user",
+          match: match[0],
+          displayText: match[0],
+        });
+
+        for (let i = match.index!; i < match.index! + match[0].length; i++) {
+          usedPositions.add(i);
+        }
         return;
       }
+
+      // Single-token role mention (`@Role`, no `&`). The backend resolves
+      // user-first, so this only counts as a role when no server member has
+      // that name.
+      const role = serverRoles.find(
+        (r) => r.name.toLowerCase() === username.toLowerCase()
+      );
+      if (!role) return;
 
       mentions.push({
         start: match.index!,
         end: match.index! + match[0].length,
-        type: "user",
+        type: "role",
         match: match[0],
-        displayText: match[0],
+        displayText: `@${role.name}`,
       });
 
       for (let i = match.index!; i < match.index! + match[0].length; i++) {
@@ -196,8 +215,9 @@ export default function MessageContentWithMentions({
       }
 
       const username = mention.match.substring(1);
-      const roleName =
-        mention.type === "role" ? mention.match.substring(2) : "";
+      const roleName = mention.match.startsWith("@&")
+        ? mention.match.substring(2)
+        : username;
 
       const role =
         mention.type === "role"

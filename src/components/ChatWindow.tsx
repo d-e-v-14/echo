@@ -205,7 +205,7 @@ export default forwardRef(function ChatWindow(
     unreadDividerIndex,
     markUnreadMentionsAsRead,
     updateLastRead,
-  } = useUnreadMessages({ channelId, currentUserId, messages });
+  } = useUnreadMessages({ channelId, currentUserId, messages, serverId });
 
   const { typingUsers, sendTyping } = useTyping({ channelId, currentUserId });
 
@@ -221,7 +221,7 @@ export default forwardRef(function ChatWindow(
   useEffect(() => {
     if (!positionedRef.current) return;
     if (channelUnreadCount > 0 && isNearBottomRef.current()) {
-      void markChannelRead(channelId);
+      void markChannelRead(channelId, serverId);
     }
   }, [channelUnreadCount, channelId]);
 

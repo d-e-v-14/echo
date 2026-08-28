@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSocket } from "@/lib/socket/SocketProvider";
 import { useUser } from "@/components/UserContext";
@@ -8,7 +8,10 @@ import { useServers } from "@/hooks/query/useServers";
 import { apiClient } from "@/utils/apiClient";
 import {
   configureUnreadStore,
-  addUnreadMention,
+  applyMentionCreated,
+  applyMentionRead,
+  setAuthoritativeCounts,
+  deriveCountsFromEntries,
   hydrateUnread,
   normalizeMentionEntry,
   removeUnreadMention,
@@ -94,44 +97,132 @@ export function MentionUnreadProvider({
     return unsubscribe;
   }, [queryClient, resolveServerId]);
 
-  useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
+  const refreshCountsRef = useRef<() => void>(() => {});
 
+  refreshCountsRef.current = useCallback(() => {
+    if (!userId) return;
+    let active = true;
+
+    const applyUnreadState = (
+      state: {
+        serverCounts?: Record<string, number>;
+        channelCounts?:
+          | Record<string, number>
+          | Record<string, { serverId?: string | null; count?: number }>;
+        totalUnread?: number;
+        serverId?: string;
+      } | null
+    ) => {
+      if (active && state && typeof state === "object") {
+        setAuthoritativeCounts(state);
+      }
+    };
+
+    const hydrateList = () => {
+      apiClient
+        .get(`/api/mentions?unreadOnly=true`)
+        .then((response) => {
+          if (!active) return;
+          const data = response.data;
+          if (!Array.isArray(data)) return;
+          const entries = data
+            .map((raw: unknown) => normalizeMentionEntry(raw, userId))
+            .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+          if (entries.length > 0) {
+            hydrateUnread(entries, userId);
+          }
+        })
+        .catch(() => {
+          // Best-effort; socket events keep state fresh.
+        });
+    };
+
+    // New backend: authoritative counts endpoint.
     apiClient
-      .get(`/api/mentions?userId=${encodeURIComponent(userId)}&unreadOnly=true`)
+      .get("/api/mentions/unread-counts")
       .then((response) => {
-        if (cancelled) return;
-        const data = response.data;
-        if (!Array.isArray(data)) return;
-        const entries = data
-          .map((raw: unknown) => normalizeMentionEntry(raw, userId))
-          .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
-        if (entries.length > 0) {
-          hydrateUnread(entries, userId);
+        if (active && response?.data && typeof response.data === "object") {
+          setAuthoritativeCounts(response.data);
         }
       })
       .catch(() => {
-        // Initial hydration is best-effort; realtime events keep state fresh.
+        // Older backend without the counts endpoint: derive from hydrated
+        // entries so the sidebar/counter still work.
+        deriveCountsFromEntries();
       });
 
+    // Entry-level list (both backends) for jump-to / highlight.
+    hydrateList();
+
+    // Socket-based authoritative counts (new backend).
+    if (socket?.emit) {
+      socket.emit("mentions:get_unread", applyUnreadState);
+    }
+
     return () => {
-      cancelled = true;
+      active = false;
     };
+  }, [userId, socket]);
+
+  // Hydrate on login/user change: full authoritative sync.
+  useEffect(() => {
+    if (!userId) return;
+    const cleanup = refreshCountsRef.current();
+    return cleanup;
   }, [userId]);
+
+  // Sync authoritative counts whenever the socket (re)connects, so a
+  // reconnect can never leave a stale count on screen.
+  useEffect(() => {
+    if (!socket) return;
+    const onConnect = () => {
+      refreshCountsRef.current();
+    };
+    socket.on("connect", onConnect);
+    return () => {
+      socket.off("connect", onConnect);
+    };
+  }, [socket]);
+
+  // Light refetch on window focus so returning to the tab shows fresh counts.
+  useEffect(() => {
+    if (!userId) return;
+    const onFocus = () => {
+      refreshCountsRef.current();
+    };
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [userId, socket]);
 
   useEffect(() => {
     if (!socket) return;
 
-    const onMention = (payload: unknown) => addUnreadMention(payload, userId);
-    const onMentionMarkedRead = (payload: unknown) =>
+    const onMention = (payload: unknown) => {
+      applyMentionCreated(payload, userId);
+    };
+    const onMentionRead = (payload: unknown) => {
+      applyMentionRead(payload);
+    };
+    const onUnreadState = (payload: unknown) => {
+      if (payload && typeof payload === "object") {
+        setAuthoritativeCounts(payload as any);
+      }
+    };
+    const onMentionMarkedRead = (payload: unknown) => {
       removeUnreadMention(payload);
+    };
 
     socket.on("mention_notification", onMention as any);
+    socket.on("mention_read", onMentionRead as any);
+    socket.on("mentions:unread_state", onUnreadState as any);
     socket.on("mention_marked_read", onMentionMarkedRead as any);
 
     return () => {
       socket.off("mention_notification", onMention as any);
+      socket.off("mention_read", onMentionRead as any);
+      socket.off("mentions:unread_state", onUnreadState as any);
       socket.off("mention_marked_read", onMentionMarkedRead as any);
     };
   }, [socket, userId]);
