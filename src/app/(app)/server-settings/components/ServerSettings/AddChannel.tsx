@@ -151,7 +151,9 @@ const AddChannel: React.FC<AddChannelProps> = ({ serverId }) => {
                 className="w-full bg-[#18191c] text-base text-white border border-white/[0.06] rounded px-3 py-2 focus:border-[#FFC341] focus:outline-none transition-colors"
               >
                 <option value="text">Text</option>
+                {/* Voice channels disabled
                 <option value="voice">Voice</option>
+                */}
               </select>
             </div>
             <div>

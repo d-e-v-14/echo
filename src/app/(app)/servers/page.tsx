@@ -5,7 +5,7 @@ import {
   disconnectVoicePresenceSocket,
   getVoicePresenceSocket,
 } from "@/lib/voicePresenceSocket";
-import { PhoneCall, PhoneOff, Users, PanelRightOpen } from "lucide-react";
+// import { PhoneCall, PhoneOff, Users, PanelRightOpen } from "lucide-react";
 import React, {
   useState,
   useEffect,
@@ -23,13 +23,13 @@ import {
   FaLock,
   FaTrash,
   FaTimes,
-  FaVolumeUp,
-  FaMicrophone,
-  FaMicrophoneSlash,
-  FaVideo,
-  FaVideoSlash,
+  // FaVolumeUp,
+  // FaMicrophone,
+  // FaMicrophoneSlash,
+  // FaVideo,
+  // FaVideoSlash,
 } from "react-icons/fa";
-import VoiceChannel from "@/components/EnhancedVoiceChannel";
+// import VoiceChannel from "@/components/EnhancedVoiceChannel";
 import { updateChannel, deleteChannel } from "@/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServers } from "@/hooks/query/useServers";
@@ -49,7 +49,7 @@ import {
 import { useSearchParams } from "next/navigation";
 import { useVoiceCall } from "@/contexts/VoiceCallContext";
 import { useJoinServerModal } from "@/contexts/JoinServerModalContext";
-import { supabase } from "@/lib/supabaseClient";
+// import { supabase } from "@/lib/supabaseClient";
 import Toast from "@/components/Toast";
 import {
   ChannelListSkeleton,
@@ -57,7 +57,7 @@ import {
   ServerRailSkeleton,
 } from "@/components/loading/skeletons";
 import { PageSkeleton } from "@/components/loading/pageSkeletons";
-import InlineSpinner from "@/components/loading/InlineSpinner";
+// import InlineSpinner from "@/components/loading/InlineSpinner";
 
 interface Channel {
   id: string;
@@ -215,7 +215,8 @@ const ServersPageContent: React.FC = () => {
   } | null>(null);
   const [isSavingChannel, setIsSavingChannel] = useState(false);
   const [isDeletingChannel, setIsDeletingChannel] = useState(false);
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  // Voice disabled
+  const [voiceEnabled] = useState(false);
 
   const queryClient = useQueryClient();
   const {
@@ -295,84 +296,87 @@ const ServersPageContent: React.FC = () => {
     speaking?: boolean;
   };
 
-  const [channelRosters, setChannelRosters] = useState<
+  // channelRosters value is only used in commented-out voice code; only the setter below is used.
+  const [, setChannelRosters] = useState<
     Record<string, ChannelRoster[]>
   >({});
 
   const {
     activeCall,
-    isConnected,
-    isConnecting,
+    // Voice state disabled (commented out)
+    // isConnected,
+    // isConnecting,
     participants,
-    localMediaState,
-    localVideoTileId,
-    localScreenTileId,
-    localScreenStream,
-    videoTiles,
-    manager,
-    joinCall,
-    leaveCall,
-    permissionError,
-    connectionError,
+    // localMediaState,
+    // localVideoTileId,
+    // localScreenTileId,
+    // localScreenStream,
+    // videoTiles,
+    // manager,
+    // joinCall,
+    // leaveCall,
+    // permissionError,
+    // connectionError,
   } = useVoiceCall();
-  const externalState = useMemo(
-    () => ({
-      participants,
-      localMediaState,
-      localVideoTileId,
-      localScreenTileId,
-      localScreenStream,
-      videoTiles,
-      isConnected,
-      isConnecting,
-      permissionError,
-      connectionError,
-    }),
-    [
-      participants,
-      localMediaState,
-      localVideoTileId,
-      localScreenTileId,
-      localScreenStream,
-      videoTiles,
-      isConnected,
-      isConnecting,
-      permissionError,
-      connectionError,
-    ]
-  );
+  // Voice state disabled
+  // const externalState = useMemo(
+  //   () => ({
+  //     participants,
+  //     localMediaState,
+  //     localVideoTileId,
+  //     localScreenTileId,
+  //     localScreenStream,
+  //     videoTiles,
+  //     isConnected,
+  //     isConnecting,
+  //     permissionError,
+  //     connectionError,
+  //   }),
+  //   [
+  //     participants,
+  //     localMediaState,
+  //     localVideoTileId,
+  //     localScreenTileId,
+  //     localScreenStream,
+  //     videoTiles,
+  //     isConnected,
+  //     isConnecting,
+  //     permissionError,
+  //     connectionError,
+  //   ]
+  // );
 
-  const displayRosters = useMemo(() => {
-    const merged = { ...channelRosters };
-
-    if (activeCall && activeCall.serverId === selectedServerId) {
-      const existingById = new Map(
-        (merged[activeCall.channelId] || []).map((m) => [m.id, m])
-      );
-
-      const fromCall: ChannelRoster[] = participants.map((member) => {
-        const id = member.oduserId || member.attendeeId;
-        const base: ChannelRoster = {
-          id,
-          username:
-            member.name ||
-            member.oduserId ||
-            `User ${member.attendeeId.slice(0, 8)}`,
-          muted: member.muted,
-          video: member.video,
-          speaking: member.speaking,
-        };
-        const prev = existingById.get(id);
-        return prev
-          ? { ...prev, ...base, speaking: base.speaking || prev.speaking }
-          : base;
-      });
-
-      merged[activeCall.channelId] = fromCall;
-    }
-
-    return merged;
-  }, [channelRosters, activeCall, selectedServerId, participants]);
+  // const displayRosters = useMemo(() => {
+  //   const merged = { ...channelRosters };
+  //
+  //   if (activeCall && activeCall.serverId === selectedServerId) {
+  //     const existingById = new Map(
+  //       (merged[activeCall.channelId] || []).map((m) => [m.id, m])
+  //     );
+  //
+  //     const fromCall: ChannelRoster[] = participants.map((member) => {
+  //       const id = member.oduserId || member.attendeeId;
+  //       const base: ChannelRoster = {
+  //         id,
+  //         username:
+  //           member.name ||
+  //           member.oduserId ||
+  //           `User ${member.attendeeId.slice(0, 8)}`,
+  //         muted: member.muted,
+  //         video: member.video,
+  //         speaking: member.speaking,
+  //       };
+  //       const prev = existingById.get(id);
+  //       return prev
+  //         ? { ...prev, ...base, speaking: base.speaking || prev.speaking }
+  //         : base;
+  //     });
+  //
+  //     merged[activeCall.channelId] = fromCall;
+  //   }
+  //
+  //   return merged;
+  // }, [channelRosters, activeCall, selectedServerId, participants]);
   const isVoiceActiveForCurrentServer =
     activeCall?.serverId === selectedServerId;
 
@@ -628,24 +632,25 @@ const ServersPageContent: React.FC = () => {
     };
   }, [selectedServerId, activeCall, servers, handleServerSelect]);
 
-  useEffect(() => {
-    let cancelled = false;
-    const loadVoiceFlag = async () => {
-      try {
-        const { data: controls } = await supabase
-          .from("admin_controls")
-          .select("voice_enabled")
-          .single();
-        if (!cancelled) setVoiceEnabled(controls?.voice_enabled ?? true);
-      } catch {
-        if (!cancelled) setVoiceEnabled(true);
-      }
-    };
-    void loadVoiceFlag();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // Voice disabled: keep flag off for all users regardless of admin_controls.
+  // useEffect(() => {
+  //   let cancelled = false;
+  //   const loadVoiceFlag = async () => {
+  //     try {
+  //       const { data: controls } = await supabase
+  //         .from("admin_controls")
+  //         .select("voice_enabled")
+  //         .single();
+  //       if (!cancelled) setVoiceEnabled(controls?.voice_enabled ?? true);
+  //     } catch {
+  //       if (!cancelled) setVoiceEnabled(true);
+  //     }
+  //   };
+  //   void loadVoiceFlag();
+  //   return () => {
+  //     cancelled = true;
+  //   };
+  // }, []);
 
   useEffect(() => {
     if (selectedServerId) {
@@ -703,39 +708,40 @@ const ServersPageContent: React.FC = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.servers });
   }, [refresh, queryClient]);
 
-  const handleHangUp = () => {
-    if (activeCall && user?.id) {
-      setChannelRosters((prev) => ({
-        ...prev,
-        [activeCall.channelId]: (prev[activeCall.channelId] || []).filter(
-          (member) => member.id !== user.id
-        ),
-      }));
-    }
-    leaveCall();
-    setViewMode("chat");
-  };
-
-  const handleJoinVoiceChannel = async (channel: Channel) => {
-    if (!selectedServerId) return;
-    try {
-      setSelectedChannelId(channel.id);
-      setViewMode("voice");
-      await joinCall(
-        channel.id,
-        channel.name,
-        selectedServerId,
-        selectedServerName || "Server"
-      );
-    } catch (err: any) {
-      setViewMode("chat");
-      setToast({
-        message:
-          err?.message || "Failed to join voice channel. Please try again.",
-        type: "error",
-      });
-    }
-  };
+  // Voice disabled
+  // const handleHangUp = () => {
+  //   if (activeCall && user?.id) {
+  //     setChannelRosters((prev) => ({
+  //       ...prev,
+  //       [activeCall.channelId]: (prev[activeCall.channelId] || []).filter(
+  //         (member) => member.id !== user.id
+  //       ),
+  //     }));
+  //   }
+  //   leaveCall();
+  //   setViewMode("chat");
+  // };
+  //
+  // const handleJoinVoiceChannel = async (channel: Channel) => {
+  //   if (!selectedServerId) return;
+  //   try {
+  //     setSelectedChannelId(channel.id);
+  //     setViewMode("voice");
+  //     await joinCall(
+  //       channel.id,
+  //       channel.name,
+  //       selectedServerId,
+  //       selectedServerName || "Server"
+  //     );
+  //   } catch (err: any) {
+  //     setViewMode("chat");
+  //     setToast({
+  //       message:
+  //         err?.message || "Failed to join voice channel. Please try again.",
+  //       type: "error",
+  //     });
+  //   }
+  // };
 
   const closeChannelSettings = () => {
     if (isSavingChannel || isDeletingChannel) return;
@@ -1103,6 +1109,7 @@ const ServersPageContent: React.FC = () => {
                   })}
                 </div>
 
+                {/* Voice channels disabled
                 <div className="px-2">
                   <h3 className="text-xs font-bold uppercase text-gray-400 mt-4 mb-2">
                     Voice Channels
@@ -1208,9 +1215,11 @@ const ServersPageContent: React.FC = () => {
                     );
                   })}
                 </div>
+                */}
                   </>
                 )}
 
+                {/* Active voice call panel disabled
                 {isVoiceActiveForCurrentServer && activeCall && (
                   <div className="mt-auto p-2">
                     <div className="flex items-center justify-between rounded-lg bg-[#111214] border border-[#2b2d31] px-3 py-2">
@@ -1254,12 +1263,14 @@ const ServersPageContent: React.FC = () => {
                     </div>
                   </div>
                 )}
+                */}
               </div>
             </div>
 
             <div className="flex-1 min-w-0 relative text-white bg-black flex flex-col">
 
               <>
+                {/* Voice call area disabled
                 <div
                   className={`flex-1 w-full h-full ${showVoiceUI ? "flex" : "hidden"}`}
                 >
@@ -1291,6 +1302,7 @@ const ServersPageContent: React.FC = () => {
                     </div>
                   )}
                 </div>
+                */}
 
                 <div
                   className={`flex-1 overflow-hidden ${
