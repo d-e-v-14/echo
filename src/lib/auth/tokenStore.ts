@@ -95,7 +95,10 @@ export const tokenStore = {
       const response = await fetch(`${API_URL}/api/auth/refresh`, {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
         body: JSON.stringify(token ? { refreshToken: token } : {}),
       });
 
