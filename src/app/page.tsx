@@ -12,6 +12,8 @@ import Modal from "react-modal";
 import { FaGoogle } from "react-icons/fa";
 import { supabase } from "@/lib/supabaseClient";
 import InlineSpinner from "@/components/loading/InlineSpinner";
+import { toast } from "@/contexts/ToastContext";
+import { getAuthErrorMessage } from "@/components/toast/errorNormalizer";
 
 Modal.setAppElement("body");
 
@@ -23,8 +25,11 @@ export default function Home() {
   const [lastScrollY, setLastScrollY] = useState(0);
   const [showPopup] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
 
   const handleGoogleSignIn = async () => {
+    if (signingIn) return;
+    setSigningIn(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -37,6 +42,8 @@ export default function Home() {
 
     if (error) {
       console.error("Error initiating Google sign-in:", error);
+      toast.error(getAuthErrorMessage(error));
+      setSigningIn(false);
     }
   };
 
@@ -335,10 +342,12 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={handleGoogleSignIn}
+                  disabled={signingIn}
                   className="
                     inline-flex
                     min-h-[50px]
                     items-center
+                    justify-center
                     gap-3
                     rounded-lg
                     bg-white
@@ -354,11 +363,21 @@ export default function Home() {
                     hover:bg-gray-100
                     hover:shadow-xl
                     active:translate-y-0
+                    disabled:cursor-not-allowed
+                    disabled:opacity-70
                   "
                 >
-                  <FaGoogle className="text-[19px] text-[#4285F4]" />
-
-                  <span>Continue with Google</span>
+                  {signingIn ? (
+                    <>
+                      <InlineSpinner size="sm" className="border-gray-300 border-t-[#4285F4]" />
+                      <span>Redirecting to Google…</span>
+                    </>
+                  ) : (
+                    <>
+                      <FaGoogle className="text-[19px] text-[#4285F4]" />
+                      <span>Continue with Google</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>

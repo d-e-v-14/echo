@@ -8,7 +8,7 @@ import { apiClient } from "@/api/axios";
 import { logout } from "@/api/auth.api";
 import { queryKeys } from "@/lib/query/keys";
 import { useUser } from "@/components/UserContext";
-import { useToast } from "@/contexts/ToastContext";
+import { useToast, toast } from "@/contexts/ToastContext";
 import { ProfileBanner } from "@/components/profile/ProfileBanner";
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { ProfileIdentity } from "@/components/profile/ProfileIdentity";
@@ -170,14 +170,24 @@ export default function ProfilePage() {
   };
 
   const handleLogout = async () => {
+    const loadingToast = toast.loading("Logging out…");
     try {
       await logout();
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      window.location.href = "/";
+      toast.update(loadingToast, {
+        type: "success",
+        message: "Logged out successfully",
+      });
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 600);
     } catch (err) {
       console.error("Failed to logout:", err);
-      showToast("Failed to logout", "error");
+      toast.update(loadingToast, {
+        type: "error",
+        message: "Failed to logout. Please try again.",
+      });
     }
   };
 

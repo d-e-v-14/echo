@@ -18,7 +18,7 @@ import {
 
 import { getUserAvatar } from "@/api/profile.api";
 import { useSocket } from "@/lib/socket/SocketProvider";
-import Toast from "@/components/Toast";
+import { toast } from "@/contexts/ToastContext";
 import { MessageSearchResult } from "@/api/types/message.types";
 
 import { apiClient as profileApiClient } from "@/api/axios";
@@ -102,11 +102,6 @@ export default forwardRef(function ChatWindow(
   const [micOn, setMicOn] = useState<boolean>(true);
   const [camOn, setCamOn] = useState<boolean>(true);
   const [isSending, setIsSending] = useState(false);
-  const [toast, setToast] = useState<{
-    message: string;
-    type: "info" | "success" | "error";
-    key: number;
-  } | null>(null);
   const [currentUserAvatar, setCurrentUserAvatar] =
     useState<string>(DEFAULT_AVATAR);
   const [replyingTo, setReplyingTo] = useState<ChannelMessage | null>(null);
@@ -175,6 +170,7 @@ export default forwardRef(function ChatWindow(
     loadingMore,
     hasMore,
     isInitialLoadDone,
+    loadError,
     loadMessages,
     addOptimistic,
     reconcileTemp,
@@ -212,6 +208,19 @@ export default forwardRef(function ChatWindow(
   const channelUnreadCount = useMentionUnreadCount(channelId);
 
   const positionedRef = useRef(false);
+
+  const loadErrorShownForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      loadError &&
+      !loadingMessages &&
+      messages.length === 0 &&
+      loadErrorShownForRef.current !== channelId
+    ) {
+      loadErrorShownForRef.current = channelId;
+      toast.error("We couldn't load the messages. Please try again.");
+    }
+  }, [loadError, loadingMessages, messages.length, channelId]);
   const isNearBottomRef = useRef<() => boolean>(() => false);
 
   useEffect(() => {
@@ -578,12 +587,9 @@ export default forwardRef(function ChatWindow(
           setTimeout(() => setPermissionError(null), 5000);
           dropTemp(tempId);
         } else {
+          // The optimistic bubble is already marked failed inline ("Not
+          // delivered"), so no toast is needed here to avoid duplicate feedback.
           markFailed(new Set([tempId]));
-          setToast({
-            message: "Upload failed: size exceeded",
-            type: "error",
-            key: Date.now(),
-          });
         }
       }
     },
@@ -647,13 +653,11 @@ export default forwardRef(function ChatWindow(
 
       const invalid = annotated.filter((f) => !f.valid);
       if (invalid.length > 0) {
-        setToast({
-          message: invalid
+        toast.error(
+          invalid
             .map((f) => `"${f.file.name}": ${f.errorReason}`)
-            .join("\n"),
-          type: "error",
-          key: Date.now(),
-        });
+            .join("\n")
+        );
       }
 
       const validFiles = annotated.filter((f) => f.valid).map((f) => f.file);
@@ -698,23 +702,17 @@ export default forwardRef(function ChatWindow(
         result.channel_id &&
         result.channel_id !== channelId
       ) {
-        setToast({
-          message: `This message is in #${
+        toast.info(
+          `This message is in #${
             result.channel_name || "another channel"
-          }. Switch to that channel to view it.`,
-          type: "info",
-          key: Date.now(),
-        });
+          }. Switch to that channel to view it.`
+        );
         return;
       }
 
       const success = await scroll.scrollToMessage(result.id, { highlightMs: 1500 });
       if (!success) {
-        setToast({
-          message: "Could not find that message in the loaded history.",
-          type: "error",
-          key: Date.now(),
-        });
+        toast.error("Could not find that message in the loaded history.");
       }
     },
     [reactionMode, channelId, scroll]
@@ -814,18 +812,6 @@ export default forwardRef(function ChatWindow(
           onSelectResult={handleSearchSelect}
           showChannelName={reactionMode === "channel"}
         />
-      )}
-
-      {toast && (
-        <div className="fixed top-6 right-6 z-[9999]">
-          <Toast
-            key={toast.key}
-            message={toast.message}
-            type={toast.type}
-            duration={4000}
-            onClose={() => setToast(null)}
-          />
-        </div>
       )}
 
       {(localStream || (remoteStreams && remoteStreams.length > 0)) && (

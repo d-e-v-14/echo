@@ -18,6 +18,8 @@ import { Role as RoleType, RoleCategory } from "@/api/types/roles.types";
 import { SettingsFormSkeleton } from "@/components/loading/pageSkeletons";
 import InlineSpinner from "@/components/loading/InlineSpinner";
 import { invalidateServerPermissionQueries } from "@/lib/query/roleSync";
+import { toast } from "@/contexts/ToastContext";
+import { getErrorMessage } from "@/components/toast/errorNormalizer";
 
 interface RoleProps {
   serverId: string;
@@ -76,7 +78,7 @@ function MemberRoleView({ serverId }: { serverId: string }) {
         const myRoleIds = new Set(myRolesData.map((r: RoleType) => r.id));
         setSelectedRoleIds(myRoleIds);
       } catch (err: any) {
-        setError(err.response?.data?.error || "Failed to load roles");
+        setError(getErrorMessage(err, "Failed to load roles"));
       } finally {
         setLoading(false);
       }
@@ -139,7 +141,7 @@ function MemberRoleView({ serverId }: { serverId: string }) {
 
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to update roles");
+      setError(getErrorMessage(err, "Failed to update roles"));
     } finally {
       setSaving(false);
     }
@@ -348,7 +350,7 @@ function AdminRoleView({
         setRoles(rolesData);
         setCategories(categoriesData);
       } catch (err: any) {
-        setError(err.response?.data?.error || "Failed to load roles");
+        setError(getErrorMessage(err, "Failed to load roles"));
       } finally {
         setLoading(false);
       }
@@ -376,8 +378,9 @@ function AdminRoleView({
       setNewRoleCategory("");
       setShowAddPopup(false);
       invalidateServerPermissionQueries(queryClient, serverId);
+      toast.success("Role created");
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to create role");
+      setError(getErrorMessage(err, "Failed to create role"));
     } finally {
       setSaving(false);
     }
@@ -397,8 +400,9 @@ function AdminRoleView({
       setNewCategoryName("");
       setNewCategoryDescription("");
       setShowCategoryPopup(false);
+      toast.success("Category created");
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to create category");
+      setError(getErrorMessage(err, "Failed to create category"));
     } finally {
       setSaving(false);
     }
@@ -429,8 +433,9 @@ function AdminRoleView({
       setRoles(roles.map((r) => (r.id === updatedRole.id ? updatedRole : r)));
       setSelectedRole(null);
       invalidateServerPermissionQueries(queryClient, serverId);
+      toast.success("Role updated");
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to update role");
+      setError(getErrorMessage(err, "Failed to update role"));
     } finally {
       setSaving(false);
     }
@@ -459,8 +464,9 @@ function AdminRoleView({
       setRoles(roles.filter((r) => r.id !== roleId));
       setSelectedRole(null);
       invalidateServerPermissionQueries(queryClient, serverId);
+      toast.success("Role deleted");
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to delete role");
+      setError(getErrorMessage(err, "Failed to delete role"));
     } finally {
       setSaving(false);
     }
@@ -480,8 +486,9 @@ function AdminRoleView({
     try {
       await deleteRoleCategory(serverId, categoryId);
       setCategories(categories.filter((c) => c.id !== categoryId));
+      toast.success("Category deleted");
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to delete category");
+      setError(getErrorMessage(err, "Failed to delete category"));
     }
   };
 

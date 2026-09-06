@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { addFriend, removeFriend } from "@/api";
 import { queryKeys } from "@/lib/query/keys";
+import { getErrorMessage } from "@/components/toast/errorNormalizer";
 import { ProfileBanner } from "./ProfileBanner";
 import { ProfileAvatar } from "./ProfileAvatar";
 import { ProfileIdentity } from "./ProfileIdentity";
@@ -145,11 +146,7 @@ export function UserProfileCard({
         }
         queryClient.invalidateQueries({ queryKey: queryKeys.friends });
       } catch (error: any) {
-        setActionError(
-          error?.response?.data?.message ||
-            error?.response?.data?.error ||
-            "Something went wrong. Please try again."
-        );
+        setActionError(getErrorMessage(error, "Something went wrong. Please try again."));
       } finally {
         setInternalActionLoading(false);
       }

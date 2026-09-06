@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { deleteServer, transferServerOwnership, getServerMembers, getUser } from "@/api";
 import { useToast } from "@/contexts/ToastContext";
+import { getErrorMessage } from "@/components/toast/errorNormalizer";
 
 interface DangerZoneProps {
   serverId: string;
@@ -82,7 +83,7 @@ export default function DangerZone({
       showToast("Server deleted", "success");
       setTimeout(() => router.push("/servers"), 800);
     } catch (err: any) {
-      showToast(err?.message || "Failed to delete server", "error");
+      showToast(getErrorMessage(err, "Failed to delete server"), "error");
     } finally {
       setLoading(false);
       setShowDeleteModal(false);
@@ -98,7 +99,10 @@ export default function DangerZone({
       showToast("Ownership transferred", "success");
       setTimeout(() => router.push("/servers"), 800);
     } catch (err: any) {
-      showToast(err?.message || "Failed to transfer ownership", "error");
+      showToast(
+        getErrorMessage(err, "Failed to transfer ownership"),
+        "error"
+      );
     } finally {
       setLoading(false);
       setShowTransferModal(false);

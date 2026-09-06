@@ -1,10 +1,10 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { LogOut } from "lucide-react";
 
 import { logout } from "@/api";
-import Toast from "@/components/Toast";
 import { useUser } from "@/components/UserContext";
+import { toast } from "@/contexts/ToastContext";
 import { UserProfileCard, type ProfileMenuItem } from "@/components/profile/UserProfileCard";
 import { ProfileSkeleton } from "@/components/profile/ProfileSkeleton";
 import { useSelfProfile } from "@/components/profile/useProfileData";
@@ -12,32 +12,26 @@ import type { ProfileCardFallback } from "@/components/profile/profile.types";
 
 export default function ProfilePage() {
   const { user } = useUser();
-  const [toast, setToast] = useState<{
-    message: string;
-    type: "info" | "success" | "error";
-  } | null>(null);
-
-  const showToast = (
-    message: string,
-    type: "info" | "success" | "error" = "info"
-  ) => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
 
   const handleLogout = async () => {
+    const loadingToast = toast.loading("Logging out…");
     try {
-      showToast("Logging out…", "info");
       await logout();
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      showToast("Logged out successfully", "success");
+      toast.update(loadingToast, {
+        type: "success",
+        message: "Logged out successfully",
+      });
       setTimeout(() => {
         window.location.href = "/";
-      }, 800);
+      }, 600);
     } catch (error) {
       console.error("Failed to logout:", error);
-      showToast("Failed to logout", "error");
+      toast.update(loadingToast, {
+        type: "error",
+        message: "Failed to logout. Please try again.",
+      });
     }
   };
 
@@ -86,23 +80,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <>
-      {toast &&
-        (() => {
-          const { message, type } = toast;
-          return (
-            <div className="fixed top-6 right-6 z-[9999]">
-              <Toast
-                message={message}
-                type={type}
-                duration={3000}
-                onClose={() => setToast(null)}
-              />
-            </div>
-          );
-        })()}
-
-      <div className="flex min-h-screen items-start justify-center bg-black px-4 py-10 font-poppins sm:py-16">
+    <div className="flex min-h-screen items-start justify-center bg-black px-4 py-10 font-poppins sm:py-16">
         <UserProfileCard
           variant="page"
           user={fallbackUser}
@@ -111,6 +89,5 @@ export default function ProfilePage() {
           menuItems={menuItems}
         />
       </div>
-    </>
   );
 }

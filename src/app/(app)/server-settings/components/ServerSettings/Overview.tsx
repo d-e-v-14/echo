@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { updateServer } from "@/api";
 import { ServerDetails } from "@/api/types/server.types";
+import { getErrorMessage } from "@/components/toast/errorNormalizer";
 
 interface OverviewProps {
   serverId: string;
@@ -63,7 +64,7 @@ export default function Overview({
       setIconFile(null);
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (err: any) {
-      const msg = err.response?.data?.message || err.message || "Failed to save";
+      const msg = getErrorMessage(err, "Failed to save");
       setErrorMessage(msg);
       setTimeout(() => setErrorMessage(""), 5000);
     } finally {

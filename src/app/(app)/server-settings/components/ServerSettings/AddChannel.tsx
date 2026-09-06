@@ -7,6 +7,7 @@ import { Role } from "@/api/types/roles.types";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query";
 import { useToast } from "@/contexts/ToastContext";
+import { getErrorMessage } from "@/components/toast/errorNormalizer";
 
 interface AddChannelProps {
   serverId: string;
@@ -101,10 +102,7 @@ const AddChannel: React.FC<AddChannelProps> = ({ serverId }) => {
       setSelectedRoleIds([]);
       setSelectedModeratorIds([]);
     } catch (err: any) {
-      showToast(
-        err?.response?.data?.error || err?.message || "Failed to create channel",
-        "error"
-      );
+      showToast(getErrorMessage(err, "Failed to create channel"), "error");
     } finally {
       setLoading(false);
     }

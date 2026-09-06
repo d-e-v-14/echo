@@ -6,7 +6,7 @@
 // import axios from "axios";
 // import Link from "next/link";
 // import InlineSpinner from "@/components/loading/InlineSpinner";
-// import Toast from "@/components/Toast";
+// import { toast } from "@/contexts/ToastContext";
 
 // function ChangePasswordContent() {
 //   const router = useRouter();

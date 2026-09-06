@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { forgotPassword } from "@/api";
+import { getErrorMessage } from "@/components/toast/errorNormalizer";
 
 export default function ForgotPassword() {
   const [identifier, setIdentifier] = useState("");
@@ -18,7 +19,9 @@ export default function ForgotPassword() {
       setSubmitted(true);
     } catch (err: any) {
       setSubmitted(false);
-      setError(err?.response?.data?.message || "Something went wrong.");
+      setError(
+        getErrorMessage(err, "We couldn't send the reset link. Please try again.")
+      );
     }
   }
 

@@ -12,6 +12,7 @@ import {
   FaPhoneSlash,
 } from "react-icons/fa";
 import { VoiceVideoManager } from "@/lib/VoiceVideoManager";
+import { toast } from "@/contexts/ToastContext";
 
 interface MediaState {
   muted: boolean;
@@ -161,7 +162,7 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
         e?.name !== "NotAllowedError" &&
         !e?.message?.includes("Permission denied")
       ) {
-        alert("Screen sharing failed. Please try again.");
+        toast.error("Screen sharing failed. Please try again.");
       }
     }
   };

@@ -34,8 +34,7 @@ import { useSocket } from "@/lib/socket/SocketProvider";
 import MessageBubble from "./MessageBubble";
 import MessageAttachment from "./MessageAttachment";
 import { useMessageNotifications } from "@/contexts/MessageNotificationContext";
-import Toast from "@/components/Toast";
-import { useToast } from "@/contexts/ToastContext";
+import { toast } from "@/contexts/ToastContext";
 import UserProfileModal from "./UserProfileModal";
 import { ScrollToBottomButton } from "@/components/ScrollToBottomButton";
 import { useChatScroll } from "@/hooks/useChatScroll";
@@ -210,9 +209,6 @@ const ChatList: React.FC<ChatListProps> = ({
                         : "text-white hover:bg-white/[0.04]"
                     }`}
                   >
-                    {hasUnread && (
-                      <span className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-green-500" />
-                    )}
                     <div className="relative h-10 w-10 flex-shrink-0">
                       <div className="h-10 w-10 overflow-hidden rounded-full border border-slate-700/60 bg-slate-800/60">
                         {user.avatar_url ? (
@@ -306,7 +302,6 @@ interface ChatWindowProps {
     fallbackName?: string,
     fallbackAvatar?: string
   ) => void;
-  onToast: (msg: string, type: "info" | "success" | "error") => void;
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -321,11 +316,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   threadId,
   allUsers,
   onSendMessage,
-  onToast,
   onOpenProfile,
 }) => {
 
-  useToast();
   const [replyingTo, setReplyingTo] = useState<DMReplyTarget>(null);
   const [showSearch, setShowSearch] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -442,10 +435,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         highlightMs: 1800,
       });
       if (!success) {
-        onToast("Could not find that message in this conversation.", "error");
+        toast.error("Could not find that message in this conversation.");
       }
     },
-    [scroll, onToast]
+    [scroll]
   );
 
   useEffect(() => {
@@ -772,7 +765,6 @@ function MessagesPageContentInner() {
   }, [dmSummaries]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [, setFileError] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const [selectedUser, setSelectedUser] = useState<{
     id: string;
@@ -781,11 +773,6 @@ function MessagesPageContentInner() {
   } | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const pageReady = usePageReady();
-  const [toast, setToast] = useState<{
-    message: string;
-    type: "info" | "success" | "error";
-    key: number;
-  } | null>(null);
 
   const { socket } = useSocket();
   const activeDmIdRef = useRef<string | null>(null);
@@ -835,7 +822,24 @@ function MessagesPageContentInner() {
     hasPreviousPage,
     isFetchingPreviousPage,
     isLoading: isLoadingDmMessages,
+    isError: dmMessagesError,
   } = useDmMessages(activeDmId, activeThreadId);
+
+  const dmLoadErrorShownForRef = useRef<string | null>(null);
+  const dmMessagesDataRef = useRef(dmMessagesData);
+  dmMessagesDataRef.current = dmMessagesData;
+  useEffect(() => {
+    const conversationKey = activeDmId ?? "__none__";
+    if (
+      dmMessagesError &&
+      !isLoadingDmMessages &&
+      flattenDmMessages(dmMessagesDataRef.current).length === 0 &&
+      dmLoadErrorShownForRef.current !== conversationKey
+    ) {
+      dmLoadErrorShownForRef.current = conversationKey;
+      toast.error("We couldn't load the conversation. Please try again.");
+    }
+  }, [dmMessagesError, isLoadingDmMessages, activeDmId]);
 
   const rawActiveMessages = useMemo(
     () => flattenDmMessages(dmMessagesData),
@@ -1504,11 +1508,8 @@ queryClient.setQueryData(
       (context?.uploads ?? vars.uploads).forEach((upload) => {
         if (upload.blobUrl) URL.revokeObjectURL(upload.blobUrl);
       });
-      setToast({
-        message: "file size excceded",
-        type: "error",
-        key: Date.now(),
-      });
+      // The optimistic bubbles are already marked failed inline ("Not
+      // delivered"), so no toast is needed here to avoid duplicate feedback.
     },
   });
 
@@ -1632,17 +1633,6 @@ queryClient.setQueryData(
 
   return (
     <div className="flex h-screen min-h-0 w-full bg-slate-950 text-slate-100">
-      {toast && (
-        <div className="fixed top-6 right-6 z-[9999]">
-          <Toast
-            key={toast.key}
-            message={toast.message}
-            type={toast.type}
-            duration={4000}
-            onClose={() => setToast(null)}
-          />
-        </div>
-      )}
       <ChatList
         conversations={conversations}
         activeDmId={activeDmId}
@@ -1709,11 +1699,8 @@ queryClient.setQueryData(
             threadId={activeThreadId}
             allUsers={allUsers}
             onSendMessage={handleSendMessage}
-            onFileError={(msg) => setFileError(msg)}
+            onFileError={(msg) => toast.error(msg)}
             onOpenProfile={openUserProfile}
-            onToast={(msg, type) =>
-              setToast({ message: msg, type, key: Date.now() })
-            }
           />
         </div>
       </div>
@@ -1729,26 +1716,9 @@ queryClient.setQueryData(
 }
 
 export default function MessagesPageContent() {
-  const [toast, setToast] = useState<{
-    message: string;
-    type: "info" | "success" | "error";
-  } | null>(null);
-
   return (
-    <>
-      {toast && (
-        <div className="fixed top-6 right-6 z-[9999]">
-          <Toast
-            message={toast.message}
-            type={toast.type}
-            duration={3000}
-            onClose={() => setToast(null)}
-          />
-        </div>
-      )}
-      <Suspense fallback={<div className="h-screen bg-black" />}>
-        <MessagesPageContentInner />
-      </Suspense>
-    </>
+    <Suspense fallback={<div className="h-screen bg-black" />}>
+      <MessagesPageContentInner />
+    </Suspense>
   );
 }
