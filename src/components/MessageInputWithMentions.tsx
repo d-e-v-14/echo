@@ -7,6 +7,7 @@ import type { EmojiClickData } from "emoji-picker-react";
 import { Theme } from "emoji-picker-react";
 import { apiClient } from "@/utils/apiClient";
 import { useToast } from "@/contexts/ToastContext";
+import { ROLE_MENTION_REGEX } from "@/lib/channels/mentions";
 import InlineSpinner from "@/components/loading/InlineSpinner";
 
 const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
@@ -94,6 +95,18 @@ export default function MessageInputWithMentions({
   const textInputRef = useRef<HTMLTextAreaElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const mentionDropdownRef = useRef<HTMLDivElement>(null);
+  const mentionSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+
+  useEffect(() => {
+    return () => {
+      if (mentionSearchTimerRef.current) {
+        clearTimeout(mentionSearchTimerRef.current);
+        mentionSearchTimerRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     textInputRef.current?.focus();
@@ -219,10 +232,7 @@ export default function MessageInputWithMentions({
   };
 
   const validateRoleMentions = (message: string) => {
-    const roleMentionRegex = /@&([a-zA-Z0-9_ ]+?)(?=\s|$)/g;
-    let match: RegExpExecArray | null;
-
-    while ((match = roleMentionRegex.exec(message)) !== null) {
+    for (const match of message.matchAll(ROLE_MENTION_REGEX)) {
       const roleName = match[1].trim();
 
       const roleExists = serverRoles.some(
@@ -329,10 +339,22 @@ export default function MessageInputWithMentions({
       setMentionPosition(atSymbolIndex);
       setShowMentionDropdown(true);
       setSelectedMentionIndex(0);
-      searchMentionable(match[1]);
+
+      if (mentionSearchTimerRef.current) {
+        clearTimeout(mentionSearchTimerRef.current);
+      }
+      const query = match[1];
+      mentionSearchTimerRef.current = setTimeout(() => {
+        mentionSearchTimerRef.current = null;
+        void searchMentionable(query);
+      }, 250);
     } else {
       setShowMentionDropdown(false);
       setMentionableUsers([]);
+      if (mentionSearchTimerRef.current) {
+        clearTimeout(mentionSearchTimerRef.current);
+        mentionSearchTimerRef.current = null;
+      }
     }
   };
 

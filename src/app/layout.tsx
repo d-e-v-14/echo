@@ -4,6 +4,7 @@ import { MobileBlocker } from "@/components/MobileBlocker";
 import { TokenRefreshProvider } from "@/components/TokenRefreshProvider";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { QueryProvider } from "@/lib/query/QueryProvider";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 export const metadata: Metadata = {
   title: {
@@ -51,13 +52,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <QueryProvider>
-          <TokenRefreshProvider>
-            <MobileBlocker>
-              <ToastProvider>{children}</ToastProvider>
-            </MobileBlocker>
-          </TokenRefreshProvider>
-        </QueryProvider>
+        <ErrorBoundary>
+          <QueryProvider>
+            <TokenRefreshProvider>
+              <MobileBlocker>
+                <ToastProvider>{children}</ToastProvider>
+              </MobileBlocker>
+            </TokenRefreshProvider>
+          </QueryProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

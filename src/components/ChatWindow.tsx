@@ -34,6 +34,7 @@ import {
 } from "@/hooks/useMentionUnread";
 import { useTyping } from "@/hooks/useTyping";
 import { tokenStore } from "@/lib/auth/tokenStore";
+import { buildApiUrl } from "@/lib/apiUrl";
 
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { MessageVirtualizer } from "@/components/chat/MessageVirtualizer";
@@ -469,11 +470,11 @@ export default forwardRef(function ChatWindow(
       try {
         const token = await tokenStore.ensureAccessToken();
         if (!token) return;
-        const url = `${
-          process.env.NEXT_PUBLIC_API_URL
-        }/api/newserver/${serverId}/roles/${encodeURIComponent(
-          roleName.trim()
-        )}/members`;
+        const url = buildApiUrl(
+          `/api/newserver/${serverId}/roles/${encodeURIComponent(
+            roleName.trim()
+          )}/members`
+        );
         const response = await fetch(url, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -520,7 +521,7 @@ export default forwardRef(function ChatWindow(
 
       const roleValidation = validateRoleMentions(text, validRoleNames);
       if (!roleValidation.valid) {
-        alert(
+        toast.error(
           `Role "${roleValidation.invalidRole}" does not exist in this server.`
         );
         return;

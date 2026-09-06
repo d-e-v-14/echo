@@ -1,8 +1,9 @@
+import { buildApiUrl } from "@/lib/apiUrl";
+
 const REFRESH_TOKEN_KEY = "refresh_token";
 const USER_KEY = "user";
 const STALE_ACCESS_KEYS = ["access_token", "token", "tokenExpiry"];
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 const REFRESH_BUFFER_MS = 5 * 60 * 1000;
 
 let accessToken: string | null = null;
@@ -92,7 +93,7 @@ export const tokenStore = {
 
   async attemptRefresh(token: string | null): Promise<TokenBundle | null> {
     try {
-      const response = await fetch(`${API_URL}/api/auth/refresh`, {
+      const response = await fetch(buildApiUrl("/api/auth/refresh"), {
         method: "POST",
         credentials: "include",
         headers: {

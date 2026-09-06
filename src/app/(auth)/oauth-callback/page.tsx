@@ -16,6 +16,9 @@ export default function OAuthCallback() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    let cancelled = false;
+
     const handleOAuthCallback = async () => {
       const loadingToast = toast.loading("Signing you in…");
 
@@ -31,7 +34,11 @@ export default function OAuthCallback() {
             message: "Unable to sign in. Please try again.",
           });
           setError(true);
-          setTimeout(() => router.push("/"), 3000);
+          timers.push(
+            setTimeout(() => {
+              if (!cancelled) router.push("/");
+            }, 3000)
+          );
           return;
         }
 
@@ -56,7 +63,11 @@ export default function OAuthCallback() {
           localStorage.getItem("redirectAfterLogin") || "/servers";
         localStorage.removeItem("redirectAfterLogin");
 
-        setTimeout(() => router.replace(redirect), 1000);
+        timers.push(
+          setTimeout(() => {
+            if (!cancelled) router.replace(redirect);
+          }, 1000)
+        );
       } catch (err) {
         toast.update(loadingToast, {
           type: "error",
@@ -64,11 +75,20 @@ export default function OAuthCallback() {
         });
         setError(true);
 
-        setTimeout(() => router.push("/"), 3000);
+        timers.push(
+          setTimeout(() => {
+            if (!cancelled) router.push("/");
+          }, 3000)
+        );
       }
     };
 
-    handleOAuthCallback();
+    void handleOAuthCallback();
+
+    return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
+    };
   }, [router]);
 
   return (

@@ -5,6 +5,8 @@ export const normalizeUsername = (name: string): string => name.trim();
 export const normalizeRoleName = (name: string): string =>
   name.trim().toLowerCase().replace(/\s+/g, " ");
 
+export const ROLE_MENTION_REGEX = /@&([a-zA-Z_][a-zA-Z0-9_\s]*)\b/g;
+
 export const isValidUsernameMention = (
   mention: string,
   validUsernames: Set<string>
@@ -39,11 +41,8 @@ export const validateRoleMentions = (
   message: string,
   validRoles: Set<string>
 ): { valid: boolean; invalidRole?: string } => {
-  const roleMentionRegex = /@&([^\s@]+)/g;
-  let match: RegExpExecArray | null;
-
-  while ((match = roleMentionRegex.exec(message)) !== null) {
-    const rawRole = match[1];
+  for (const match of message.matchAll(ROLE_MENTION_REGEX)) {
+    const rawRole = match[1].trim();
     const normalized = normalizeRoleName(rawRole);
 
     if (!validRoles.has(normalized)) {

@@ -95,7 +95,6 @@ export default function RouteChangeLoader({
       const wasCached = visitedRoutes.has(pathname);
       prevPathname.current = pathname;
       visitedRoutes.add(pathname);
-      clearTimers();
 
       if (wasCached) {
         loadingRef.current = true;
@@ -128,15 +127,11 @@ export default function RouteChangeLoader({
       }
     }
 
-    return clearTimers;
-  }, [pathname, dismiss, clearTimers]);
-
-  useEffect(() => {
     return () => {
       loadingRef.current = false;
       clearTimers();
     };
-  }, [clearTimers]);
+  }, [pathname, dismiss, clearTimers]);
 
   return (
     <NavigationLoadingContext.Provider value={{ setPageReady, isNavigating }}>

@@ -156,8 +156,10 @@ export const fetchMessages = async (
       nextCursor: response.data.nextCursor ?? null,
       hasMore: response.data.hasMore ?? false,
     };
-  } catch (error) {
-    console.error("Error fetching messages:", error);
+  } catch (error: any) {
+    if (error?.code !== "ERR_CANCELED") {
+      console.error("Error fetching messages:", error);
+    }
     throw error;
   }
 };

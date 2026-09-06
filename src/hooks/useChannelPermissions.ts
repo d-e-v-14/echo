@@ -10,7 +10,7 @@ import { ChannelPermissions } from "@/lib/channels/types";
 const DEFAULT_PERMISSIONS: ChannelPermissions = {
   channelType: "normal",
   canView: true,
-  canSend: true,
+  canSend: false,
   isAdmin: false,
   isModerator: false,
 };
