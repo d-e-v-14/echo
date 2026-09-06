@@ -3,6 +3,7 @@ import {
   ReactionStoreData,
   applyReactionDelta,
   mergeMessageReactions,
+  removeMessageReactions,
   setMessageReactions,
   reactionEventToUpdater,
   getReactionState,
@@ -106,6 +107,30 @@ describe("mergeMessageReactions / setMessageReactions", () => {
     });
     expect(next.m1?.["👍"]).toEqual(["u1"]);
     expect(next.m1?.["🔥"]).toEqual(["u2", "u1"]);
+  });
+});
+
+describe("removeMessageReactions", () => {
+  it("removes only the listed messages", () => {
+    const prev: ReactionStoreData = {
+      m1: { "👍": ["u1"] },
+      m2: { "🔥": ["u2"] },
+      m3: { "❤️": ["u3"] },
+    };
+    const next = removeMessageReactions(prev, ["m1", "m3"]);
+    expect(next).toEqual({ m2: { "🔥": ["u2"] } });
+  });
+
+  it("no-ops when none of the ids exist", () => {
+    const prev: ReactionStoreData = { m1: { "👍": ["u1"] } };
+    expect(removeMessageReactions(prev, ["m9"])).toBe(prev);
+  });
+
+  it("is immutable for the removed entries", () => {
+    const prev: ReactionStoreData = { m1: { "👍": ["u1"] } };
+    const next = removeMessageReactions(prev, ["m1"]);
+    expect(next).toEqual({});
+    expect(prev.m1?.["👍"]).toEqual(["u1"]);
   });
 });
 

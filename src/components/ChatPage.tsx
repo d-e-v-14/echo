@@ -35,6 +35,11 @@ import MessageBubble from "./MessageBubble";
 import MessageAttachment from "./MessageAttachment";
 import { useMessageNotifications } from "@/contexts/MessageNotificationContext";
 import { toast } from "@/contexts/ToastContext";
+import {
+  checkMessage,
+  isModerationBlockedError,
+  notifyModerationBlocked,
+} from "@/lib/moderation";
 import UserProfileModal from "./UserProfileModal";
 import { ScrollToBottomButton } from "@/components/ScrollToBottomButton";
 import { useChatScroll } from "@/hooks/useChatScroll";
@@ -54,6 +59,7 @@ import {
   markMessagesFailed,
   mergeDmSummaries,
   normalizeDmMessage,
+  removeMessagesById,
   replaceOptimisticById,
   resolveRepliesForThread,
   sortDmConversationsByLatest,
@@ -1348,6 +1354,7 @@ function MessagesPageContentInner() {
         await queryClient.cancelQueries({ queryKey: key });
       }
 
+      const previousSummary = dmSummariesRef.current.get(vars.conversationId);
       const optimisticTimestamp = new Date().toISOString();
       const optimisticMessages = vars.uploads.map((upload) => ({
         id: upload.tempId,
@@ -1399,7 +1406,7 @@ function MessagesPageContentInner() {
         status: "pending",
       });
 
-      return { uploads: vars.uploads, cancelledFetch };
+      return { uploads: vars.uploads, cancelledFetch, previousSummary };
     },
     onSuccess: (result, _vars, context) => {
       const key = queryKeys.dmMessages(result.conversationId);
@@ -1478,10 +1485,33 @@ queryClient.setQueryData(
       }
     },
     onError: (error: any, vars, context) => {
-      console.error("Failed to send DM via API:", error);
       const tempIds = new Set(
         (context?.uploads ?? vars.uploads).map((upload) => upload.tempId)
       );
+
+      if (isModerationBlockedError(error)) {
+        queryClient.setQueryData(
+          queryKeys.dmMessages(vars.conversationId),
+          (old: DmMessagesData | undefined) =>
+            old ? removeMessagesById(old, tempIds) : old
+        );
+        (context?.uploads ?? vars.uploads).forEach((upload) => {
+          if (upload.blobUrl) URL.revokeObjectURL(upload.blobUrl);
+        });
+        setDmSummaries((prev) => {
+          const next = new Map(prev);
+          if (context?.previousSummary) {
+            next.set(vars.conversationId, context.previousSummary);
+          } else {
+            next.delete(vars.conversationId);
+          }
+          return next;
+        });
+        notifyModerationBlocked();
+        return;
+      }
+
+      console.error("Failed to send DM via API:", error);
       queryClient.setQueryData(
         queryKeys.dmMessages(vars.conversationId),
         (old: DmMessagesData | undefined) =>
@@ -1520,6 +1550,11 @@ queryClient.setQueryData(
   ) => {
     if (!currentUser || !activeDmId) return;
     if (!content.trim() && files.length === 0) return;
+
+    if (!checkMessage(content).allowed) {
+      notifyModerationBlocked();
+      return;
+    }
 
     sendDmMutation.mutate({
       conversationId: activeDmId,

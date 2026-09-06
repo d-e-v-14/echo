@@ -35,6 +35,7 @@ import {
 import { useTyping } from "@/hooks/useTyping";
 import { tokenStore } from "@/lib/auth/tokenStore";
 import { buildApiUrl } from "@/lib/apiUrl";
+import { checkMessage, isModerationBlockedError, notifyModerationBlocked } from "@/lib/moderation";
 
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { MessageVirtualizer } from "@/components/chat/MessageVirtualizer";
@@ -587,6 +588,9 @@ export default forwardRef(function ChatWindow(
           setPermissionError(errorMessage);
           setTimeout(() => setPermissionError(null), 5000);
           dropTemp(tempId);
+        } else if (isModerationBlockedError(err)) {
+          dropTemp(tempId);
+          notifyModerationBlocked();
         } else {
           // The optimistic bubble is already marked failed inline ("Not
           // delivered"), so no toast is needed here to avoid duplicate feedback.
@@ -639,6 +643,11 @@ export default forwardRef(function ChatWindow(
       const fileList = files || [];
 
       if (!normalizedText && fileList.length === 0) return;
+
+      if (!checkMessage(text).allowed) {
+        notifyModerationBlocked();
+        return;
+      }
 
       const annotated = fileList.map((file) => {
         if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024)

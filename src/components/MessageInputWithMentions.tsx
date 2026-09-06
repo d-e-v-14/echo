@@ -8,6 +8,7 @@ import { Theme } from "emoji-picker-react";
 import { apiClient } from "@/utils/apiClient";
 import { useToast } from "@/contexts/ToastContext";
 import { ROLE_MENTION_REGEX } from "@/lib/channels/mentions";
+import { checkMessage, notifyModerationBlocked } from "@/lib/moderation";
 import InlineSpinner from "@/components/loading/InlineSpinner";
 
 const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
@@ -266,6 +267,11 @@ export default function MessageInputWithMentions({
         `Role "${validation.invalidRole}" does not exist in this server.`,
         "error"
       );
+      return;
+    }
+
+    if (!checkMessage(text).allowed) {
+      notifyModerationBlocked();
       return;
     }
 
