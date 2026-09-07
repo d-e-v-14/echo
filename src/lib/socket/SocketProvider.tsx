@@ -12,6 +12,7 @@ import {
 import { io, Socket } from "socket.io-client";
 import { useUser } from "@/components/UserContext";
 import { tokenStore } from "@/lib/auth/tokenStore";
+import { toast } from "@/contexts/ToastContext";
 import { setAppSocket, getAppSocket } from "./appSocket";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -41,12 +42,28 @@ const SOCKET_CONFIG = {
 interface SocketContextValue {
   socket: Socket | null;
   connected: boolean;
+  connectionFailed: boolean;
   socketId: string | null;
   joinChannel: (channelId: string) => void;
   leaveChannel: (channelId: string) => void;
+  retryConnect: () => void;
 }
 
 const SocketContext = createContext<SocketContextValue | undefined>(undefined);
+
+const getJoinRoomError = (response: unknown): string | null => {
+  if (response == null) return null;
+  if (typeof response === "string") return response;
+  if (response instanceof Error) return response.message || null;
+  const obj = response as { error?: unknown; success?: boolean };
+  if (obj.error) {
+    if (typeof obj.error === "string") return obj.error;
+    if (obj.error instanceof Error) return obj.error.message || null;
+    return null;
+  }
+  if (obj.success === false) return "You don't have access to this channel.";
+  return null;
+};
 
 export function SocketProvider({ children }: { children: React.ReactNode }) {
   const { user } = useUser();
@@ -54,10 +71,20 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
   const [socket, setSocket] = useState<Socket | null>(null);
   const [connected, setConnected] = useState(false);
+  const [connectionFailed, setConnectionFailed] = useState(false);
   const [socketId, setSocketId] = useState<string | null>(null);
+  const [socketEpoch, setSocketEpoch] = useState(0);
+  const [hasSession, setHasSession] = useState(false);
+
+  useEffect(() => {
+    const update = () => setHasSession(tokenStore.hasRefreshToken());
+    update();
+    return tokenStore.subscribe(update);
+  }, []);
 
   const socketRef = useRef<Socket | null>(null);
   const joinedRoomsRef = useRef<Set<string>>(new Set());
+  const joinRoomErrorsRef = useRef<Set<string>>(new Set());
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastTokenCheckRef = useRef(0);
 
@@ -76,8 +103,18 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     }, HEARTBEAT_INTERVAL_MS);
   }, []);
 
+  const emitJoinRoom = useCallback((sock: Socket, roomId: string) => {
+    sock.emit("join_room", roomId, (response: unknown) => {
+      const errorMsg = getJoinRoomError(response);
+      if (!errorMsg) return;
+      if (joinRoomErrorsRef.current.has(roomId)) return;
+      joinRoomErrorsRef.current.add(roomId);
+      toast.error(errorMsg);
+    });
+  }, []);
+
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !hasSession) return;
 
     let disposed = false;
     let cleanup: (() => void) | null = null;
@@ -103,11 +140,12 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
       const handleConnect = () => {
         setConnected(true);
+        setConnectionFailed(false);
         setSocketId(newSocket.id ?? null);
         startHeartbeat(newSocket);
 
         joinedRoomsRef.current.forEach((roomId) => {
-          newSocket.emit("join_room", roomId);
+          emitJoinRoom(newSocket, roomId);
         });
       };
 
@@ -116,6 +154,11 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         setSocketId(null);
         stopHeartbeat();
         if (reason === "io server disconnect") newSocket.connect();
+      };
+
+      const handleReconnectFailed = () => {
+        setConnected(false);
+        setConnectionFailed(true);
       };
 
       const handleConnectError = async (err: Error) => {
@@ -128,6 +171,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         lastTokenCheckRef.current = now;
         const token = await tokenStore.ensureAccessToken();
         if (!token) {
+          setConnectionFailed(true);
           newSocket.disconnect();
         }
       };
@@ -135,16 +179,19 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       newSocket.on("connect", handleConnect);
       newSocket.on("disconnect", handleDisconnect);
       newSocket.on("connect_error", handleConnectError);
+      newSocket.on("reconnect_failed", handleReconnectFailed);
 
       cleanup = () => {
         stopHeartbeat();
         newSocket.off("connect", handleConnect);
         newSocket.off("disconnect", handleDisconnect);
         newSocket.off("connect_error", handleConnectError);
+        newSocket.off("reconnect_failed", handleReconnectFailed);
         newSocket.disconnect();
         setConnected(false);
         setSocketId(null);
         joinedRoomsRef.current.clear();
+        joinRoomErrorsRef.current.clear();
         if (socketRef.current === newSocket) socketRef.current = null;
         if (getAppSocket() === newSocket) setAppSocket(null);
       };
@@ -156,31 +203,43 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       disposed = true;
       cleanup?.();
     };
-  }, [userId, startHeartbeat, stopHeartbeat]);
+  }, [userId, hasSession, socketEpoch, startHeartbeat, stopHeartbeat, emitJoinRoom]);
 
-  const joinChannel = useCallback((channelId: string) => {
-    if (!channelId) return;
-    joinedRoomsRef.current.add(channelId);
-    if (socketRef.current?.connected) {
-      socketRef.current.emit("join_room", channelId);
-    }
-  }, []);
+  const joinChannel = useCallback(
+    (channelId: string) => {
+      if (!channelId) return;
+      joinedRoomsRef.current.add(channelId);
+      const sock = socketRef.current;
+      if (sock?.connected) {
+        emitJoinRoom(sock, channelId);
+      }
+    },
+    [emitJoinRoom]
+  );
 
   const leaveChannel = useCallback((channelId: string) => {
     if (!channelId) return;
     joinedRoomsRef.current.delete(channelId);
+    joinRoomErrorsRef.current.delete(channelId);
     socketRef.current?.emit("leave_room", channelId);
+  }, []);
+
+  const retryConnect = useCallback(() => {
+    setConnectionFailed(false);
+    setSocketEpoch((epoch) => epoch + 1);
   }, []);
 
   const value = useMemo<SocketContextValue>(
     () => ({
       socket,
       connected,
+      connectionFailed,
       socketId,
       joinChannel,
       leaveChannel,
+      retryConnect,
     }),
-    [socket, connected, socketId, joinChannel, leaveChannel]
+    [socket, connected, connectionFailed, socketId, joinChannel, leaveChannel, retryConnect]
   );
 
   return (

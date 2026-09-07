@@ -79,6 +79,15 @@ export const logout = async () => {
       sessionStorage.setItem("skipGlobalLoader", "1");
     }
 
+    if (typeof window !== "undefined") {
+      try {
+        const { supabase } = await import("@/lib/supabaseClient");
+        await supabase.auth.signOut();
+      } catch {
+        // Supabase session cleanup is best-effort; never block app logout.
+      }
+    }
+
     // Backend revokes the server-side session on logout, so the access token
     // must travel with the request (Bearer header via interceptor, body fallback,
     // or the httpOnly access cookie for web).

@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import type { profile } from "@/api/types/profile.types";
 import { getUser } from "@/api";
+import { tokenStore } from "@/lib/auth/tokenStore";
 
 type UserContextType = {
   user: profile | null;
@@ -27,6 +28,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     };
 
     loadUser();
+  }, []);
+
+  useEffect(() => {
+    const clearOnLogout = () => {
+      if (!tokenStore.hasRefreshToken()) setUser(null);
+    };
+    clearOnLogout();
+    return tokenStore.subscribe(clearOnLogout);
   }, []);
 
   return (

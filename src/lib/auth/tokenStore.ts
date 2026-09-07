@@ -10,7 +10,15 @@ let accessToken: string | null = null;
 let accessTokenExpiry: number | null = null;
 let refreshInFlight: Promise<boolean> | null = null;
 
+const sessionListeners = new Set<() => void>();
+
 const canUseStorage = () => typeof window !== "undefined";
+
+const notifySessionChange = () => {
+  for (const listener of sessionListeners) listener();
+};
+
+type SessionListener = () => void;
 
 function removeStaleAccessKeys() {
   if (!canUseStorage()) return;
@@ -51,6 +59,7 @@ export const tokenStore = {
       window.localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
     }
     removeStaleAccessKeys();
+    notifySessionChange();
   },
 
   setUser(user: unknown) {
@@ -156,5 +165,13 @@ export const tokenStore = {
       window.localStorage.removeItem(USER_KEY);
       removeStaleAccessKeys();
     }
+    notifySessionChange();
+  },
+
+  subscribe(listener: SessionListener): () => void {
+    sessionListeners.add(listener);
+    return () => {
+      sessionListeners.delete(listener);
+    };
   },
 };
