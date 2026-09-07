@@ -104,6 +104,7 @@ export default forwardRef(function ChatWindow(
   const [micOn, setMicOn] = useState<boolean>(true);
   const [camOn, setCamOn] = useState<boolean>(true);
   const [isSending, setIsSending] = useState(false);
+  const isSendingRef = useRef(false);
   const [currentUserAvatar, setCurrentUserAvatar] =
     useState<string>(DEFAULT_AVATAR);
   const [replyingTo, setReplyingTo] = useState<ChannelMessage | null>(null);
@@ -543,7 +544,8 @@ export default forwardRef(function ChatWindow(
 
       const optimisticMessage: ChannelMessage = {
         id: tempId,
-        content: file ? `${text} Uploading ${file.name}...` : text,
+        content: text,
+        pendingAttachment: file ? file.name : null,
         senderId: currentUserId,
         timestamp: new Date().toISOString(),
         avatarUrl: resolvedAvatarUrl || DEFAULT_AVATAR,
@@ -579,6 +581,7 @@ export default forwardRef(function ChatWindow(
           id: String(response?.id ?? tempId),
           content: response?.content ?? undefined,
           mediaUrl: response?.media_url ?? response?.mediaUrl,
+          pendingAttachment: null,
         });
       } catch (err: any) {
         const errorMessage =
@@ -617,6 +620,41 @@ export default forwardRef(function ChatWindow(
     ]
   );
 
+  const handleRetryFailed = useCallback(
+    async (message: ChannelMessage) => {
+      if (message.status !== "failed") return;
+
+      dropTemp(message.id);
+
+      let file: File | null = null;
+      if (message.mediaUrl?.startsWith("blob:")) {
+        try {
+          const res = await fetch(message.mediaUrl);
+          const blob = await res.blob();
+          const ext = message.mediaType?.split("/")?.[1] ?? "";
+          const name =
+            message.pendingAttachment ||
+            (ext ? `attachment.${ext}` : "attachment");
+          file = new File([blob], name, {
+            type: blob.type || message.mediaType || "application/octet-stream",
+          });
+        } catch {
+          file = null;
+        }
+      }
+
+      await sendSingleMessage(message.content, file);
+    },
+    [dropTemp, sendSingleMessage]
+  );
+
+  const handleDiscardFailed = useCallback(
+    (message: ChannelMessage) => {
+      if (message.status === "failed") dropTemp(message.id);
+    },
+    [dropTemp]
+  );
+
   const MAX_FILE_SIZE_MB = 25;
   const ALLOWED_TYPES = [
     "image/jpeg",
@@ -643,6 +681,8 @@ export default forwardRef(function ChatWindow(
       const fileList = files || [];
 
       if (!normalizedText && fileList.length === 0) return;
+
+      if (isSendingRef.current) return;
 
       if (!checkMessage(text).allowed) {
         notifyModerationBlocked();
@@ -673,6 +713,7 @@ export default forwardRef(function ChatWindow(
       const validFiles = annotated.filter((f) => f.valid).map((f) => f.file);
       if (!normalizedText && validFiles.length === 0) return;
 
+      isSendingRef.current = true;
       setIsSending(true);
 
       try {
@@ -688,6 +729,7 @@ export default forwardRef(function ChatWindow(
           await sendSingleMessage("", file);
         }
       } finally {
+        isSendingRef.current = false;
         setIsSending(false);
       }
     },
@@ -876,6 +918,8 @@ export default forwardRef(function ChatWindow(
               openProfile(msg.senderId, msg.username, msg.avatarUrl)
             }
             onReplyPreviewClick={(id) => void scroll.scrollToMessage(id)}
+            onRetryMessage={handleRetryFailed}
+            onDiscardMessage={handleDiscardFailed}
           />
         </MessageVirtualizer>
 

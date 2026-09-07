@@ -25,6 +25,8 @@ export interface MessageListProps {
   onReply: (message: ChannelMessage) => void;
   onProfileClick: (message: ChannelMessage) => void;
   onReplyPreviewClick: (id: string | number) => void;
+  onRetryMessage?: (message: ChannelMessage) => void;
+  onDiscardMessage?: (message: ChannelMessage) => void;
 }
 
 const DayDivider: React.FC<{ label: string }> = ({ label }) => (
@@ -52,6 +54,8 @@ export const MessageList: React.FC<MessageListProps> = ({
   onReply,
   onProfileClick,
   onReplyPreviewClick,
+  onRetryMessage,
+  onDiscardMessage,
 }) => {
   const sections = useMemo(
     () => groupMessagesForDisplay(messages, currentUserId),
@@ -106,6 +110,8 @@ export const MessageList: React.FC<MessageListProps> = ({
                   onReply={onReply}
                   onProfileClick={onProfileClick}
                   onReplyPreviewClick={onReplyPreviewClick}
+                  onRetryMessage={onRetryMessage}
+                  onDiscardMessage={onDiscardMessage}
                 />
               ))}
             </React.Fragment>

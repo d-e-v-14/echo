@@ -18,6 +18,8 @@ export interface MessageGroupProps {
   onReply: (message: ChannelMessage) => void;
   onProfileClick: (message: ChannelMessage) => void;
   onReplyPreviewClick: (id: string | number) => void;
+  onRetryMessage?: (message: ChannelMessage) => void;
+  onDiscardMessage?: (message: ChannelMessage) => void;
 }
 
 export const MessageGroup: React.FC<MessageGroupProps> = ({
@@ -29,6 +31,8 @@ export const MessageGroup: React.FC<MessageGroupProps> = ({
   onReply,
   onProfileClick,
   onReplyPreviewClick,
+  onRetryMessage,
+  onDiscardMessage,
 }) => {
   return (
     <>
@@ -49,6 +53,7 @@ export const MessageGroup: React.FC<MessageGroupProps> = ({
                   content: msg.content,
                   replyTo: msg.replyTo || null,
                   status: msg.status,
+                  pendingAttachment: msg.pendingAttachment,
                 }}
                 name={index === 0 ? group.name : undefined}
                 isSender={group.isSender}
@@ -59,6 +64,10 @@ export const MessageGroup: React.FC<MessageGroupProps> = ({
                 }
                 onReply={() => onReply(msg)}
                 onReplyPreviewClick={onReplyPreviewClick}
+                onRetry={onRetryMessage ? () => onRetryMessage(msg) : undefined}
+                onDiscard={
+                  onDiscardMessage ? () => onDiscardMessage(msg) : undefined
+                }
                 showPinAction={!!msg.id && !String(msg.id).startsWith("temp-")}
                 messageRenderer={() => renderContent(msg)}
               >

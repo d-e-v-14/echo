@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import type { EmojiClickData } from "emoji-picker-react";
 import { Theme } from "emoji-picker-react";
-import { Paperclip, Clock, Check, CircleAlert } from "lucide-react";
+import { Paperclip, Clock, Check, CircleAlert, X } from "lucide-react";
 
 export interface ChatMessage {
   id?: string | number;
@@ -18,6 +18,7 @@ export interface ChatMessage {
     mediaType?: string;
   } | null;
   status?: "pending" | "sent" | "failed";
+  pendingAttachment?: string | null;
 }
 
 export interface MessageReactionSummary {
@@ -40,6 +41,7 @@ interface MessageBubbleProps {
   onReply?: () => void;
   onReplyPreviewClick?: (messageId: string | number) => void;
   onRetry?: () => void;
+  onDiscard?: () => void;
   onReact?: (emoji: string) => void;
   onPin?: () => void;
   isPinned?: boolean;
@@ -92,6 +94,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   onReply,
   onReplyPreviewClick,
   onRetry,
+  onDiscard,
   onReact,
   reactions = [],
   children,
@@ -409,6 +412,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               : renderPlainContent(message.content)}
           </div>
 
+          {isPending && message.pendingAttachment && (
+            <div className="mt-1 flex items-center gap-1 text-[11px] text-[#949ba4]">
+              <Clock className="h-3 w-3" />
+              Uploading {message.pendingAttachment}…
+            </div>
+          )}
+
           {children && <div className="mt-3">{children}</div>}
 
           <div className="flex items-center gap-2 mt-1">
@@ -462,14 +472,28 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 ))}
               </div>
             )}
-            {isFailed && onRetry && (
-              <button
-                onClick={onRetry}
-                className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1"
-              >
-                <span>Failed</span>
-                <span className="underline">Retry</span>
-              </button>
+            {isFailed && (onRetry || onDiscard) && (
+              <div className="flex items-center gap-2">
+                {onRetry && (
+                  <button
+                    onClick={onRetry}
+                    className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1"
+                  >
+                    <span>Failed</span>
+                    <span className="underline">Retry</span>
+                  </button>
+                )}
+                {onDiscard && (
+                  <button
+                    onClick={onDiscard}
+                    className="text-xs text-red-400 hover:text-red-300"
+                    aria-label="Discard message"
+                    title="Discard"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </div>

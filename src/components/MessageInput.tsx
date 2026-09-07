@@ -119,6 +119,7 @@ export default function MessageInput({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
   const handleSend = () => {
+    if (isSending) return;
     const wordCount = getWordCount(text);
 
     if (wordCount > MAX_WORDS) {
@@ -210,6 +211,7 @@ export default function MessageInput({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      if (isSending) return;
       handleSend();
     }
   };

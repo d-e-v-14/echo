@@ -22,6 +22,7 @@ export interface ChannelMessage {
   replyTo?: MessageReply | null;
   status?: MessageStatus;
   tempId?: string;
+  pendingAttachment?: string | null;
 }
 
 export interface ChannelMessagesPage {

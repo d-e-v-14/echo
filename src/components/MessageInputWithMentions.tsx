@@ -250,6 +250,7 @@ export default function MessageInputWithMentions({
     return { valid: true };
   };
   const handleSend = () => {
+    if (isSending) return;
     if (text.trim() === "" && files.length === 0) return;
 
     const wordCount = getWordCount(text);
@@ -434,6 +435,7 @@ export default function MessageInputWithMentions({
       }
     } else if (e.key === "Enter") {
       e.preventDefault();
+      if (isSending) return;
       handleSend();
     }
   };

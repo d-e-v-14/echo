@@ -40,7 +40,12 @@ export interface UseChannelMessagesResult {
   addOptimistic: (optimistic: ChannelMessage) => void;
   reconcileTemp: (
     tempId: string | number,
-    replacement: { id: string | number; content?: string; mediaUrl?: string }
+    replacement: {
+      id: string | number;
+      content?: string;
+      mediaUrl?: string;
+      pendingAttachment?: string | null;
+    }
   ) => void;
   dropTemp: (tempId: string | number) => void;
   markFailed: (tempIds: ReadonlySet<string>) => void;
@@ -192,7 +197,12 @@ export function useChannelMessages({
   const reconcileTemp = useCallback(
     (
       tempId: string | number,
-      replacement: { id: string | number; content?: string; mediaUrl?: string }
+      replacement: {
+        id: string | number;
+        content?: string;
+        mediaUrl?: string;
+        pendingAttachment?: string | null;
+      }
     ) => {
       queryClient.setQueryData<ChannelMessagesData>(
         queryKeys.channelMessages(channelIdRef.current),
