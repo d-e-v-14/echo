@@ -3,7 +3,6 @@
 export const dynamic = "force-dynamic";
 
 import React, { useEffect, useState } from "react";
-import Navbar from "@/components/navbar";
 import SharkWithEyes from "@/components/shark";
 import AOS from "aos";
 // import "aos/dist/aos.css";
@@ -243,15 +242,45 @@ export default function Home() {
           aria-hidden="true"
         />
 
-        {/* Navbar */}
-        <div
-          className={`
-            fixed left-0 top-0 z-50 w-full
-            transition-transform duration-300
-            ${showNavbar ? "translate-y-0" : "-translate-y-full"}
-          `}
-        >
-          <Navbar />
+        {/* Navbar + Events Banner */}
+        <div className={`fixed left-0 top-6 z-50 w-full transition-transform duration-300 ${showNavbar ? "translate-y-0" : "-translate-y-full"}`}>
+          <div className="mx-auto w-full max-w-6xl px-4 py-4">
+            <nav className="mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-1 rounded-2xl border border-white/10 bg-black/90 px-3 py-2 backdrop-blur-md">
+              <span className="px-2 text-[12px] font-semibold uppercase tracking-wider text-white/80">
+                Upcoming Events
+              </span>
+
+              <a
+                href="https://gravitas.vit.ac.in/events/4160a46a-3701-4622-8e7c-66909769704b"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-[13px] font-semibold text-white/85 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <img src="/battlecode_logo.webp" alt="Battlecode logo" className="h-6 w-6 object-contain" />
+                Battlecode
+              </a>
+
+              <a
+                href="https://gravitas.vit.ac.in/events/d440eb17-cc8b-4651-943a-1d449a2efeee"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-[13px] font-semibold text-white/85 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <img src="/redefine_logo.webp" alt="Redeine logo" className="h-6 w-6 object-contain" />
+                Redeine
+              </a>
+
+              <a
+                href="https://gravitas.vit.ac.in/events/abc220f9-a716-4235-b108-a96c25cfdb9d"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-[13px] font-semibold text-white/85 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <img src="/what_the_flag_logo.webp" alt="What the Flag logo" className="h-6 w-6 object-contain" />
+                What the Flag
+              </a>
+            </nav>
+          </div>
         </div>
 
         {/* Hero */}
