@@ -8,35 +8,39 @@ import { supabase } from "../../../lib/supabaseClient";
 import { handleOAuthLogin } from "@/api";
 import { tokenStore } from "@/lib/auth/tokenStore";
 import InlineSpinner from "@/components/loading/InlineSpinner";
+import { toast } from "@/contexts/ToastContext";
+import { getAuthErrorMessage } from "@/components/toast/errorNormalizer";
 
 export default function OAuthCallback() {
   const router = useRouter();
-  const [, setMessage] = useState("Processing login...");
   const [error, setError] = useState(false);
-  const [, setToast] = useState<{
-    message: string;
-    type: "info" | "success" | "error";
-  } | null>(null);
 
   useEffect(() => {
-    const handleOAuthCallback = async () => {
-      try {
-        setToast({ message: "Processing login…", type: "info" });
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    let cancelled = false;
 
+    const handleOAuthCallback = async () => {
+      const loadingToast = toast.loading("Signing you in…");
+
+      try {
         const {
           data: { session },
           error: sessionError,
         } = await supabase.auth.getSession();
 
         if (sessionError || !session) {
-          setToast({ message: "Failed to get session", type: "error" });
-          setMessage("Failed to get session. Please try again.");
+          toast.update(loadingToast, {
+            type: "error",
+            message: "Unable to sign in. Please try again.",
+          });
           setError(true);
-          setTimeout(() => router.push("/"), 3000);
+          timers.push(
+            setTimeout(() => {
+              if (!cancelled) router.push("/");
+            }, 3000)
+          );
           return;
         }
-
-        setMessage("Verifying account…");
 
         const response = await handleOAuthLogin(
           session.access_token,
@@ -50,27 +54,41 @@ export default function OAuthCallback() {
         });
         tokenStore.setUser(response.user);
 
-        setToast({ message: "Login successful!", type: "success" });
-        setMessage("Login successful! Redirecting…");
+        toast.update(loadingToast, {
+          type: "success",
+          message: "Welcome back!",
+        });
 
         const redirect =
           localStorage.getItem("redirectAfterLogin") || "/servers";
         localStorage.removeItem("redirectAfterLogin");
 
-        setTimeout(() => router.replace(redirect), 1000);
-      } catch (err: any) {
-        const errorMsg =
-          err?.response?.data?.message || "Login failed. Please try again.";
-
-        setToast({ message: errorMsg, type: "error" });
-        setMessage(errorMsg);
+        timers.push(
+          setTimeout(() => {
+            if (!cancelled) router.replace(redirect);
+          }, 1000)
+        );
+      } catch (err) {
+        toast.update(loadingToast, {
+          type: "error",
+          message: getAuthErrorMessage(err),
+        });
         setError(true);
 
-        setTimeout(() => router.push("/"), 3000);
+        timers.push(
+          setTimeout(() => {
+            if (!cancelled) router.push("/");
+          }, 3000)
+        );
       }
     };
 
-    handleOAuthCallback();
+    void handleOAuthCallback();
+
+    return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
+    };
   }, [router]);
 
   return (

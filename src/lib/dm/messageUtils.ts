@@ -220,6 +220,17 @@ export const markMessagesFailed = (
   return { ...data, pages };
 };
 
+export const removeMessagesById = (
+  data: DmMessagesData,
+  ids: ReadonlySet<string>
+): DmMessagesData => {
+  const pages = data.pages.map((page) => ({
+    ...page,
+    messages: page.messages.filter((m) => !ids.has(String(m.id))),
+  }));
+  return { ...data, pages };
+};
+
 export const markMessageFailedById = (
   data: DmMessagesData,
   messageId: string

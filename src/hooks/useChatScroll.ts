@@ -142,6 +142,33 @@ export function useChatScroll({
     [clearUnseen]
   );
 
+  const loadOlderPage = useCallback(async (): Promise<boolean> => {
+    const requestedKey = keyRef.current;
+
+    while (olderInFlightRef.current) {
+      if (keyRef.current !== requestedKey) return false;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+
+    const opts = optionsRef.current;
+    if (
+      !opts.hasMore ||
+      opts.loadingMore ||
+      keyRef.current !== requestedKey
+    ) {
+      return false;
+    }
+
+    olderInFlightRef.current = true;
+    try {
+      return await opts.onLoadOlder();
+    } finally {
+      if (keyRef.current === requestedKey) {
+        olderInFlightRef.current = false;
+      }
+    }
+  }, []);
+
   const maybeRequestOlder = useCallback(
     (container: HTMLDivElement) => {
       const opts = optionsRef.current;
@@ -155,17 +182,14 @@ export function useChatScroll({
       }
       if (container.scrollTop > opts.topLoadThreshold) return;
 
-      olderInFlightRef.current = true;
       const requestedKey = keyRef.current;
       const previousHeight = container.scrollHeight;
       const previousTop = container.scrollTop;
 
       suppress(SUPPRESS_ANCHOR_MS);
 
-      opts
-        .onLoadOlder()
+      loadOlderPage()
         .then((applied) => {
-          olderInFlightRef.current = false;
           if (!applied || keyRef.current !== requestedKey) return;
 
           requestAnimationFrame(() => {
@@ -176,10 +200,10 @@ export function useChatScroll({
           });
         })
         .catch(() => {
-          olderInFlightRef.current = false;
+          // loadOlderPage's finally clears the in-flight flag.
         });
     },
-    [containerRef, suppress]
+    [containerRef, suppress, loadOlderPage]
   );
 
   const handleScroll = useCallback(() => {
@@ -271,14 +295,11 @@ export function useChatScroll({
           return true;
         }
 
-        const currentOpts = optionsRef.current;
         if (
-          currentOpts.hasMore &&
-          !currentOpts.loadingMore &&
           attempt < 6 &&
           keyRef.current === requestedKey
         ) {
-          const applied = await currentOpts.onLoadOlder().catch(() => false);
+          const applied = await loadOlderPage().catch(() => false);
           if (applied) continue;
         }
 
@@ -292,6 +313,7 @@ export function useChatScroll({
     [
       containerRef,
       findElement,
+      loadOlderPage,
       suppress,
       syncAtBottomUi,
     ]

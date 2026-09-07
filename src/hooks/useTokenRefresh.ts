@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { tokenStore } from "@/lib/auth/tokenStore";
+import { toast } from "@/components/toast/toastService";
 
 const REFRESH_BUFFER_MS = 5 * 60 * 1000;
 
@@ -16,6 +17,7 @@ export const useTokenRefresh = (enabled = true) => {
     const handleLogout = () => {
       tokenStore.clear();
       sessionStorage.setItem("skipGlobalLoader", "1");
+      toast.warning("Your session has expired. Please sign in again.");
       if (!cancelled) router.push("/");
     };
 

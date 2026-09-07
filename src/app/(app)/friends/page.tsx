@@ -32,6 +32,8 @@ import { SearchUserResult } from "@/api/types/user.types";
 import { Socket } from "socket.io-client";
 import InlineSpinner from "@/components/loading/InlineSpinner";
 import { ConversationListSkeleton } from "@/components/loading/skeletons";
+import { toast } from "@/contexts/ToastContext";
+import { getErrorMessage } from "@/components/toast/errorNormalizer";
 
 type TabId = "all" | "pending" | "add";
 
@@ -147,7 +149,7 @@ export default function FriendsPage() {
       setFriends(data as any);
     } catch (err: any) {
       console.error("Error loading friends:", err);
-      setError(err?.response?.data?.message || "Failed to load friends");
+      setError(getErrorMessage(err, "Failed to load friends"));
     }
   };
 
@@ -157,6 +159,7 @@ export default function FriendsPage() {
       setRequests(data as any);
     } catch (err: any) {
       console.error("Error loading requests:", err);
+      toast.error(getErrorMessage(err, "Failed to load friend requests"));
     }
   };
 
@@ -165,6 +168,7 @@ export default function FriendsPage() {
     setError("");
     try {
       await addFriend(userId);
+      toast.success("Friend request sent");
       loadRequests();
       setSearchResults((prev) =>
         prev.map((user) =>
@@ -175,7 +179,9 @@ export default function FriendsPage() {
       );
     } catch (err: any) {
       console.error("Error adding friend:", err);
-      setError(err?.response?.data?.message || "Failed to send friend request");
+      toast.error(
+        getErrorMessage(err, "Unable to send the friend request. Please try again.")
+      );
     } finally {
       setLoading(false);
     }
@@ -189,13 +195,12 @@ export default function FriendsPage() {
     }
 
     setSearching(true);
-    setError("");
     try {
       const results = await searchUsers(query);
       setSearchResults(results);
     } catch (err: any) {
       console.error("Error searching users:", err);
-      setError(err?.response?.data?.message || "Failed to search users");
+      toast.error(getErrorMessage(err, "Failed to search users"));
       setSearchResults([]);
     } finally {
       setSearching(false);
@@ -221,6 +226,7 @@ export default function FriendsPage() {
     setError("");
     try {
       await removeFriend(friendId);
+      toast.success("Friend removed");
       setFriends((prev) => prev.filter((friend) => friend.id !== friendId));
       setSearchResults((prev) =>
         prev.map((user) =>
@@ -231,7 +237,7 @@ export default function FriendsPage() {
       );
     } catch (err: any) {
       console.error("Error removing friend:", err);
-      setError(err?.response?.data?.message || "Failed to remove friend");
+      toast.error(getErrorMessage(err, "Failed to remove friend"));
     } finally {
       setRemovingFriendId(null);
     }
@@ -247,6 +253,11 @@ export default function FriendsPage() {
     setError("");
     try {
       await respondToFriendRequest(requestId, status);
+      toast.success(
+        status === "accepted"
+          ? "Friend request accepted"
+          : "Friend request declined"
+      );
       setRequests((prev) => prev.filter((req) => req.friends_id !== requestId));
       if (status === "accepted") {
         loadFriends();
@@ -254,9 +265,11 @@ export default function FriendsPage() {
       void refreshFriendCount();
     } catch (err: any) {
       console.error("Error responding to friend request:", err);
-      setError(
-        err?.response?.data?.message ||
+      toast.error(
+        getErrorMessage(
+          err,
           `Failed to ${status === "accepted" ? "accept" : "decline"} request`
+        )
       );
     } finally {
       setRespondingId(null);

@@ -8,6 +8,7 @@ import {
 } from "@/api/message.api";
 import {
   ReactionStoreData,
+  removeMessageReactions,
   setMessageReactions,
   updateReactionStore,
   useReactionStore,
@@ -23,6 +24,7 @@ type UseMessageReactionsOptions = {
   mode: "channel" | "dm";
   currentUserId?: string | null;
   messageIds?: Array<string | number>;
+  conversationId?: string;
 };
 
 const normalizeReactions = (
@@ -66,10 +68,23 @@ export const useMessageReactions = ({
   mode,
   currentUserId,
   messageIds = [],
+  conversationId,
 }: UseMessageReactionsOptions) => {
   const reactionsByMessageId = useReactionStore();
   const [loading, setLoading] = useState(false);
-  const fetchedIdsRef = useRef<Set<string>>(new Set());
+  const scope = conversationId ?? mode;
+
+  const fetchedByScopeRef = useRef<Map<string, Set<string>>>(new Map());
+  const previousScopeRef = useRef(scope);
+
+  const getFetchedForScope = useCallback((key: string): Set<string> => {
+    let set = fetchedByScopeRef.current.get(key);
+    if (!set) {
+      set = new Set();
+      fetchedByScopeRef.current.set(key, set);
+    }
+    return set;
+  }, []);
 
   const buildTarget = useCallback(
     (messageId: string | number) => {
@@ -90,24 +105,37 @@ export const useMessageReactions = ({
         updateReactionStore((prev) =>
           setMessageReactions(prev, key, normalized as ReactionStoreData[string])
         );
-        fetchedIdsRef.current.add(key);
+        getFetchedForScope(scope).add(key);
       } catch (error) {
         console.error(`Failed to fetch reactions for message ${key}`, error);
       }
     },
-    [buildTarget, currentUserId]
+    [buildTarget, currentUserId, getFetchedForScope, scope]
   );
 
-  useEffect(() => {
-    fetchedIdsRef.current.clear();
-  }, [mode]);
+  // On conversation change, drop the previous conversation's reactions from
+  // the store and its fetch flags so no stale cross-channel data is shown.
+useEffect(() => {
+    if (previousScopeRef.current === scope) return;
+    const previousScope = previousScopeRef.current;
+    previousScopeRef.current = scope;
+
+    const previousFetched = fetchedByScopeRef.current.get(previousScope);
+    fetchedByScopeRef.current.delete(previousScope);
+    if (previousFetched && previousFetched.size > 0) {
+      updateReactionStore((prev) =>
+        removeMessageReactions(prev, previousFetched)
+      );
+    }
+  }, [scope]);
 
   useEffect(() => {
     const ids = messageIds
       .map(String)
       .filter((id) => id && !id.startsWith("temp-"));
 
-    const missing = ids.filter((id) => !fetchedIdsRef.current.has(id));
+    const fetched = getFetchedForScope(scope);
+    const missing = ids.filter((id) => !fetched.has(id));
     if (missing.length === 0) return;
 
     let cancelled = false;
@@ -128,7 +156,7 @@ export const useMessageReactions = ({
     return () => {
       cancelled = true;
     };
-  }, [messageIds, fetchReactionsForMessage]);
+  }, [messageIds, fetchReactionsForMessage, getFetchedForScope, scope]);
 
   const toggleReaction = useCallback(
     async (messageId: string | number, emoji: string, userId: string) => {
@@ -164,13 +192,19 @@ export const useMessageReactions = ({
         } else {
           await addMessageReaction({ ...target, emoji: normalizedEmoji });
         }
-        fetchedIdsRef.current.add(key);
+        getFetchedForScope(scope).add(key);
       } catch (error) {
         console.error("Failed to toggle reaction", error);
         await fetchReactionsForMessage(messageId);
       }
     },
-    [reactionsByMessageId, buildTarget, fetchReactionsForMessage]
+    [
+      reactionsByMessageId,
+      buildTarget,
+      fetchReactionsForMessage,
+      getFetchedForScope,
+      scope,
+    ]
   );
 
   const getReactionsForMessage = useCallback(

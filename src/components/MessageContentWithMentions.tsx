@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { safeHref } from "@/lib/security/safeUrl";
+import { ROLE_MENTION_REGEX } from "@/lib/channels/mentions";
 
 interface Role {
   id: string;
@@ -50,7 +51,7 @@ export default function MessageContentWithMentions({
     if (!segmentContent) return null;
 
     const everyoneMentionRegex = /@(everyone|here)\b/g;
-    const roleMentionRegex = /@&([a-zA-Z_][a-zA-Z0-9_\s]*)\b/g;
+    const roleMentionRegex = ROLE_MENTION_REGEX;
     const userMentionRegex = /@([a-zA-Z_][a-zA-Z0-9_]*)\b/g;
     const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+\.[a-zA-Z]{2,})/g;
 

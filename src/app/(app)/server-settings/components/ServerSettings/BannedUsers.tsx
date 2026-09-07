@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { getBannedUsers, unbanUser } from "@/api";
 import { BannedUser } from "@/api/types/user.types";
 import { useToast } from "@/contexts/ToastContext";
+import { getErrorMessage } from "@/components/toast/errorNormalizer";
 
 interface BannedUsersProps {
   serverId: string;
@@ -32,7 +33,7 @@ export default function BannedUsers({
     } catch (err: any) {
       console.error("Failed to load banned users:", err);
       showToast(
-        err?.response?.data?.error || "Failed to load banned users",
+        getErrorMessage(err, "Failed to load banned users"),
         "error"
       );
     } finally {
@@ -49,7 +50,7 @@ export default function BannedUsers({
     } catch (err: any) {
       console.error("Failed to unban user:", err);
       showToast(
-        err?.response?.data?.error || "Failed to unban user",
+        getErrorMessage(err, "Failed to unban user"),
         "error"
       );
     }

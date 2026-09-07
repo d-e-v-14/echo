@@ -35,6 +35,7 @@ export interface UseChannelMessagesResult {
   loadingMore: boolean;
   hasMore: boolean;
   isInitialLoadDone: boolean;
+  loadError: boolean;
   loadMessages: (loadMore?: boolean) => Promise<boolean>;
   addOptimistic: (optimistic: ChannelMessage) => void;
   reconcileTemp: (
@@ -241,6 +242,7 @@ export function useChannelMessages({
     loadingMore: infiniteQuery.isFetchingPreviousPage,
     hasMore: infiniteQuery.hasPreviousPage,
     isInitialLoadDone: infiniteQuery.isSuccess,
+    loadError: infiniteQuery.isError,
     loadMessages,
     addOptimistic,
     reconcileTemp,

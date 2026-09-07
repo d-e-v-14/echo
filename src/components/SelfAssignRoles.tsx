@@ -12,6 +12,7 @@ import { Role, RoleCategory } from "@/api/types/roles.types";
 import { SettingsFormSkeleton } from "@/components/loading/pageSkeletons";
 import InlineSpinner from "@/components/loading/InlineSpinner";
 import { invalidateServerPermissionQueries } from "@/lib/query/roleSync";
+import { getErrorMessage } from "@/components/toast/errorNormalizer";
 
 interface SelfAssignRolesProps {
   serverId: string;
@@ -45,7 +46,7 @@ export default function SelfAssignRoles({
         setMyRoles(myRolesData);
         setCategories(categoriesData);
       } catch (err: any) {
-        setError(err.response?.data?.error || "Failed to load roles");
+        setError(getErrorMessage(err, "Failed to load roles"));
       } finally {
         setLoading(false);
       }
@@ -77,7 +78,7 @@ export default function SelfAssignRoles({
 
       invalidateServerPermissionQueries(queryClient, serverId);
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to update role");
+      setError(getErrorMessage(err, "Failed to update role"));
     } finally {
       setActionLoading(null);
     }

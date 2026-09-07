@@ -7,6 +7,7 @@ import { getServerMembers } from "@/api/server.api";
 import { ChatRole } from "@/lib/channels/types";
 import { normalizeRoleName, normalizeUsername } from "@/lib/channels/mentions";
 import { tokenStore } from "@/lib/auth/tokenStore";
+import { buildApiUrl } from "@/lib/apiUrl";
 
 export interface UseChannelMembersResult {
   currentUsername: string;
@@ -15,8 +16,6 @@ export interface UseChannelMembersResult {
   validUsernames: Set<string>;
   validRoleNames: Set<string>;
 }
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export function useChannelMembers({
   serverId,
@@ -125,7 +124,7 @@ export function useChannelMembers({
         if (!token) return;
 
         const res = await fetch(
-          `${API_URL}/api/newserver/${serverId}/members/${currentUserId}`,
+          buildApiUrl(`/api/newserver/${serverId}/members/${currentUserId}`),
           { headers: { Authorization: `Bearer ${token}` } }
         );
 

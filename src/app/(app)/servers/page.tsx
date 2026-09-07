@@ -50,7 +50,8 @@ import { useSearchParams } from "next/navigation";
 import { useVoiceCall } from "@/contexts/VoiceCallContext";
 import { useJoinServerModal } from "@/contexts/JoinServerModalContext";
 // import { supabase } from "@/lib/supabaseClient";
-import Toast from "@/components/Toast";
+import { toast } from "@/contexts/ToastContext";
+import { getErrorMessage } from "@/components/toast/errorNormalizer";
 import {
   ChannelListSkeleton,
   MessageListSkeleton,
@@ -205,10 +206,6 @@ const ServersPageContent: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"voice" | "chat">("chat");
-  const [toast, setToast] = useState<{
-    message: string;
-    type: "info" | "success" | "error";
-  } | null>(null);
   const [channelSettings, setChannelSettings] = useState<{
     channel: Channel;
     name: string;
@@ -567,7 +564,6 @@ const ServersPageContent: React.FC = () => {
           }
         }
       }
-      setToast(null);
     }
     pageReady();
   }, [
@@ -752,14 +748,11 @@ const ServersPageContent: React.FC = () => {
     if (!selectedServerId || !channelSettings) return;
     const nextName = channelSettings.name.trim();
     if (!nextName) {
-      setToast({ message: "Channel name cannot be empty", type: "error" });
+      toast.error("Channel name cannot be empty");
       return;
     }
     if (nextName.length > 20) {
-      setToast({
-        message: "Channel name cannot exceed 20 characters",
-        type: "error",
-      });
+      toast.error("Channel name cannot exceed 20 characters");
       return;
     }
     setIsSavingChannel(true);
@@ -779,15 +772,11 @@ const ServersPageContent: React.FC = () => {
             : old
       );
       setChannelSettings(null);
-      setToast({ message: "Channel updated", type: "success" });
+      toast.success("Channel updated");
     } catch (err: any) {
-      setToast({
-        message:
-          err?.response?.data?.error ||
-          err?.response?.data?.message ||
-          "Failed to update channel",
-        type: "error",
-      });
+      toast.error(
+        getErrorMessage(err, "Failed to update channel")
+      );
     } finally {
       setIsSavingChannel(false);
     }
@@ -808,15 +797,11 @@ const ServersPageContent: React.FC = () => {
             : old
       );
       setChannelSettings(null);
-      setToast({ message: "Channel deleted", type: "success" });
+      toast.success("Channel deleted");
     } catch (err: any) {
-      setToast({
-        message:
-          err?.response?.data?.error ||
-          err?.response?.data?.message ||
-          "Failed to delete channel",
-        type: "error",
-      });
+      toast.error(
+        getErrorMessage(err, "Failed to delete channel")
+      );
     } finally {
       setIsDeletingChannel(false);
     }
@@ -824,17 +809,6 @@ const ServersPageContent: React.FC = () => {
 
   return (
     <>
-      {toast && (
-        <div className="fixed top-6 right-6 z-[9999]">
-          <Toast
-            message={toast.message}
-            type={toast.type}
-            duration={3000}
-            onClose={() => setToast(null)}
-          />
-        </div>
-      )}
-
       {channelSettings && (
         <div
           className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/70 px-4"
@@ -1007,7 +981,7 @@ const ServersPageContent: React.FC = () => {
                           (servers.length > 0 ? servers[0].id : null);
 
                         if (!targetId) {
-                          alert("Please select a server first");
+                          toast.error("Please select a server first");
                           return;
                         }
 

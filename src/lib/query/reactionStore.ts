@@ -123,6 +123,17 @@ export function setMessageReactions(
   return { ...prev, [messageId]: cleaned };
 }
 
+export function removeMessageReactions(
+  prev: ReactionStoreData,
+  messageIds: Iterable<string>
+): ReactionStoreData {
+  let next = prev;
+  for (const id of messageIds) {
+    if (next[id]) next = withoutKey(next, id);
+  }
+  return next;
+}
+
 const readString = (body: any, ...keys: string[]): string | undefined => {
   for (const key of keys) {
     const value = body?.[key];

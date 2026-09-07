@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { getServerInvites, createServerInvite, deleteInvite } from "@/api";
 import { ServerInvite } from "@/api/types/server.types";
 import { useToast } from "@/contexts/ToastContext";
+import { getErrorMessage } from "@/components/toast/errorNormalizer";
 import Skeleton from "@/components/loading/Skeleton";
 
 interface InvitePeopleProps {
@@ -57,7 +58,7 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
       loadInvites();
     } catch (err: any) {
       showToast(
-        err.response?.data?.error || "Failed to generate invite",
+        getErrorMessage(err, "Failed to generate invite"),
         "error"
       );
     } finally {

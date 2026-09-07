@@ -9,6 +9,8 @@ import { resetPassword } from "@/api";
 import { supabase } from "../../../lib/supabaseClient";
 import Link from "next/link";
 import InlineSpinner from "@/components/loading/InlineSpinner";
+import { toast } from "@/contexts/ToastContext";
+import { getErrorMessage } from "@/components/toast/errorNormalizer";
 
 function ResetPasswordContent() {
   useSearchParams();
@@ -97,12 +99,13 @@ function ResetPasswordContent() {
       await resetPassword(password, session.access_token);
       setSubmitted(true);
       setMessage("Password updated! Redirecting to login...");
+      toast.success("Password updated");
 
       await supabase.auth.signOut();
 
       setTimeout(() => router.push("/"), 2000);
     } catch (err: any) {
-      setMessage(err?.response?.data?.message || "Reset failed. Try again.");
+      setMessage(getErrorMessage(err, "Reset failed. Try again."));
     }
   }
 

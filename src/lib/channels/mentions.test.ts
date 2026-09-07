@@ -57,6 +57,27 @@ describe("validateRoleMentions", () => {
       valid: true,
     });
   });
+
+  it("supports role names with spaces (whitespace-aware)", () => {
+    expect(
+      validateRoleMentions("@&Event Planner", new Set(["event planner"]))
+    ).toEqual({ valid: true });
+    expect(
+      validateRoleMentions("@&Event Planner", new Set(["event"]))
+    ).toEqual({ valid: false, invalidRole: "Event Planner" });
+  });
+
+  it("parses adjacent role mentions independently", () => {
+    expect(
+      validateRoleMentions(
+        "@&Admin@&Moderator",
+        new Set(["admin", "moderator"])
+      )
+    ).toEqual({ valid: true });
+    expect(
+      validateRoleMentions("@&Admin@&Ghost", new Set(["admin", "moderator"]))
+    ).toEqual({ valid: false, invalidRole: "Ghost" });
+  });
 });
 
 describe("isContentMentioningMe", () => {

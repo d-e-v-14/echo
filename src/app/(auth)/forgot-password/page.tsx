@@ -2,6 +2,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { forgotPassword } from "@/api";
+import { getErrorMessage } from "@/components/toast/errorNormalizer";
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function ForgotPassword() {
   const [identifier, setIdentifier] = useState("");
@@ -13,12 +16,20 @@ export default function ForgotPassword() {
     setSubmitted(false);
     setError("");
 
+    const email = identifier.trim();
+    if (!EMAIL_REGEX.test(email)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
     try {
-      await forgotPassword(identifier);
+      await forgotPassword(email);
       setSubmitted(true);
     } catch (err: any) {
       setSubmitted(false);
-      setError(err?.response?.data?.message || "Something went wrong.");
+      setError(
+        getErrorMessage(err, "We couldn't send the reset link. Please try again.")
+      );
     }
   }
 
@@ -73,7 +84,9 @@ export default function ForgotPassword() {
             <div className="mb-6">
               <label className="text-white text-sm font-light">Email</label>
               <input
-                type="text"
+                type="email"
+                autoComplete="email"
+                inputMode="email"
                 placeholder="Enter your email"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}

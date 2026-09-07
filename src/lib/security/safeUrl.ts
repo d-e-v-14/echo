@@ -1,5 +1,5 @@
-const SAFE_PROTOCOLS = new Set(["http:", "https:", "blob:"]);
-const SAFE_MEDIA_PROTOCOLS = new Set(["http:", "https:", "blob:", "data:"]);
+const SAFE_PROTOCOLS = new Set(["https:", "blob:"]);
+const SAFE_MEDIA_PROTOCOLS = new Set(["https:", "blob:"]);
 
 export function isSafeUrl(url: string): boolean {
   try {

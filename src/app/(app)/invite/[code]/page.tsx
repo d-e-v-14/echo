@@ -6,6 +6,8 @@ import { joinServer } from "@/api";
 import { supabase } from "@/lib/supabaseClient";
 import { tokenStore } from "@/lib/auth/tokenStore";
 import InlineSpinner from "@/components/loading/InlineSpinner";
+import { toast } from "@/contexts/ToastContext";
+import { getAuthErrorMessage } from "@/components/toast/errorNormalizer";
 
 export default function InvitePage() {
   const { code } = useParams<{ code: string }>();
@@ -26,6 +28,7 @@ export default function InvitePage() {
 
     if (error) {
       console.error("Error initiating Google sign-in:", error);
+      toast.error(getAuthErrorMessage(error));
     }
   };
 

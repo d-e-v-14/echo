@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { leaveServer } from "@/api";
 import { ServerDetails } from "@/api/types/server.types";
+import { toast } from "@/contexts/ToastContext";
+import { getErrorMessage } from "@/components/toast/errorNormalizer";
 
 interface LeaveProps {
   serverId: string;
@@ -28,9 +30,10 @@ export default function Leave({ serverId, serverDetails, isOwner = false }: Leav
     try {
       await leaveServer(serverId);
       localStorage.removeItem("currentServerId");
+      toast.success("You left the server");
       setTimeout(() => router.push("/servers"), 1500);
-    } catch {
-      setError("Failed to leave server.");
+    } catch (err: any) {
+      setError(getErrorMessage(err, "Failed to leave server."));
       setIsLeaving(false);
     }
   };

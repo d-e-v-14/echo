@@ -16,6 +16,7 @@ import { Role } from "@/api/types/roles.types";
 import { useToast } from "@/contexts/ToastContext";
 import { useUser } from "@/components/UserContext";
 import { invalidateServerPermissionQueries } from "@/lib/query/roleSync";
+import { getErrorMessage } from "@/components/toast/errorNormalizer";
 
 interface Member {
   id: string;
@@ -108,12 +109,16 @@ export default function Members({
     setRoleActionLoading(roleId);
     try {
       await assignRoleToUser(serverId, memberId, roleId);
+      showToast("Role assigned", "success");
       await loadMembers();
       if (memberId === user?.id) {
         invalidateServerPermissionQueries(queryClient, serverId);
       }
     } catch (error: any) {
-      showToast(error?.response?.data?.error || "Failed to assign role", "error");
+      showToast(
+        getErrorMessage(error, "Failed to assign role"),
+        "error"
+      );
     } finally {
       setRoleActionLoading(null);
     }
@@ -123,12 +128,16 @@ export default function Members({
     setRoleActionLoading(roleId);
     try {
       await removeRoleFromUser(serverId, memberId, roleId);
+      showToast("Role removed", "success");
       await loadMembers();
       if (memberId === user?.id) {
         invalidateServerPermissionQueries(queryClient, serverId);
       }
     } catch (error: any) {
-      showToast(error?.response?.data?.error || "Failed to remove role", "error");
+      showToast(
+        getErrorMessage(error, "Failed to remove role"),
+        "error"
+      );
     } finally {
       setRoleActionLoading(null);
     }
@@ -177,7 +186,7 @@ export default function Members({
       showToast(`@${user.username} added`, "success");
       await loadMembers();
     } catch (error: any) {
-      const msg = error?.response?.data?.error || error?.message || "Failed to add member";
+      const msg = getErrorMessage(error, "Failed to add member");
       showToast(msg, "error");
     }
   };

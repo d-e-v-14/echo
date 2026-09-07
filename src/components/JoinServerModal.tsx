@@ -6,6 +6,7 @@ import { joinServer } from "@/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query/keys";
 import InlineSpinner from "@/components/loading/InlineSpinner";
+import { toast } from "@/contexts/ToastContext";
 
 interface JoinServerModalProps {
   isOpen: boolean;
@@ -112,6 +113,7 @@ export default function JoinServerModal({
       queryClient.invalidateQueries({ queryKey: queryKeys.servers });
       setJoinCode("");
       onClose();
+      toast.success("You joined the server");
     } catch (err: any) {
       setError(friendlyError(err));
     } finally {

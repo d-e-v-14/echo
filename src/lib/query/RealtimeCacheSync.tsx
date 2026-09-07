@@ -156,8 +156,12 @@ export function RealtimeCacheSync() {
         socket.off(name, handler as any);
       }
       if (timer.current) clearTimeout(timer.current);
-      pendingInvalidate.current.clear();
-      pendingRemove.current.clear();
+      if (
+        pendingInvalidate.current.size > 0 ||
+        pendingRemove.current.size > 0
+      ) {
+        flush();
+      }
     };
   }, [socket, queryClient]);
 

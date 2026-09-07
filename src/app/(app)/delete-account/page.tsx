@@ -1,33 +1,34 @@
 "use client";
 import { useState } from "react";
-import axios from "axios";
 import { useRouter } from "next/navigation";
+import { api } from "@/api/axios";
+import { toast } from "@/contexts/ToastContext";
+import { getErrorMessage } from "@/components/toast/errorNormalizer";
 
 export default function DeleteAccount() {
   const [password, setPassword] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-  const [message, setMessage] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const router = useRouter();
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+
   const handleDelete = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage("");
-    setSubmitted(false);
+    setDeleting(true);
 
     if (!password) {
-      setMessage("Please enter your password to confirm.");
+      toast.error("Please enter your password to confirm.");
+      setDeleting(false);
       return;
     }
     try {
-      await axios.delete(`${API_BASE_URL}/profile/deleteProfile`, {
+      await api.delete("/profile/deleteProfile", {
         data: { password },
-        withCredentials: true,
       });
-      alert("Account deleted.");
+      toast.success("Account deleted");
       router.push("/");
     } catch (err) {
       console.error("Failed to delete profile", err);
-      alert("Failed to delete profile. Please check your password.");
+      toast.error(getErrorMessage(err, "Failed to delete account. Please check your password and try again."));
+      setDeleting(false);
     }
   };
 
@@ -95,28 +96,18 @@ export default function DeleteAccount() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-2 mt-1 text-white bg-transparent border border-white rounded-md focus:outline-none"
                 required
-                disabled={submitted}
+                disabled={deleting}
               />
             </div>
 
             <button
               type="submit"
               className="w-full py-3 mt-2 mb-4 text-lg font-semibold text-black bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-60"
-              disabled={submitted}
+              disabled={deleting}
             >
-              Delete Account
+              {deleting ? "Deleting…" : "Delete Account"}
             </button>
           </form>
-
-          {message && (
-            <div
-              className={`text-center text-sm ${
-                submitted ? "text-green-500" : "text-red-500"
-              }`}
-            >
-              {message}
-            </div>
-          )}
 
           <div className="mt-6 text-center">
             <button
