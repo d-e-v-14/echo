@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/lib/navigation/useAppRouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { addFriend, removeFriend } from "@/api";
 import { queryKeys } from "@/lib/query/keys";
@@ -58,7 +58,7 @@ export function UserProfileCard({
   menuItems,
   variant = "popout",
 }: UserProfileCardProps) {
-  const router = useRouter();
+  const { openDm } = useAppRouter();
   const queryClient = useQueryClient();
   const [actionError, setActionError] = useState<string | null>(null);
   const [internalActionLoading, setInternalActionLoading] = useState(false);
@@ -157,8 +157,8 @@ export function UserProfileCard({
   const handleMessageClick = useCallback(() => {
     if (!userId) return;
     onClose?.();
-    setTimeout(() => router.push(`/messages?dm=${userId}`), 150);
-  }, [userId, onClose, router]);
+    setTimeout(() => openDm(userId), 150);
+  }, [userId, onClose, openDm]);
 
   if (variant === "popout" && (!isOpen || !user)) return null;
 

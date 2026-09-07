@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useRef, useState } from "react";
 import SharkWithEyes from "@/components/shark";
 import AOS from "aos";
 // import "aos/dist/aos.css";
@@ -10,9 +10,12 @@ import { useRouter } from "next/navigation";
 import Modal from "react-modal";
 import { FaGoogle } from "react-icons/fa";
 import { supabase } from "@/lib/supabaseClient";
+import { tokenStore } from "@/lib/auth/tokenStore";
 import InlineSpinner from "@/components/loading/InlineSpinner";
 import { toast } from "@/contexts/ToastContext";
 import { getAuthErrorMessage } from "@/components/toast/errorNormalizer";
+import { SignInNotice } from "@/components/SignInNotice";
+import { buildPath } from "@/lib/navigation/paths";
 
 Modal.setAppElement("body");
 
@@ -25,10 +28,15 @@ export default function Home() {
   const [showPopup] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
 
   const handleGoogleSignIn = async () => {
     if (signingIn) return;
     setSigningIn(true);
+    const next = new URLSearchParams(window.location.search).get("next");
+    if (next) {
+      localStorage.setItem("redirectAfterLogin", next);
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -45,6 +53,19 @@ export default function Home() {
       setSigningIn(false);
     }
   };
+
+  const signedInCheckedRef = useRef(false);
+
+  useEffect(() => {
+    if (signedInCheckedRef.current) return;
+    signedInCheckedRef.current = true;
+
+    if (!tokenStore.hasRefreshToken()) return;
+
+    setSignedIn(true);
+    toast.warning("You're signed in. Please log out to visit the Google sign-in page.");
+    router.replace(buildPath("SERVERS"));
+  }, [router]);
 
   useEffect(() => {
     let didFinish = false;
@@ -119,7 +140,7 @@ export default function Home() {
         // Let Supabase ingest the recovery hash into the local session, then
         // forward to the reset page without leaking the token in the URL.
         supabase.auth.getSession().then(() => {
-          router.replace("/reset-password");
+          router.replace(buildPath("RESET_PASSWORD"));
         });
       }
     }
@@ -174,6 +195,10 @@ export default function Home() {
 
   return (
     <>
+      <Suspense fallback={null}>
+        <SignInNotice />
+      </Suspense>
+
       {/* Initial Loading Screen */}
       <div
         className={`
@@ -368,6 +393,12 @@ export default function Home() {
                 data-aos="fade-right"
                 data-aos-delay="180"
               >
+{signedIn ? (
+                  <div className="inline-flex min-h-[50px] items-center justify-center gap-3 rounded-lg bg-white/5 px-5 py-3 text-[15px] font-semibold text-[#b5bac1]">
+                    <InlineSpinner size="sm" />
+                    <span>Redirecting to servers&hellip;</span>
+                  </div>
+                ) : (
                 <button
                   type="button"
                   onClick={handleGoogleSignIn}
@@ -408,6 +439,7 @@ export default function Home() {
                     </>
                   )}
                 </button>
+                )}
               </div>
             </div>
 

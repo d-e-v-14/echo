@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/lib/navigation/useAppRouter";
 import { api } from "@/api/axios";
 import { toast } from "@/contexts/ToastContext";
 import { getErrorMessage } from "@/components/toast/errorNormalizer";
@@ -8,7 +8,7 @@ import { getErrorMessage } from "@/components/toast/errorNormalizer";
 export default function DeleteAccount() {
   const [password, setPassword] = useState("");
   const [deleting, setDeleting] = useState(false);
-  const router = useRouter();
+  const { goHome, goBack } = useAppRouter();
 
   const handleDelete = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,7 +24,7 @@ export default function DeleteAccount() {
         data: { password },
       });
       toast.success("Account deleted");
-      router.push("/");
+      goHome();
     } catch (err) {
       console.error("Failed to delete profile", err);
       toast.error(getErrorMessage(err, "Failed to delete account. Please check your password and try again."));
@@ -112,7 +112,7 @@ export default function DeleteAccount() {
           <div className="mt-6 text-center">
             <button
               className="text-[#FFC341] text-sm hover:underline"
-              onClick={() => router.back()}
+              onClick={() => goBack()}
             >
               Cancel
             </button>

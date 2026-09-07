@@ -141,18 +141,18 @@ export default function CreateServerPage() {
 }
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/lib/navigation/useAppRouter";
 import { useToast } from "@/contexts/ToastContext";
 
 export default function CreateServerPage() {
-  const router = useRouter();
+  const { goBack } = useAppRouter();
   const { showToast } = useToast();
 
   useEffect(() => {
     showToast("Sorry, you don't have access to this page.", "error", 4000);
 
-    router.back();
-  }, [router, showToast]);
+    goBack();
+  }, [goBack, showToast]);
 
   return null;
 }

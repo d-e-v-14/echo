@@ -1,12 +1,12 @@
 import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { tokenStore } from "@/lib/auth/tokenStore";
 import { toast } from "@/components/toast/toastService";
+import { useAppRouter } from "@/lib/navigation/useAppRouter";
 
 const REFRESH_BUFFER_MS = 5 * 60 * 1000;
 
 export const useTokenRefresh = (enabled = true) => {
-  const router = useRouter();
+  const { goSafe } = useAppRouter();
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -18,7 +18,7 @@ export const useTokenRefresh = (enabled = true) => {
       tokenStore.clear();
       sessionStorage.setItem("skipGlobalLoader", "1");
       toast.warning("Your session has expired. Please sign in again.");
-      if (!cancelled) router.push("/");
+      if (!cancelled) goSafe("/");
     };
 
     const schedule = () => {
@@ -68,22 +68,5 @@ export const useTokenRefresh = (enabled = true) => {
         refreshTimerRef.current = null;
       }
     };
-  }, [router, enabled]);
-};
-
-export const useAuth = () => {
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!tokenStore.hasRefreshToken()) {
-      router.push("/");
-      return;
-    }
-
-    tokenStore.ensureAccessToken().then((token) => {
-      if (!token) {
-        router.push("/");
-      }
-    });
-  }, [router]);
+  }, [goSafe, enabled]);
 };

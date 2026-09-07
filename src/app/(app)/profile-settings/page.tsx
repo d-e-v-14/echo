@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { useAppRouter } from "@/lib/navigation/useAppRouter";
+// import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Camera, LogOut, Menu } from "lucide-react";
 import { apiClient } from "@/api/axios";
@@ -51,6 +52,7 @@ function SectionCard({
 
 export default function ProfilePage() {
   const { setUser } = useUser();
+  const { goBack } = useAppRouter();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
 
@@ -244,13 +246,21 @@ export default function ProfilePage() {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <Link
+          {/* <Link
             href="/profile"
             className="flex items-center gap-2 text-sm text-[#72767d] transition hover:text-[#b5bac1]"
           >
             <ArrowLeft className="h-4 w-4" />
             <span className="hidden sm:inline">Back</span>
-          </Link>
+          </Link> */}
+          <button
+            type="button"
+            onClick={goBack}
+            className="flex items-center gap-2 text-sm text-[#72767d] transition hover:text-[#b5bac1]"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">Back</span>
+          </button>
           <div className="mx-1 hidden h-4 w-px bg-white/[0.06] sm:block" />
           <span className="hidden text-sm text-[#72767d] sm:inline">
             User Settings

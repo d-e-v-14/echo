@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/lib/navigation/useAppRouter";
 import { leaveServer } from "@/api";
 import { ServerDetails } from "@/api/types/server.types";
 import { toast } from "@/contexts/ToastContext";
@@ -16,7 +16,7 @@ export default function Leave({ serverId, serverDetails, isOwner = false }: Leav
   const [input, setInput] = useState("");
   const [isLeaving, setIsLeaving] = useState(false);
   const [error, setError] = useState("");
-  const router = useRouter();
+  const { open } = useAppRouter();
 
   const serverName = serverDetails?.name || "Unknown Server";
 
@@ -31,7 +31,7 @@ export default function Leave({ serverId, serverDetails, isOwner = false }: Leav
       await leaveServer(serverId);
       localStorage.removeItem("currentServerId");
       toast.success("You left the server");
-      setTimeout(() => router.push("/servers"), 1500);
+      setTimeout(() => open("SERVERS"), 1500);
     } catch (err: any) {
       setError(getErrorMessage(err, "Failed to leave server."));
       setIsLeaving(false);

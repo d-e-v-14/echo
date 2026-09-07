@@ -1,17 +1,18 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { joinServer } from "@/api";
 import { supabase } from "@/lib/supabaseClient";
 import { tokenStore } from "@/lib/auth/tokenStore";
 import InlineSpinner from "@/components/loading/InlineSpinner";
 import { toast } from "@/contexts/ToastContext";
 import { getAuthErrorMessage } from "@/components/toast/errorNormalizer";
+import { useAppRouter } from "@/lib/navigation/useAppRouter";
 
 export default function InvitePage() {
   const { code } = useParams<{ code: string }>();
-  const router = useRouter();
+  const { open } = useAppRouter();
 
   const joinAttemptRef = useRef<string | null>(null);
 
@@ -267,7 +268,7 @@ export default function InvitePage() {
               </button>
 
               <button
-                onClick={() => router.push("/servers")}
+                onClick={() => open("SERVERS")}
                 className="w-full mt-2 py-2.5 rounded-md text-sm text-[#a3a6aa] hover:text-white bg-transparent hover:bg-[#2b2d31] transition-all"
               >
                 Back 
@@ -300,7 +301,7 @@ export default function InvitePage() {
                 You can now access the server from your server list.
               </p>
               <button
-                onClick={() => router.push("/servers")}
+                onClick={() => open("SERVERS")}
                 className="w-full py-2.5 rounded-md text-white font-medium bg-[#5865f2] hover:bg-[#4752c4] transition-all text-sm"
               >
                 Back 
@@ -317,7 +318,7 @@ export default function InvitePage() {
                 You are already in this server.
               </p>
               <button
-                onClick={() => router.push("/servers")}
+                onClick={() => open("SERVERS")}
                 className="w-full py-2.5 rounded-md text-white font-medium bg-[#5865f2] hover:bg-[#4752c4] transition-all text-sm"
               >
                 Back

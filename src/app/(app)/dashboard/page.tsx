@@ -1,17 +1,17 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/lib/navigation/useAppRouter";
 import { useToast } from "@/contexts/ToastContext";
 export default function DashboardPage() {
-  const router = useRouter();
+  const { goSafe } = useAppRouter();
   const { showToast } = useToast();
 
   useEffect(() => {
     showToast("Please login to continue", "info", 4000);
 
-    router.replace("/");
-  }, [router, showToast]);
+    goSafe("/");
+  }, [goSafe, showToast]);
 
   return null;
 }

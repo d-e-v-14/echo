@@ -8,7 +8,8 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useAppRouter } from "@/lib/navigation/useAppRouter";
 import { usePageReady } from "@/components/RouteChangeLoader";
 import {
   Paperclip,
@@ -800,7 +801,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 };
 
 function MessagesPageContentInner() {
-  const router = useRouter();
+  const { open, openDm } = useAppRouter();
   const searchParams = useSearchParams();
   const selectedDM = searchParams.get("dm");
   const { refreshCount: refreshMessageNotifications, unreadPerThread } =
@@ -1127,9 +1128,9 @@ function MessagesPageContentInner() {
       const loggedInUser = JSON.parse(userItem);
       setCurrentUser(loggedInUser);
     } else {
-      router.push("/");
+      open("HOME");
     }
-  }, [router]);
+  }, [open]);
   useEffect(() => {
     const handleProfileUpdate = () => {
       const userItem = localStorage.getItem("user");
@@ -1796,9 +1797,9 @@ queryClient.setQueryData(
   const handleSelectDm = useCallback(
     (userId: string) => {
       setActiveDmId(userId);
-      router.push(`/messages?dm=${userId}`);
+      openDm(userId);
     },
-    [router]
+    [openDm]
   );
 
   const openUserProfile = useCallback(

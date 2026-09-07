@@ -14,7 +14,6 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
-import { useRouter } from "next/navigation";
 import { usePageReady } from "@/components/RouteChangeLoader";
 import FocusLock from "react-focus-lock";
 import {
@@ -42,11 +41,11 @@ import {
   useServerUnreadCounts,
   useMentionUnreadCount,
 } from "@/hooks/useMentionUnread";
-import {
-  pruneServerChannels,
+import { pruneServerChannels,
   pruneServers,
 } from "@/lib/mentions/unreadStore";
 import { useSearchParams } from "next/navigation";
+import { useAppRouter } from "@/lib/navigation/useAppRouter";
 import { useVoiceCall } from "@/contexts/VoiceCallContext";
 import { useJoinServerModal } from "@/contexts/JoinServerModalContext";
 // import { supabase } from "@/lib/supabaseClient";
@@ -188,7 +187,7 @@ const ServersPageContent: React.FC = () => {
   const serverIdFromQuery = searchParams.get("serverId");
   const viewModeFromQuery = searchParams.get("view");
   const [showAddMenu, setShowAddMenu] = useState(false);
-  const router = useRouter();
+  const { open, openSettings } = useAppRouter();
   const [servers, setServers] = useState<any[]>([]);
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
   const [selectedServerName, setSelectedServerName] = useState<string>("");
@@ -944,7 +943,7 @@ const ServersPageContent: React.FC = () => {
                   Join Server
                 </button>
                 <button
-                  onClick={() => router.push("/create-server")}
+                  onClick={() => open("CREATE_SERVER")}
                   className="px-4 py-2 rounded bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold hover:-translate-y-0.5 transition-all"
                 >
                   Create Server
@@ -986,7 +985,7 @@ const ServersPageContent: React.FC = () => {
                         }
 
                         localStorage.setItem("currentServerId", targetId);
-                        router.push(`/server-settings?serverId=${targetId}`);
+                        openSettings(targetId);
                       }}
                     >
                       <FaCog className="w-5 h-5 text-[#b5bac1] hover:text-white" />

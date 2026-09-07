@@ -3,16 +3,17 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import { handleOAuthLogin } from "@/api";
 import { tokenStore } from "@/lib/auth/tokenStore";
 import InlineSpinner from "@/components/loading/InlineSpinner";
 import { toast } from "@/contexts/ToastContext";
 import { getAuthErrorMessage } from "@/components/toast/errorNormalizer";
+import { useAppRouter } from "@/lib/navigation/useAppRouter";
+import { buildPath } from "@/lib/navigation/paths";
 
 export default function OAuthCallback() {
-  const router = useRouter();
+  const { goSafe } = useAppRouter();
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -36,7 +37,7 @@ export default function OAuthCallback() {
           setError(true);
           timers.push(
             setTimeout(() => {
-              if (!cancelled) router.push("/");
+              if (!cancelled) goSafe("/");
             }, 3000)
           );
           return;
@@ -55,12 +56,12 @@ export default function OAuthCallback() {
         });
 
         const redirect =
-          localStorage.getItem("redirectAfterLogin") || "/servers";
+          localStorage.getItem("redirectAfterLogin") || buildPath("SERVERS");
         localStorage.removeItem("redirectAfterLogin");
 
         timers.push(
           setTimeout(() => {
-            if (!cancelled) router.replace(redirect);
+            if (!cancelled) goSafe(redirect);
           }, 1000)
         );
       } catch (err) {
@@ -72,7 +73,7 @@ export default function OAuthCallback() {
 
         timers.push(
           setTimeout(() => {
-            if (!cancelled) router.push("/");
+            if (!cancelled) goSafe("/");
           }, 3000)
         );
       }
@@ -84,7 +85,7 @@ export default function OAuthCallback() {
       cancelled = true;
       timers.forEach(clearTimeout);
     };
-  }, [router]);
+  }, [goSafe]);
 
   return (
     <>

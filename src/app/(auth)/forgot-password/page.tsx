@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import Link from "next/link";
+import AppLink from "@/components/navigation/AppLink";
 import { forgotPassword } from "@/api";
 import { getErrorMessage } from "@/components/toast/errorNormalizer";
 
@@ -115,9 +115,9 @@ export default function ForgotPassword() {
           )}
 
           <div className="mt-6 text-center">
-            <Link href="/" className="text-[#FFC341] text-sm hover:underline">
+            <AppLink to="HOME" className="text-[#FFC341] text-sm hover:underline">
               Back to Login
-            </Link>
+            </AppLink>
           </div>
         </div>
       </div>

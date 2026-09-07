@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { ArrowLeft, Menu } from "lucide-react";
+import { useAppRouter } from "@/lib/navigation/useAppRouter";
 
 import Sidebar from "./components/Sidebar";
 import Overview from "./components/ServerSettings/Overview";
@@ -19,7 +19,7 @@ import { type ServerDetails } from "@/api/types/server.types";
 import Skeleton from "@/components/loading/Skeleton";
 
 export default function ServerSettingsPage() {
-  const router = useRouter();
+  const { open } = useAppRouter();
 
   const [selected, setSelected] = useState<string>("Overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -230,7 +230,7 @@ export default function ServerSettingsPage() {
             <Menu className="w-5 h-5" />
           </button>
           <button
-            onClick={() => router.push("/servers")}
+            onClick={() => open("SERVERS")}
             className="flex items-center gap-2 text-[#72767d] hover:text-[#b5bac1] transition text-sm"
           >
             <ArrowLeft className="w-4 h-4" />

@@ -3,12 +3,13 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState, Suspense } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import InlineSpinner from "@/components/loading/InlineSpinner";
+import { useAppRouter } from "@/lib/navigation/useAppRouter";
+import { buildPath } from "@/lib/navigation/paths";
 
 function AuthCallbackContent() {
-  const router = useRouter();
+  const { goSafe } = useAppRouter();
   const [status, setStatus] = useState<"loading" | "success" | "error">(
     "loading"
   );
@@ -39,7 +40,7 @@ function AuthCallbackContent() {
               console.error("Session error:", error);
               setStatus("error");
               setMessage("Failed to verify email. Please try again.");
-              setTimeout(() => router.push("/"), 3000);
+              setTimeout(() => goSafe("/"), 3000);
               return;
             }
 
@@ -50,37 +51,37 @@ function AuthCallbackContent() {
               );
             } else if (type === "recovery") {
               setMessage("Password reset link verified! Redirecting...");
-              setTimeout(() => router.push("/reset-password"), 2000);
+              setTimeout(() => goSafe(buildPath("RESET_PASSWORD")), 2000);
               return;
             } else {
               setMessage("Email verified! Redirecting to login...");
             }
 
             const pendingRedirect = localStorage.getItem("redirectAfterLogin");
-            const loginUrl = pendingRedirect
-              ? `/login?verified=true&redirect=${encodeURIComponent(pendingRedirect)}`
-              : "/login?verified=true";
-            setTimeout(() => router.push(loginUrl), 2000);
+            const homeUrl = pendingRedirect
+              ? `/?verified=true&redirect=${encodeURIComponent(pendingRedirect)}`
+              : "/?verified=true";
+            setTimeout(() => goSafe(homeUrl), 2000);
           } else {
             setStatus("error");
             setMessage("Invalid verification link.");
-            setTimeout(() => router.push("/"), 3000);
+            setTimeout(() => goSafe("/"), 3000);
           }
         } else {
           setStatus("success");
           setMessage("Redirecting to login...");
-          setTimeout(() => router.push("/"), 1000);
+          setTimeout(() => goSafe("/"), 1000);
         }
       } catch (error) {
         console.error("Auth callback error:", error);
         setStatus("error");
         setMessage("An error occurred. Redirecting to signin...");
-        setTimeout(() => router.push("/"), 3000);
+        setTimeout(() => goSafe("/"), 3000);
       }
     };
 
     handleCallback();
-  }, [router]);
+  }, [goSafe]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">

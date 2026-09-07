@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/lib/navigation/useAppRouter";
 import { deleteServer, transferServerOwnership, getServerMembers, getUser } from "@/api";
 import { useToast } from "@/contexts/ToastContext";
 import { getErrorMessage } from "@/components/toast/errorNormalizer";
@@ -24,7 +24,7 @@ export default function DangerZone({
   serverName,
   isOwner,
 }: DangerZoneProps) {
-  const router = useRouter();
+  const { open } = useAppRouter();
   const { showToast } = useToast();
 
   const [loading, setLoading] = useState(false);
@@ -81,7 +81,7 @@ export default function DangerZone({
       setLoading(true);
       await deleteServer(serverId);
       showToast("Server deleted", "success");
-      setTimeout(() => router.push("/servers"), 800);
+      setTimeout(() => open("SERVERS"), 800);
     } catch (err: any) {
       showToast(getErrorMessage(err, "Failed to delete server"), "error");
     } finally {
@@ -97,7 +97,7 @@ export default function DangerZone({
       setLoading(true);
       await transferServerOwnership(serverId, selectedNewOwner);
       showToast("Ownership transferred", "success");
-      setTimeout(() => router.push("/servers"), 800);
+      setTimeout(() => open("SERVERS"), 800);
     } catch (err: any) {
       showToast(
         getErrorMessage(err, "Failed to transfer ownership"),

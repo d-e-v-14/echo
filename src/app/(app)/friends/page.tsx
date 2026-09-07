@@ -17,7 +17,7 @@ import {
   FaCheck,
   FaTimes,
 } from "react-icons/fa";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/lib/navigation/useAppRouter";
 import {
   fetchAllFriends,
   fetchFriendRequests,
@@ -59,7 +59,7 @@ interface FriendData {
 }
 
 export default function FriendsPage() {
-  const router = useRouter();
+  const { openDm } = useAppRouter();
   const pageReady = usePageReady();
   const { refreshCount: refreshFriendCount } = useFriendNotifications();
   const [activeTab, setActiveTab] = useState<TabId>("all");
@@ -216,7 +216,7 @@ export default function FriendsPage() {
   }, [searchQuery]);
 
   const handleSendDM = async (friendId: string) => {
-    router.push(`/messages?dm=${friendId}`);
+    openDm(friendId);
   };
 
   const handleRemoveFriend = async (friendId: string) => {

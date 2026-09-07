@@ -1,7 +1,7 @@
 "use client";
 
 import React, { ReactNode, useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/lib/navigation/useAppRouter";
 import { useVoiceCall } from "@/contexts/VoiceCallContext";
 import {
   useVoiceInviteNotifications,
@@ -18,7 +18,7 @@ export default function VoiceInviteProvider({
   children,
 }: VoiceInviteProviderProps) {
   const [userId, setUserId] = useState<string | null>(null);
-  const router = useRouter();
+  const { openServer } = useAppRouter();
   const { activeCall } = useVoiceCall();
 
   useEffect(() => {
@@ -41,15 +41,16 @@ export default function VoiceInviteProvider({
 
       try {
 
-        router.push(
-          `/servers?serverId=${invite.serverId}&channelId=${invite.channelId}&channelType=voice`
-        );
+        openServer(invite.serverId, {
+          channelId: invite.channelId,
+          query: { channelType: "voice" },
+        });
 
       } catch (err) {
         console.error("[VoiceInviteProvider] Failed to join via invite:", err);
       }
     },
-    [router]
+    [openServer]
   );
 
   const handleDeclineInvite = useCallback((invite: VoiceInvite) => {

@@ -3,7 +3,8 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
 import Draggable from "react-draggable";
 import type { DraggableData, DraggableEvent } from "react-draggable";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { useAppRouter } from "@/lib/navigation/useAppRouter";
 import { useVoiceCall } from "@/contexts/VoiceCallContext";
 import {
   FaMicrophone,
@@ -36,7 +37,7 @@ interface FloatingVoiceWindowProps {
 const FloatingVoiceWindow: React.FC<FloatingVoiceWindowProps> = ({
   currentServerId,
 }) => {
-  const router = useRouter();
+  const { openServer } = useAppRouter();
   const pathname = usePathname();
 
   const nodeRef = useRef<HTMLDivElement>(null);
@@ -253,9 +254,10 @@ const FloatingVoiceWindow: React.FC<FloatingVoiceWindowProps> = ({
 
             <button
               onClick={() =>
-                router.push(
-                  `/servers?serverId=${activeCall.serverId}&view=voice&t=${Date.now()}`
-                )
+                openServer(activeCall.serverId, {
+                  view: "voice",
+                  query: { t: String(Date.now()) },
+                })
               }
               className="p-2 rounded-full bg-[#FFC341]"
             >

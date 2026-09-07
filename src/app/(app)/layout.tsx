@@ -9,6 +9,7 @@ import { ImageModalProvider } from "@/contexts/ImageModalContext";
 import { JoinServerModalProvider } from "@/contexts/JoinServerModalContext";
 import RouteChangeLoader from "@/components/RouteChangeLoader";
 import ReconnectBanner from "@/components/loading/ReconnectBanner";
+import { RouteGuard } from "@/components/RouteGuard";
 import "../globals.css";
 import { UserProvider } from "@/components/UserContext";
 import { SocketProvider } from "@/lib/socket/SocketProvider";
@@ -19,7 +20,8 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   return (
-    <UserProvider>
+    <RouteGuard>
+      <UserProvider>
       <SocketProvider>
         <RealtimeCacheSync />
         <MentionUnreadProvider />
@@ -44,5 +46,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </FriendNotificationProvider>
       </SocketProvider>
     </UserProvider>
+    </RouteGuard>
   );
 }

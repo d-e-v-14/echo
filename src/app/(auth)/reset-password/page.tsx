@@ -3,18 +3,19 @@
 export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { resetPassword } from "@/api";
 import { supabase } from "../../../lib/supabaseClient";
-import Link from "next/link";
+import AppLink from "@/components/navigation/AppLink";
 import InlineSpinner from "@/components/loading/InlineSpinner";
 import { toast } from "@/contexts/ToastContext";
 import { getErrorMessage } from "@/components/toast/errorNormalizer";
+import { useAppRouter } from "@/lib/navigation/useAppRouter";
 
 function ResetPasswordContent() {
   useSearchParams();
-  const router = useRouter();
+  const { goSafe } = useAppRouter();
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -103,7 +104,7 @@ function ResetPasswordContent() {
 
       await supabase.auth.signOut();
 
-      setTimeout(() => router.push("/"), 2000);
+      setTimeout(() => goSafe("/"), 2000);
     } catch (err: any) {
       setMessage(getErrorMessage(err, "Reset failed. Try again."));
     }
@@ -216,9 +217,9 @@ function ResetPasswordContent() {
           )}
 
           <div className="mt-6 text-center">
-            <Link href="/" className="text-[#FFC341] text-sm hover:underline">
+            <AppLink to="HOME" className="text-[#FFC341] text-sm hover:underline">
               Back to Login
-            </Link>
+            </AppLink>
           </div>
         </div>
       </div>

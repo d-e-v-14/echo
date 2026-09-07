@@ -9,7 +9,7 @@ import {
   Cross,
 } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
+import AppLink from "@/components/navigation/AppLink";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { useEffect } from "react";
@@ -17,12 +17,18 @@ import Skeleton from "@/components/loading/Skeleton";
 import { useFriendNotifications } from "../contexts/FriendNotificationContext";
 import { useMessageNotifications } from "../contexts/MessageNotificationContext";
 import { useJoinServerModal } from "@/contexts/JoinServerModalContext";
+import type { RouteName } from "@/lib/navigation/types";
 
-const navItems = [
-  { label: "Servers", icon: Users, path: "/servers" },
-  { label: "Messages", icon: MessageSquareText, path: "/messages" },
-  { label: "Friends", icon: UserIcon, path: "/friends" },
-  { label: "Join Server", icon: Cross, path: "" },
+const navItems: {
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  path: string;
+  route: RouteName;
+}[] = [
+  { label: "Servers", icon: Users, path: "/servers", route: "SERVERS" },
+  { label: "Messages", icon: MessageSquareText, path: "/messages", route: "MESSAGES" },
+  { label: "Friends", icon: UserIcon, path: "/friends", route: "FRIENDS" },
+  { label: "Join Server", icon: Cross, path: "", route: "SERVERS" },
 ];
 
 export default function Sidebar() {
@@ -201,14 +207,14 @@ export default function Sidebar() {
                   {itemContent}
                 </button>
               ) : (
-                <Link
+                <AppLink
                   key={item.label}
-                  href={item.path}
+                  to={item.route}
                   onClick={() => handleNavClick(item.path)}
                   className={itemClassName}
                 >
                   {itemContent}
-                </Link>
+                </AppLink>
               );
             })}
           </div>
@@ -217,8 +223,8 @@ export default function Sidebar() {
         {/* Profile */}
         <div className="border-t border-white/[0.06] p-3">
           <div className="flex items-center gap-2">
-            <Link
-              href="/profile-settings"
+            <AppLink
+              to="PROFILE_SETTINGS"
               className="group flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-white/[0.06]"
             >
               {/* Avatar */}
@@ -252,7 +258,7 @@ export default function Sidebar() {
                   @{user.username}
                 </p>
               </div>
-            </Link>
+            </AppLink>
           </div>
         </div>
       </div>

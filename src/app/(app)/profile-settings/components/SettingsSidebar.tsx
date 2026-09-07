@@ -1,13 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Trash2, User } from "lucide-react";
+import AppLink from "@/components/navigation/AppLink";
+import type { RouteName } from "@/lib/navigation/types";
 
 interface NavItem {
   id: string;
   label: string;
-  href: string;
+  route: RouteName;
   icon: React.ReactNode;
   danger?: boolean;
 }
@@ -24,7 +25,7 @@ const NAV_GROUPS: NavGroup[] = [
       {
         id: "profile",
         label: "Profile",
-        href: "/profile-settings",
+        route: "PROFILE_SETTINGS",
         icon: <User className="h-4 w-4 flex-shrink-0" />,
       },
     ],
@@ -41,7 +42,7 @@ const NAV_GROUPS: NavGroup[] = [
       {
         id: "delete-account",
         label: "Delete Account",
-        href: "/delete-account",
+        route: "DELETE_ACCOUNT",
         icon: <Trash2 className="h-4 w-4 flex-shrink-0" />,
         danger: true,
       },
@@ -71,9 +72,9 @@ export default function SettingsSidebar() {
             {group.items.map((item) => {
               const isActive = activeId === item.id;
               return (
-                <Link
+                <AppLink
                   key={item.id}
-                  href={item.href}
+                  to={item.route}
                   aria-current={isActive ? "page" : undefined}
                   className={`
                     flex w-full items-center gap-2 rounded px-2.5 py-2 text-base transition-all duration-150
@@ -90,7 +91,7 @@ export default function SettingsSidebar() {
                 >
                   {item.icon}
                   {item.label}
-                </Link>
+                </AppLink>
               );
             })}
           </div>

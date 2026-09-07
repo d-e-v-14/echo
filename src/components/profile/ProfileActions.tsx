@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/lib/navigation/useAppRouter";
 import {
   Check,
   Copy,
@@ -60,7 +60,7 @@ export function ProfileActions({
   onMessage,
   menuItems = [],
 }: ProfileActionsProps) {
-  const router = useRouter();
+  const { open, openDm } = useAppRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -97,7 +97,7 @@ export function ProfileActions({
       onMessage();
       return;
     }
-    router.push(`/messages?dm=${userId}`);
+    openDm(userId);
   };
 
   const handleCopyId = async () => {
@@ -131,7 +131,7 @@ export function ProfileActions({
       {isOwnProfile && (
         <button
           type="button"
-          onClick={() => router.push("/profile-settings")}
+          onClick={() => open("PROFILE_SETTINGS")}
           className={`${primaryButton} flex-1 px-3`}
         >
           <Pencil className="h-4 w-4" />
