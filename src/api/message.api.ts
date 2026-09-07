@@ -201,6 +201,42 @@ export const getUserDMs = async (): Promise<{ data: any; success: boolean }> => 
   }
 };
 
+export const getDmThreadIdForPartner = async (
+  partnerId: string
+): Promise<string | null> => {
+  if (!partnerId) return null;
+
+  const { data } = await getUserDMs();
+  const top = data ?? {};
+  let threads: any[] = [];
+  if (Array.isArray(top)) {
+    threads = top;
+  } else if (Array.isArray(top?.threads)) {
+    threads = top.threads;
+  } else if (Array.isArray(top?.data)) {
+    threads = top.data;
+  }
+
+  const target = String(partnerId);
+  const match = threads.find((thread: any) => {
+    const otherId =
+      thread?.other_user?.id ?? thread?.recipientId ?? thread?.user_id ?? null;
+    return otherId != null && String(otherId) === target;
+  });
+
+  if (!match) return null;
+
+  const threadId = match.thread_id
+    ? String(match.thread_id)
+    : match._id
+      ? String(match._id)
+      : match.id
+        ? String(match.id)
+        : null;
+
+  return threadId;
+};
+
 export const getUnreadMessageCounts = async (): Promise<{
   unreadCounts: Record<string, number>;
   totalUnread: number;

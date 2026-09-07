@@ -26,6 +26,7 @@ import InlineSearchDropdown from "./InlineSearchDropdown";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getUserDMs,
+  getDmThreadIdForPartner,
   uploaddm,
   markThreadAsRead,
   searchDmMessages,
@@ -897,6 +898,35 @@ function MessagesPageContentInner() {
   const activeThreadId = activeDmId
     ? (threadIds.get(activeDmId) ?? null)
     : null;
+
+  const resolvedDmThreadRef = useRef<Map<string, string | null>>(new Map());
+  const resolvingDmThreadRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!activeDmId || !currentUser?.id) return;
+    if (threadIds.has(activeDmId)) return;
+    if (resolvedDmThreadRef.current.has(activeDmId)) return;
+    if (resolvingDmThreadRef.current.has(activeDmId)) return;
+
+    resolvingDmThreadRef.current.add(activeDmId);
+    getDmThreadIdForPartner(activeDmId)
+      .then((threadId) => {
+        resolvedDmThreadRef.current.set(activeDmId, threadId);
+        if (threadId) {
+          setThreadIds((prev) => {
+            if (prev.has(activeDmId)) return prev;
+            const next = new Map(prev);
+            next.set(activeDmId, threadId);
+            return next;
+          });
+        }
+      })
+      .catch(() => {
+        resolvedDmThreadRef.current.set(activeDmId, null);
+      })
+      .finally(() => {
+        resolvingDmThreadRef.current.delete(activeDmId);
+      });
+  }, [activeDmId, currentUser?.id, threadIds, setThreadIds]);
 
   const {
     data: dmMessagesData,
