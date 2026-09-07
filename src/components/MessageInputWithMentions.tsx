@@ -39,6 +39,7 @@ interface MessageInputWithMentionsProps {
   serverRoles: { id: string; name: string; color?: string }[];
   onTyping?: () => void;
   placeholder?: string;
+  disabled?: boolean;
 }
 
 const UserMentionAvatar: React.FC<{
@@ -73,6 +74,7 @@ export default function MessageInputWithMentions({
   serverRoles,
   onTyping,
   placeholder = "Message",
+  disabled = false,
 }: MessageInputWithMentionsProps) {
   const { showToast } = useToast();
   const [text, setText] = useState("");
@@ -627,7 +629,11 @@ export default function MessageInputWithMentions({
         </div>
       )}
 
-      <div className="mb-2 my-2 mx-2 flex items-center gap-2 bg-gray-800 rounded-lg py-[11px] px-3">
+      <div
+        className={`mb-2 my-2 mx-2 flex items-center gap-2 bg-gray-800 rounded-lg py-[11px] px-3 ${
+          disabled ? "opacity-50" : ""
+        }`}
+      >
         <textarea
           ref={textInputRef}
           rows={1}
@@ -635,7 +641,8 @@ export default function MessageInputWithMentions({
           onChange={handleTextChange}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="max-h-32 min-h-6 flex-1 resize-none overflow-y-auto bg-transparent py-0 leading-6 text-white outline-none placeholder:text-gray-400"
+          disabled={disabled}
+          className="max-h-32 min-h-6 flex-1 resize-none overflow-y-auto bg-transparent py-0 leading-6 text-white outline-none placeholder:text-gray-400 disabled:cursor-not-allowed"
         />
 
         <input
@@ -645,13 +652,17 @@ export default function MessageInputWithMentions({
           className="hidden"
           accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml,video/mp4,video/webm,video/quicktime,video/x-msvideo,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,text/csv"
           onChange={handleFileChange}
+          disabled={disabled}
         />
 
-        <button onClick={() => fileInputRef.current?.click()}>
+        <button onClick={() => fileInputRef.current?.click()} disabled={disabled}>
           <Paperclip size={20} />
         </button>
 
-        <button onClick={() => setShowEmojiPicker((v) => !v)}>
+        <button
+          onClick={() => setShowEmojiPicker((v) => !v)}
+          disabled={disabled}
+        >
           <Smile size={20} />
         </button>
         <button
@@ -662,7 +673,7 @@ export default function MessageInputWithMentions({
               loadTrendingGifs();
             }
           }}
-          disabled={isSending}
+          disabled={isSending || disabled}
           className="p-2 rounded-full hover:bg-white/10 active:scale-95 transition"
         >
           <ImageIcon className="w-5 h-5" />
@@ -670,7 +681,9 @@ export default function MessageInputWithMentions({
 
         <button
           onClick={handleSend}
-          disabled={isSending || (!text.trim() && files.length === 0)}
+          disabled={
+            isSending || disabled || (!text.trim() && files.length === 0)
+          }
           className="bg-[#FFC341] p-2 rounded-lg disabled:opacity-50"
         >
           <Send size={18} />
