@@ -47,11 +47,6 @@ export default function OAuthCallback() {
           session.refresh_token
         );
 
-        tokenStore.setTokens({
-          accessToken: session.access_token,
-          refreshToken: session.refresh_token,
-          expiresIn: session.expires_in || 3600,
-        });
         tokenStore.setUser(response.user);
 
         toast.update(loadingToast, {
