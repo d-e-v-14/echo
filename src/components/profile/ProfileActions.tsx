@@ -13,6 +13,9 @@ import {
   UserPlus,
 } from "lucide-react";
 import type { RelationshipStatus } from "./profile.types";
+import { useIsFriend } from "@/hooks/useFriends";
+import { toast } from "@/contexts/ToastContext";
+import { NOT_FRIEND_MESSAGE, NOT_FRIEND_TITLE } from "@/lib/friendship";
 
 export interface ProfileMenuItem {
   label: string;
@@ -61,6 +64,7 @@ export function ProfileActions({
   const [menuOpen, setMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { isFriend, isLoaded } = useIsFriend(userId);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -78,7 +82,17 @@ export function ProfileActions({
     };
   }, [menuOpen]);
 
+  const isMessageBlocked =
+    !isOwnProfile &&
+    (relationshipStatus !== undefined
+      ? relationshipStatus !== "accepted"
+      : isLoaded && !isFriend);
+
   const handleMessageClick = () => {
+    if (isMessageBlocked) {
+      toast.warning(NOT_FRIEND_MESSAGE, { title: NOT_FRIEND_TITLE });
+      return;
+    }
     if (onMessage) {
       onMessage();
       return;

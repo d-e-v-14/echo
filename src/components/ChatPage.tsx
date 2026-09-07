@@ -19,6 +19,7 @@ import {
   Pin,
   Clock,
   CircleAlert,
+  UserX,
 } from "lucide-react";
 import MessageInputWithMentions from "./MessageInputWithMentions";
 import InlineSearchDropdown from "./InlineSearchDropdown";
@@ -45,6 +46,13 @@ import { ScrollToBottomButton } from "@/components/ScrollToBottomButton";
 import { useChatScroll } from "@/hooks/useChatScroll";
 import { MessageSearchResult } from "@/api/types/message.types";
 import { useDmMessages } from "@/hooks/useDmMessages";
+import { useIsFriend, useFriendsRealtime } from "@/hooks/useFriends";
+import {
+  isFriendshipBlockedError,
+  NOT_FRIEND_MESSAGE,
+  NOT_FRIEND_TITLE,
+  UNFRIENDED_MESSAGE,
+} from "@/lib/friendship";
 import {
   ConversationListSkeleton,
   LoadingOlderMessagesSkeleton,
@@ -286,6 +294,21 @@ const ChatList: React.FC<ChatListProps> = ({
   );
 };
 
+const NotFriendsBanner: React.FC<{ name: string }> = ({ name }) => {
+  return (
+    <div className="m-2 flex items-center justify-center gap-3 rounded-lg border border-[#ed4245]/40 bg-[#ed4245]/10 px-4 py-3">
+      <UserX className="h-5 w-5 shrink-0 text-[#ed4245]" />
+      <div className="text-sm text-[#b5bac1]">
+        {`You're not friends with `}
+        <span className="font-semibold text-white">{name}</span>.
+        <span className="mt-0.5 block text-xs text-[#72767d]">
+          Add them as a friend to send messages.
+        </span>
+      </div>
+    </div>
+  );
+};
+
 interface ChatWindowProps {
   onLoadOlder: () => Promise<boolean>;
   hasMorePages?: boolean;
@@ -308,6 +331,8 @@ interface ChatWindowProps {
     fallbackName?: string,
     fallbackAvatar?: string
   ) => void;
+  canMessage?: boolean;
+  friendBlockedName?: string;
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -323,6 +348,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   allUsers,
   onSendMessage,
   onOpenProfile,
+  canMessage = true,
+  friendBlockedName,
 }) => {
 
   const [replyingTo, setReplyingTo] = useState<DMReplyTarget>(null);
@@ -738,13 +765,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
         )}
 
-        <MessageInputWithMentions
-          sendMessage={handleSendMessage}
-          isSending={false}
-          serverRoles={[]}
-          onTyping={() => {}}
-          placeholder={`Message ${recipientFirstName}`}
-        />
+        {canMessage ? (
+          <MessageInputWithMentions
+            sendMessage={handleSendMessage}
+            isSending={false}
+            serverRoles={[]}
+            onTyping={() => {}}
+            placeholder={`Message ${recipientFirstName}`}
+          />
+        ) : (
+          <NotFriendsBanner name={friendBlockedName ?? activeUser.fullname} />
+        )}
       </footer>
     </div>
   );
@@ -782,6 +813,51 @@ function MessagesPageContentInner() {
 
   const { socket } = useSocket();
   const activeDmIdRef = useRef<string | null>(null);
+
+  const refreshFriends = useFriendsRealtime();
+  const { isFriend: partnerIsFriend, isLoaded: isFriendsLoaded } = useIsFriend(
+    activeDmId,
+    { refetchInterval: activeDmId ? 30_000 : 0 }
+  );
+  const friendGateRef = useRef<{
+    userId: string | null;
+    wasFriend: boolean | null;
+  }>({ userId: null, wasFriend: null });
+
+  useEffect(() => {
+    if (!activeDmId) {
+      friendGateRef.current = { userId: null, wasFriend: null };
+      return;
+    }
+    const gate = friendGateRef.current;
+
+    if (gate.userId !== activeDmId) {
+      friendGateRef.current = { userId: activeDmId, wasFriend: null };
+      return;
+    }
+
+    if (!isFriendsLoaded) return;
+
+    if (gate.wasFriend === null) {
+      friendGateRef.current = { userId: activeDmId, wasFriend: partnerIsFriend };
+      if (!partnerIsFriend) {
+        toast.warning(NOT_FRIEND_MESSAGE, { title: NOT_FRIEND_TITLE });
+      }
+      return;
+    }
+
+    if (gate.wasFriend === true && !partnerIsFriend) {
+      const partner = allUsers.find((u) => u.id === activeDmId);
+      const partnerName = partner?.fullname || "this person";
+      toast.warning(`${UNFRIENDED_MESSAGE.replace("this person", partnerName)}`, {
+        title: NOT_FRIEND_TITLE,
+      });
+      friendGateRef.current = { userId: activeDmId, wasFriend: false };
+    }
+  }, [activeDmId, allUsers, partnerIsFriend, isFriendsLoaded]);
+
+  const friendMessagingBlocked =
+    isFriendsLoaded && Boolean(activeDmId) && !partnerIsFriend;
 
   const updateDmListCache = (
     partnerId: string,
@@ -1489,6 +1565,29 @@ queryClient.setQueryData(
         (context?.uploads ?? vars.uploads).map((upload) => upload.tempId)
       );
 
+      if (isFriendshipBlockedError(error)) {
+        queryClient.setQueryData(
+          queryKeys.dmMessages(vars.conversationId),
+          (old: DmMessagesData | undefined) =>
+            old ? removeMessagesById(old, tempIds) : old
+        );
+        (context?.uploads ?? vars.uploads).forEach((upload) => {
+          if (upload.blobUrl) URL.revokeObjectURL(upload.blobUrl);
+        });
+        setDmSummaries((prev) => {
+          const next = new Map(prev);
+          if (context?.previousSummary) {
+            next.set(vars.conversationId, context.previousSummary);
+          } else {
+            next.delete(vars.conversationId);
+          }
+          return next;
+        });
+        toast.warning(NOT_FRIEND_MESSAGE, { title: NOT_FRIEND_TITLE });
+        void refreshFriends();
+        return;
+      }
+
       if (isModerationBlockedError(error)) {
         queryClient.setQueryData(
           queryKeys.dmMessages(vars.conversationId),
@@ -1550,6 +1649,11 @@ queryClient.setQueryData(
   ) => {
     if (!currentUser || !activeDmId) return;
     if (!content.trim() && files.length === 0) return;
+
+    if (friendMessagingBlocked) {
+      toast.warning(NOT_FRIEND_MESSAGE, { title: NOT_FRIEND_TITLE });
+      return;
+    }
 
     if (!checkMessage(content).allowed) {
       notifyModerationBlocked();
@@ -1736,6 +1840,8 @@ queryClient.setQueryData(
             onSendMessage={handleSendMessage}
             onFileError={(msg) => toast.error(msg)}
             onOpenProfile={openUserProfile}
+            canMessage={!friendMessagingBlocked}
+            friendBlockedName={activeUser?.fullname}
           />
         </div>
       </div>
