@@ -4,8 +4,8 @@ export const dynamic = "force-dynamic";
 
 import React, { Suspense, useEffect, useRef, useState } from "react";
 import SharkWithEyes from "@/components/shark";
+import PillNav from "@/components/PillNav";
 import AOS from "aos";
-// import "aos/dist/aos.css";
 import { useRouter } from "next/navigation";
 import Modal from "react-modal";
 import { FaGoogle } from "react-icons/fa";
@@ -30,13 +30,19 @@ export default function Home() {
   const [signingIn, setSigningIn] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
 
+  const signedInCheckedRef = useRef(false);
+
   const handleGoogleSignIn = async () => {
     if (signingIn) return;
+
     setSigningIn(true);
+
     const next = new URLSearchParams(window.location.search).get("next");
+
     if (next) {
       localStorage.setItem("redirectAfterLogin", next);
     }
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -54,16 +60,19 @@ export default function Home() {
     }
   };
 
-  const signedInCheckedRef = useRef(false);
-
   useEffect(() => {
     if (signedInCheckedRef.current) return;
+
     signedInCheckedRef.current = true;
 
     if (!tokenStore.hasRefreshToken()) return;
 
     setSignedIn(true);
-    toast.warning("You're signed in. Please log out to visit the Google sign-in page.");
+
+    toast.warning(
+      "You're signed in. Please log out to visit the Google sign-in page."
+    );
+
     router.replace(buildPath("SERVERS"));
   }, [router]);
 
@@ -111,7 +120,7 @@ export default function Home() {
       setLastScrollY(currentScrollY);
     };
 
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
 
     return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScrollY]);
@@ -129,20 +138,21 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const hash = window.location.hash;
-      if (!hash) return;
-      const params = new URLSearchParams(hash.substring(1));
-      const type = params.get("type");
-      const token = params.get("access_token");
+    if (typeof window === "undefined") return;
 
-      if (token && type === "recovery") {
-        // Let Supabase ingest the recovery hash into the local session, then
-        // forward to the reset page without leaking the token in the URL.
-        supabase.auth.getSession().then(() => {
-          router.replace(buildPath("RESET_PASSWORD"));
-        });
-      }
+    const hash = window.location.hash;
+
+    if (!hash) return;
+
+    const params = new URLSearchParams(hash.substring(1));
+
+    const type = params.get("type");
+    const token = params.get("access_token");
+
+    if (token && type === "recovery") {
+      supabase.auth.getSession().then(() => {
+        router.replace(buildPath("RESET_PASSWORD"));
+      });
     }
   }, [router]);
 
@@ -162,10 +172,10 @@ export default function Home() {
     AOS.init({
       duration: 800,
       once: true,
+      easing: "ease-out-cubic",
     });
   }, []);
 
-  /* Hide scrollbar visually while preserving scrolling */
   useEffect(() => {
     const style = document.createElement("style");
 
@@ -184,6 +194,11 @@ export default function Home() {
       body {
         overflow-x: hidden;
       }
+
+      ::selection {
+        background: rgba(255,255,255,0.18);
+        color: white;
+      }
     `;
 
     document.head.appendChild(style);
@@ -199,20 +214,19 @@ export default function Home() {
         <SignInNotice />
       </Suspense>
 
-      {/* Initial Loading Screen */}
       <div
         className={`
           fixed inset-0 z-[9999]
           flex items-center justify-center
           bg-black
-          transition-opacity duration-700 ease-in-out
+          select-none
+          transition-opacity duration-700 ease-out
           ${loading ? "opacity-100" : "pointer-events-none opacity-0"}
         `}
       >
         <div
           className={`
             flex flex-col items-center
-            text-center
             transition-all duration-700
             ${loading ? "scale-100 opacity-100" : "scale-95 opacity-0"}
           `}
@@ -259,218 +273,430 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Main Page */}
-      <div className="relative min-h-screen w-screen overflow-x-hidden">
-        {/* Background */}
+      <main className="relative min-h-screen w-full overflow-hidden text-white select-none">
+
         <div
-          className="fixed inset-0 -z-20 bg-[url('/bg1.webp')] bg-cover bg-center"
+          className="fixed inset-0 -z-30 bg-[url('/bg1.webp')] bg-cover bg-center"
           aria-hidden="true"
         />
 
-        {/* Navbar + Events Banner */}
-        <div className={`fixed left-0 top-6 z-50 w-full transition-transform duration-300 ${showNavbar ? "translate-y-0" : "-translate-y-full"}`}>
-          <div className="mx-auto w-full max-w-6xl px-4 py-4">
-            <nav className="mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-1 rounded-2xl border border-white/10 bg-black/90 px-3 py-2 backdrop-blur-md">
-              <span className="px-2 text-[12px] font-semibold uppercase tracking-wider text-white/80">
-                Upcoming Events
-              </span>
+        <div
+          className="
+            fixed inset-x-0 bottom-0 -z-10
+            h-48
+            bg-gradient-to-t
+            from-black/80
+            to-transparent
+          "
+          aria-hidden="true"
+        />
 
-              <a
-                href="https://gravitas.vit.ac.in/events/4160a46a-3701-4622-8e7c-66909769704b"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-[13px] font-semibold text-white/85 transition-colors hover:bg-white/10 hover:text-white"
-              >
-                <img src="/battlecode_logo.webp" alt="Battlecode logo" className="h-6 w-6 object-contain" />
-                Battlecode
-              </a>
+        <div className="pointer-events-none fixed inset-x-0 top-5 z-50 flex items-center justify-between px-4 sm:px-8">
+          <img
+            src="/ieee_logo.png"
+            alt="IEEE Computer Society"
+            className="h-10 w-auto sm:h-12"
+          />
 
-              <a
-                href="https://gravitas.vit.ac.in/events/d440eb17-cc8b-4651-943a-1d449a2efeee"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-[13px] font-semibold text-white/85 transition-colors hover:bg-white/10 hover:text-white"
-              >
-                <img src="/redefine_logo.webp" alt="Redeine logo" className="h-6 w-6 object-contain" />
-                Redeine
-              </a>
+          <img
+            src="/gravitasLogo.dc8211c7.svg"
+            alt="Gravitas"
+            className="h-10 w-auto sm:h-12"
+          />
+        </div>
 
-              <a
-                href="https://gravitas.vit.ac.in/events/abc220f9-a716-4235-b108-a96c25cfdb9d"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-[13px] font-semibold text-white/85 transition-colors hover:bg-white/10 hover:text-white"
-              >
-                <img src="/what_the_flag_logo.webp" alt="What the Flag logo" className="h-6 w-6 object-contain" />
-                What the Flag
-              </a>
-            </nav>
+        <div
+          className={`
+            fixed left-0 top-5 md:top-[23px] z-50 w-full
+            px-4
+            transition-transform duration-500 ease-out
+            ${showNavbar ? "translate-y-0" : "-translate-y-[150%]"}
+          `}
+        >
+          <div className="mx-auto flex justify-center">
+            <PillNav
+              items={[
+                {
+                  label: "Battlecode",
+                  href: "https://gravitas.vit.ac.in/events/4160a46a-3701-4622-8e7c-66909769704b",
+                },
+                {
+                  label: "Redefine",
+                  href: "https://gravitas.vit.ac.in/events/d440eb17-cc8b-4651-943a-1d449a2efeee",
+                },
+                {
+                  label: "What The Flag",
+                  href: "https://gravitas.vit.ac.in/events/abc220f9-a716-4235-b108-a96c25cfdb9d",
+                },
+              ]}
+              baseColor="rgba(10,10,12,0.6)"
+              pillColor="#ffffff"
+              pillTextColor="#0a0a0c"
+              hoveredPillTextColor="#ffffff"
+            />
           </div>
         </div>
 
-        {/* Hero */}
         <section
           className="
             relative
-            flex h-screen
+            flex min-h-screen
             items-center
-            overflow-hidden
-            px-6
-            pt-24
+            px-5
             pb-12
+            pt-28
+            sm:px-8
             md:px-12
-            md:pt-28
-            md:pb-16
-            lg:px-20
-            xl:px-28
+            lg:px-16
+            xl:px-24
           "
         >
           <div
             className="
               mx-auto
-              flex w-full max-w-[1500px]
+              grid w-full max-w-[1350px]
+              grid-cols-1
               items-center
-              justify-between
-              gap-10
-              lg:gap-14
-              xl:gap-20
+              gap-8
+              md:grid-cols-[0.95fr_1.05fr]
+              lg:gap-4
+              xl:grid-cols-[0.9fr_1.1fr]
             "
           >
-            {/* Left Content */}
+
             <div
               className="
+                relative z-10
                 flex w-full
-                max-w-[620px]
                 flex-col
-                justify-center
-                text-white
-                md:w-[54%]
-                lg:w-[48%]
+                items-center
+                text-center
+                md:items-start
+                md:text-left
               "
               data-aos="fade-right"
             >
+
               <h1
                 className="
-                  max-w-[620px]
-                  text-[40px]
+                  max-w-[700px]
+                  text-[48px]
                   font-semibold
-                  leading-[1.08]
-                  tracking-[-0.02em]
-                  sm:text-[48px]
-                  md:text-[56px]
-                  lg:text-[60px]
-                  xl:text-[68px]
+                  leading-[0.94]
+                  tracking-[-0.045em]
+                  sm:text-[60px]
+                  md:text-[62px]
+                  lg:text-[72px]
+                  xl:text-[84px]
                 "
               >
-                IEEE
-                <br />
-                Computer Society
+                <span className="block font-jersey font-normal text-white">
+                  echo
+                </span>
+
+             
               </h1>
 
               <p
                 className="
-                  mt-5
-                  max-w-[540px]
-                  text-[16px]
-                  leading-7
-                  text-white/85
-                  sm:text-[17px]
-                  md:text-lg
-                  lg:text-xl
+                  mt-6
+                  text-lg
+                  font-medium
+                  tracking-tight
+                  text-white/90
+                  sm:text-xl
                 "
                 data-aos="fade-right"
                 data-aos-delay="100"
               >
-                We promote learning, innovation, and collaboration in
-                technology. Explore new ideas, build meaningful projects,
-                sharpen your skills, and grow alongside a community of
-                passionate computer science enthusiasts.
+                One space for everything your community does.
               </p>
 
-              {/* Google Login */}
-              <div
-                className="mt-8"
-                data-aos="fade-right"
-                data-aos-delay="180"
-              >
-{signedIn ? (
-                  <div className="inline-flex min-h-[50px] items-center justify-center gap-3 rounded-lg bg-white/5 px-5 py-3 text-[15px] font-semibold text-[#b5bac1]">
-                    <InlineSpinner size="sm" />
-                    <span>Redirecting to servers&hellip;</span>
-                  </div>
-                ) : (
-                <button
-                  type="button"
-                  onClick={handleGoogleSignIn}
-                  disabled={signingIn}
-                  className="
-                    inline-flex
-                    min-h-[50px]
-                    items-center
-                    justify-center
-                    gap-3
-                    rounded-lg
-                    bg-white
-                    px-5
-                    py-3
-                    text-[15px]
-                    font-semibold
-                    text-gray-800
-                    shadow-lg
-                    transition-all
-                    duration-200
-                    hover:-translate-y-0.5
-                    hover:bg-gray-100
-                    hover:shadow-xl
-                    active:translate-y-0
-                    disabled:cursor-not-allowed
-                    disabled:opacity-70
-                  "
-                >
-                  {signingIn ? (
-                    <>
-                      <InlineSpinner size="sm" className="border-gray-300 border-t-[#4285F4]" />
-                      <span>Redirecting to Google…</span>
-                    </>
-                  ) : (
-                    <>
-                      <FaGoogle className="text-[19px] text-[#4285F4]" />
-                      <span>Continue with Google</span>
-                    </>
-                  )}
-                </button>
-                )}
-              </div>
-            </div>
-
-            {/* Right Visual */}
-            <div
-              className="
-                hidden
-                w-[46%]
-                items-center
-                justify-center
-                md:flex
-                lg:w-[50%]
-              "
-              data-aos="zoom-in"
-            >
-              <div
+              <p
                 className="
-                  flex
-                  w-full
-                  max-w-[720px]
-                  items-center
-                  justify-center
+                  mt-3
+                  max-w-[550px]
+                  text-sm
+                  leading-6
+                  text-white/55
+                  sm:text-[15px]
+                  sm:leading-7
+                  md:text-base
+                "
+                data-aos="fade-right"
+                data-aos-delay="150"
+              >
+                 echo is a real-time community platform built by IEEE Computer
+                 Society VIT. Chat, share projects, and stay connected with
+                 your people - all in one place, built for the next generation
+                 of technologists. This Gravitas, we're hosting a lineup of
+                 events built for builders and innovators:
+               </p>
+
+              <p
+                className="
+                  mt-3
+                  text-sm
+                  leading-6
+                  text-white/55
+                  sm:text-[15px]
+                  sm:leading-7
+                  md:text-base
                 "
               >
-                <SharkWithEyes />
+                <span className="font-semibold text-white/80">Battlecode -</span>{" "}
+                pit your code against the clock in a fast-paced competition of
+                strategy and speed.
+              </p>
+
+              <p
+                className="
+                  mt-3
+                  text-sm
+                  leading-6
+                  text-white/55
+                  sm:text-[15px]
+                  sm:leading-7
+                  md:text-base
+                "
+              >
+                <span className="font-semibold text-white/80">Redefine -</span>{" "}
+                reimagine what's possible as you shape bold ideas into
+                working, real-world solutions.
+              </p>
+
+              <p
+                className="
+                  mt-3
+                  text-sm
+                  leading-6
+                  text-white/55
+                  sm:text-[15px]
+                  sm:leading-7
+                  md:text-base
+                "
+              >
+                <span className="font-semibold text-white/80">What The Flag -</span>{" "}
+                crack codes, dig through clues, and race to capture the flag
+                in a thrilling cyber-security hunt.
+              </p>
+
+              <div
+                className="
+                  mt-8
+                  w-full
+                  max-w-[460px]
+                "
+                data-aos="fade-up"
+                data-aos-delay="200"
+              >
+                <div
+                  className="
+                    rounded-2xl
+                   
+                    p-4
+                    sm:p-5
+                  "
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                  {signedIn ? (
+                    <div
+                      className="
+                        flex min-h-[54px]
+                        items-center
+                        justify-center
+                        gap-3
+                        rounded-xl
+                        border border-white/10
+                        bg-white/[0.06]
+                        px-5
+                        text-sm
+                        font-semibold
+                        text-white/65
+                      "
+                    >
+                      <InlineSpinner size="sm" />
+
+                      <span>
+                        Redirecting to servers…
+                      </span>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleGoogleSignIn}
+                      disabled={signingIn}
+                      aria-label="Sign in"
+                      className="
+                        group
+                        flex min-h-[54px]
+                        flex-1
+                        items-center
+                        justify-center
+                        gap-3
+                        rounded-xl
+                        bg-white
+                        px-5
+                        py-3
+                        text-lg
+                        font-semibold
+                        text-gray-900
+                        shadow-lg
+                        shadow-black/20
+                        transition-all
+                        duration-200
+                        hover:-translate-y-0.5
+                        hover:bg-gray-100
+                        hover:shadow-xl
+                        active:translate-y-0
+                        disabled:cursor-not-allowed
+                        disabled:opacity-70
+                        focus:outline-none
+                        focus:ring-2
+                        focus:ring-white/50
+                        focus:ring-offset-2
+                        focus:ring-offset-black
+                      "
+                    >
+                      {signingIn ? (
+                        <>
+                          <InlineSpinner
+                            size="sm"
+                            className="border-gray-300 border-t-[#4285F4]"
+                          />
+
+                          <span>
+                            Connecting...
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span
+                            className="
+                              flex h-6 w-6
+                              items-center justify-center
+                              rounded-full
+                              bg-white
+                            "
+                          >
+                            <FaGoogle className="text-[17px] text-[#4285F4]" />
+                          </span>
+
+                          <span>
+                            Sign in
+                          </span>
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  <a
+                    href="https://ieeecsvit.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+className="
+                      flex min-h-[54px]
+                      flex-1
+                      items-center
+                      justify-center
+                      gap-3
+                      rounded-xl
+                      border border-white/15
+                      bg-white/[0.06]
+                      px-5
+                      py-3
+                      text-lg
+                      font-semibold
+                      text-white
+                      backdrop-blur-md
+                      transition-all
+                      duration-200
+                      hover:-translate-y-0.5
+                      hover:border-white/25
+                      hover:bg-white/10
+                      active:translate-y-0
+                      focus:outline-none
+                      focus:ring-2
+                      focus:ring-white/40
+                    "
+                  >
+                    Learn More
+                  </a>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <div
+              className="
+                relative
+                flex
+                min-h-[360px]
+                w-full
+                items-center
+                justify-center
+                md:min-h-[560px]
+                lg:min-h-[650px]
+              "
+              data-aos="zoom-in"
+              data-aos-delay="100"
+            >
+
+              <div
+                className="
+                  absolute
+                  left-1/2
+                  top-1/2
+                  h-[280px]
+                  w-[280px]
+                  -translate-x-1/2
+                  -translate-y-1/2
+                  rounded-full
+                  bg-white/[0.06]
+                  blur-[90px]
+                  md:h-[450px]
+                  md:w-[450px]
+                "
+                aria-hidden="true"
+              />
+
+              <div
+                className="
+                  absolute
+                  left-1/2
+                  top-1/2
+                  h-[160px]
+                  w-[160px]
+                  -translate-x-1/2
+                  -translate-y-1/2
+                  rounded-full
+                  bg-white/[0.04]
+                  blur-[45px]
+                  md:h-[300px]
+                  md:w-[300px]
+                "
+                aria-hidden="true"
+              />
+
+              <div
+                className="
+                  relative z-10
+                  w-full
+                  max-w-[520px]
+                  scale-[0.92]
+                  sm:scale-100
+                  lg:max-w-[620px]
+                  xl:max-w-[700px]
+                "
+              >
+<SharkWithEyes />
               </div>
             </div>
           </div>
         </section>
-      </div>
+
+      </main>
     </>
   );
 }
-
