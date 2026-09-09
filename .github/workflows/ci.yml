@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, master, develop]
+    branches: [main, master, develop, gravitas]
   pull_request:
-    branches: [main, master, develop]
+    branches: [main, master, develop, gravitas]
 
 jobs:
   ci:
@@ -32,6 +32,9 @@ jobs:
 
       - name: Run ESLint
         run: npm run lint
+
+      - name: Run tests
+        run: npm test
 
       - name: Build application
         run: npm run build

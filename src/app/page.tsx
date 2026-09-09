@@ -429,7 +429,7 @@ export default function Home() {
                  echo is a real-time community platform built by IEEE Computer
                  Society VIT. Chat, share projects, and stay connected with
                  your people - all in one place, built for the next generation
-                 of technologists. This Gravitas, we're hosting a lineup of
+                 of technologists. This Gravitas, we&apos;re hosting a lineup of
                  events built for builders and innovators:
                </p>
 
@@ -461,7 +461,7 @@ export default function Home() {
                 "
               >
                 <span className="font-semibold text-white/80">Redefine -</span>{" "}
-                reimagine what's possible as you shape bold ideas into
+                reimagine what&apos;s possible as you shape bold ideas into
                 working, real-world solutions.
               </p>
 
