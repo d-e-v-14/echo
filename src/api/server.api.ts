@@ -167,21 +167,30 @@ export const fetchServers = async (): Promise<Server[]> => {
   }
 };
 
-export const joinServer = async (inviteCode: string) => {
+export interface JoinServerResult {
+  success: boolean;
+  serverId?: string;
+}
+
+export const joinServer = async (
+  inviteCode: string
+): Promise<JoinServerResult> => {
   try {
     const res = await apiClient.post("/api/newserver/joinwithinvite", {
       inviteCode,
     });
 
-    if (!res.data?.success) {
-      const error: any = new Error(
-        res.data?.message || "Failed to join the server."
-      );
-      error.code = res.data?.code;
-      throw error;
+    const body = res.data ?? {};
+    if (body.success) {
+      return {
+        success: true,
+        serverId: body?.data?.server_id ?? body?.serverId,
+      };
     }
 
-    return res.data;
+    const error: any = new Error(body.message || "Failed to join the server.");
+    error.code = body.code;
+    throw error;
   } catch (err: any) {
     const data = err?.response?.data;
     const error: any = new Error(
@@ -191,6 +200,7 @@ export const joinServer = async (inviteCode: string) => {
         "Failed to join the server."
     );
     error.code = data?.code;
+    error.status = err?.response?.status ?? err?.status;
     throw error;
   }
 };

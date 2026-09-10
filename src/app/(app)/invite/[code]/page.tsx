@@ -2,21 +2,217 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { joinServer } from "@/api";
+import {
+  AlertCircle,
+  Ban,
+  Check,
+  Clock,
+  Link2Off,
+  LogIn,
+  ShieldCheck,
+  Users,
+  WifiOff,
+  type LucideIcon,
+} from "lucide-react";
+import { FaGoogle } from "react-icons/fa";
+import clsx from "clsx";
+import { useQueryClient } from "@tanstack/react-query";
+import { getServerDetails, joinServer } from "@/api";
 import { supabase } from "@/lib/supabaseClient";
 import { tokenStore } from "@/lib/auth/tokenStore";
+import { queryKeys } from "@/lib/query";
 import InlineSpinner from "@/components/loading/InlineSpinner";
+import Skeleton from "@/components/loading/Skeleton";
 import { toast } from "@/contexts/ToastContext";
 import { getAuthErrorMessage } from "@/components/toast/errorNormalizer";
 import { useAppRouter } from "@/lib/navigation/useAppRouter";
+import type { Server, ServerDetails } from "@/api/types/server.types";
+
+type PageState =
+  | "loading"
+  | "signIn"
+  | "confirm"
+  | "joining"
+  | "done"
+  | "alreadyMember"
+  | "error";
+
+type ErrorKind =
+  | "NOT_FOUND"
+  | "EXPIRED"
+  | "REVOKED"
+  | "LIMIT"
+  | "BANNED"
+  | "UNAVAILABLE"
+  | "GENERIC";
+
+interface ClassifiedError {
+  kind: ErrorKind | "ALREADY_MEMBER";
+  message: string;
+}
+
+function classifyInviteError(err: any): ClassifiedError {
+  const code = err?.code;
+  const status = err?.status || err?.response?.status;
+  const msg = (err?.message || "").toLowerCase();
+
+  if (code === "ALREADY_MEMBER" || msg.includes("already")) {
+    return { kind: "ALREADY_MEMBER", message: "" };
+  }
+  if (code === "USER_BANNED" || msg.includes("banned")) {
+    return {
+      kind: "BANNED",
+      message:
+        "You've been banned from this server, so you can't join it with this invite.",
+    };
+  }
+  if (code === "INVITE_EXPIRED" || msg.includes("expired")) {
+    return {
+      kind: "EXPIRED",
+      message: "This invite has expired. Ask the server owner for a new one.",
+    };
+  }
+  if (
+    code === "INVITE_REVOKED" ||
+    msg.includes("revoked") ||
+    msg.includes("no longer valid")
+  ) {
+    return {
+      kind: "REVOKED",
+      message: "This invite was revoked by the server owner.",
+    };
+  }
+  if (
+    code === "INVITE_LIMIT_REACHED" ||
+    code === "INVITE_UNAVAILABLE" ||
+    msg.includes("usage limit") ||
+    msg.includes("unavailable")
+  ) {
+    return {
+      kind: "LIMIT",
+      message:
+        "This invite has reached its usage limit or is temporarily unavailable.",
+    };
+  }
+  if (
+    code === "INVITE_NOT_FOUND" ||
+    code === "INVITE_INVALID" ||
+    code === "INVITE_MISSING" ||
+    status === 404
+  ) {
+    return {
+      kind: "NOT_FOUND",
+      message: "This invite may have expired, been revoked, or no longer exists.",
+    };
+  }
+  if (status && status >= 500) {
+    return {
+      kind: "UNAVAILABLE",
+      message: "We couldn't reach the server right now. Please try again shortly.",
+    };
+  }
+  return {
+    kind: "GENERIC",
+    message: "We couldn't process this invite. Please try again.",
+  };
+}
+
+const ERROR_META: Record<
+  ErrorKind,
+  { title: string; icon: LucideIcon; danger?: boolean }
+> = {
+  NOT_FOUND: { title: "Invite unavailable", icon: Link2Off },
+  EXPIRED: { title: "Invite expired", icon: Clock },
+  REVOKED: { title: "Invite revoked", icon: Ban },
+  LIMIT: { title: "Invite unavailable", icon: Users },
+  BANNED: { title: "Access denied", icon: Ban, danger: true },
+  UNAVAILABLE: { title: "Something went wrong", icon: WifiOff },
+  GENERIC: { title: "Something went wrong", icon: AlertCircle },
+};
+
+const primaryButtonClass =
+  "flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-[#E89E00] to-[#F2BC00] px-4 py-3 text-sm font-bold text-black transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-black";
+
+const secondaryButtonClass =
+  "w-full rounded-lg px-4 py-2.5 text-sm font-medium text-gray-300 transition hover:bg-[#2f3136] hover:text-white disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40";
+
+function CardShell({
+  icon,
+  children,
+}: {
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="w-full max-w-md animate-in">
+      <div className="overflow-hidden rounded-2xl border border-white/[0.06] bg-[#111214] shadow-2xl">
+        <div className="relative h-20 bg-gradient-to-br from-[#E89E00] to-[#F2BC00]">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_15%,rgba(255,255,255,0.35),transparent_55%)]" />
+        </div>
+        <div className="relative px-6 pb-6 pt-14 text-center">
+          <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2">
+            {icon}
+          </div>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const roundIconClass =
+  "flex h-20 w-20 items-center justify-center rounded-full border-4 border-[#111214] shadow-lg";
 
 export default function InvitePage() {
   const { code } = useParams<{ code: string }>();
-  const { open } = useAppRouter();
+  const { open, openServer, goBack } = useAppRouter();
+  const queryClient = useQueryClient();
 
-  const joinAttemptRef = useRef<string | null>(null);
+  const [pageState, setPageState] = useState<PageState>("loading");
+  const [signingIn, setSigningIn] = useState(false);
+  const [errorKind, setErrorKind] = useState<ErrorKind | null>(null);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [joinedServer, setJoinedServer] = useState<ServerDetails | null>(null);
+  const [joinedServerId, setJoinedServerId] = useState<string | null>(null);
+  const joiningRef = useRef(false);
+
+  useEffect(() => {
+    if (!code) {
+      setErrorKind("NOT_FOUND");
+      setErrorMessage("This invite link is not valid.");
+      setPageState("error");
+      return;
+    }
+
+    if (!tokenStore.hasRefreshToken()) {
+      localStorage.setItem("redirectAfterLogin", `/invite/${code}`);
+      setPageState("signIn");
+      return;
+    }
+
+    setPageState("confirm");
+  }, [code]);
+
+  useEffect(() => {
+    if (pageState !== "done") return;
+    const timer = setTimeout(() => {
+      if (joinedServerId) {
+        openServer(joinedServerId);
+      } else {
+        open("SERVERS");
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [pageState, joinedServerId, open, openServer]);
 
   const handleGoogleSignIn = async () => {
+    if (signingIn) return;
+    setSigningIn(true);
+
+    if (code) {
+      localStorage.setItem("redirectAfterLogin", `/invite/${code}`);
+    }
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -28,339 +224,331 @@ export default function InvitePage() {
     });
 
     if (error) {
-      console.error("Error initiating Google sign-in:", error);
       toast.error(getAuthErrorMessage(error));
+      setSigningIn(false);
     }
   };
 
-  const [pageState, setPageState] = useState<
-    | "loading"
-    | "signIn"
-    | "confirm"
-    | "joining"
-    | "done"
-    | "alreadyMember"
-    | "error"
-  >("loading");
-  const [error, setError] = useState("");
-  const [errorCode, setErrorCode] = useState("");
-
-  useEffect(() => {
-    if (!code) {
-      setError("Invalid invite link.");
-      setErrorCode("INVALID");
-      setPageState("error");
-      return;
-    }
-
-    const hasSession = tokenStore.hasRefreshToken();
-
-    if (!hasSession) {
-      localStorage.setItem("redirectAfterLogin", `/invite/${code}`);
-      setPageState("signIn");
-      return;
-    }
-
-    setPageState("confirm");
-  }, [code]);
-
   const handleJoin = async () => {
-    if (!code || joinAttemptRef.current === code) return;
-    joinAttemptRef.current = code;
-
-    const lockKey = `invite_lock_${code}`;
-    const existingLock = localStorage.getItem(lockKey);
-    if (existingLock && Date.now() - parseInt(existingLock) < 10000) {
-      return;
-    }
-    localStorage.setItem(lockKey, Date.now().toString());
-
+    if (!code || joiningRef.current) return;
+    joiningRef.current = true;
+    setErrorKind(null);
+    setErrorMessage("");
     setPageState("joining");
 
     try {
-      await joinServer(code);
+      const result = await joinServer(code);
 
-      localStorage.removeItem(lockKey);
+      if (!result.success) {
+        throw new Error("Failed to join the server.");
+      }
 
+      const serverId = result.serverId;
+      let serverInfo: ServerDetails | null = null;
+
+      if (serverId) {
+        try {
+          serverInfo = await getServerDetails(serverId);
+        } catch {
+          serverInfo = null;
+        }
+      }
+
+      // Reflect the new membership in the server list cache immediately so the
+      // sidebar shows the server without a page reload.
+      if (serverId) {
+        queryClient.setQueryData<Server[]>(queryKeys.servers, (old = []) => {
+          const existing = Array.isArray(old) ? old : [];
+          if (existing.some((s) => s.id === serverId)) return existing;
+          return [
+            ...existing,
+            {
+              id: serverId,
+              name: serverInfo?.name ?? "Server",
+              icon_url: serverInfo?.icon_url ?? null,
+            },
+          ];
+        });
+      }
+
+      // Source of truth: the backend invalidates its own server-list cache when
+      // a membership is created, so this refetch includes the new server.
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.servers,
+        refetchType: "all",
+      });
+
+      setJoinedServerId(serverId ?? null);
+      setJoinedServer(serverInfo);
       setPageState("done");
     } catch (err: any) {
-      localStorage.removeItem(lockKey);
-
-      if (err.code === "AUTH_REQUIRED" || err?.response?.status === 401) {
+      if (err?.code === "AUTH_REQUIRED" || err?.status === 401) {
         localStorage.setItem("redirectAfterLogin", `/invite/${code}`);
         setPageState("signIn");
         return;
       }
 
-      const msg = err?.message || "Failed to join the server.";
+      const classified = classifyInviteError(err);
 
-      setError(msg);
-
-      const errCode = err?.code || "";
-      if (
-        errCode === "ALREADY_MEMBER" ||
-        msg.toLowerCase().includes("already")
-      ) {
-        setErrorCode("ALREADY_MEMBER");
+      if (classified.kind === "ALREADY_MEMBER") {
         setPageState("alreadyMember");
         return;
       }
 
-      setErrorCode(errCode);
+      setErrorKind(classified.kind);
+      setErrorMessage(classified.message);
       setPageState("error");
+    } finally {
+      joiningRef.current = false;
     }
   };
 
   if (pageState === "loading") {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black">
-        <InlineSpinner size="lg" label="Loading invite" />
+      <div className="flex min-h-full w-full items-center justify-center bg-black p-4">
+        <div className="w-full max-w-md animate-in">
+          <div className="overflow-hidden rounded-2xl border border-white/[0.06] bg-[#111214] shadow-2xl">
+            <Skeleton className="h-20 w-full rounded-none" />
+            <div className="px-6 pb-6 pt-14 text-center">
+              <Skeleton className="mx-auto h-20 w-20 rounded-full" />
+              <div className="mt-6 space-y-2">
+                <Skeleton className="mx-auto h-4 w-48 rounded-full" />
+                <Skeleton className="mx-auto h-3 w-32 rounded-full" />
+              </div>
+              <div className="mt-6 space-y-2">
+                <Skeleton className="h-11 w-full rounded-lg" />
+                <Skeleton className="h-11 w-full rounded-lg" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-      <div className="w-full max-w-sm mx-4 bg-[#1e1f22] rounded-xl shadow-2xl border border-[#2b2d31] overflow-hidden">
-        <div className="h-16 bg-gradient-to-br from-[#FFC341] to-[#FFD700] relative">
-          <div className="absolute -bottom-8 left-1/2 -translate-x-1/2">
-            <div className="w-16 h-16 rounded-full bg-[#1e1f22] flex items-center justify-center shadow-lg border-4 border-[#1e1f22]">
-              {pageState === "signIn" && (
-                <svg
-                  className="w-7 h-7 text-[#FFC341]"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
-                  />
-                </svg>
-              )}
-              {pageState === "confirm" && (
-                <svg
-                  className="w-7 h-7 text-[#FFC341]"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
-                  />
-                </svg>
-              )}
-              {pageState === "joining" && <InlineSpinner size="md" />}
-              {pageState === "done" && (
-                <svg
-                  className="w-7 h-7 text-green-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              )}
-              {pageState === "alreadyMember" && (
-                <svg
-                  className="w-7 h-7 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                  />
-                </svg>
-              )}
-              {pageState === "error" && (
-                <svg
-                  className="w-7 h-7 text-red-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.664-.833-2.464 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
-                  />
-                </svg>
-              )}
+  if (pageState === "signIn") {
+    return (
+      <div className="flex min-h-full w-full items-center justify-center bg-black p-4">
+        <CardShell
+          icon={
+            <div className={clsx(roundIconClass, "bg-[#23272a]")}>
+              <LogIn className="h-9 w-9 text-[#FFC341]" />
             </div>
+          }
+        >
+          <h1 className="text-xl font-bold text-white">
+            You&apos;re invited to join
+          </h1>
+          <p className="mt-1 text-sm text-[#b5bac1]">
+            Sign in with your VIT email to accept this invite.
+          </p>
+
+          <div className="mt-6 space-y-2">
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={signingIn}
+              className="flex w-full items-center justify-center gap-3 rounded-lg bg-[#4285F4] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#3367d6] disabled:cursor-not-allowed disabled:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+            >
+              {signingIn ? (
+                <InlineSpinner size="sm" />
+              ) : (
+                <FaGoogle className="text-[15px]" />
+              )}
+              {signingIn ? "Redirecting..." : "Sign in with Google"}
+            </button>
           </div>
-        </div>
 
-        <div className="pt-12 pb-6 px-6 text-center">
-          {pageState === "signIn" && (
-            <>
-              <h1 className="text-xl font-bold text-white mb-1">
-                You&apos;re invited!
-              </h1>
-              <p className="text-sm text-[#a3a6aa] mb-5">
-                Sign in with your VIT email to accept this invite.
-              </p>
-
-              <button
-                onClick={handleGoogleSignIn}
-                className="w-full flex items-center justify-center gap-3 bg-[#4285F4] text-white px-6 py-2.5 rounded-md font-medium hover:bg-[#3367d6] transition-all text-sm"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
-                  <path
-                    fill="currentColor"
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
-                  />
-                  <path
-                    fill="currentColor"
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-1.04.69-2.36 1.1-3.71 1.1-2.85 0-5.27-1.92-6.13-4.51H2.18v2.85C3.99 20.43 7.7 23 12 23z"
-                  />
-                  <path
-                    fill="currentColor"
-                    d="M5.87 14.16c-.22-.67-.35-1.38-.35-2.16s.13-1.49.35-2.16V7H2.18C1.43 8.35 1 9.89 1 12s.43 3.65 1.18 5l2.69-2.84z"
-                  />
-                  <path
-                    fill="currentColor"
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.57 2.18 7l2.49 2c.86-2.59 3.28-4.51 6.13-4.51z"
-                  />
-                </svg>
-                Sign in with Google
-              </button>
-
-              <div className="mt-5 pt-4 border-t border-[#2b2d31]">
-                <p className="text-xs text-[#6d6f78] uppercase tracking-wider">
-                  Invite Code
-                </p>
-                <p className="mt-1 text-base font-mono font-semibold text-[#b5bac1] tracking-widest">
-                  {code}
-                </p>
-              </div>
-            </>
-          )}
-
-          {pageState === "confirm" && (
-            <>
-              <h1 className="text-xl font-bold text-white mb-1">
-                Accept Invite
-              </h1>
-              <p className="text-sm text-[#a3a6aa] mb-6">
-                You have been invited to join a server.
-              </p>
-
-              <button
-                onClick={handleJoin}
-                className="w-full py-2.5 rounded-md text-white font-medium bg-[#5865f2] hover:bg-[#4752c4] transition-all text-sm"
-              >
-                Accept Invite
-              </button>
-
-              <button
-                onClick={() => open("SERVERS")}
-                className="w-full mt-2 py-2.5 rounded-md text-sm text-[#a3a6aa] hover:text-white bg-transparent hover:bg-[#2b2d31] transition-all"
-              >
-                Back 
-              </button>
-
-              <div className="mt-5 pt-4 border-t border-[#2b2d31]">
-                <p className="text-xs text-[#6d6f78] uppercase tracking-wider">
-                  Invite Code
-                </p>
-                <p className="mt-1 text-base font-mono font-semibold text-[#b5bac1] tracking-widest">
-                  {code}
-                </p>
-              </div>
-            </>
-          )}
-
-          {pageState === "joining" && (
-            <>
-              <InlineSpinner size="lg" className="mx-auto mb-4" label="Joining server" />
-              <p className="text-sm text-[#a3a6aa]">Joining server...</p>
-            </>
-          )}
-
-          {pageState === "done" && (
-            <>
-              <h1 className="text-xl font-bold text-green-400 mb-1">
-                You joined!
-              </h1>
-              <p className="text-sm text-[#a3a6aa] mb-5">
-                You can now access the server from your server list.
-              </p>
-              <button
-                onClick={() => open("SERVERS")}
-                className="w-full py-2.5 rounded-md text-white font-medium bg-[#5865f2] hover:bg-[#4752c4] transition-all text-sm"
-              >
-                Back 
-              </button>
-            </>
-          )}
-
-          {pageState === "alreadyMember" && (
-            <>
-              <h1 className="text-xl font-bold text-white mb-1">
-                Already a member
-              </h1>
-              <p className="text-sm text-[#a3a6aa] mb-5">
-                You are already in this server.
-              </p>
-              <button
-                onClick={() => open("SERVERS")}
-                className="w-full py-2.5 rounded-md text-white font-medium bg-[#5865f2] hover:bg-[#4752c4] transition-all text-sm"
-              >
-                Back
-              </button>
-            </>
-          )}
-
-          {pageState === "error" &&
-            errorCode !== "USER_BANNED" &&
-            errorCode !== "INVALID" && (
-              <>
-                <h1 className="text-xl font-bold text-white mb-1">
-                  Invite Failed
-                </h1>
-                <p className="text-sm text-[#a3a6aa]">{error}</p>
-              </>
-            )}
-
-          {pageState === "error" && errorCode === "USER_BANNED" && (
-            <>
-              <h1 className="text-xl font-bold text-red-400 mb-1">
-                Access Denied
-              </h1>
-              <p className="text-sm text-[#a3a6aa] mb-1">{error}</p>
-              <p className="text-xs text-[#6d6f78]">
-                You have been banned from this server.
-              </p>
-            </>
-          )}
-
-          {pageState === "error" && errorCode === "INVALID" && (
-            <>
-              <h1 className="text-xl font-bold text-white mb-1">
-                Invalid Invite
-              </h1>
-              <p className="text-sm text-[#a3a6aa]">
-                This invite link is not valid.
-              </p>
-            </>
-          )}
-        </div>
+          <div className="mt-5 border-t border-white/[0.06] pt-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[#72767d]">
+              Invite Code
+            </p>
+            <p className="mt-1 truncate font-mono text-sm font-semibold tracking-widest text-[#b5bac1]">
+              {code}
+            </p>
+          </div>
+        </CardShell>
       </div>
+    );
+  }
+
+  if (pageState === "confirm" || pageState === "joining") {
+    const joining = pageState === "joining";
+    return (
+      <div className="flex min-h-full w-full items-center justify-center bg-black p-4">
+        <CardShell
+          icon={
+            <div className={clsx(roundIconClass, "bg-[#23272a]")}>
+              <Users className="h-9 w-9 text-[#FFC341]" />
+            </div>
+          }
+        >
+          <h1 className="text-xl font-bold text-white">
+            You&apos;re invited to join
+          </h1>
+          <p className="mt-1 text-sm text-[#b5bac1]">a server on Echo</p>
+
+          <div className="mt-6 rounded-lg border border-white/[0.06] bg-black/60 px-4 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[#72767d]">
+              Invite code
+            </p>
+            <p className="mt-0.5 truncate font-mono text-sm font-semibold tracking-widest text-[#b5bac1]">
+              {code}
+            </p>
+          </div>
+
+          <div className="mt-6 space-y-2">
+            <button
+              type="button"
+              onClick={handleJoin}
+              disabled={joining}
+              aria-busy={joining}
+              className={primaryButtonClass}
+            >
+              {joining ? (
+                <>
+                  <InlineSpinner size="sm" />
+                  Joining...
+                </>
+              ) : (
+                "Accept Invite"
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => open("SERVERS")}
+              disabled={joining}
+              className={secondaryButtonClass}
+            >
+              Back to servers
+            </button>
+          </div>
+        </CardShell>
+      </div>
+    );
+  }
+
+  if (pageState === "done") {
+    return (
+      <div className="flex min-h-full w-full items-center justify-center bg-black p-4">
+        <CardShell
+          icon={
+            joinedServer?.icon_url ? (
+              <img
+                src={joinedServer.icon_url}
+                alt={joinedServer.name}
+                className="h-20 w-20 rounded-full border-4 border-[#111214] bg-[#23272a] object-cover shadow-lg"
+              />
+            ) : (
+              <div
+                className={clsx(
+                  roundIconClass,
+                  "bg-gradient-to-br from-[#E89E00] to-[#F2BC00]"
+                )}
+              >
+                <Check className="h-9 w-9 text-black" />
+              </div>
+            )
+          }
+        >
+          <h1 className="text-xl font-bold text-white">
+            You&apos;ve joined
+          </h1>
+          <p className="mt-1 text-sm text-[#b5bac1]">
+            {joinedServer?.name ?? "The server"} is now in your server list.
+          </p>
+
+          <div className="mt-6 flex items-center justify-center gap-2 text-sm text-[#72767d]">
+            <InlineSpinner size="sm" />
+            Opening server...
+          </div>
+        </CardShell>
+      </div>
+    );
+  }
+
+  if (pageState === "alreadyMember") {
+    return (
+      <div className="flex min-h-full w-full items-center justify-center bg-black p-4">
+        <CardShell
+          icon={
+            <div className={clsx(roundIconClass, "bg-[#3ba55c]/15")}>
+              <ShieldCheck className="h-9 w-9 text-[#3ba55c]" />
+            </div>
+          }
+        >
+          <h1 className="text-xl font-bold text-white">
+            You&apos;re already a member
+          </h1>
+          <p className="mt-1 text-sm text-[#b5bac1]">
+            You&apos;re already part of this server. Open it from your server
+            list.
+          </p>
+
+          <div className="mt-6 space-y-2">
+            <button
+              type="button"
+              onClick={() => open("SERVERS")}
+              className={primaryButtonClass}
+            >
+              Open Server
+            </button>
+            <button
+              type="button"
+              onClick={goBack}
+              className={secondaryButtonClass}
+            >
+              Go Back
+            </button>
+          </div>
+        </CardShell>
+      </div>
+    );
+  }
+
+  const meta =
+    ERROR_META[errorKind ?? "GENERIC"] ?? ERROR_META.GENERIC;
+  const ErrorIcon = meta.icon;
+
+  return (
+    <div className="flex min-h-full w-full items-center justify-center bg-black p-4">
+      <CardShell
+        icon={
+          <div
+            className={clsx(
+              roundIconClass,
+              meta.danger ? "bg-[#ed4245]/15" : "bg-[#23272a]"
+            )}
+          >
+            <ErrorIcon
+              className={clsx(
+                "h-9 w-9",
+                meta.danger ? "text-[#ed4245]" : "text-[#b5bac1]"
+              )}
+            />
+          </div>
+        }
+      >
+        <h1 className="text-xl font-bold text-white">{meta.title}</h1>
+        <p className="mt-1 text-sm text-[#b5bac1]">{errorMessage}</p>
+
+        <div className="mt-6 space-y-2">
+          <button
+            type="button"
+            onClick={() => open("SERVERS")}
+            className={primaryButtonClass}
+          >
+            Back to servers
+          </button>
+          <button
+            type="button"
+            onClick={goBack}
+            className={secondaryButtonClass}
+          >
+            Go Back
+          </button>
+        </div>
+      </CardShell>
     </div>
   );
 }
