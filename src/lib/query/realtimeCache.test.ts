@@ -123,10 +123,10 @@ describe("realtimeEventToCommands", () => {
     ).toEqual([]);
   });
 
-  it("removes (never persists) voice/presence state", () => {
-    expect(realtimeEventToCommands("voice_state_update", {})).toEqual([
-      { type: "remove", queryKeys: [["voice"], ["presence"]] },
-    ]);
+  it("returns no commands for voice events (voice disabled)", () => {
+    expect(realtimeEventToCommands("voice_state_update", {})).toEqual([]);
+    expect(realtimeEventToCommands("voice_channel_roster", {})).toEqual([]);
+    expect(realtimeEventToCommands("join_voice_channel", {})).toEqual([]);
   });
 
   it("recognises envelope-wrapped payloads", () => {

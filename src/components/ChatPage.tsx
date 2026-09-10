@@ -21,6 +21,7 @@ import {
   Clock,
   CircleAlert,
   UserX,
+  MessageSquareOff,
 } from "lucide-react";
 import MessageInputWithMentions from "./MessageInputWithMentions";
 import InlineSearchDropdown from "./InlineSearchDropdown";
@@ -799,6 +800,42 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     </div>
   );
 };
+
+function DmsDisabledOverlay() {
+  const { open } = useAppRouter();
+  return (
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-md animate-in overflow-hidden rounded-2xl border border-white/[0.06] bg-[#111214] text-white shadow-2xl">
+        <div className="relative h-20 bg-gradient-to-br from-[#E89E00] to-[#F2BC00]">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_15%,rgba(255,255,255,0.35),transparent_55%)]" />
+        </div>
+        <div className="relative px-6 pb-6 pt-14 text-center">
+          <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-[#111214] bg-[#23272a] shadow-lg">
+              <MessageSquareOff className="h-9 w-9 text-[#E89E00]" />
+            </div>
+          </div>
+          <h1 className="text-xl font-bold text-white">
+            Direct messages are disabled
+          </h1>
+          <p className="mt-1 text-sm text-[#b5bac1]">
+            DMs are temporarily turned off for this event. Join a server to
+            keep the conversation going!
+          </p>
+          <div className="mt-6 space-y-2">
+            <button
+              type="button"
+              onClick={() => open("SERVERS")}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-[#E89E00] to-[#F2BC00] px-4 py-3 text-sm font-bold text-black transition-all hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+            >
+              Go to Servers
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function MessagesPageContentInner() {
   const { open, openDm } = useAppRouter();
@@ -1898,7 +1935,8 @@ queryClient.setQueryData(
   }, [allUsers, activeDmId]);
 
   return (
-    <div className="flex h-screen min-h-0 w-full bg-slate-950 text-slate-100">
+    <div className="relative flex h-screen min-h-0 w-full bg-slate-950 text-slate-100">
+      <DmsDisabledOverlay />
       <ChatList
         conversations={conversations}
         activeDmId={activeDmId}

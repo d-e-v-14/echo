@@ -1,10 +1,11 @@
 "use client";
 
 export const dynamic = "force-dynamic";
-import {
-  disconnectVoicePresenceSocket,
-  getVoicePresenceSocket,
-} from "@/lib/voicePresenceSocket";
+// Voice and video disabled: voice presence socket helpers are unused.
+// import {
+//   disconnectVoicePresenceSocket,
+//   getVoicePresenceSocket,
+// } from "@/lib/voicePresenceSocket";
 // import { PhoneCall, PhoneOff, Users, PanelRightOpen } from "lucide-react";
 import React, {
   useState,
@@ -46,7 +47,8 @@ import { pruneServerChannels,
 } from "@/lib/mentions/unreadStore";
 import { useSearchParams } from "next/navigation";
 import { useAppRouter } from "@/lib/navigation/useAppRouter";
-import { useVoiceCall } from "@/contexts/VoiceCallContext";
+// Voice and video disabled: no voice call context is mounted.
+// import { useVoiceCall } from "@/contexts/VoiceCallContext";
 import { useJoinServerModal } from "@/contexts/JoinServerModalContext";
 // import { supabase } from "@/lib/supabaseClient";
 import { toast } from "@/contexts/ToastContext";
@@ -185,7 +187,8 @@ const ServersPageContent: React.FC = () => {
   const searchParams = useSearchParams();
   const refresh = searchParams.get("refresh");
   const serverIdFromQuery = searchParams.get("serverId");
-  const viewModeFromQuery = searchParams.get("view");
+  // Voice and video disabled: the "view" query param (voice/chat) is ignored.
+  // const viewModeFromQuery = searchParams.get("view");
   const [showAddMenu, setShowAddMenu] = useState(false);
   const { open, openSettings } = useAppRouter();
   const [servers, setServers] = useState<any[]>([]);
@@ -284,36 +287,22 @@ const ServersPageContent: React.FC = () => {
         effectiveSelectedChannelId;
     }
   }, [selectedServerId, effectiveSelectedChannelId]);
-  type ChannelRoster = {
-    id: string;
-    username: string;
-    muted: boolean;
-    video: boolean;
-    speaking?: boolean;
-  };
+  // Voice and video disabled: channel rosters are not tracked.
+  // type ChannelRoster = {
+  //   id: string;
+  //   username: string;
+  //   muted: boolean;
+  //   video: boolean;
+  //   speaking?: boolean;
+  // };
+  //
+  // const [, setChannelRosters] = useState<
+  //   Record<string, ChannelRoster[]>
+  // >({});
 
-  // channelRosters value is only used in commented-out voice code; only the setter below is used.
-  const [, setChannelRosters] = useState<
-    Record<string, ChannelRoster[]>
-  >({});
-
-  const {
-    activeCall,
-    // Voice state disabled (commented out)
-    // isConnected,
-    // isConnecting,
-    participants,
-    // localMediaState,
-    // localVideoTileId,
-    // localScreenTileId,
-    // localScreenStream,
-    // videoTiles,
-    // manager,
-    // joinCall,
-    // leaveCall,
-    // permissionError,
-    // connectionError,
-  } = useVoiceCall();
+  // Voice and video disabled: the voice call context is not mounted, so no
+  // voice/video sockets are connected or triggered.
+  // const { activeCall, participants } = useVoiceCall();
   // Voice state disabled
   // const externalState = useMemo(
   //   () => ({
@@ -373,14 +362,16 @@ const ServersPageContent: React.FC = () => {
   //
   //   return merged;
   // }, [channelRosters, activeCall, selectedServerId, participants]);
-  const isVoiceActiveForCurrentServer =
-    activeCall?.serverId === selectedServerId;
-
-  const showVoiceUI =
-    voiceEnabled &&
-    viewMode === "voice" &&
-    isVoiceActiveForCurrentServer &&
-    activeCall;
+  // Voice and video disabled: no voice call UI is ever shown.
+  // const isVoiceActiveForCurrentServer =
+  //   activeCall?.serverId === selectedServerId;
+  //
+  // const showVoiceUI =
+  //   voiceEnabled &&
+  //   viewMode === "voice" &&
+  //   isVoiceActiveForCurrentServer &&
+  //   activeCall;
+  const showVoiceUI = false;
 
   const user: User = useMemo(() => {
     if (typeof window === "undefined") {
@@ -433,84 +424,89 @@ const ServersPageContent: React.FC = () => {
     [channels]
   );
 
-  const voiceChannels = useMemo(
-    () => channels.filter((c) => c.type === "voice"),
-    [channels]
-  );
+  // Voice and video disabled: voice channels are not rendered.
+  // const voiceChannels = useMemo(
+  //   () => channels.filter((c) => c.type === "voice"),
+  //   [channels]
+  // );
 
-  useMemo(
-    () =>
-      participants.map((member) => ({
-        id: member.attendeeId,
-        username:
-          member.name ||
-          member.oduserId ||
-          `User ${member.attendeeId.slice(0, 8)}`,
-        muted: member.muted,
-        video: member.video,
-      })),
-    [participants]
-  );
+  // Voice and video disabled: no voice participants to map.
+  // useMemo(
+  //   () =>
+  //     participants.map((member) => ({
+  //       id: member.attendeeId,
+  //       username:
+  //         member.name ||
+  //         member.oduserId ||
+  //         `User ${member.attendeeId.slice(0, 8)}`,
+  //       muted: member.muted,
+  //       video: member.video,
+  //     })),
+  //   [participants]
+  // );
 
-  useEffect(() => {
-    if (!voiceChannels.length || !user?.id) return;
-
-    const mapMember = (m: any): ChannelRoster => ({
-      id: m.userId || m.socketId || m.attendeeId || m.id,
-      username:
-        m.username ||
-        m.name ||
-        m.userId ||
-        `User ${(m.userId || m.socketId || "").slice(0, 8)}`,
-      muted: m.muted || false,
-      video: m.video || false,
-      speaking: m.speaking || false,
-    });
-
-    const handleRoster = (data: any) => {
-      if (!data?.channelId || !Array.isArray(data.members)) return;
-      setChannelRosters((prev) => ({
-        ...prev,
-        [data.channelId]: data.members.map(mapMember),
-      }));
-    };
-
-    const fetchAllRosters = () => {
-      const socket = getVoicePresenceSocket(user.id);
-      if (!socket) return;
-      voiceChannels.forEach((channel) => {
-        socket.emit("get_voice_channel_roster", channel.id, (data: any) => {
-          if (data && Array.isArray(data.members)) {
-            setChannelRosters((prev) => ({
-              ...prev,
-              [channel.id]: data.members.map(mapMember),
-            }));
-          }
-        });
-      });
-    };
-
-    fetchAllRosters();
-
-    if (!activeCall) {
-      const teardownTimer = window.setTimeout(() => {
-        disconnectVoicePresenceSocket();
-      }, 500);
-      return () => {
-        window.clearTimeout(teardownTimer);
-        disconnectVoicePresenceSocket();
-      };
-    }
-
-    const socket = getVoicePresenceSocket(user.id);
-    if (!socket) return;
-    socket.on("voice_channel_roster", handleRoster);
-
-    return () => {
-      socket.off("voice_channel_roster", handleRoster);
-      disconnectVoicePresenceSocket();
-    };
-  }, [voiceChannels, user?.id, activeCall?.channelId]);
+  // Voice and video disabled: no voice roster socket activity. Previously this
+  // emitted "get_voice_channel_roster" and subscribed to "voice_channel_roster"
+  // on the app socket.
+  // useEffect(() => {
+  //   if (!voiceChannels.length || !user?.id) return;
+  //
+  //   const mapMember = (m: any): ChannelRoster => ({
+  //     id: m.userId || m.socketId || m.attendeeId || m.id,
+  //     username:
+  //       m.username ||
+  //       m.name ||
+  //       m.userId ||
+  //       `User ${(m.userId || m.socketId || "").slice(0, 8)}`,
+  //     muted: m.muted || false,
+  //     video: m.video || false,
+  //     speaking: m.speaking || false,
+  //   });
+  //
+  //   const handleRoster = (data: any) => {
+  //     if (!data?.channelId || !Array.isArray(data.members)) return;
+  //     setChannelRosters((prev) => ({
+  //       ...prev,
+  //       [data.channelId]: data.members.map(mapMember),
+  //     }));
+  //   };
+  //
+  //   const fetchAllRosters = () => {
+  //     const socket = getVoicePresenceSocket(user.id);
+  //     if (!socket) return;
+  //     voiceChannels.forEach((channel) => {
+  //       socket.emit("get_voice_channel_roster", channel.id, (data: any) => {
+  //         if (data && Array.isArray(data.members)) {
+  //           setChannelRosters((prev) => ({
+  //             ...prev,
+  //             [channel.id]: data.members.map(mapMember),
+  //           }));
+  //         }
+  //       });
+  //     });
+  //   };
+  //
+  //   fetchAllRosters();
+  //
+  //   if (!activeCall) {
+  //     const teardownTimer = window.setTimeout(() => {
+  //       disconnectVoicePresenceSocket();
+  //     }, 500);
+  //     return () => {
+  //       window.clearTimeout(teardownTimer);
+  //       disconnectVoicePresenceSocket();
+  //     };
+  //   }
+  //
+  //   const socket = getVoicePresenceSocket(user.id);
+  //   if (!socket) return;
+  //   socket.on("voice_channel_roster", handleRoster);
+  //
+  //   return () => {
+  //     socket.off("voice_channel_roster", handleRoster);
+  //     disconnectVoicePresenceSocket();
+  //   };
+  // }, [voiceChannels, user?.id, activeCall?.channelId]);
 
   useEffect(() => {
     localStorage.setItem("currentViewMode", viewMode);
@@ -586,46 +582,49 @@ const ServersPageContent: React.FC = () => {
     [selectedServerId, syncServerUrl]
   );
 
-  useEffect(() => {
-    if (viewModeFromQuery === "voice") setViewMode("voice");
-  }, [viewModeFromQuery]);
+  // Voice and video disabled: "voice" view mode is not reachable.
+  // useEffect(() => {
+  //   if (viewModeFromQuery === "voice") setViewMode("voice");
+  // }, [viewModeFromQuery]);
 
-  useEffect(() => {
-    if (
-      viewModeFromQuery === "voice" &&
-      activeCall &&
-      selectedServerId === activeCall.serverId
-    ) {
-      setViewMode("voice");
-    }
-  }, [viewModeFromQuery, activeCall, selectedServerId]);
+  // Voice and video disabled: no voice call to expand.
+  // useEffect(() => {
+  //   if (
+  //     viewModeFromQuery === "voice" &&
+  //     activeCall &&
+  //     selectedServerId === activeCall.serverId
+  //   ) {
+  //     setViewMode("voice");
+  //   }
+  // }, [viewModeFromQuery, activeCall, selectedServerId]);
 
-  useEffect(() => {
-    const handleExpandVoiceView = (
-      event: CustomEvent<{ serverId: string }>
-    ) => {
-      const { serverId } = event.detail;
-      if (serverId === selectedServerId || serverId === activeCall?.serverId) {
-        setViewMode("voice");
-        if (serverId !== selectedServerId) {
-          const targetServer = servers.find((s) => s.id === serverId);
-          if (targetServer) {
-            handleServerSelect(targetServer.id, targetServer.name);
-          }
-        }
-      }
-    };
-    window.addEventListener(
-      "expandVoiceView",
-      handleExpandVoiceView as EventListener
-    );
-    return () => {
-      window.removeEventListener(
-        "expandVoiceView",
-        handleExpandVoiceView as EventListener
-      );
-    };
-  }, [selectedServerId, activeCall, servers, handleServerSelect]);
+  // Voice and video disabled: "expandVoiceView" events are not handled.
+  // useEffect(() => {
+  //   const handleExpandVoiceView = (
+  //     event: CustomEvent<{ serverId: string }>
+  //   ) => {
+  //     const { serverId } = event.detail;
+  //     if (serverId === selectedServerId || serverId === activeCall?.serverId) {
+  //       setViewMode("voice");
+  //       if (serverId !== selectedServerId) {
+  //         const targetServer = servers.find((s) => s.id === serverId);
+  //         if (targetServer) {
+  //           handleServerSelect(targetServer.id, targetServer.name);
+  //         }
+  //       }
+  //     }
+  //   };
+  //   window.addEventListener(
+  //     "expandVoiceView",
+  //     handleExpandVoiceView as EventListener
+  //   );
+  //   return () => {
+  //     window.removeEventListener(
+  //       "expandVoiceView",
+  //       handleExpandVoiceView as EventListener
+  //     );
+  //   };
+  // }, [selectedServerId, activeCall, servers, handleServerSelect]);
 
   // Voice disabled: keep flag off for all users regardless of admin_controls.
   // useEffect(() => {

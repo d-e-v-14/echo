@@ -2,7 +2,9 @@
 
 import Sidebar from "@/components/Sidebar";
 import { usePathname } from "next/navigation";
-import { VoiceCallProvider } from "@/contexts/VoiceCallContext";
+// Voice and video disabled: the global voice call context is not mounted, so
+// no voice/video sockets are ever connected or triggered.
+// import { VoiceCallProvider } from "@/contexts/VoiceCallContext";
 import { FriendNotificationProvider } from "@/contexts/FriendNotificationContext";
 import { MessageNotificationProvider } from "@/contexts/MessageNotificationContext";
 import { ImageModalProvider } from "@/contexts/ImageModalContext";
@@ -27,21 +29,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <MentionUnreadProvider />
         <FriendNotificationProvider>
           <MessageNotificationProvider>
-            <VoiceCallProvider>
-              <ImageModalProvider>
-                <JoinServerModalProvider>
-                  <RouteChangeLoader>
-                    <ReconnectBanner />
-                    <div className="flex h-screen bg-black overflow-hidden relative">
-                      <Sidebar />
-                      <main className="flex-1 overflow-y-auto">
-                        <ErrorBoundary resetKey={pathname}>{children}</ErrorBoundary>
-                      </main>
-                    </div>
-                  </RouteChangeLoader>
-                </JoinServerModalProvider>
-              </ImageModalProvider>
-            </VoiceCallProvider>
+            {/* Voice and video disabled: VoiceCallProvider is not mounted. */}
+            {/* <VoiceCallProvider> */}
+            <ImageModalProvider>
+              <JoinServerModalProvider>
+                <RouteChangeLoader>
+                  <ReconnectBanner />
+                  <div className="flex h-screen bg-black overflow-hidden relative">
+                    <Sidebar />
+                    <main className="flex-1 overflow-y-auto">
+                      <ErrorBoundary resetKey={pathname}>{children}</ErrorBoundary>
+                    </main>
+                  </div>
+                </RouteChangeLoader>
+              </JoinServerModalProvider>
+            </ImageModalProvider>
+            {/* </VoiceCallProvider> */}
           </MessageNotificationProvider>
         </FriendNotificationProvider>
       </SocketProvider>

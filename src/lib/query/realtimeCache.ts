@@ -17,13 +17,14 @@ export const REALTIME_CACHE_EVENTS = [
   "friend_request",
   "friend_request_accepted",
   "presence_updated",
-  "voice_state_update",
-  "voice_channel_roster",
-  "voice_invite_sent",
-  "voice_invite_received",
-  "voice_invite_error",
-  "join_voice_channel",
-  "leave_voice_channel",
+  // Voice and video disabled: no voice socket events are subscribed to.
+  // "voice_state_update",
+  // "voice_channel_roster",
+  // "voice_invite_sent",
+  // "voice_invite_received",
+  // "voice_invite_error",
+  // "join_voice_channel",
+  // "leave_voice_channel",
 ] as const;
 
 function unwrapEnvelope(payload: any): any {
@@ -93,9 +94,11 @@ function invalidate(...queryKeysArg: readonly (readonly unknown[])[]) {
   return { type: "invalidate" as const, queryKeys: queryKeysArg };
 }
 
-function remove(...queryKeysArg: readonly (readonly unknown[])[]) {
-  return { type: "remove" as const, queryKeys: queryKeysArg };
-}
+// Voice and video disabled: the remove() helper was only used for
+// voice/presence ephemeral state.
+// function remove(...queryKeysArg: readonly (readonly unknown[])[]) {
+//   return { type: "remove" as const, queryKeys: queryKeysArg };
+// }
 
 export function realtimeEventToCommands(
   eventName: string,
@@ -161,14 +164,15 @@ export function realtimeEventToCommands(
     case "presence_updated":
       return [];
 
-    case "voice_state_update":
-    case "voice_channel_roster":
-    case "voice_invite_sent":
-    case "voice_invite_received":
-    case "voice_invite_error":
-    case "join_voice_channel":
-    case "leave_voice_channel":
-      return [remove(["voice"], ["presence"])];
+    // Voice and video disabled: no cache commands for voice events.
+    // case "voice_state_update":
+    // case "voice_channel_roster":
+    // case "voice_invite_sent":
+    // case "voice_invite_received":
+    // case "voice_invite_error":
+    // case "join_voice_channel":
+    // case "leave_voice_channel":
+    //   return [remove(["voice"], ["presence"])];
 
     default:
       return [];
