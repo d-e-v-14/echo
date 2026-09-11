@@ -104,6 +104,36 @@ describe("normalizeChannelMessage", () => {
     );
     expect(msg.username).toBe("bob");
   });
+
+  it("exposes the sender display name separately from the username", () => {
+    const msg = normalizeChannelMessage(
+      {
+        sender_id: "u2",
+        username: "bob_handle",
+        sender: { username: "bob_handle", fullname: "Bob Smith" },
+      },
+      "me"
+    );
+    expect(msg.username).toBe("bob_handle");
+    expect(msg.senderName).toBe("Bob Smith");
+  });
+
+  it("uses the backend sender_name field for the display name", () => {
+    const msg = normalizeChannelMessage(
+      { sender_id: "u2", username: "bob_handle", sender_name: "Bob Smith" },
+      "me"
+    );
+    expect(msg.senderName).toBe("Bob Smith");
+  });
+
+  it("marks self messages as You for both handle and display name", () => {
+    const msg = normalizeChannelMessage(
+      { sender_id: "me", username: "me_handle", sender_name: "Me Myself" },
+      "me"
+    );
+    expect(msg.username).toBe("You");
+    expect(msg.senderName).toBe("You");
+  });
 });
 
 describe("resolveReplyTargets", () => {
@@ -197,6 +227,20 @@ describe("groupMessagesForDisplay", () => {
     expect(sections).toHaveLength(1);
     const groupNames = sections[0].groups.map((g) => g.name);
     expect(groupNames).toEqual(["bob", "Unknown"]);
+  });
+
+  it("uses the sender display name for the group name", () => {
+    const msgs = [
+      base({
+        id: "1",
+        senderId: "u1",
+        username: "bob_handle",
+        senderName: "Bob Smith",
+        timestamp: "2026-01-01T10:00:00.000Z",
+      }),
+    ];
+    const groups = groupMessagesForDisplay(msgs, "me")[0].groups;
+    expect(groups[0].name).toBe("Bob Smith");
   });
 
   it("splits same-sender messages that are further apart than the window", () => {

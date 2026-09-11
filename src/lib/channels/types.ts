@@ -16,6 +16,7 @@ export interface ChannelMessage {
   timestamp: string;
   avatarUrl?: string;
   username?: string;
+  senderName?: string;
   file?: string;
   mediaUrl?: string;
   mediaType?: string;
@@ -42,6 +43,7 @@ export interface ChannelPermissions {
   canSend: boolean;
   isAdmin: boolean;
   isModerator: boolean;
+  isOwner: boolean;
 }
 
 export interface ChatRole {

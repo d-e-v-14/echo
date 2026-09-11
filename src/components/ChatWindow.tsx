@@ -14,11 +14,13 @@ import {
   searchDmMessages,
   searchServerMessages,
   uploadMessage,
+  deleteChannelMessage,
 } from "@/api/message.api";
 
 import { getUserAvatar } from "@/api/profile.api";
 import { useSocket } from "@/lib/socket/SocketProvider";
 import { toast } from "@/contexts/ToastContext";
+import { getErrorMessage } from "@/components/toast/errorNormalizer";
 import { MessageSearchResult } from "@/api/types/message.types";
 
 import { apiClient as profileApiClient } from "@/api/axios";
@@ -66,6 +68,8 @@ const VideoPanel = dynamic(() => import("./VideoPanel"), {
 const UserProfileModal = dynamic(() => import("./UserProfileModal"), {
   ssr: false,
 });
+
+import { ReportUserModal } from "./moderation/ReportUserModal";
 
 const conversationScrollKey = (channelId: string) => `ch:${channelId}`;
 
@@ -126,6 +130,13 @@ export default forwardRef(function ChatWindow(
     avatarUrl: string;
   } | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [messageToDelete, setMessageToDelete] =
+    useState<ChannelMessage | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [reportUser, setReportUser] = useState<{
+    id: string;
+    username: string;
+  } | null>(null);
 
   const currentChannelIdRef = useRef(channelId);
 
@@ -348,16 +359,84 @@ export default forwardRef(function ChatWindow(
     void loadMessages();
   }, [loadMessages]);
 
+  const handleMessageDeleted = useCallback(
+    (messageId: string | number) => {
+      updateMessages((prev) =>
+        prev.filter((m) => String(m.id) !== String(messageId))
+      );
+    },
+    [updateMessages]
+  );
+
   useChannelRealtime({
     channelId,
     currentUsername,
     onHighlight: highlightMessage,
     onReconnect: handleReconnect,
+    onMessageDeleted: handleMessageDeleted,
   });
 
   const handleReply = useCallback((message: ChannelMessage) => {
     setReplyingTo(message);
   }, []);
+
+  const canDeleteMessages = Boolean(
+    permissions?.isOwner || permissions?.isAdmin
+  );
+
+  const handleDeleteMessage = useCallback(
+    (message: ChannelMessage) => {
+      if (!canDeleteMessages) return;
+      if (String(message.id).startsWith("temp-")) return;
+      setMessageToDelete(message);
+    },
+    [canDeleteMessages]
+  );
+
+  const cancelDelete = useCallback(() => {
+    if (isDeleting) return;
+    setMessageToDelete(null);
+  }, [isDeleting]);
+
+  const confirmDelete = useCallback(async () => {
+    if (!messageToDelete) return;
+    const targetId = String(messageToDelete.id);
+    if (isDeleting) return;
+    setIsDeleting(true);
+
+    updateMessages((prev) =>
+      prev.filter((m) => String(m.id) !== String(messageToDelete.id))
+    );
+    setMessageToDelete(null);
+
+    try {
+      await deleteChannelMessage(targetId);
+      toast.success("Message deleted.");
+    } catch (error) {
+      toast.error(
+        getErrorMessage(
+          error,
+          "We couldn't delete that message. Please try again."
+        )
+      );
+      void loadMessages();
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [
+    messageToDelete,
+    isDeleting,
+    updateMessages,
+    loadMessages,
+  ]);
+
+  const handleReportMessage = useCallback((message: ChannelMessage) => {
+    if (String(message.senderId) === String(currentUserId)) return;
+    setReportUser({
+      id: message.senderId,
+      username: message.username || "Unknown User",
+    });
+  }, [currentUserId]);
 
   const conversationKey = conversationScrollKey(channelId);
 
@@ -934,6 +1013,8 @@ export default forwardRef(function ChatWindow(
             onReplyPreviewClick={(id) => void scroll.scrollToMessage(id)}
             onRetryMessage={handleRetryFailed}
             onDiscardMessage={handleDiscardFailed}
+            onDeleteMessage={canDeleteMessages ? handleDeleteMessage : undefined}
+            onReportMessage={handleReportMessage}
           />
         </MessageVirtualizer>
 
@@ -1008,6 +1089,55 @@ export default forwardRef(function ChatWindow(
         currentUserId={currentUserId}
         currentUsername={currentUsername}
       />
+
+      <ReportUserModal
+        isOpen={Boolean(reportUser)}
+        onClose={() => setReportUser(null)}
+        userId={reportUser?.id}
+        username={reportUser?.username}
+        serverId={serverId ?? undefined}
+        channelId={channelId}
+      />
+
+      {messageToDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) cancelDelete();
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Delete message"
+            className="bg-[#232428] rounded-2xl shadow-2xl w-96 p-6 text-white"
+          >
+            <h2 className="text-xl font-semibold mb-2">Delete message?</h2>
+            <p className="text-sm text-gray-400 mb-6">
+              This permanently removes the message for everyone in this channel.
+              This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={cancelDelete}
+                disabled={isDeleting}
+                className="rounded-lg px-4 py-2 text-sm font-medium text-[#b5bac1] transition-colors hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmDelete()}
+                disabled={isDeleting}
+                className="rounded-lg bg-[#ed4245] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#ed4245]/80 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isDeleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 });

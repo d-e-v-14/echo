@@ -20,6 +20,8 @@ export interface MessageGroupProps {
   onReplyPreviewClick: (id: string | number) => void;
   onRetryMessage?: (message: ChannelMessage) => void;
   onDiscardMessage?: (message: ChannelMessage) => void;
+  onDeleteMessage?: (message: ChannelMessage) => void;
+  onReportMessage?: (message: ChannelMessage) => void;
 }
 
 export const MessageGroup: React.FC<MessageGroupProps> = ({
@@ -33,6 +35,8 @@ export const MessageGroup: React.FC<MessageGroupProps> = ({
   onReplyPreviewClick,
   onRetryMessage,
   onDiscardMessage,
+  onDeleteMessage,
+  onReportMessage,
 }) => {
   return (
     <>
@@ -67,6 +71,14 @@ export const MessageGroup: React.FC<MessageGroupProps> = ({
                 onRetry={onRetryMessage ? () => onRetryMessage(msg) : undefined}
                 onDiscard={
                   onDiscardMessage ? () => onDiscardMessage(msg) : undefined
+                }
+                onDelete={
+                  onDeleteMessage ? () => onDeleteMessage(msg) : undefined
+                }
+                onReport={
+                  onReportMessage && !group.isSender
+                    ? () => onReportMessage(msg)
+                    : undefined
                 }
                 showPinAction={!!msg.id && !String(msg.id).startsWith("temp-")}
                 messageRenderer={() => renderContent(msg)}

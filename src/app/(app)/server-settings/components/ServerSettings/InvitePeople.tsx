@@ -13,7 +13,7 @@ interface InvitePeopleProps {
 
 export default function InvitePeople({ serverId }: InvitePeopleProps) {
   const [invites, setInvites] = useState<ServerInvite[]>([]);
-  const [inviteLink, setInviteLink] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [expiresAfter, setExpiresAfter] = useState("7 days");
   const [maxUses, setMaxUses] = useState("No limit");
   const [loading, setLoading] = useState(true);
@@ -32,7 +32,7 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
       const response = await getServerInvites(serverId);
       setInvites(response);
       if (response.length > 0) {
-        setInviteLink(`${window.location.origin}/invite/${response[0].id}`);
+        setInviteCode(response[0].id);
       }
     } catch (err: any) {
       if (err.response?.status === 403) {
@@ -45,7 +45,7 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
     }
   };
 
-  const handleGenerateLink = async () => {
+  const handleGenerateCode = async () => {
     try {
       setGenerating(true);
       const response = await createServerInvite(serverId, {
@@ -53,8 +53,8 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
         maxUses: maxUses === "No limit" ? undefined : maxUses,
       });
       const inviteId = response.invite?.id;
-      setInviteLink(inviteId ? `${window.location.origin}/invite/${inviteId}` : "");
-      showToast("New invite link generated", "success");
+      setInviteCode(inviteId ?? "");
+      showToast("New joining code generated", "success");
       loadInvites();
     } catch (err: any) {
       showToast(
@@ -77,9 +77,9 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
     }
   };
 
-  const handleCopyLink = () => {
-    if (inviteLink) {
-      navigator.clipboard.writeText(inviteLink);
+  const handleCopyCode = () => {
+    if (inviteCode) {
+      navigator.clipboard.writeText(inviteCode);
       showToast("Copied to clipboard", "success");
     }
   };
@@ -129,23 +129,23 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
       <div>
         <h1 className="text-2xl font-bold">Invites</h1>
         <p className="text-sm text-[#72767d] mt-1">
-          Create and manage invite links
+          Create and manage joining codes
         </p>
       </div>
 
       <div className="border border-white/[0.06] rounded-lg bg-[#111214] p-5">
-        <h2 className="text-base font-semibold mb-4">Create Invite</h2>
+        <h2 className="text-base font-semibold mb-4">Create Joining Code</h2>
 
         <div className="flex items-center gap-2 mb-4">
           <input
             type="text"
-            value={inviteLink || "Generate a link below"}
+            value={inviteCode || "Generate a code below"}
             readOnly
             className="flex-1 bg-[#18191c] text-sm text-[#b5bac1] border border-white/[0.06] rounded px-3 py-2 focus:outline-none"
           />
           <button
-            onClick={handleCopyLink}
-            disabled={!inviteLink}
+            onClick={handleCopyCode}
+            disabled={!inviteCode}
             className="bg-[#23272a] text-[#b5bac1] text-sm font-medium px-3 py-2 rounded border border-white/[0.06] hover:bg-[#2f3136] transition disabled:opacity-50"
           >
             Copy
@@ -190,11 +190,11 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
 
         <div className="flex justify-center">
           <button
-            onClick={handleGenerateLink}
+            onClick={handleGenerateCode}
             disabled={generating}
             className="bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-medium text-sm px-4 py-2 rounded disabled:opacity-50"
           >
-            {generating ? "Generating..." : "Generate New Link"}
+            {generating ? "Generating..." : "Generate New Code"}
           </button>
         </div>
       </div>
@@ -225,9 +225,7 @@ export default function InvitePeople({ serverId }: InvitePeopleProps) {
                 <div className="flex gap-1.5 flex-shrink-0 ml-3">
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText(
-                        `${window.location.origin}/invite/${invite.id}`
-                      );
+                      navigator.clipboard.writeText(invite.id);
                       showToast("Copied", "success");
                     }}
                     className="text-[#b5bac1] text-xs px-2 py-1 rounded hover:bg-white/[0.06] transition"

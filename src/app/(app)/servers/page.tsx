@@ -973,7 +973,7 @@ const ServersPageContent: React.FC = () => {
                 You&apos;re not part of any servers.
               </h1>
               <p className="text-gray-400 mb-4">
-                Join a server with an invite link or create your own!
+                Join a server with a joining code or create your own!
               </p>
               <div className="flex justify-center space-x-4">
                 <button

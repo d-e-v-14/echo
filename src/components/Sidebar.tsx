@@ -4,7 +4,6 @@ import { useUser } from "@/components/UserContext";
 
 import {
   Users,
-  MessageSquareText,
   User as UserIcon,
   Cross,
 } from "lucide-react";

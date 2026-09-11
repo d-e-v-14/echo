@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import type { EmojiClickData } from "emoji-picker-react";
 import { Theme } from "emoji-picker-react";
-import { Paperclip, Clock, Check, CircleAlert, X } from "lucide-react";
+import { Paperclip, Clock, Check, CircleAlert, X, Trash2, Flag, ChevronDown, Reply } from "lucide-react";
 import { safeImgSrc } from "@/lib/security/safeUrl";
 
 export interface ChatMessage {
@@ -45,6 +45,8 @@ interface MessageBubbleProps {
   onDiscard?: () => void;
   onReact?: (emoji: string) => void;
   onPin?: () => void;
+  onDelete?: () => void;
+  onReport?: () => void;
   isPinned?: boolean;
   showPinAction?: boolean;
   reactions?: MessageReactionSummary[];
@@ -97,6 +99,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   onRetry,
   onDiscard,
   onReact,
+  onDelete,
+  onReport,
   reactions = [],
   children,
   messageRenderer,
@@ -121,7 +125,43 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   } | null>(null);
   const reactionPickerRef = useRef<HTMLDivElement>(null);
   const reactionButtonRef = useRef<HTMLButtonElement>(null);
+  const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
+  const [actionsMenuPlacement, setActionsMenuPlacement] = useState<
+    "above" | "below"
+  >("below");
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
   const isGifMessage = message.content?.startsWith("[GIF]");
+
+  useEffect(() => {
+    if (!actionsMenuOpen) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!actionsMenuRef.current?.contains(event.target as Node)) {
+        setActionsMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setActionsMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [actionsMenuOpen]);
+
+  const toggleActionsMenu = () => {
+    setActionsMenuOpen((open) => {
+      if (!open) {
+        const rect = actionsMenuRef.current?.getBoundingClientRect();
+        if (rect) {
+          const spaceBelow = window.innerHeight - rect.bottom;
+          setActionsMenuPlacement(spaceBelow < 180 ? "above" : "below");
+        }
+      }
+      return !open;
+    });
+  };
 
   const isReplyImage = (mediaUrl?: string | null, mediaType?: string) => {
     if (!mediaUrl) return false;
@@ -308,10 +348,117 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     });
   };
 
+  const actionMenuItems: {
+    label: string;
+    icon: React.ReactNode;
+    onClick: () => void;
+    danger?: boolean;
+  }[] = [];
+
+  if (onReply && !isFailed) {
+    actionMenuItems.push({
+      label: "Reply",
+      icon: <Reply className="h-4 w-4" />,
+      onClick: onReply,
+    });
+  }
+
+  if (onReport && !isSender && !isPending && !isFailed) {
+    actionMenuItems.push({
+      label: "Report",
+      icon: <Flag className="h-4 w-4" />,
+      onClick: onReport,
+      danger: true,
+    });
+  }
+
+  if (onDelete && !isPending && !isFailed) {
+    actionMenuItems.push({
+      label: "Delete",
+      icon: <Trash2 className="h-4 w-4" />,
+      onClick: onDelete,
+      danger: true,
+    });
+  }
+
+  const replyPreview = message.replyTo ? (
+    <button
+      type="button"
+      onClick={() => onReplyPreviewClick?.(message.replyTo!.id)}
+      className={`mb-1.5 block w-full max-w-full overflow-hidden rounded-md border-l-4 border-[#FFC341] bg-black/20 px-2 py-1.5 text-left text-xs text-white/80 transition ${
+        onReplyPreviewClick
+          ? "cursor-pointer hover:bg-black/30"
+          : "cursor-default"
+      }`}
+    >
+      <span className="block font-semibold text-[#FFC341]">
+        {message.replyTo.author || "User"}
+      </span>
+      <span className="mt-0.5 flex min-w-0 items-center gap-2">
+        {message.replyTo.content?.startsWith("[GIF]") ? (
+          <>
+            {safeImgSrc(message.replyTo.content.replace("[GIF]", "")) && (
+              <img
+                src={safeImgSrc(message.replyTo.content.replace("[GIF]", ""))}
+                alt="GIF reply"
+                className="h-10 w-10 flex-shrink-0 rounded object-cover border border-slate-600"
+              />
+            )}
+            <span className="truncate text-white/50">GIF</span>
+          </>
+        ) : message.replyTo.content?.trim().startsWith("```") ? (
+          <div className="max-w-xs overflow-hidden rounded border border-slate-700 bg-black/30 px-2 py-1">
+            <pre className="whitespace-pre-wrap font-mono text-xs text-white/70">
+              {message.replyTo.content
+                .replace(/^```[\w]*\n?/, "")
+                .replace(/```/g, "")
+                .trim()
+                .split("\n")
+                .slice(0, 3)
+                .join("\n")}
+            </pre>
+          </div>
+        ) : (
+          <>
+            {message.replyTo.mediaUrl &&
+              (isReplyImage(
+                message.replyTo.mediaUrl,
+                message.replyTo.mediaType
+              ) ? (
+                <img
+                  src={safeImgSrc(message.replyTo.mediaUrl)}
+                  alt="Reply attachment"
+                  className="h-9 w-9 flex-shrink-0 rounded object-cover border border-slate-600"
+                />
+              ) : (
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded border border-slate-600 bg-black/30 text-white/70">
+                  <Paperclip className="h-4 w-4" />
+                </span>
+              ))}
+
+            <span className="min-w-0 truncate">
+              {(() => {
+                const text =
+                  message.replyTo.content ||
+                  (message.replyTo.mediaUrl ? "Attachment" : "");
+
+                const words = text.split(/\s+/);
+
+                return words.length > 100
+                  ? words.slice(0, 100).join(" ") + "..."
+                  : text;
+              })()}
+            </span>
+          </>
+        )}
+      </span>
+    </button>
+  ) : null;
+
   return (
     <div
       data-message-id={message.id}
-      className={`group flex mb-3 p-2 mx-0 ${isSender ? "justify-end" : "justify-start"} ${
+      className={`flex mb-3 p-2 mx-0 ${isSender ? "justify-end" : "justify-start"} ${
         isPending ? "opacity-70" : ""
       }`}
     >
@@ -330,100 +477,89 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           isSender ? "items-end text-left" : "items-start"
         }`}
       >
-        {name && !isSender && (
-          <span
-            className="text-xs font-medium text-[#949ba4] px-1 cursor-pointer hover:text-[#dbdee1]"
-            onClick={onProfileClick}
-          >
-            {name}
-          </span>
-        )}
-
-        {message.replyTo && (
-          <button
-            type="button"
-            onClick={() => onReplyPreviewClick?.(message.replyTo!.id)}
-            className={`max-w-full px-3 py-2 text-left text-xs text-[#dbdee1] bg-[#1e1f22] rounded-md border border-transparent transition ${
-  onReplyPreviewClick
-    ? "cursor-pointer hover:bg-[#26282d] hover:border-white/10"
-    : "cursor-default"
-}`}
-          >
-            <span className="block font-semibold">
-              {message.replyTo.author || "User"}
-            </span>
-            <span className="mt-1 flex min-w-0 items-center gap-2">
-              {message.replyTo.content?.startsWith("[GIF]") ? (
-                <>
-                  {safeImgSrc(message.replyTo.content.replace("[GIF]", "")) && (
-                    <img
-                      src={safeImgSrc(message.replyTo.content.replace("[GIF]", ""))}
-                      alt="GIF reply"
-                      className="h-10 w-10 rounded object-cover border border-slate-600 flex-shrink-0"
-                    />
-                  )}
-                  <span className="truncate text-slate-400">GIF</span>
-                </>
-              ) : message.replyTo.content?.trim().startsWith("```") ? (
-                <div className="max-w-xs overflow-hidden rounded bg-slate-900 border mx-2  border-slate-700 px-4 py-2">
-                  <pre className="text-xs font-mono text-slate-300 whitespace-pre-wrap">
-                    {message.replyTo.content
-                      .replace(/^```[\w]*\n?/, "")
-                      .replace(/```/g, "")
-                      .trim()
-                      .split("\n")
-                      .slice(0, 3)
-                      .join("\n")}
-                  </pre>
-                </div>
-              ) : (
-                <>
-                  {message.replyTo.mediaUrl &&
-                    (isReplyImage(
-                      message.replyTo.mediaUrl,
-                      message.replyTo.mediaType
-                    ) ? (
-                      <img
-                        src={safeImgSrc(message.replyTo.mediaUrl)}
-                        alt="Reply attachment"
-                        className="h-9 w-9 flex-shrink-0 rounded object-cover border border-slate-600"
-                      />
-                    ) : (
-                      <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded border border-slate-600 bg-slate-800 text-slate-300">
-                        <Paperclip className="h-4 w-4" />
-                      </span>
-                    ))}
-
-                  <span className="min-w-0 truncate">
-                    {(() => {
-                      const text =
-                        message.replyTo.content ||
-                        (message.replyTo.mediaUrl ? "Attachment" : "");
-
-                      const words = text.split(/\s+/);
-
-                      return words.length > 100
-                        ? words.slice(0, 100).join(" ") + "..."
-                        : text;
-                    })()}
-                  </span>
-                </>
-              )}
-            </span>
-          </button>
-        )}
-
         <div
           className={`
-    w-fit max-w-96
-    ${isGifMessage ? "p-1" : "px-4 py-2.5"}
+    group relative w-fit max-w-96
+    ${isGifMessage ? "p-1" : "px-3 py-2"}
     ${bubbleStyles}
-    rounded-lg
-    ${isMentioned ? "bg-[rgba(250,204,21,0.15)] ring-1 ring-[#facc15]" : ""}
-    ${isFailed ? "ring-1 ring-red-500 bg-red-900/20" : ""}
+    rounded-lg shadow-sm
+    ${isMentioned ? "ring-1 ring-[#facc15]" : ""}
+    ${isFailed ? "ring-1 ring-red-500 bg-red-900/30" : ""}
   `}
         >
-          <div className="text-sm leading-relaxed whitespace-pre-wrap break-words text-left">
+          {actionMenuItems.length > 0 && (
+            <div ref={actionsMenuRef} className="absolute right-1 top-1 z-10">
+              <button
+                type="button"
+                onClick={toggleActionsMenu}
+                className={`flex items-center justify-center transition ${
+                  isSender
+                    ? "text-white/50 hover:text-white"
+                    : "text-[#8696a0] hover:text-white"
+                } ${
+                  actionsMenuOpen
+                    ? "opacity-100"
+                    : "opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
+                }`}
+                aria-label="More options"
+                aria-haspopup="menu"
+                aria-expanded={actionsMenuOpen}
+                title="More options"
+              >
+                <ChevronDown className="h-4 w-4" />
+              </button>
+
+              {actionsMenuOpen && (
+                <div
+                  role="menu"
+                  className={`absolute z-30 w-40 overflow-hidden rounded-lg border border-white/[0.06] bg-[#1e1f22] py-1 shadow-xl animate-slide-up-fade ${
+                    isSender ? "right-0" : "left-0"
+                  } ${
+                    actionsMenuPlacement === "above"
+                      ? "bottom-full mb-1"
+                      : "top-full mt-1"
+                  }`}
+                >
+                  {actionMenuItems.map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setActionsMenuOpen(false);
+                        item.onClick();
+                      }}
+                      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                        item.danger
+                          ? "text-[#ed4245] hover:bg-[#ed4245]/10"
+                          : "text-[#b5bac1] hover:bg-white/[0.06] hover:text-white"
+                      }`}
+                    >
+                      {item.icon}
+                      <span>{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {name && !isSender && (
+            <span
+              className="mb-0.5 block cursor-pointer text-xs font-semibold text-[#FFC341] hover:underline"
+              onClick={onProfileClick}
+            >
+              {name}
+            </span>
+          )}
+
+          {replyPreview}
+
+          <div
+            className={`text-sm leading-relaxed whitespace-pre-wrap break-words text-left ${
+              actionMenuItems.length > 0 && !isGifMessage ? "pr-4" : ""
+            }`}
+          >
             {messageRenderer
               ? messageRenderer(message.content)
               : renderPlainContent(message.content)}
@@ -438,28 +574,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
           {children && <div className="mt-3">{children}</div>}
 
-          <div className="flex items-center gap-2 mt-1">
-            {onReply && !isFailed && (
-              <button
-                onClick={onReply}
-                className="text-xs text-[#949ba4] hover:text-[#dbdee1] flex items-center gap-1"
-                aria-label="Reply"
-                title="Reply"
-              >
-                <svg
-                  className="w-3 h-3 mt-0.5"
-                  viewBox="0 0 640 640"
-                  xmlns="http://www.w3.org/2000/svg"
-                  aria-hidden
-                >
-                  <path
-                    d="M268.2 82.4C280.2 87.4 288 99 288 112L288 192L400 192C497.2 192 576 270.8 576 368C576 481.3 494.5 531.9 475.8 542.1C473.3 543.5 470.5 544 467.7 544C456.8 544 448 535.1 448 524.3C448 516.8 452.3 509.9 457.8 504.8C467.2 496 480 478.4 480 448.1C480 395.1 437 352.1 384 352.1L288 352.1L288 432.1C288 445 280.2 456.7 268.2 461.7C256.2 466.7 242.5 463.9 233.3 454.8L73.3 294.8C60.8 282.3 60.8 262 73.3 249.5L233.3 89.5C242.5 80.3 256.2 77.6 268.2 82.6z"
-                    fill="currentColor"
-                  />
-                </svg>
-                <span>Reply</span>
-              </button>
-            )}
+          {(reactions.length > 0 || (isFailed && (onRetry || onDiscard))) && (
+            <div className="flex items-center gap-2 mt-1">
             {reactions.length > 0 && (
               <div className="flex flex-wrap items-center gap-1">
                 {reactions.map((reaction) => (
@@ -512,41 +628,42 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 )}
               </div>
             )}
-          </div>
-        </div>
+            </div>
+          )}
 
-        <div className="flex items-center gap-1.5 px-1">
-          {timestamp && (
-            <span className="text-[10px] text-[#949ba4]">{timestamp}</span>
-          )}
-          {isSender && message.status === "pending" && (
-            <span
-              className="flex items-center text-[10px] text-[#949ba4]"
-              aria-label="Sending"
-              title="Sending"
-            >
-              <Clock className="h-3 w-3" />
-            </span>
-          )}
-          {isSender && message.status === "sent" && (
-            <span
-              className="flex items-center text-[10px] text-[#8ba3ff]"
-              aria-label="Delivered"
-              title="Delivered"
-            >
-              <Check className="h-3.5 w-3.5" />
-            </span>
-          )}
-          {isSender && isFailed && (
-            <span
-              className="flex items-center gap-1 text-[10px] text-red-400"
-              aria-label="Not delivered"
-              title="Not delivered"
-            >
-              <CircleAlert className="h-3 w-3" />
-              Not delivered
-            </span>
-          )}
+          <div className="mt-0.5 flex items-center justify-end gap-1 leading-none">
+            {timestamp && (
+              <span className="text-[11px] text-white/60">{timestamp}</span>
+            )}
+            {isSender && message.status === "pending" && (
+              <span
+                className="flex items-center text-white/60"
+                aria-label="Sending"
+                title="Sending"
+              >
+                <Clock className="h-3 w-3" />
+              </span>
+            )}
+            {isSender && message.status === "sent" && (
+              <span
+                className="flex items-center text-[#53bdeb]"
+                aria-label="Delivered"
+                title="Delivered"
+              >
+                <Check className="h-3.5 w-3.5" />
+              </span>
+            )}
+            {isSender && isFailed && (
+              <span
+                className="flex items-center gap-1 text-[#ed4245]"
+                aria-label="Not delivered"
+                title="Not delivered"
+              >
+                <CircleAlert className="h-3 w-3" />
+                Not delivered
+              </span>
+            )}
+          </div>
         </div>
 
         {showReactionPicker &&

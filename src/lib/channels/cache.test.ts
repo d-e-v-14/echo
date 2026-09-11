@@ -287,6 +287,7 @@ describe("channelPermissionsFromPayload", () => {
       canSend: false,
       isAdmin: true,
       isModerator: false,
+      isOwner: false,
     });
   });
 
@@ -303,6 +304,7 @@ describe("channelPermissionsFromPayload", () => {
       canSend: true,
       isAdmin: false,
       isModerator: false,
+      isOwner: false,
     });
   });
 

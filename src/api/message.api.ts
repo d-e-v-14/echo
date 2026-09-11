@@ -357,3 +357,7 @@ export const unpinMessage = async (body: {
 }): Promise<void> => {
   await apiClient.delete("/api/message/pins", { data: body });
 };
+
+export const deleteChannelMessage = async (messageId: string): Promise<void> => {
+  await apiClient.delete(`/api/message/${messageId}`);
+};

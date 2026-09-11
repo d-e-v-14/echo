@@ -85,6 +85,18 @@ export const normalizeChannelMessage = (
 ): ChannelMessage => {
   const senderId = raw?.sender_id || raw?.senderId || "";
   const replyTo = extractReplyFromRaw(raw);
+  const isSelf = senderId === currentUserId;
+
+  const senderName =
+    raw?.sender_name ||
+    raw?.sender?.fullname ||
+    raw?.fullname ||
+    raw?.senderName ||
+    raw?.sender?.name ||
+    raw?.name ||
+    raw?.username ||
+    raw?.sender?.username ||
+    "Unknown";
 
   return {
     id: raw?.id,
@@ -93,16 +105,15 @@ export const normalizeChannelMessage = (
     timestamp: raw?.timestamp || new Date().toISOString(),
     avatarUrl: avatarUrl ?? extractAvatarFromRaw(raw),
     username:
-      senderId === currentUserId
+      isSelf
         ? "You"
         : raw?.username ||
           raw?.sender?.username ||
-          raw?.sender?.fullname ||
-          raw?.sender?.name ||
           raw?.sender_name ||
           raw?.senderName ||
           raw?.name ||
           "Unknown",
+    senderName: isSelf ? "You" : senderName,
     mediaUrl: raw?.media_url || raw?.mediaUrl,
     mediaType: raw?.media_type,
     replyTo,
@@ -248,7 +259,7 @@ export const groupMessagesForDisplay = (
       group = {
         key: `${dayLabel}-${msg.senderId}-${msg.id}`,
         senderId: msg.senderId,
-        name: msg.username ?? (isSender ? "You" : "Unknown"),
+        name: msg.senderName || msg.username || (isSender ? "You" : "Unknown"),
         isSender,
         avatarUrl: msg.avatarUrl,
         messages: [],

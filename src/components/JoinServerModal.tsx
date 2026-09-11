@@ -13,7 +13,7 @@ interface JoinServerModalProps {
   onClose: () => void;
 }
 
-function extractInviteCode(raw: string): string {
+function normalizeJoinCode(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) return "";
   if (trimmed.includes("://")) {
@@ -36,10 +36,10 @@ function friendlyError(err: any): string {
     return "You are already a member of this server.";
   }
   if (code === "INVALID_INVITE" || haystack.includes("invalid")) {
-    return "This invite is invalid.";
+    return "This joining code is invalid.";
   }
   if (haystack.includes("expired")) {
-    return "This invite has expired.";
+    return "This joining code has expired.";
   }
   if (code === "SERVER_UNAVAILABLE" || haystack.includes("unavailable")) {
     return "This server is currently unavailable.";
@@ -100,9 +100,9 @@ export default function JoinServerModal({
     event.preventDefault();
     if (!joinCode.trim() || isJoining) return;
 
-    const code = extractInviteCode(joinCode);
+    const code = normalizeJoinCode(joinCode);
     if (!code) {
-      setError("This invite link is invalid.");
+      setError("Please enter a valid joining code.");
       return;
     }
 
@@ -140,7 +140,7 @@ export default function JoinServerModal({
               Join a Server
             </h2>
             <p id={descId} className="mt-1 text-sm text-gray-400">
-              Enter an invite code or server invite link to join an existing
+              Enter the server&apos;s joining code to join an existing
               community.
             </p>
           </div>
@@ -160,7 +160,7 @@ export default function JoinServerModal({
             htmlFor="join-invite-input"
             className="mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-400"
           >
-            Invite link or code
+            Server joining code
           </label>
           <input
             id="join-invite-input"
@@ -174,7 +174,7 @@ export default function JoinServerModal({
             disabled={isJoining}
             aria-invalid={Boolean(error)}
             aria-describedby={error ? errorId : undefined}
-            placeholder="abc123 or https://echo.ieeecsvit.com/invite/abc123"
+            placeholder="Enter joining code"
             autoComplete="off"
             spellCheck={false}
             className="w-full rounded-lg border border-[#72767d] bg-black px-4 py-3 text-sm text-white placeholder-[#72767d] outline-none transition focus:border-[#FFC341] focus:ring-2 focus:ring-[#FFC341]/30 disabled:opacity-60"

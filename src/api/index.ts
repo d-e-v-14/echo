@@ -8,6 +8,7 @@ export * from "./axios";
 export * from "./chime.api";
 export * from "./friend.api";
 export * from "./message.api";
+export * from "./moderation.api";
 
 export const testDirectPost = async (): Promise<any> => {
   const response = await api.post("/test-post-direct", { test: "data" });

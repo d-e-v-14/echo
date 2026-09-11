@@ -110,6 +110,7 @@ export const getChannelPermissions = async (
   canSend: boolean;
   isAdmin: boolean;
   isModerator: boolean;
+  isOwner: boolean;
 }> => {
   const response = await api.get(
     `/api/channel/channels/${channelId}/permissions`

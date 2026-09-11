@@ -227,6 +227,7 @@ export const channelPermissionsFromPayload = (
     body?.canSend != null ||
     body?.isAdmin != null ||
     body?.isModerator != null ||
+    body?.isOwner != null ||
     body?.channelType != null ||
     body?.channel_type != null;
   if (!hasAny) return null;
@@ -237,6 +238,7 @@ export const channelPermissionsFromPayload = (
     canSend: Boolean(body.canSend ?? true),
     isAdmin: Boolean(body.isAdmin ?? false),
     isModerator: Boolean(body.isModerator ?? false),
+    isOwner: Boolean(body.isOwner ?? false),
   };
 };
 
