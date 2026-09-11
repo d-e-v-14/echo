@@ -205,7 +205,7 @@ const ServersPageContent: React.FC = () => {
   // Voice and video disabled: the "view" query param (voice/chat) is ignored.
   // const viewModeFromQuery = searchParams.get("view");
   const [showAddMenu, setShowAddMenu] = useState(false);
-  const { open, openSettings } = useAppRouter();
+  const { openSettings } = useAppRouter();
   const [servers, setServers] = useState<any[]>([]);
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
   const [selectedServerName, setSelectedServerName] = useState<string>("");
@@ -982,12 +982,15 @@ const ServersPageContent: React.FC = () => {
                 >
                   Join Server
                 </button>
+                {/* Create Server button hidden */}
+                {/*
                 <button
                   onClick={() => open("CREATE_SERVER")}
                   className="px-4 py-2 rounded bg-gradient-to-r from-[#FFC341] to-[#FFD700] text-black font-bold hover:-translate-y-0.5 transition-all"
                 >
                   Create Server
                 </button>
+                */}
               </div>
             </div>
           </div>

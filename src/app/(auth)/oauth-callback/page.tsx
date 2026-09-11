@@ -65,9 +65,28 @@ export default function OAuthCallback() {
           }, 1000)
         );
       } catch (err) {
+        const backendError = (
+          err as {
+            response?: { data?: { code?: string; message?: string } };
+          }
+        )?.response?.data;
+
+        const notRegistered = backendError?.code === "NOT_REGISTERED";
+
+        if (notRegistered) {
+          try {
+            await supabase.auth.signOut();
+          } catch {
+            // Best-effort: clearing the local Supabase session must not stop
+            // the not-registered message from showing.
+          }
+        }
+
         toast.update(loadingToast, {
           type: "error",
-          message: getAuthErrorMessage(err),
+          message: notRegistered
+            ? backendError?.message || "You are not registered with us."
+            : getAuthErrorMessage(err),
         });
         setError(true);
 
