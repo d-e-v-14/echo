@@ -136,6 +136,8 @@ export default forwardRef(function ChatWindow(
   const [reportUser, setReportUser] = useState<{
     id: string;
     username: string;
+    messageId?: string;
+    messageContent?: string;
   } | null>(null);
 
   const currentChannelIdRef = useRef(channelId);
@@ -435,6 +437,8 @@ export default forwardRef(function ChatWindow(
     setReportUser({
       id: message.senderId,
       username: message.username || "Unknown User",
+      messageId: message.id != null ? String(message.id) : undefined,
+      messageContent: message.content || undefined,
     });
   }, [currentUserId]);
 
@@ -1097,6 +1101,8 @@ export default forwardRef(function ChatWindow(
         username={reportUser?.username}
         serverId={serverId ?? undefined}
         channelId={channelId}
+        messageId={reportUser?.messageId}
+        messageContent={reportUser?.messageContent}
       />
 
       {messageToDelete && (

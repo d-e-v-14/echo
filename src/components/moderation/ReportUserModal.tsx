@@ -24,6 +24,8 @@ export interface ReportUserModalProps {
   username?: string;
   serverId?: string;
   channelId?: string;
+  messageId?: string;
+  messageContent?: string | null;
 }
 
 export function ReportUserModal({
@@ -33,6 +35,8 @@ export function ReportUserModal({
   username,
   serverId,
   channelId,
+  messageId,
+  messageContent,
 }: ReportUserModalProps) {
   const [category, setCategory] = useState<string | null>(null);
   const [details, setDetails] = useState("");
@@ -86,6 +90,8 @@ export function ReportUserModal({
         channel_id: channelId,
         category: category ?? undefined,
         reason: trimmedDetails,
+        message_id: messageId,
+        message: messageContent ?? undefined,
       });
       toast.success("Report submitted. Thank you for helping keep Echo safe.");
       onClose();

@@ -9,6 +9,7 @@ import Overview from "./components/ServerSettings/Overview";
 import Role from "./components/ServerSettings/Role";
 import Members from "./components/ServerSettings/Members";
 import BannedUsers from "./components/ServerSettings/BannedUsers";
+import Reports from "./components/ServerSettings/Reports";
 import InvitePeople from "./components/ServerSettings/InvitePeople";
 import Leave from "./components/ServerSettings/Leave";
 import DangerZone from "./components/ServerSettings/DangerZone";
@@ -149,6 +150,14 @@ export default function ServerSettingsPage() {
       case "Bans":
         return (
           <BannedUsers
+            serverId={resolvedServerId}
+            isOwner={isOwner}
+            isAdmin={isAdmin}
+          />
+        );
+      case "Reports":
+        return (
+          <Reports
             serverId={resolvedServerId}
             isOwner={isOwner}
             isAdmin={isAdmin}

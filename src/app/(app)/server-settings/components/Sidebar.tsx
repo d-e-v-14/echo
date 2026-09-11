@@ -64,7 +64,10 @@ export default function Sidebar({
     if (isOwner || isAdmin) {
       groups.push({
         label: "Moderation",
-        items: [{ id: "Bans", label: "Bans" }],
+        items: [
+          { id: "Reports", label: "Reports" },
+          { id: "Bans", label: "Bans" },
+        ],
       });
     }
 
