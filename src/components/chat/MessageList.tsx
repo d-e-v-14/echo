@@ -21,6 +21,7 @@ export interface MessageListProps {
   messagesEndRef?: React.RefObject<HTMLDivElement>;
   registerRef?: (id: string | number, el: HTMLDivElement | null) => void;
   typingNames?: string[];
+  memberRoleColors?: Record<string, string>;
   renderContent: (message: ChannelMessage) => React.ReactNode;
   onReply: (message: ChannelMessage) => void;
   onProfileClick: (message: ChannelMessage) => void;
@@ -52,6 +53,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   messagesEndRef,
   registerRef,
   typingNames = [],
+  memberRoleColors,
   renderContent,
   onReply,
   onProfileClick,
@@ -110,6 +112,7 @@ export const MessageList: React.FC<MessageListProps> = ({
                   messageStartIndex={startIndexByGroup[group.key] ?? 0}
                   unreadDividerIndex={unreadDividerIndex}
                   registerRef={registerRef}
+                  nameColor={memberRoleColors?.[group.senderId]}
                   renderContent={renderContent}
                   onReply={onReply}
                   onProfileClick={onProfileClick}

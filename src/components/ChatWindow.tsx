@@ -209,6 +209,7 @@ export default forwardRef(function ChatWindow(
     currentUserRoleIds,
     validUsernames,
     validRoleNames,
+    memberRoleColors,
   } = useChannelMembers({ serverId, currentUserId });
 
   const {
@@ -1009,6 +1010,7 @@ export default forwardRef(function ChatWindow(
             unreadDividerIndex={unreadDividerIndex}
             registerRef={registerMessageRef}
             typingNames={typingUsers}
+            memberRoleColors={memberRoleColors}
             renderContent={renderMessageContent}
             onReply={handleReply}
             onProfileClick={(msg) =>

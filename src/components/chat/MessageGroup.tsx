@@ -13,6 +13,7 @@ export interface MessageGroupProps {
   group: MessageGroupData;
   messageStartIndex: number;
   unreadDividerIndex: number;
+  nameColor?: string;
   registerRef?: (id: string | number, el: HTMLDivElement | null) => void;
   renderContent: (message: ChannelMessage) => React.ReactNode;
   onReply: (message: ChannelMessage) => void;
@@ -28,6 +29,7 @@ export const MessageGroup: React.FC<MessageGroupProps> = ({
   group,
   messageStartIndex,
   unreadDividerIndex,
+  nameColor,
   registerRef,
   renderContent,
   onReply,
@@ -60,6 +62,7 @@ export const MessageGroup: React.FC<MessageGroupProps> = ({
                   pendingAttachment: msg.pendingAttachment,
                 }}
                 name={index === 0 ? group.name : undefined}
+                nameColor={index === 0 ? nameColor : undefined}
                 isSender={group.isSender}
                 avatarUrl={group.avatarUrl}
                 timestamp={msg.timeLabel}

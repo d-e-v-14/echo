@@ -35,6 +35,7 @@ const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
 interface MessageBubbleProps {
   message: ChatMessage;
   name?: string;
+  nameColor?: string;
   isSender?: boolean;
   avatarUrl?: string;
   timestamp?: string;
@@ -90,6 +91,7 @@ const MessageAvatar: React.FC<{
 const MessageBubble: React.FC<MessageBubbleProps> = ({
   message,
   name,
+  nameColor,
   isSender = false,
   avatarUrl,
   timestamp,
@@ -547,6 +549,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           {name && !isSender && (
             <span
               className="mb-0.5 block cursor-pointer text-xs font-semibold text-[#FFC341] hover:underline"
+              style={nameColor ? { color: nameColor } : undefined}
               onClick={onProfileClick}
             >
               {name}
