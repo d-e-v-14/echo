@@ -6,6 +6,7 @@ import { useSocket } from "@/lib/socket/SocketProvider";
 import { useUser } from "@/components/UserContext";
 import { useServers } from "@/hooks/query/useServers";
 import { apiClient } from "@/utils/apiClient";
+import { toast } from "@/contexts/ToastContext";
 import {
   configureUnreadStore,
   applyMentionCreated,
@@ -42,6 +43,41 @@ function resolveServerIdFromCache(
     }
   }
   return undefined;
+}
+
+const readString = (obj: any, keys: string[]): string | undefined => {
+  if (!obj || typeof obj !== "object") return undefined;
+  for (const key of keys) {
+    const value = obj[key];
+    if (value !== undefined && value !== null) {
+      return String(value);
+    }
+  }
+  return undefined;
+};
+
+function unwrapMentionPayload(raw: unknown): any {
+  const body = (raw as any)?.payload ?? raw;
+  return body && typeof body === "object" ? body : null;
+}
+
+function truncate(text: string, max: number): string {
+  const trimmed = text.replace(/\s+/g, " ").trim();
+  if (trimmed.length <= max) return trimmed;
+  return `${trimmed.slice(0, max).trimEnd()}…`;
+}
+
+/**
+ * Fire a popup notification when everyone was mentioned. The backend emits a
+ * `mention_notification` event to every eligible member with
+ * `mentionType: "everyone"`, so this reaches everyone in the server.
+ */
+function notifyEveryoneMention(body: any): void {
+  const channelName = readString(body, ["channelName", "channel_name"]);
+  const title = `@everyone${channelName ? ` in #${channelName}` : ""}`;
+  const content = readString(body, ["content"]) ?? "";
+  const preview = truncate(content, 120);
+  toast.info(preview || title, { title, duration: 6000 });
 }
 
 export function MentionUnreadProvider({
@@ -201,6 +237,10 @@ export function MentionUnreadProvider({
 
     const onMention = (payload: unknown) => {
       applyMentionCreated(payload, userId);
+      const body = unwrapMentionPayload(payload);
+      if (body && readString(body, ["mentionType", "mention_type"]) === "everyone") {
+        notifyEveryoneMention(body);
+      }
     };
     const onMentionRead = (payload: unknown) => {
       applyMentionRead(payload);

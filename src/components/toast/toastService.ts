@@ -29,12 +29,17 @@ const resolveDuration = (type: ToastType, duration?: number) =>
 export function showToast(
   message: string,
   type: ToastType = "info",
-  duration?: number
+  options?: ToastOptions | number
 ): string {
+  const duration =
+    typeof options === "number"
+      ? options
+      : options?.duration;
+  const title = typeof options === "object" ? options?.title : undefined;
   // Collapse duplicate notifications that are already on screen so a single
   // failure (e.g. session expiry detected from two paths) never double-toasts.
   const existing = toasts.find(
-    (t) => t.type === type && t.message === message
+    (t) => t.type === type && t.message === message && t.title === title
   );
   if (existing) {
     existing.createdAt = Date.now();
@@ -49,6 +54,7 @@ export function showToast(
       id,
       type,
       message,
+      title,
       duration: resolveDuration(type, duration),
       createdAt: Date.now(),
     },
@@ -94,15 +100,15 @@ export function getToasts(): ToastItem[] {
 
 export const toast = {
   success: (message: string, options?: ToastOptions) =>
-    showToast(message, "success", options?.duration),
+    showToast(message, "success", options),
   error: (message: string, options?: ToastOptions) =>
-    showToast(message, "error", options?.duration),
+    showToast(message, "error", options),
   warning: (message: string, options?: ToastOptions) =>
-    showToast(message, "warning", options?.duration),
+    showToast(message, "warning", options),
   info: (message: string, options?: ToastOptions) =>
-    showToast(message, "info", options?.duration),
+    showToast(message, "info", options),
   loading: (message: string, options?: ToastOptions) =>
-    showToast(message, "loading", options?.duration),
+    showToast(message, "loading", options),
   update: updateToast,
   dismiss,
   dismissAll,
