@@ -133,15 +133,6 @@ body {
   animation: toast-out 0.2s ease-in forwards;
 }
 
-@keyframes toast-progress {
-  from {
-    width: 100%;
-  }
-  to {
-    width: 0%;
-  }
-}
-
 .skeleton {
   position: relative;
   overflow: hidden;

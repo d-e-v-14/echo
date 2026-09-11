@@ -151,6 +151,25 @@ export default function ProfilePage() {
       });
       queryClient.invalidateQueries({ queryKey: ["friends", "relationship"] });
       queryClient.invalidateQueries({ queryKey: queryKeys.me });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.userAvatar(updatedUser.id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.dmList(updatedUser.id),
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.friends });
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          const qk = query.queryKey;
+          return (
+            Array.isArray(qk) &&
+            qk[0] === "server" &&
+            qk.length === 4 &&
+            qk[2] === "member" &&
+            qk[3] === updatedUser.id
+          );
+        },
+      });
 
       setAvatarFile(null);
       setChanged(false);
@@ -175,8 +194,6 @@ export default function ProfilePage() {
     const loadingToast = toast.loading("Logging out…");
     try {
       await logout();
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
       toast.update(loadingToast, {
         type: "success",
         message: "Logged out successfully",

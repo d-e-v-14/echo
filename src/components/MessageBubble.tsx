@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import type { EmojiClickData } from "emoji-picker-react";
 import { Theme } from "emoji-picker-react";
 import { Paperclip, Clock, Check, CircleAlert, X } from "lucide-react";
+import { safeImgSrc } from "@/lib/security/safeUrl";
 
 export interface ChatMessage {
   id?: string | number;
@@ -70,7 +71,7 @@ const MessageAvatar: React.FC<{
     >
       {avatarUrl && !hasError ? (
         <img
-          src={avatarUrl}
+          src={safeImgSrc(avatarUrl)}
           alt={name || "User"}
           className="w-full h-full object-cover"
           onError={() => setHasError(true)}
@@ -102,6 +103,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   isMentioned = false,
 }) => {
   const [copiedBlockIndex, setCopiedBlockIndex] = useState<number | null>(null);
+  const copiedBlockTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    return () => {
+      if (copiedBlockTimerRef.current) {
+        window.clearTimeout(copiedBlockTimerRef.current);
+      }
+    };
+  }, []);
   const isPending = message.status === "pending";
   const isFailed = message.status === "failed";
   const [showReactionPicker, setShowReactionPicker] = useState(false);
@@ -203,7 +212,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     try {
       await navigator.clipboard.writeText(code);
       setCopiedBlockIndex(blockIndex);
-      window.setTimeout(() => {
+      if (copiedBlockTimerRef.current) {
+        window.clearTimeout(copiedBlockTimerRef.current);
+      }
+      copiedBlockTimerRef.current = window.setTimeout(() => {
         setCopiedBlockIndex((current) =>
           current === blockIndex ? null : current
         );
@@ -217,13 +229,16 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     if (!content) return null;
 
     const gifMatch = content.match(/^\[GIF\](.+)$/);
+    const gifUrl = gifMatch ? safeImgSrc(gifMatch[1]) : undefined;
     if (gifMatch) {
-      return (
+      return gifUrl ? (
         <img
-          src={gifMatch[1]}
+          src={gifUrl}
           alt="GIF"
           className="block max-w-full h-auto rounded-lg"
         />
+      ) : (
+        <span className="break-all text-[#dbdee1]">{gifMatch[1]}</span>
       );
     }
 
@@ -340,11 +355,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             <span className="mt-1 flex min-w-0 items-center gap-2">
               {message.replyTo.content?.startsWith("[GIF]") ? (
                 <>
-                  <img
-                    src={message.replyTo.content.replace("[GIF]", "")}
-                    alt="GIF reply"
-                    className="h-10 w-10 rounded object-cover border border-slate-600 flex-shrink-0"
-                  />
+                  {safeImgSrc(message.replyTo.content.replace("[GIF]", "")) && (
+                    <img
+                      src={safeImgSrc(message.replyTo.content.replace("[GIF]", ""))}
+                      alt="GIF reply"
+                      className="h-10 w-10 rounded object-cover border border-slate-600 flex-shrink-0"
+                    />
+                  )}
                   <span className="truncate text-slate-400">GIF</span>
                 </>
               ) : message.replyTo.content?.trim().startsWith("```") ? (
@@ -367,7 +384,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                       message.replyTo.mediaType
                     ) ? (
                       <img
-                        src={message.replyTo.mediaUrl}
+                        src={safeImgSrc(message.replyTo.mediaUrl)}
                         alt="Reply attachment"
                         className="h-9 w-9 flex-shrink-0 rounded object-cover border border-slate-600"
                       />

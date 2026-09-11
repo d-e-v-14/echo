@@ -46,6 +46,7 @@ import {
 } from "@/lib/moderation";
 import UserProfileModal from "./UserProfileModal";
 import { getErrorMessage } from "@/components/toast/errorNormalizer";
+import { safeImgSrc } from "@/lib/security/safeUrl";
 import { ScrollToBottomButton } from "@/components/ScrollToBottomButton";
 import { useChatScroll } from "@/hooks/useChatScroll";
 import { MessageSearchResult } from "@/api/types/message.types";
@@ -733,11 +734,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 </span>
 
                 {replyingTo.content?.startsWith("[GIF]") ? (
-                  <img
-                    src={replyingTo.content.replace("[GIF]", "")}
-                    alt="GIF preview"
-                    className="h-10 w-10 rounded object-cover border border-[#23272a] flex-shrink-0"
-                  />
+                  safeImgSrc(replyingTo.content.replace("[GIF]", "")) && (
+                    <img
+                      src={safeImgSrc(replyingTo.content.replace("[GIF]", ""))}
+                      alt="GIF preview"
+                      className="h-10 w-10 rounded object-cover border border-[#23272a] flex-shrink-0"
+                    />
+                  )
                 ) : isCodeBlock(replyingTo.content) ? (
                   <div className="max-w-xs truncate rounded bg-[#111214] border border-[#23272a] px-2 font-mono text-xs text-green-400">
                     {
@@ -758,7 +761,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                         replyingTo.mediaType
                       ) ? (
                         <img
-                          src={replyingTo.mediaUrl}
+                          src={safeImgSrc(replyingTo.mediaUrl)}
                           alt="Reply attachment"
                           className="h-9 w-9 flex-shrink-0 rounded object-cover border border-[#23272a]"
                         />

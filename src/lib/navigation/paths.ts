@@ -40,6 +40,7 @@ export function isSafePath(value: unknown): boolean {
   if (typeof value !== "string" || value.length === 0) return false;
   if (!value.startsWith("/")) return false;
   if (value.startsWith("//")) return false;
+  if (value.includes("\\")) return false;
   if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(value)) return false;
   if (/[\u0000-\u001f\u007f]/.test(value)) return false;
   return true;

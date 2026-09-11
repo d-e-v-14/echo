@@ -23,3 +23,8 @@ export function safeHref(url: string | undefined | null): string | undefined {
   if (!url) return undefined;
   return isSafeUrl(url) ? url : undefined;
 }
+
+export function safeImgSrc(url: string | undefined | null): string | undefined {
+  if (!url) return undefined;
+  return isSafeMediaUrl(url) ? url : undefined;
+}

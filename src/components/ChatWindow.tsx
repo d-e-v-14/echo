@@ -36,6 +36,7 @@ import { useTyping } from "@/hooks/useTyping";
 import { tokenStore } from "@/lib/auth/tokenStore";
 import { buildApiUrl } from "@/lib/apiUrl";
 import { checkMessage, isModerationBlockedError, notifyModerationBlocked } from "@/lib/moderation";
+import { safeImgSrc } from "@/lib/security/safeUrl";
 
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { MessageVirtualizer } from "@/components/chat/MessageVirtualizer";
@@ -186,7 +187,7 @@ export default forwardRef(function ChatWindow(
     resolveAvatarUrl,
   });
 
-  const { permissions, permissionError, setPermissionError } =
+  const { permissions, permissionError, setPermissionError, permissionsError, retryPermissions } =
     useChannelPermissions(channelId, serverId);
 
   const {
@@ -211,6 +212,14 @@ export default forwardRef(function ChatWindow(
   const channelUnreadCount = useMentionUnreadCount(channelId);
 
   const positionedRef = useRef(false);
+  const permissionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (permissionTimerRef.current) {
+        clearTimeout(permissionTimerRef.current);
+      }
+    };
+  }, []);
 
   const loadErrorShownForRef = useRef<string | null>(null);
   useEffect(() => {
@@ -517,7 +526,8 @@ export default forwardRef(function ChatWindow(
             "You need specific roles to send messages in this channel.";
         }
         setPermissionError(errorMsg);
-        setTimeout(() => setPermissionError(null), 5000);
+        if (permissionTimerRef.current) clearTimeout(permissionTimerRef.current);
+        permissionTimerRef.current = setTimeout(() => setPermissionError(null), 5000);
         return;
       }
 
@@ -577,7 +587,7 @@ export default forwardRef(function ChatWindow(
 
         setReplyingTo(null);
 
-        reconcileTemp(tempId, {
+        reconcileTemp(channelId, tempId, {
           id: String(response?.id ?? tempId),
           content: response?.content ?? undefined,
           mediaUrl: response?.media_url ?? response?.mediaUrl,
@@ -589,15 +599,16 @@ export default forwardRef(function ChatWindow(
 
         if (err?.response?.status === 403) {
           setPermissionError(errorMessage);
-          setTimeout(() => setPermissionError(null), 5000);
-          dropTemp(tempId);
+          if (permissionTimerRef.current) clearTimeout(permissionTimerRef.current);
+          permissionTimerRef.current = setTimeout(() => setPermissionError(null), 5000);
+          dropTemp(channelId, tempId);
         } else if (isModerationBlockedError(err)) {
-          dropTemp(tempId);
+          dropTemp(channelId, tempId);
           notifyModerationBlocked();
         } else {
           // The optimistic bubble is already marked failed inline ("Not
           // delivered"), so no toast is needed here to avoid duplicate feedback.
-          markFailed(new Set([tempId]));
+          markFailed(channelId, new Set([tempId]));
         }
       }
     },
@@ -624,7 +635,7 @@ export default forwardRef(function ChatWindow(
     async (message: ChannelMessage) => {
       if (message.status !== "failed") return;
 
-      dropTemp(message.id);
+      dropTemp(channelId, message.id);
 
       let file: File | null = null;
       if (message.mediaUrl?.startsWith("blob:")) {
@@ -645,14 +656,14 @@ export default forwardRef(function ChatWindow(
 
       await sendSingleMessage(message.content, file);
     },
-    [dropTemp, sendSingleMessage]
+    [dropTemp, sendSingleMessage, channelId]
   );
 
   const handleDiscardFailed = useCallback(
     (message: ChannelMessage) => {
-      if (message.status === "failed") dropTemp(message.id);
+      if (message.status === "failed") dropTemp(channelId, message.id);
     },
-    [dropTemp]
+    [dropTemp, channelId]
   );
 
   const MAX_FILE_SIZE_MB = 25;
@@ -814,14 +825,17 @@ export default forwardRef(function ChatWindow(
       if (typeof msg.content !== "string") return null;
 
       const gifMatch = msg.content.match(/^\[GIF\](.+)$/);
+      const gifUrl = gifMatch ? safeImgSrc(gifMatch[1]) : undefined;
 
       if (gifMatch) {
-        return (
+        return gifUrl ? (
           <img
-            src={gifMatch[1]}
+            src={gifUrl}
             alt="GIF"
             className="block max-w-full h-auto rounded-lg"
           />
+        ) : (
+          <span className="break-all text-[#dbdee1]">{gifMatch[1]}</span>
         );
       }
 
@@ -934,6 +948,8 @@ export default forwardRef(function ChatWindow(
       <MessageComposer
         permissions={permissions}
         permissionError={permissionError}
+        permissionsError={permissionsError}
+        onRetryPermissions={retryPermissions}
         serverId={serverId}
         serverRoles={serverRoles}
         isSending={isSending}

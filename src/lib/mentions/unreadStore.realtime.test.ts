@@ -72,7 +72,7 @@ describe("realtime mention_notification contract", () => {
     );
     expect(getSnapshot().serverUnread["srv-1"]).toBeUndefined();
 
-    resolvePendingServerIds((channelId, serverName) =>
+    resolvePendingServerIds((_channelId, serverName) =>
       serverName?.toLowerCase() === "my server" ? "srv-1" : undefined
     );
 

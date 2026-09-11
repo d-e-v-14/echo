@@ -18,9 +18,14 @@ import { SocketProvider } from "@/lib/socket/SocketProvider";
 import { RealtimeCacheSync } from "@/lib/query/RealtimeCacheSync";
 import { MentionUnreadProvider } from "@/contexts/MentionUnreadProvider";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { useInactivityLogout } from "@/hooks/useInactivityLogout";
+import { tokenStore } from "@/lib/auth/tokenStore";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  useInactivityLogout(
+    typeof window !== "undefined" && tokenStore.hasRefreshToken()
+  );
   return (
     <RouteGuard>
       <UserProvider>

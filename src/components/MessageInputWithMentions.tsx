@@ -10,6 +10,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { ROLE_MENTION_REGEX } from "@/lib/channels/mentions";
 import { checkMessage, notifyModerationBlocked } from "@/lib/moderation";
 import InlineSpinner from "@/components/loading/InlineSpinner";
+import { safeImgSrc } from "@/lib/security/safeUrl";
 
 const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
 
@@ -53,7 +54,7 @@ const UserMentionAvatar: React.FC<{
     <div className="w-8 h-8 flex-shrink-0 rounded-full overflow-hidden bg-slate-700 border border-slate-600 flex items-center justify-center">
       {avatarUrl && !hasError ? (
         <img
-          src={avatarUrl}
+          src={safeImgSrc(avatarUrl)}
           alt={username}
           className="w-full h-full object-cover"
           onError={() => setHasError(true)}

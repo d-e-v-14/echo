@@ -17,8 +17,6 @@ export default function ProfilePage() {
     const loadingToast = toast.loading("Logging out…");
     try {
       await logout();
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
       toast.update(loadingToast, {
         type: "success",
         message: "Logged out successfully",

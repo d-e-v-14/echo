@@ -17,27 +17,22 @@ const TOAST_CONFIG = {
   success: {
     Icon: CheckCircle2,
     iconColor: "text-[#3ba55c]",
-    barColor: "bg-[#3ba55c]",
   },
   error: {
     Icon: XCircle,
     iconColor: "text-[#ed4245]",
-    barColor: "bg-[#ed4245]",
   },
   warning: {
     Icon: AlertTriangle,
     iconColor: "text-amber-400",
-    barColor: "bg-amber-400",
   },
   info: {
     Icon: Info,
     iconColor: "text-[#FFC341]",
-    barColor: "bg-[#FFC341]",
   },
   loading: {
     Icon: Loader2,
     iconColor: "text-[#FFC341]",
-    barColor: "bg-[#FFC341]",
   },
 } as const;
 
@@ -50,7 +45,7 @@ export default function Toast({ item, onClose }: ToastProps) {
   const [exiting, setExiting] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { Icon, iconColor, barColor } = TOAST_CONFIG[item.type];
+  const { Icon, iconColor } = TOAST_CONFIG[item.type];
   const sticky = item.duration <= 0;
   const isAlert = item.type === "error" || item.type === "warning";
 
@@ -79,16 +74,6 @@ export default function Toast({ item, onClose }: ToastProps) {
         exiting ? "animate-toast-out" : "animate-toast-in"
       }`}
     >
-      <div
-        className={`h-0.5 w-full ${barColor}`}
-        style={
-          sticky
-            ? undefined
-            : {
-                animation: `toast-progress ${item.duration}ms linear forwards`,
-              }
-        }
-      />
       <div className="flex items-start gap-3 px-4 py-3">
         <Icon
           className={`mt-0.5 h-5 w-5 shrink-0 ${iconColor} ${

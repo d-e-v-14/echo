@@ -32,9 +32,9 @@ describe("policyForQueryKey", () => {
     );
   });
 
-  it("assigns the stable policy to roles, medium to details/channels", () => {
+  it("assigns the medium policy to roles, medium to details/channels", () => {
     expect(policyForQueryKey(queryKeys.serverRoles("s1"))).toEqual(
-      STABLE_POLICY
+      MEDIUM_POLICY
     );
     expect(policyForQueryKey(queryKeys.serverDetails("s1"))).toEqual(
       MEDIUM_POLICY
@@ -85,9 +85,9 @@ describe("policyForQueryKey", () => {
     ).toEqual(MEDIUM_POLICY);
   });
 
-  it("uses the stable policy for user profiles", () => {
+  it("uses the medium policy for user profiles", () => {
     expect(policyForQueryKey(queryKeys.userProfile("u1"))).toEqual(
-      STABLE_POLICY
+      MEDIUM_POLICY
     );
   });
 

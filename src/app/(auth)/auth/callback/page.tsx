@@ -57,11 +57,9 @@ function AuthCallbackContent() {
               setMessage("Email verified! Redirecting to login...");
             }
 
-            const pendingRedirect = localStorage.getItem("redirectAfterLogin");
-            const homeUrl = pendingRedirect
-              ? `/?verified=true&redirect=${encodeURIComponent(pendingRedirect)}`
-              : "/?verified=true";
-            setTimeout(() => goSafe(homeUrl), 2000);
+            // redirectAfterLogin (if any) is left in localStorage; the signed-in home
+            // page consumes it after verification so the invite/flow is preserved.
+            setTimeout(() => goSafe("/?verified=true"), 2000);
           } else {
             setStatus("error");
             setMessage("Invalid verification link.");

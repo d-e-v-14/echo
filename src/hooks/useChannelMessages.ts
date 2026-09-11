@@ -39,6 +39,7 @@ export interface UseChannelMessagesResult {
   loadMessages: (loadMore?: boolean) => Promise<boolean>;
   addOptimistic: (optimistic: ChannelMessage) => void;
   reconcileTemp: (
+    targetChannelId: string,
     tempId: string | number,
     replacement: {
       id: string | number;
@@ -47,8 +48,11 @@ export interface UseChannelMessagesResult {
       pendingAttachment?: string | null;
     }
   ) => void;
-  dropTemp: (tempId: string | number) => void;
-  markFailed: (tempIds: ReadonlySet<string>) => void;
+  dropTemp: (targetChannelId: string, tempId: string | number) => void;
+  markFailed: (
+    targetChannelId: string,
+    tempIds: ReadonlySet<string>
+  ) => void;
   updateMessages: (
     updater: (prev: ChannelMessage[]) => ChannelMessage[]
   ) => void;
@@ -116,9 +120,17 @@ export function useChannelMessages({
     );
   }, [infiniteQuery.data]);
 
+  const refreshInFlightRef = useRef<string | null>(null);
+
   const refreshNewestPage = useCallback(async (): Promise<boolean> => {
     const targetChannelId = channelIdRef.current;
+    if (refreshInFlightRef.current === targetChannelId) return true;
+    refreshInFlightRef.current = targetChannelId;
     try {
+      await queryClient.cancelQueries({
+        queryKey: queryKeys.channelMessages(targetChannelId),
+      });
+
       const result = await fetchMessages(targetChannelId, {
         limit: CHANNEL_MESSAGES_LIMIT,
       });
@@ -139,14 +151,30 @@ export function useChannelMessages({
               result.nextCursor
             );
           }
+          // Keep any still-pending optimistic messages so a newer local send
+          // isn't wiped out by a fetch snapshot taken before it landed.
+          const prevLast = old.pages[old.pages.length - 1];
+          const pendingMessages = (prevLast.messages || []).filter(
+            (m) => m.status === "pending"
+          );
           const pages = [...old.pages];
-          pages[pages.length - 1] = page;
+          pages[pages.length - 1] = {
+            ...page,
+            messages: dedupeAndSortByTime([
+              ...page.messages,
+              ...pendingMessages,
+            ]),
+          };
           return { ...old, pages };
         }
       );
       return true;
     } catch {
       return false;
+    } finally {
+      if (refreshInFlightRef.current === targetChannelId) {
+        refreshInFlightRef.current = null;
+      }
     }
   }, [normalizeMessages, queryClient]);
 
@@ -196,6 +224,7 @@ export function useChannelMessages({
 
   const reconcileTemp = useCallback(
     (
+      targetChannelId: string,
       tempId: string | number,
       replacement: {
         id: string | number;
@@ -205,7 +234,7 @@ export function useChannelMessages({
       }
     ) => {
       queryClient.setQueryData<ChannelMessagesData>(
-        queryKeys.channelMessages(channelIdRef.current),
+        queryKeys.channelMessages(targetChannelId),
         (old) =>
           old ? replaceOptimisticById(old, tempId, replacement) : old
       );
@@ -213,19 +242,25 @@ export function useChannelMessages({
     [queryClient]
   );
 
-  const dropTemp = useCallback((tempId: string | number) => {
-    queryClient.setQueryData<ChannelMessagesData>(
-      queryKeys.channelMessages(channelIdRef.current),
-      (old) => (old ? deleteMessageById(old, tempId) : old)
-    );
-  }, [queryClient]);
+  const dropTemp = useCallback(
+    (targetChannelId: string, tempId: string | number) => {
+      queryClient.setQueryData<ChannelMessagesData>(
+        queryKeys.channelMessages(targetChannelId),
+        (old) => (old ? deleteMessageById(old, tempId) : old)
+      );
+    },
+    [queryClient]
+  );
 
-  const markFailed = useCallback((tempIds: ReadonlySet<string>) => {
-    queryClient.setQueryData<ChannelMessagesData>(
-      queryKeys.channelMessages(channelIdRef.current),
-      (old) => (old ? markMessagesFailed(old, tempIds) : old)
-    );
-  }, [queryClient]);
+  const markFailed = useCallback(
+    (targetChannelId: string, tempIds: ReadonlySet<string>) => {
+      queryClient.setQueryData<ChannelMessagesData>(
+        queryKeys.channelMessages(targetChannelId),
+        (old) => (old ? markMessagesFailed(old, tempIds) : old)
+      );
+    },
+    [queryClient]
+  );
 
   const updateMessages = useCallback(
     (updater: (prev: ChannelMessage[]) => ChannelMessage[]) => {

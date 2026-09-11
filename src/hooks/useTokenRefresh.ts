@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { logout } from "@/api/auth.api";
 import { tokenStore } from "@/lib/auth/tokenStore";
 import { toast } from "@/components/toast/toastService";
 import { useAppRouter } from "@/lib/navigation/useAppRouter";
@@ -15,10 +16,13 @@ export const useTokenRefresh = (enabled = true) => {
     let cancelled = false;
 
     const handleLogout = () => {
-      tokenStore.clear();
-      sessionStorage.setItem("skipGlobalLoader", "1");
-      toast.warning("Your session has expired. Please sign in again.");
-      if (!cancelled) goSafe("/");
+      void logout()
+        .catch(() => undefined)
+        .finally(() => {
+          sessionStorage.setItem("skipGlobalLoader", "1");
+          toast.warning("Your session has expired. Please sign in again.");
+          if (!cancelled) goSafe("/");
+        });
     };
 
     const schedule = () => {

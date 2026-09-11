@@ -224,7 +224,6 @@ export function RealtimeCacheSync() {
         const channelId = resolveChannelId(body);
         if (!channelId) return;
         const key = queryKeys.channelMessages(channelId);
-        if (!queryClient.getQueryData(key)) return;
 
         if (name === "message_error") {
           const messageId = readMessageId(body) ?? readTempId(body);

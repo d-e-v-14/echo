@@ -70,7 +70,7 @@ export function policyForQueryKey(key: readonly unknown[]): CachePolicy {
     case "pinned":
       return MEDIUM_POLICY;
     case "user":
-      return STABLE_POLICY;
+      return MEDIUM_POLICY;
     case "voice":
     case "presence":
       return EPHEMERAL_POLICY;
@@ -93,7 +93,7 @@ function serverCachePolicy(key: readonly unknown[]): CachePolicy {
     case "roles":
     case "my-roles":
     case "self-assignable-roles":
-      return STABLE_POLICY;
+      return MEDIUM_POLICY;
     default:
       return MEDIUM_POLICY;
   }

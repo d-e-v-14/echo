@@ -8,6 +8,7 @@ import React, {
   useMemo,
 } from "react";
 import { usePageReady } from "@/components/RouteChangeLoader";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   FaUserFriends,
   FaPlus,
@@ -34,6 +35,7 @@ import InlineSpinner from "@/components/loading/InlineSpinner";
 import { ConversationListSkeleton } from "@/components/loading/skeletons";
 import { toast } from "@/contexts/ToastContext";
 import { getErrorMessage } from "@/components/toast/errorNormalizer";
+import { queryKeys } from "@/lib/query/keys";
 
 type TabId = "all" | "pending" | "add";
 
@@ -61,6 +63,7 @@ interface FriendData {
 export default function FriendsPage() {
   const { openDm } = useAppRouter();
   const pageReady = usePageReady();
+  const queryClient = useQueryClient();
   const { refreshCount: refreshFriendCount } = useFriendNotifications();
   const [activeTab, setActiveTab] = useState<TabId>("all");
   const [friends, setFriends] = useState<FriendData[]>([]);
@@ -169,6 +172,8 @@ export default function FriendsPage() {
     try {
       await addFriend(userId);
       toast.success("Friend request sent");
+      queryClient.invalidateQueries({ queryKey: queryKeys.friends });
+      queryClient.invalidateQueries({ queryKey: queryKeys.friendRequests });
       loadRequests();
       setSearchResults((prev) =>
         prev.map((user) =>
@@ -227,6 +232,8 @@ export default function FriendsPage() {
     try {
       await removeFriend(friendId);
       toast.success("Friend removed");
+      queryClient.invalidateQueries({ queryKey: queryKeys.friends });
+      queryClient.invalidateQueries({ queryKey: queryKeys.friendRequests });
       setFriends((prev) => prev.filter((friend) => friend.id !== friendId));
       setSearchResults((prev) =>
         prev.map((user) =>
@@ -258,6 +265,8 @@ export default function FriendsPage() {
           ? "Friend request accepted"
           : "Friend request declined"
       );
+      queryClient.invalidateQueries({ queryKey: queryKeys.friends });
+      queryClient.invalidateQueries({ queryKey: queryKeys.friendRequests });
       setRequests((prev) => prev.filter((req) => req.friends_id !== requestId));
       if (status === "accepted") {
         loadFriends();

@@ -9,10 +9,13 @@ import {
   ChannelMessage,
 } from "@/lib/channels/types";
 import { isCodeBlock, isReplyImage } from "@/lib/channels/messageUtils";
+import { safeImgSrc } from "@/lib/security/safeUrl";
 
 export interface MessageComposerProps {
   permissions: ChannelPermissions | null;
   permissionError: string | null;
+  permissionsError: boolean;
+  onRetryPermissions: () => void;
   serverId?: string;
   serverRoles: ChatRole[];
   isSending: boolean;
@@ -43,11 +46,13 @@ const ReplyBanner: React.FC<{
         </span>
 
         {content?.startsWith("[GIF]") ? (
-          <img
-            src={content.replace("[GIF]", "")}
-            alt="GIF preview"
-            className="h-10 w-10 rounded object-cover border border-[#23272a] flex-shrink-0"
-          />
+          safeImgSrc(content.replace("[GIF]", "")) && (
+            <img
+              src={safeImgSrc(content.replace("[GIF]", ""))}
+              alt="GIF preview"
+              className="h-10 w-10 rounded object-cover border border-[#23272a] flex-shrink-0"
+            />
+          )
         ) : isCodeBlock(content) ? (
           <div className="max-w-xs truncate rounded bg-[#111214] border border-[#23272a] px-2 font-mono text-xs text-green-400">
             {
@@ -61,7 +66,7 @@ const ReplyBanner: React.FC<{
             {mediaUrl &&
               (isReplyImage(mediaUrl, mediaType) ? (
                 <img
-                  src={mediaUrl}
+                  src={safeImgSrc(mediaUrl)}
                   alt="Reply attachment"
                   className="h-9 w-9 flex-shrink-0 rounded object-cover border border-[#23272a]"
                 />
@@ -90,6 +95,8 @@ const ReplyBanner: React.FC<{
 export const MessageComposer: React.FC<MessageComposerProps> = ({
   permissions,
   permissionError,
+  permissionsError,
+  onRetryPermissions,
   serverId,
   serverRoles,
   isSending,
@@ -107,6 +114,22 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
         <div className="mx-6 mb-2 px-4 py-3 bg-red-900/50 border border-red-500 rounded-lg flex items-center gap-3">
           <span className="text-red-400 text-xl"></span>
           <div className="text-sm text-red-200 flex-1">{permissionError}</div>
+        </div>
+      )}
+
+      {permissionsError && (
+        <div className="mx-6 mb-2 flex items-center gap-3 rounded-lg border border-white/[0.08] bg-[#23272a]/70 px-4 py-2.5">
+          <div className="flex-1 text-sm text-[#b5bac1]">
+            Couldn&apos;t load channel permissions. Sending may fail until it
+            reloads.
+          </div>
+          <button
+            type="button"
+            onClick={onRetryPermissions}
+            className="rounded bg-gradient-to-r from-[#FFC341] to-[#FFD700] px-3 py-1.5 text-xs font-bold text-black transition hover:-translate-y-0.5"
+          >
+            Retry
+          </button>
         </div>
       )}
 

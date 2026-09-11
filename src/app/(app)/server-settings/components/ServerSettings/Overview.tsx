@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { updateServer } from "@/api";
-import { ServerDetails } from "@/api/types/server.types";
+import { ServerDetails, Server } from "@/api/types/server.types";
 import { getErrorMessage } from "@/components/toast/errorNormalizer";
+import { queryKeys } from "@/lib/query/keys";
 
 interface OverviewProps {
   serverId: string;
@@ -20,6 +22,16 @@ export default function Overview({
 }: OverviewProps) {
   const canEdit = isOwner || isAdmin;
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    };
+  }, []);
 
   const [serverName, setServerName] = useState(serverDetails.name);
   const [serverIcon, setServerIcon] = useState(
@@ -60,13 +72,27 @@ export default function Overview({
       if (serverName !== serverDetails.name) updateData.name = serverName;
       const updated = await updateServer(serverId, updateData, iconFile || undefined);
       onServerUpdate(updated);
+      queryClient.setQueryData<Server[]>(queryKeys.servers, (old = []) =>
+        Array.isArray(old)
+          ? old.map((s) =>
+              s.id === serverId
+                ? { ...s, name: updated.name, icon_url: updated.icon_url }
+                : s
+            )
+          : old
+      );
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.server(serverId),
+      });
       setSuccessMessage("Changes saved");
       setIconFile(null);
-      setTimeout(() => setSuccessMessage(""), 3000);
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+      successTimerRef.current = setTimeout(() => setSuccessMessage(""), 3000);
     } catch (err: any) {
       const msg = getErrorMessage(err, "Failed to save");
       setErrorMessage(msg);
-      setTimeout(() => setErrorMessage(""), 5000);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setErrorMessage(""), 5000);
     } finally {
       setIsSaving(false);
     }

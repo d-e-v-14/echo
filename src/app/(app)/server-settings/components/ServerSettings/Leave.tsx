@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAppRouter } from "@/lib/navigation/useAppRouter";
 import { leaveServer } from "@/api";
 import { ServerDetails } from "@/api/types/server.types";
 import { toast } from "@/contexts/ToastContext";
 import { getErrorMessage } from "@/components/toast/errorNormalizer";
+import { queryKeys } from "@/lib/query/keys";
 
 interface LeaveProps {
   serverId: string;
@@ -17,6 +19,7 @@ export default function Leave({ serverId, serverDetails, isOwner = false }: Leav
   const [isLeaving, setIsLeaving] = useState(false);
   const [error, setError] = useState("");
   const { open } = useAppRouter();
+  const queryClient = useQueryClient();
 
   const serverName = serverDetails?.name || "Unknown Server";
 
@@ -30,6 +33,9 @@ export default function Leave({ serverId, serverDetails, isOwner = false }: Leav
     try {
       await leaveServer(serverId);
       localStorage.removeItem("currentServerId");
+      localStorage.removeItem("currentViewedServerId");
+      queryClient.removeQueries({ queryKey: queryKeys.server(serverId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.servers });
       toast.success("You left the server");
       setTimeout(() => open("SERVERS"), 1500);
     } catch (err: any) {

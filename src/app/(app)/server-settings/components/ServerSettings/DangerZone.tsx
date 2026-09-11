@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAppRouter } from "@/lib/navigation/useAppRouter";
 import { deleteServer, transferServerOwnership, getServerMembers, getUser } from "@/api";
 import { useToast } from "@/contexts/ToastContext";
 import { getErrorMessage } from "@/components/toast/errorNormalizer";
+import { queryKeys } from "@/lib/query/keys";
 
 interface DangerZoneProps {
   serverId: string;
@@ -26,6 +28,7 @@ export default function DangerZone({
 }: DangerZoneProps) {
   const { open } = useAppRouter();
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
 
   const [loading, setLoading] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
@@ -80,6 +83,10 @@ export default function DangerZone({
     try {
       setLoading(true);
       await deleteServer(serverId);
+      localStorage.removeItem("currentServerId");
+      localStorage.removeItem("currentViewedServerId");
+      queryClient.removeQueries({ queryKey: queryKeys.server(serverId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.servers });
       showToast("Server deleted", "success");
       setTimeout(() => open("SERVERS"), 800);
     } catch (err: any) {
@@ -96,6 +103,9 @@ export default function DangerZone({
     try {
       setLoading(true);
       await transferServerOwnership(serverId, selectedNewOwner);
+      queryClient.removeQueries({ queryKey: queryKeys.server(serverId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.servers });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.me });
       showToast("Ownership transferred", "success");
       setTimeout(() => open("SERVERS"), 800);
     } catch (err: any) {

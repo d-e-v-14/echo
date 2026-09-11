@@ -674,10 +674,11 @@ const ServersPageContent: React.FC = () => {
       sessionStorage.removeItem("pendingChannelId");
       sessionStorage.removeItem("pendingMessageId");
 
-      setTimeout(async () => {
+      let cancelled = false;
+      const startTimer = window.setTimeout(async () => {
         const MAX_PAGES = 8;
         let found = false;
-        for (let i = 0; i <= MAX_PAGES && !found; i++) {
+        for (let i = 0; i <= MAX_PAGES && !found && !cancelled; i++) {
           if (chatWindowRef.current) {
             const scrolled =
               await chatWindowRef.current.scrollToMessage(pendingMessageId);
@@ -693,6 +694,11 @@ const ServersPageContent: React.FC = () => {
           await new Promise((r) => setTimeout(r, 200));
         }
       }, 500);
+
+      return () => {
+        cancelled = true;
+        window.clearTimeout(startTimer);
+      };
     }
   }, [channels, activeChannel]);
 
@@ -794,6 +800,12 @@ const ServersPageContent: React.FC = () => {
               )
             : old
       );
+      queryClient.removeQueries({
+        queryKey: queryKeys.channelMessages(channelSettings.channel.id),
+      });
+      queryClient.removeQueries({
+        queryKey: queryKeys.channelPermissions(channelSettings.channel.id),
+      });
       setChannelSettings(null);
       toast.success("Channel deleted");
     } catch (err: any) {

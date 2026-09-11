@@ -15,7 +15,7 @@ import InlineSpinner from "@/components/loading/InlineSpinner";
 import { toast } from "@/contexts/ToastContext";
 import { getAuthErrorMessage } from "@/components/toast/errorNormalizer";
 import { SignInNotice } from "@/components/SignInNotice";
-import { buildPath } from "@/lib/navigation/paths";
+import { buildPath, isSafePath } from "@/lib/navigation/paths";
 
 Modal.setAppElement("body");
 
@@ -39,7 +39,7 @@ export default function Home() {
 
     const next = new URLSearchParams(window.location.search).get("next");
 
-    if (next) {
+    if (next && isSafePath(next)) {
       localStorage.setItem("redirectAfterLogin", next);
     }
 
@@ -73,7 +73,13 @@ export default function Home() {
       "You're signed in. Please log out to visit the Google sign-in page."
     );
 
-    router.replace(buildPath("SERVERS"));
+    const pendingRedirect = localStorage.getItem("redirectAfterLogin");
+    localStorage.removeItem("redirectAfterLogin");
+    const target =
+      pendingRedirect && isSafePath(pendingRedirect)
+        ? pendingRedirect
+        : buildPath("SERVERS");
+    router.replace(target);
   }, [router]);
 
   useEffect(() => {

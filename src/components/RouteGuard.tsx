@@ -23,18 +23,23 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
     };
 
     const checkAuth = async () => {
-      if (!tokenStore.hasRefreshToken()) {
-        const target = computeRedirect();
-        goSafe(target ? `/?signin=1&next=${encodeURIComponent(target)}` : "/?signin=1");
-        return;
-      }
+      // Probe the session even without a localStorage token: there may be a
+      // valid httpOnly cookie session that ensureAccessToken() can fall back to.
+      const hadStoredToken = tokenStore.hasRefreshToken();
       const token = await tokenStore.ensureAccessToken();
       if (cancelled) return;
-      if (!token) {
+      if (token) {
+        setReady(true);
+        return;
+      }
+      if (hadStoredToken) {
         goSafe("/?session_expired=1");
         return;
       }
-      setReady(true);
+      const target = computeRedirect();
+      goSafe(
+        target ? `/?signin=1&next=${encodeURIComponent(target)}` : "/?signin=1"
+      );
     };
 
     void checkAuth();

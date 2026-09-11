@@ -17,6 +17,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { useUser } from "@/components/UserContext";
 import { invalidateServerPermissionQueries } from "@/lib/query/roleSync";
 import { getErrorMessage } from "@/components/toast/errorNormalizer";
+import { queryKeys } from "@/lib/query/keys";
 
 interface Member {
   id: string;
@@ -111,6 +112,9 @@ export default function Members({
       await assignRoleToUser(serverId, memberId, roleId);
       showToast("Role assigned", "success");
       await loadMembers();
+      queryClient.invalidateQueries({
+        queryKey: [...queryKeys.server(serverId), "member", memberId],
+      });
       if (memberId === user?.id) {
         invalidateServerPermissionQueries(queryClient, serverId);
       }
@@ -130,6 +134,9 @@ export default function Members({
       await removeRoleFromUser(serverId, memberId, roleId);
       showToast("Role removed", "success");
       await loadMembers();
+      queryClient.invalidateQueries({
+        queryKey: [...queryKeys.server(serverId), "member", memberId],
+      });
       if (memberId === user?.id) {
         invalidateServerPermissionQueries(queryClient, serverId);
       }
@@ -159,6 +166,12 @@ export default function Members({
     try {
       await kickMember(serverId, memberId);
       setMembers(members.filter((m) => m.id !== memberId));
+      queryClient.removeQueries({
+        queryKey: [...queryKeys.server(serverId), "member", memberId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.serverMembers(serverId),
+      });
       showToast(`${memberUsername} kicked`, "success");
     } catch {
       showToast("Failed to kick member", "error");
@@ -171,6 +184,12 @@ export default function Members({
     try {
       await banMember(serverId, memberId, reason);
       setMembers(members.filter((m) => m.id !== memberId));
+      queryClient.removeQueries({
+        queryKey: [...queryKeys.server(serverId), "member", memberId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.serverMembers(serverId),
+      });
       showToast(`${memberUsername} has been banned`, "success");
     } catch {
       showToast("Failed to ban member", "error");
