@@ -26,7 +26,7 @@ const navItems: {
   route: RouteName;
 }[] = [
   { label: "Servers", icon: Users, path: "/servers", route: "SERVERS" },
-  { label: "Messages", icon: MessageSquareText, path: "/messages", route: "MESSAGES" },
+  // { label: "Messages", icon: MessageSquareText, path: "/messages", route: "MESSAGES" },
   { label: "Friends", icon: UserIcon, path: "/friends", route: "FRIENDS" },
   { label: "Join Server", icon: Cross, path: "", route: "SERVERS" },
 ];
