@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import React, { Suspense, useEffect, useRef, useState } from "react";
 import SharkWithEyes from "@/components/shark";
+import GoogleAnalytics from "@/components/GoogleAnalytics";
 import PillNav from "@/components/PillNav";
 import AOS from "aos";
 import { useRouter } from "next/navigation";
@@ -216,6 +217,8 @@ export default function Home() {
 
   return (
     <>
+      <GoogleAnalytics />
+
       <Suspense fallback={null}>
         <SignInNotice />
       </Suspense>

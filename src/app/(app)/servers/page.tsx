@@ -16,6 +16,7 @@ import React, {
   useCallback,
 } from "react";
 import { usePageReady } from "@/components/RouteChangeLoader";
+import GoogleAnalytics from "@/components/GoogleAnalytics";
 import FocusLock from "react-focus-lock";
 import {
   FaHashtag,
@@ -848,6 +849,8 @@ const ServersPageContent: React.FC = () => {
 
   return (
     <>
+      <GoogleAnalytics />
+
       {channelSettings && (
         <div
           className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/70 px-4"
