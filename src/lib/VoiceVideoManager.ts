@@ -180,10 +180,6 @@ export class VoiceVideoManager
 
   async initialize(requestVideo = true, requestAudio = true): Promise<void> {
     try {
-      console.log("[VoiceVideoManager] Initializing with:", {
-        requestVideo,
-        requestAudio,
-      });
 
       if (!this.deviceController) {
         this.deviceController = new DefaultDeviceController(this.logger);
@@ -197,12 +193,7 @@ export class VoiceVideoManager
           const audioInputs =
             await this.deviceController.listAudioInputDevices();
           audioGranted = audioInputs.length > 0;
-          console.log(
-            "[VoiceVideoManager] Audio devices found:",
-            audioInputs.length
-          );
-        } catch (e: any) {
-          console.warn("[VoiceVideoManager] Audio permission denied:", e.name);
+        } catch {
         }
       }
 
@@ -211,12 +202,7 @@ export class VoiceVideoManager
           const videoInputs =
             await this.deviceController.listVideoInputDevices();
           videoGranted = videoInputs.length > 0;
-          console.log(
-            "[VoiceVideoManager] Video devices found:",
-            videoInputs.length
-          );
-        } catch (e: any) {
-          console.warn("[VoiceVideoManager] Video permission denied:", e.name);
+        } catch {
         }
       }
 
@@ -247,7 +233,6 @@ export class VoiceVideoManager
 
   async joinVoiceChannel(channelId: string): Promise<void> {
     try {
-      console.log("[VoiceVideoManager] Joining channel:", channelId);
       this.currentChannelId = channelId;
 
       const meetingInfo = await this.createOrJoinMeeting(channelId);
@@ -256,10 +241,6 @@ export class VoiceVideoManager
         throw new Error("Invalid meeting info received from server");
       }
 
-      console.log("[VoiceVideoManager] Got meeting info:", {
-        meetingId: meetingInfo.meeting.MeetingId,
-        attendeeId: meetingInfo.attendee.AttendeeId,
-      });
 
       const configuration = new MeetingSessionConfiguration(
         meetingInfo.meeting,
@@ -319,7 +300,6 @@ export class VoiceVideoManager
         await this.audioVideo.startAudioInput(deviceId);
         this.deviceInfo.activeAudioDevice = deviceId;
         this.mediaState.activeStreams.audio = true;
-        console.log("[VoiceVideoManager] Started audio input:", deviceId);
       }
 
       const audioOutputs = await this.deviceController.listAudioOutputDevices();
@@ -349,7 +329,6 @@ export class VoiceVideoManager
   }
 
   leaveVoiceChannel(): void {
-    console.log("[VoiceVideoManager] Leaving channel:", this.currentChannelId);
 
     if (this.audioVideo) {
       if (this.mediaState.video) {
@@ -401,11 +380,9 @@ export class VoiceVideoManager
     if (enabled) {
       const unmuted = this.audioVideo.realtimeUnmuteLocalAudio();
       this.mediaState.muted = !unmuted;
-      console.log("[VoiceVideoManager] Unmuted audio:", unmuted);
     } else {
       this.audioVideo.realtimeMuteLocalAudio();
       this.mediaState.muted = true;
-      console.log("[VoiceVideoManager] Muted audio");
     }
 
     this.broadcastLocalState();
@@ -417,14 +394,12 @@ export class VoiceVideoManager
     try {
       if (enabled) {
         if (!this.mediaState.availablePermissions.video) {
-          console.warn("[VoiceVideoManager] No video permission");
           return;
         }
 
         const videoInputs =
           await this.deviceController?.listVideoInputDevices();
         if (!videoInputs?.length) {
-          console.warn("[VoiceVideoManager] No video devices available");
           return;
         }
 
@@ -450,7 +425,6 @@ export class VoiceVideoManager
 
         this.mediaState.video = false;
         this.mediaState.activeStreams.video = false;
-        console.log("[VoiceVideoManager] Video stopped");
       }
 
       this.broadcastLocalState();
@@ -470,7 +444,6 @@ export class VoiceVideoManager
       this.mediaState.screenSharing = true;
       this.mediaState.activeStreams.screen = true;
       this.broadcastLocalState();
-      console.log("[VoiceVideoManager] Screen sharing started");
     } catch (error: any) {
       console.error("[VoiceVideoManager] Screen share failed:", error);
 
@@ -478,7 +451,6 @@ export class VoiceVideoManager
         error.name === "NotAllowedError" ||
         error.message?.includes("Permission denied")
       ) {
-        console.log("[VoiceVideoManager] Screen share was cancelled by user");
         return;
       }
 
@@ -513,9 +485,6 @@ export class VoiceVideoManager
     if (!videoTrack) return;
 
     this.screenShareTrackEndedHandler = () => {
-      console.log(
-        "[VoiceVideoManager] Screen share track ended (browser stop button)"
-      );
       if (this.mediaState.screenSharing) {
         this.mediaState.screenSharing = false;
         this.mediaState.activeStreams.screen = false;
@@ -557,11 +526,9 @@ export class VoiceVideoManager
   }
 
   contentShareDidPause(): void {
-    console.log("[VoiceVideoManager] Content share paused");
   }
 
   contentShareDidUnpause(): void {
-    console.log("[VoiceVideoManager] Content share unpaused");
   }
 
   async updateDeviceInfo(): Promise<void> {
@@ -603,14 +570,12 @@ export class VoiceVideoManager
     });
 
     this.deviceInfo.activeVideoDevice = deviceId;
-    console.log("[VoiceVideoManager] Switched camera to:", deviceId);
   }
 
   async switchSpeaker(deviceId: string): Promise<void> {
     if (!this.audioVideo) return;
     await this.audioVideo.chooseAudioOutput(deviceId);
     this.deviceInfo.activeAudioOutputDevice = deviceId;
-    console.log("[VoiceVideoManager] Switched speaker to:", deviceId);
   }
 
   audioInputsChanged(freshAudioInputDeviceList: MediaDeviceInfo[]): void {
@@ -632,22 +597,16 @@ export class VoiceVideoManager
 
   audioVideoDidStop(sessionStatus: MeetingSessionStatus): void {
     const code = sessionStatus.statusCode();
-    console.log("[VoiceVideoManager] Audio/video session stopped:", code);
 
     if (code === MeetingSessionStatusCode.Left) {
-      console.log("[VoiceVideoManager] User left the meeting");
     } else if (code === MeetingSessionStatusCode.MeetingEnded) {
-      console.log("[VoiceVideoManager] Meeting was ended");
     } else {
-      console.warn("[VoiceVideoManager] Session stopped with code:", code);
     }
 
     this.callbacks.onConnectionStateChange?.(false);
   }
 
-  audioVideoDidStartConnecting(reconnecting: boolean): void {
-    console.log("[VoiceVideoManager] Connecting...", { reconnecting });
-  }
+  audioVideoDidStartConnecting(): void {}
 
   videoTileDidUpdate(tileState: VideoTileState): void {
     if (!tileState.tileId) return;
@@ -670,7 +629,6 @@ export class VoiceVideoManager
       }
     }
 
-    console.log("[VoiceVideoManager] Video tile updated:", tileInfo);
 
     if (tileState.boundAttendeeId && !tileState.isContent) {
       const baseAttendeeId = this.getBaseAttendeeId(tileState.boundAttendeeId);
@@ -715,9 +673,6 @@ export class VoiceVideoManager
     if (tileInfo?.isLocal && tileInfo?.attendeeId && !tileInfo.isContent) {
       const rosterMember = this.roster.get(tileInfo.attendeeId);
       if (rosterMember) {
-        console.log(
-          `[VoiceVideoManager] Setting LOCAL roster member ${tileInfo.attendeeId} video state to false (tile removed)`
-        );
         rosterMember.video = false;
         this.broadcastRoster();
       }
@@ -732,20 +687,15 @@ export class VoiceVideoManager
       this.localScreenTileId = null;
     }
 
-    console.log("[VoiceVideoManager] Video tile removed:", tileId);
     this.callbacks.onVideoTileRemoved?.(tileId);
   }
 
   connectionDidBecomePoor(): void {
-    console.warn("[VoiceVideoManager] Connection became poor");
     this.networkStats.connectionType = "poor";
     this.callbacks.onNetworkQuality?.(this.networkStats);
   }
 
   connectionDidSuggestStopVideo(): void {
-    console.warn(
-      "[VoiceVideoManager] Suggestion to stop video due to poor connection"
-    );
   }
 
   remoteVideoSourcesDidChange(videoSources: VideoSource[]): void {
@@ -792,8 +742,7 @@ export class VoiceVideoManager
         this.remoteVideoSourcesDidChange(sources);
         return;
       }
-    } catch (error) {
-      console.warn("[VoiceVideoManager] getRemoteVideoSources failed:", error);
+    } catch {
     }
 
     if (this.currentRemoteVideoSources.length > 0) {
@@ -851,14 +800,9 @@ export class VoiceVideoManager
         }
       );
 
-      console.log("[VoiceVideoManager] Attendee joined:", {
-        attendeeId,
-        userId,
-      });
     } else {
       this.roster.delete(attendeeId);
       this.callbacks.onUserLeft?.(attendeeId);
-      console.log("[VoiceVideoManager] Attendee left:", attendeeId);
     }
 
     this.broadcastRoster();
@@ -898,10 +842,6 @@ export class VoiceVideoManager
     channelId: string
   ): Promise<ChimeMeetingInfo> {
     try {
-      console.log(
-        "[VoiceVideoManager] Creating/joining meeting for channel:",
-        channelId
-      );
 
       let response: any;
 
@@ -911,17 +851,12 @@ export class VoiceVideoManager
           channelId: channelId, // Required by backend
           externalUserId: this.username, // Optional - used as Chime ExternalUserId
         });
-        console.log("[VoiceVideoManager] Created new meeting");
       } catch (createError: any) {
         if (createError.response?.status === 409) {
           const existingMeetingId =
             createError.response?.data?.meetingId ||
             createError.response?.data?.data?.meeting?.MeetingId ||
             channelId;
-          console.log(
-            "[VoiceVideoManager] Meeting exists, joining:",
-            existingMeetingId
-          );
 
           response = await chimeApiClient.post(
             `/meetings/${existingMeetingId}/attendees`,
@@ -942,8 +877,6 @@ export class VoiceVideoManager
         throw new Error("Invalid response: missing meeting or attendee data");
       }
 
-      console.log("[VoiceVideoManager] Got meeting:", meeting.MeetingId);
-      console.log("[VoiceVideoManager] Got attendee:", attendee.AttendeeId);
 
       return {
         meeting: {
@@ -1042,16 +975,10 @@ export class VoiceVideoManager
     ) => void
   ): void {
     void callback;
-    console.warn(
-      "[VoiceVideoManager] onStream is deprecated, use onVideoTileUpdated instead"
-    );
   }
 
   onRecording(callback: (event: string, data: any) => void): void {
     void callback;
-    console.warn(
-      "[VoiceVideoManager] Recording is managed server-side via Chime Media Capture Pipeline"
-    );
   }
 
   getMediaState(): MediaState {
@@ -1117,24 +1044,18 @@ export class VoiceVideoManager
 
   adjustQuality(quality: "low" | "medium" | "high" | "auto"): void {
     this.mediaState.mediaQuality = quality;
-    console.log("[VoiceVideoManager] Quality preference set to:", quality);
   }
 
   startRecording(config?: any): void {
     void config;
-    console.log(
-      "[VoiceVideoManager] Recording is managed via Chime Media Capture Pipeline on the server"
-    );
   }
 
   stopRecording(): void {
-    console.log("[VoiceVideoManager] Stop recording via server");
   }
 
   disconnect(): void {
     this.leaveVoiceChannel();
     this.deviceController = null;
-    console.log("[VoiceVideoManager] Fully disconnected");
   }
 
   getLocalStream(): MediaStream | null {

@@ -29,7 +29,6 @@ interface VoiceParticipant {
 const getServerMembersWithVoicePresence = async (): Promise<
   MemberWithVoicePresence[]
 > => {
-  console.warn("getServerMembersWithVoicePresence not implemented");
   return [];
 };
 

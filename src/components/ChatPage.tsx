@@ -1063,7 +1063,6 @@ function MessagesPageContentInner() {
         if (partnerId === selfId) partnerId = incomingMsg.receiver_id;
 
         if (!partnerId) {
-          console.warn("Incoming DM missing partner id", incoming);
           return;
         }
 
@@ -1237,7 +1236,6 @@ function MessagesPageContentInner() {
       } else if (Array.isArray((top as any)?.data)) {
         threads = (top as any).data;
       } else {
-        console.warn("Unexpected DM response shape", top);
         threads = [];
       }
 
@@ -1496,7 +1494,6 @@ function MessagesPageContentInner() {
         const savedRaw = await uploaddm(dmPayload);
         const saved = savedRaw?.message ?? savedRaw?.data ?? savedRaw;
         if (!saved) {
-          console.warn("DM upload returned no data");
         }
 
         const savedThreadId = saved?.thread_id

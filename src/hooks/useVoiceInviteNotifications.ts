@@ -93,7 +93,6 @@ export function useVoiceInviteNotifications({
       inviterAvatar?: string;
       timestamp: string;
     }) => {
-      console.log("[VoiceInvite] Received invite:", data);
 
       const inviteId = `${data.channelId}-${data.inviterUserId}-${Date.now()}`;
       const expiresAt = Date.now() + inviteExpirationMs;
@@ -142,8 +141,7 @@ export function useVoiceInviteNotifications({
             requireInteraction: true,
           });
         }
-      } catch (err) {
-        console.warn("[VoiceInvite] Could not show browser notification:", err);
+      } catch {
       }
     };
 

@@ -177,14 +177,8 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
 
   const setupEventListeners = useCallback(
     (manager: VoiceVideoManager) => {
-      console.log("[VoiceCallContext] Setting up event listeners");
 
       manager.onVoiceRoster((members) => {
-        console.log(
-          "[VoiceCallContext] Roster update:",
-          members.length,
-          "members"
-        );
         setParticipants(members);
       });
 
@@ -205,7 +199,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
       });
 
       manager.onVideoTileRemoved((tileId) => {
-        console.log("[VoiceCallContext] Video tile removed:", tileId);
         setVideoTiles((prev) => {
           const newMap = new Map(prev);
           newMap.delete(tileId);
@@ -231,17 +224,9 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
         setIsConnecting(false);
       });
 
-      manager.onUserJoined((attendeeId, externalUserId) => {
-        console.log(
-          "[VoiceCallContext] User joined:",
-          attendeeId,
-          externalUserId
-        );
-      });
+      manager.onUserJoined(() => {});
 
-      manager.onUserLeft((attendeeId) => {
-        console.log("[VoiceCallContext] User left:", attendeeId);
-      });
+      manager.onUserLeft(() => {});
 
       manager.onScreenSharing(() => {
         setParticipants(manager.getRoster());
@@ -255,21 +240,14 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
     async (manager: VoiceVideoManager) => {
       if (isInitialized) return true;
 
-      console.log(
-        "[VoiceCallContext] Initializing manager (requesting permissions)"
-      );
       setPermissionError(null);
 
       try {
         await manager.initialize(true, true);
         setIsInitialized(true);
         setLocalMediaState(manager.getMediaState());
-        console.log("[VoiceCallContext] Full permissions granted");
         return true;
       } catch {
-        console.warn(
-          "[VoiceCallContext] Full permissions failed, trying fallbacks"
-        );
 
         try {
           await manager.initializeAudioOnly();
@@ -278,7 +256,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
           setPermissionError(
             "Video permission denied. Audio-only mode active."
           );
-          console.log("[VoiceCallContext] Audio-only mode");
           return true;
         } catch {
           try {
@@ -288,7 +265,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
             setPermissionError(
               "Audio permission denied. Video-only mode active."
             );
-            console.log("[VoiceCallContext] Video-only mode");
             return true;
           } catch {
             console.error("[VoiceCallContext] All permission requests failed");
@@ -310,12 +286,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
       serverId: string,
       serverName: string
     ) => {
-      console.log("[VoiceCallContext] joinCall:", {
-        channelId,
-        channelName,
-        serverId,
-        serverName,
-      });
 
       setConnectionError(null);
       setIsConnecting(true);
@@ -330,10 +300,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
         getVoicePresenceSocket(user.id);
 
         if (activeCall) {
-          console.log(
-            "[VoiceCallContext] Leaving previous call:",
-            activeCall.channelId
-          );
           emitLeaveVoiceChannel({
             channelId: activeCall.channelId,
             serverId: activeCall.serverId,
@@ -385,7 +351,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
           setIsConnecting(false);
         }
 
-        console.log("[VoiceCallContext] Successfully joined call:", channelId);
       } catch (error: any) {
         console.error("[VoiceCallContext] Failed to join call:", error);
         setConnectionError(error.message || "Failed to join voice channel");
@@ -405,7 +370,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
   );
 
   const leaveCall = useCallback(() => {
-    console.log("[VoiceCallContext] leaveCall");
 
     const call = activeCallRef.current;
     if (call) {
@@ -481,7 +445,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
       broadcastVoicePresence(mediaState);
     } catch (error: any) {
       if (error?.name === "NotAllowedError") {
-        console.log("[VoiceCallContext] Screen share cancelled by user");
         return;
       }
       console.error("[VoiceCallContext] Toggle screen share failed:", error);
@@ -519,9 +482,6 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
 
   useEffect(() => {
     return () => {
-      console.log(
-        "[VoiceCallContext] Provider unmounting, disconnecting manager"
-      );
       const manager = managerRef.current;
       if (manager) {
         manager.disconnect();

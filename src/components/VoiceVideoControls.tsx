@@ -137,7 +137,6 @@ const VoiceVideoControls: React.FC<VoiceVideoControlsProps> = ({
         await manager.toggleVideo(false);
       } else {
         if (!hasVideoPerm) {
-          console.warn("No camera permission");
           return;
         }
         await manager.toggleVideo(true);

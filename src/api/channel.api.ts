@@ -76,8 +76,6 @@ export const updateChannel = async (
 export const deleteChannel = async (serverId: string, channelId: string) => {
   if (!serverId) throw new Error("Missing server ID");
   if (!channelId) throw new Error("Missing channel ID");
-  console.log("server: ", serverId);
-  console.log("channelId: ", channelId);
 
   const response = await api.delete(
     `/api/channel/${serverId}/channels/${channelId}`

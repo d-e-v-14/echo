@@ -97,23 +97,12 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
   externalState,
   useExternalManager = false,
 }) => {
-  const debugLog = (message: string, data?: any) => {
-    if (debug) {
-      console.log(`[EnhancedVoiceChannel] ${message}`, data || "");
-    }
-  };
 
   const debugError = (message: string, error?: any) => {
     if (debug) {
       console.error(`[EnhancedVoiceChannel] ${message}`, error || "");
     } else {
       console.error(message, error);
-    }
-  };
-
-  const debugWarn = (message: string, data?: any) => {
-    if (debug) {
-      console.warn(`[EnhancedVoiceChannel] ${message}`, data || "");
     }
   };
 
@@ -157,7 +146,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
 
   useEffect(() => {
     if (useExternalManager) {
-      debugLog("Using external manager from VoiceCallContext");
       managerRef.current = externalManager;
       isManagerInitialized.current = true;
       setHasAnyPermissions(true);
@@ -173,10 +161,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
 
     if (!managerRef.current) {
       const username = currentUser?.username || userId;
-      debugLog("Creating VoiceVideoManager (Chime) for user:", {
-        userId,
-        username,
-      });
       const manager = new VoiceVideoManager(userId, username);
       managerRef.current = manager;
     }
@@ -195,23 +179,16 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
             await manager.initialize(true, true);
             setDebugStatus("Media permissions granted");
           } catch (fullError: any) {
-            debugWarn(
-              "Full permissions failed, trying graceful degradation:",
-              fullError
-            );
             setDebugStatus("Trying audio-only fallback...");
 
             try {
               await manager.initializeAudioOnly();
-              debugLog("Fallback to audio-only mode successful");
               setDebugStatus("Audio-only mode active");
-            } catch (audioError: any) {
-              debugWarn("Audio-only failed, trying video-only:", audioError);
+            } catch {
               setDebugStatus("Trying video-only fallback...");
 
               try {
                 await manager.initializeVideoOnly();
-                debugLog("Fallback to video-only mode successful");
                 setDebugStatus("Video-only mode active");
               } catch (videoError: any) {
                 debugError("All initialization attempts failed:", videoError);
@@ -312,7 +289,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
       manager.onStream(
         (stream: MediaStream, peerId: string, type: "video" | "screen") => {
           if (isMounted) {
-            debugLog(`Received ${type} stream from:`, peerId);
             setDebugStatus(
               `Stream received from: ${peerId.substring(0, 8)} (${type})`
             );
@@ -365,12 +341,10 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
 
       manager.onVoiceRoster((members: any[]) => {
         if (isMounted) {
-          debugLog("Voice roster update:", members);
           setDebugStatus(`Voice roster received: ${members.length} members`);
           setVoiceMembers(members);
 
           const localAttendeeId = manager.getLocalAttendeeId();
-          debugLog("Local attendee ID:", localAttendeeId);
 
           const remoteMembers = members.filter((member) => {
             const attendeeId = String(
@@ -379,7 +353,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
             return attendeeId !== localAttendeeId;
           });
 
-          debugLog("Remote members after filtering:", remoteMembers.length);
 
           const voiceParticipants: Participant[] = remoteMembers.map(
             (member) => {
@@ -450,10 +423,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
       });
 
       manager.onUserJoined((odattendeeId: string, oduserId: string) => {
-        debugLog("User joined enhanced voice channel:", {
-          odattendeeId,
-          oduserId,
-        });
         setDebugStatus(`User joined: ${oduserId.substring(0, 8)}`);
         if (isMounted) {
           setVoiceMembers((prev) => {
@@ -477,7 +446,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
       });
 
       manager.onMediaState((attendeeId: string, state: any) => {
-        console.log("Enhanced media state update:", { attendeeId, state });
         if (isMounted) {
           setParticipants((prev) =>
             prev.map((p) =>
@@ -498,7 +466,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
       });
 
       manager.onScreenSharing((attendeeId: string, isSharing: boolean) => {
-        console.log("Screen sharing update:", { attendeeId, isSharing });
         if (isMounted) {
           setParticipants((prev) =>
             prev.map((p) =>
@@ -545,7 +512,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
 
       manager.onVideoTileUpdated((tile: VideoTileInfo) => {
         if (isMounted) {
-          debugLog("Video tile updated:", tile);
           setDebugStatus(
             `Video tile ${tile.tileId} updated (local: ${tile.isLocal}, active: ${tile.active})`
           );
@@ -589,9 +555,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
                       screenSharing: true,
                     },
                   };
-                  debugLog(
-                    `Updated participant ${baseAttendeeId} with screenTileId ${tile.tileId} (active: ${tile.active})`
-                  );
                 } else {
                   updated[existingIndex] = {
                     ...updated[existingIndex],
@@ -602,15 +565,9 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
                       video: true,
                     },
                   };
-                  debugLog(
-                    `Updated participant ${tile.attendeeId} with tileId ${tile.tileId} (active: ${tile.active})`
-                  );
                 }
                 return updated;
               } else {
-                debugLog(
-                  `Creating placeholder participant for ${baseAttendeeId} (tile arrived before roster, active: ${tile.active}, isContent: ${tile.isContent})`
-                );
                 const newParticipant: Participant = {
                   id: baseAttendeeId,
                   oduserId: baseAttendeeId,
@@ -636,7 +593,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
 
       manager.onVideoTileRemoved((tileId: number) => {
         if (isMounted) {
-          debugLog("Video tile removed:", tileId);
           setDebugStatus(`Video tile ${tileId} removed`);
 
           setVideoTiles((prev) => {
@@ -696,9 +652,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
 
   useEffect(() => {
     if (useExternalManager) {
-      debugLog(
-        "Using external manager - skipping channel join (handled by context)"
-      );
       return;
     }
 
@@ -707,14 +660,12 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
     if (!manager || !isManagerInitialized.current) return;
 
     if (!hasAnyPermissions) {
-      debugLog("Waiting for media permissions...");
       setDebugStatus("Waiting for media permissions...");
       return;
     }
 
     const joinChannel = async () => {
       try {
-        debugLog("Joining voice channel:", channelId);
         setDebugStatus(`Joining voice channel: ${channelId}`);
         setIsVoiceChannelConnected(false);
         await manager.joinVoiceChannel(channelId);
@@ -738,7 +689,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
     joinChannel();
 
     return () => {
-      debugLog("Leaving voice channel:", channelId);
       setDebugStatus("Leaving voice channel...");
       if (manager) {
         manager.leaveVoiceChannel();
@@ -769,7 +719,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
   useEffect(() => {
     if (!useExternalManager || !externalState) return;
 
-    debugLog("Syncing state from external context", externalState);
 
     const attendeeToTileId = new Map<string, number>();
     const attendeeToScreenTileId = new Map<string, number>();
@@ -785,10 +734,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
       }
     });
 
-    debugLog("Tile lookup maps:", {
-      videoTiles: Array.from(attendeeToTileId.entries()),
-      screenTiles: Array.from(attendeeToScreenTileId.entries()),
-    });
 
     const localUsername = currentUser?.username || "";
 
@@ -807,13 +752,6 @@ const EnhancedVoiceChannel: React.FC<EnhancedVoiceChannelProps> = ({
         const tileId = attendeeToTileId.get(memberAttendeeId);
         const screenTileId = attendeeToScreenTileId.get(memberAttendeeId);
 
-        debugLog(`Mapping participant ${memberName || memberOduserId}:`, {
-          attendeeId: memberAttendeeId,
-          tileId,
-          screenTileId,
-          video: member.video,
-          isLocal: isLocalUser,
-        });
 
         return {
           id: memberAttendeeId || memberOduserId,

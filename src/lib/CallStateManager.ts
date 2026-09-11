@@ -57,14 +57,12 @@ class CallStateManager {
       callType,
     };
     this.notifyListeners();
-    console.log("[CallStateManager] Call started:", this.callState);
   }
 
   minimizeCall(): void {
     if (this.callState) {
       this.callState = { ...this.callState, isMinimized: true };
       this.notifyListeners();
-      console.log("[CallStateManager] Call minimized");
     }
   }
 
@@ -72,7 +70,6 @@ class CallStateManager {
     if (this.callState) {
       this.callState = { ...this.callState, isMinimized: false };
       this.notifyListeners();
-      console.log("[CallStateManager] Call maximized");
     }
   }
 
@@ -88,7 +85,6 @@ class CallStateManager {
     }
     this.callState = null;
     this.notifyListeners();
-    console.log("[CallStateManager] Call ended");
   }
 
   hasActiveCall(): boolean {

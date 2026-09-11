@@ -19,7 +19,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     const loadUser = async () => {
       try {
         const data = await getUser();
-        console.log("USER LOADED:", data);
         setUser(data);
       } catch (err) {
         console.error("USER LOAD FAILED:", err);

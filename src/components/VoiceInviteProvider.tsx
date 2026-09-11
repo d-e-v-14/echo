@@ -37,7 +37,6 @@ export default function VoiceInviteProvider({
 
   const handleAcceptInvite = useCallback(
     async (invite: VoiceInvite) => {
-      console.log("[VoiceInviteProvider] Accepting invite:", invite);
 
       try {
 
@@ -53,12 +52,7 @@ export default function VoiceInviteProvider({
     [openServer]
   );
 
-  const handleDeclineInvite = useCallback((invite: VoiceInvite) => {
-    console.log(
-      "[VoiceInviteProvider] Declined invite from:",
-      invite.inviterUsername
-    );
-  }, []);
+  const handleDeclineInvite = useCallback(() => {}, []);
 
   const { invites, acceptInvite, declineInvite, clearInvite } =
     useVoiceInviteNotifications({

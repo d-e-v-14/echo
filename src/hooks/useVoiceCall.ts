@@ -148,7 +148,6 @@ export function useVoiceCall({
         setIsConnected(true);
         setIsConnecting(false);
 
-        console.log("[useVoiceCall] Successfully joined call");
       } catch (err) {
         console.error("[useVoiceCall] Failed to join call:", err);
         setError(err instanceof Error ? err.message : "Failed to join call");

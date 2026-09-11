@@ -218,9 +218,6 @@ const ParticipantVideo = memo(
           if (retryCount < 5) {
             setTimeout(() => bindTile(retryCount + 1), 100);
           } else {
-            console.warn(
-              `[ParticipantVideo] Video element never became available for tile ${tileId}`
-            );
           }
           return;
         }
@@ -229,12 +226,7 @@ const ParticipantVideo = memo(
           manager.bindVideoElement(tileId, currentVideoEl);
           setIsVideoBound(true);
 
-          currentVideoEl.play().catch((err) => {
-            console.warn(
-              `[ParticipantVideo] Video autoplay blocked:`,
-              err.message
-            );
-          });
+          currentVideoEl.play().catch(() => {});
         } catch (err) {
           console.error(
             `[ParticipantVideo] Failed to bind video tile ${tileId}:`,
@@ -286,9 +278,6 @@ const ParticipantVideo = memo(
           if (retryCount < 5) {
             setTimeout(() => bindScreenTile(retryCount + 1), 100);
           } else {
-            console.warn(
-              `[ParticipantVideo] Screen element never became available for tile ${screenTileId}`
-            );
           }
           return;
         }
@@ -297,12 +286,7 @@ const ParticipantVideo = memo(
           manager.bindVideoElement(screenTileId, currentScreenEl);
           setIsScreenBound(true);
 
-          currentScreenEl.play().catch((err) => {
-            console.warn(
-              `[ParticipantVideo] Screen share autoplay blocked:`,
-              err.message
-            );
-          });
+          currentScreenEl.play().catch(() => {});
         } catch (err) {
           console.error(
             `[ParticipantVideo] Failed to bind screen tile ${screenTileId}:`,
@@ -353,12 +337,7 @@ const ParticipantVideo = memo(
         if (screenEl.srcObject !== screenStream) {
           screenEl.srcObject = screenStream;
         }
-        screenEl.play().catch((err) => {
-          console.warn(
-            `[ParticipantVideo] Local screen preview play failed:`,
-            err.message
-          );
-        });
+        screenEl.play().catch(() => {});
       };
 
       const bindTimeout = setTimeout(() => bindLocalScreen(0), 50);
@@ -387,9 +366,7 @@ const ParticipantVideo = memo(
         if (videoRef.current.srcObject !== participant.stream) {
           videoRef.current.srcObject = participant.stream;
         }
-        videoRef.current.play().catch((err) => {
-          console.warn(`Video play failed for ${participant.username}`, err);
-        });
+        videoRef.current.play().catch(() => {});
       }
       return () => {
         if (videoRef.current && !participant.stream && !hasTileId) {
@@ -416,12 +393,7 @@ const ParticipantVideo = memo(
         if (screenRef.current.srcObject !== participant.screenStream) {
           screenRef.current.srcObject = participant.screenStream;
         }
-        screenRef.current.play().catch((err) => {
-          console.warn(
-            `Screen share play failed for ${participant.username}.`,
-            err
-          );
-        });
+        screenRef.current.play().catch(() => {});
       }
     }, [
       participant.screenStream,
