@@ -9,13 +9,13 @@ const connectSrc = isDev
 
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data: https:",
   "media-src 'self' blob: data: https:",
   "worker-src 'self' blob:",
-  `connect-src ${connectSrc}`,
+  `connect-src ${connectSrc} https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://stats.g.doubleclick.net`,
   "object-src 'none'",
   "frame-src 'self'",
   "frame-ancestors 'self'",
