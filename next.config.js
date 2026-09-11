@@ -27,6 +27,13 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   output: "standalone",
+  webpack(config) {
+    config.module.rules.push({
+      test: /\.md$/,
+      type: "asset/source",
+    });
+    return config;
+  },
   images: {
     domains: [
       "remwzcalhvoaubuhuzan.supabase.co",

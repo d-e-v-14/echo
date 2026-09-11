@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+
+const LEGAL_PATHS = ["/privacy", "/terms", "/community-guidelines", "/eula"];
 
 export function MobileBlocker({ children }: { children: React.ReactNode }) {
   const [isMobile, setIsMobile] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const check = () => {
@@ -15,7 +19,11 @@ export function MobileBlocker({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  if (isMobile) {
+  const isLegalPath = LEGAL_PATHS.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`)
+  );
+
+  if (isMobile && !isLegalPath) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[url('/bg0.svg')] bg-no-repeat bg-center bg-cover text-white px-6">
         <div className="max-w-md text-center space-y-4">
