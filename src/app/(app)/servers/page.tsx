@@ -42,9 +42,19 @@ import {
   useServerUnreadCounts,
   useMentionUnreadCount,
 } from "@/hooks/useMentionUnread";
+import {
+  useServerMessageUnreadCounts,
+  useChannelMessageUnreadCount,
+  setActiveMessageChannel,
+} from "@/hooks/useMessageUnread";
+import { useChannelRoomSubscriptions } from "@/hooks/useChannelRoomSubscriptions";
 import { pruneServerChannels,
   pruneServers,
 } from "@/lib/mentions/unreadStore";
+import {
+  pruneMessageServers,
+  pruneMessageChannels,
+} from "@/lib/messages/messageUnreadStore";
 import { useSearchParams } from "next/navigation";
 import { useAppRouter } from "@/lib/navigation/useAppRouter";
 // Voice and video disabled: no voice call context is mounted.
@@ -113,6 +123,7 @@ const ServerRail: React.FC<{
   onOpenJoinModal,
 }) {
   const serverUnreadCounts = useServerUnreadCounts();
+  const serverMessageUnreadCounts = useServerMessageUnreadCounts();
 
   return (
     <div className="w-16 p-2 flex flex-col items-center bg-black space-y-3 relative">
@@ -122,7 +133,9 @@ const ServerRail: React.FC<{
         <div className="text-white text-xs text-center px-2" />
       ) : (
         servers.map((server, idx) => {
-          const unreadCount = serverUnreadCounts[server.id] ?? 0;
+          const unreadCount =
+            (serverUnreadCounts[server.id] ?? 0) +
+            (serverMessageUnreadCounts[server.id] ?? 0);
           const hasUnread = unreadCount > 0;
           return (
             <div key={server.id} className="relative">
@@ -137,8 +150,8 @@ const ServerRail: React.FC<{
               {hasUnread && (
                 <span
                   className="absolute -bottom-1 -right-1 min-w-[17px] h-[17px] rounded-full bg-red-500 border-2 border-black text-white text-[10px] font-bold flex items-center justify-center px-[3px] leading-none"
-                  title={`${unreadCount} unread mention${unreadCount === 1 ? "" : "s"} in ${server.name}`}
-                  aria-label={`${unreadCount} unread mentions in ${server.name}`}
+                  title={`${unreadCount} unread message${unreadCount === 1 ? "" : "s"} in ${server.name}`}
+                  aria-label={`${unreadCount} unread messages in ${server.name}`}
                 >
                   {unreadCount > 99 ? "99+" : unreadCount}
                 </span>
@@ -171,7 +184,9 @@ const ServerRail: React.FC<{
 const ChannelMentionBadge: React.FC<{ channelId: string }> = ({
   channelId,
 }) => {
-  const count = useMentionUnreadCount(channelId);
+  const mentionCount = useMentionUnreadCount(channelId);
+  const messageCount = useChannelMessageUnreadCount(channelId);
+  const count = mentionCount + messageCount;
   if (count <= 0) return null;
   return (
     <span className="bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1">
@@ -522,6 +537,7 @@ const ServersPageContent: React.FC = () => {
   useEffect(() => {
     if (serversLoading || servers.length === 0) return;
     pruneServers(new Set(servers.map((s) => s.id)));
+    pruneMessageServers(new Set(servers.map((s) => s.id)));
   }, [servers, serversLoading]);
 
   useEffect(() => {
@@ -530,7 +546,20 @@ const ServersPageContent: React.FC = () => {
       selectedServerId,
       new Set(channels.map((c) => c.id))
     );
+    pruneMessageChannels(
+      selectedServerId,
+      new Set(channels.map((c) => c.id))
+    );
   }, [selectedServerId, channels, channelsLoading]);
+
+  useChannelRoomSubscriptions(
+    selectedServerId ? channels.map((c) => c.id) : EMPTY_ARRAY
+  );
+
+  useEffect(() => {
+    setActiveMessageChannel(activeChannel?.id ?? null);
+    return () => setActiveMessageChannel(null);
+  }, [activeChannel?.id]);
 
   useEffect(() => {
     if (serversLoading) return;

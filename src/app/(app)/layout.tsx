@@ -17,6 +17,7 @@ import { UserProvider } from "@/components/UserContext";
 import { SocketProvider } from "@/lib/socket/SocketProvider";
 import { RealtimeCacheSync } from "@/lib/query/RealtimeCacheSync";
 import { MentionUnreadProvider } from "@/contexts/MentionUnreadProvider";
+import { MessageUnreadProvider } from "@/contexts/MessageUnreadProvider";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { useInactivityLogout } from "@/hooks/useInactivityLogout";
 import { tokenStore } from "@/lib/auth/tokenStore";
@@ -32,6 +33,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <SocketProvider>
         <RealtimeCacheSync />
         <MentionUnreadProvider />
+        <MessageUnreadProvider />
         <FriendNotificationProvider>
           <MessageNotificationProvider>
             {/* Voice and video disabled: VoiceCallProvider is not mounted. */}

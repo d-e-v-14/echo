@@ -17,7 +17,7 @@ export function useChannelRealtime({
   onHighlight,
   onReconnect,
 }: UseChannelRealtimeOptions) {
-  const { socket, joinChannel, leaveChannel } = useSocket();
+  const { socket, joinChannel } = useSocket();
   const channelIdRef = useRef(channelId);
 
   useEffect(() => {
@@ -28,10 +28,7 @@ export function useChannelRealtime({
     if (!channelId) return;
 
     joinChannel(channelId);
-    return () => {
-      leaveChannel(channelId);
-    };
-  }, [channelId, joinChannel, leaveChannel]);
+  }, [channelId, joinChannel]);
 
   useEffect(() => {
     if (!socket) return;
