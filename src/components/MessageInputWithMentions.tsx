@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Smile, Send, Paperclip, X, ImageIcon } from "lucide-react";
+import { Smile, Send, Paperclip, X } from "lucide-react";
+import { PiGif } from "react-icons/pi";
 import dynamic from "next/dynamic";
 import type { EmojiClickData } from "emoji-picker-react";
 import { Theme } from "emoji-picker-react";
@@ -469,41 +470,6 @@ export default function MessageInputWithMentions({
 
   return (
     <div className="relative">
-      {showEmojiPicker && (
-        <div ref={emojiPickerRef} className="absolute bottom-20 left-4 z-50 ">
-          <EmojiPicker theme={Theme.DARK} onEmojiClick={handleEmojiClick} />
-        </div>
-      )}
-      {showGifPicker && (
-        <div
-          ref={gifPickerRef}
-          className="absolute bottom-24 left-4 w-96 h-96 bg-zinc-900 rounded-xl overflow-hidden z-50"
-        >
-          <input
-            value={gifSearch}
-            onChange={(e) => {
-              setGifSearch(e.target.value);
-              searchGifs(e.target.value);
-            }}
-            placeholder="Search GIFs..."
-            className="w-full p-3 bg-zinc-800 text-white"
-          />
-
-          <div className="grid grid-cols-2 gap-2 p-2 overflow-y-auto h-[330px]">
-            {gifs.map((gif) => (
-              <img
-                key={gif.id}
-                src={gif.images.fixed_width.url}
-                className="cursor-pointer rounded"
-                onClick={() => {
-                  sendGif(gif.images.original.url);
-                  setShowGifPicker(false);
-                }}
-              />
-            ))}
-          </div>
-        </div>
-      )}
       {showMentionDropdown && (
         <div
           ref={mentionDropdownRef}
@@ -658,29 +624,78 @@ export default function MessageInputWithMentions({
           disabled={disabled}
         />
 
-        <button onClick={() => fileInputRef.current?.click()} disabled={disabled}>
-          <Paperclip size={20} />
-        </button>
-
         <button
-          onClick={() => setShowEmojiPicker((v) => !v)}
+          onClick={() => fileInputRef.current?.click()}
           disabled={disabled}
+          className="flex items-center justify-center rounded-full p-2 active:scale-95 transition"
         >
-          <Smile size={20} />
+          <Paperclip size={24} />
         </button>
-        <button
-          onClick={() => {
-            setShowGifPicker((v) => !v);
 
-            if (!showGifPicker) {
-              loadTrendingGifs();
-            }
-          }}
-          disabled={isSending || disabled}
-          className="p-2 rounded-full hover:bg-white/10 active:scale-95 transition"
-        >
-          <ImageIcon className="w-5 h-5" />
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => setShowEmojiPicker((v) => !v)}
+            disabled={disabled}
+            className="flex items-center justify-center rounded-full p-2 active:scale-95 transition"
+          >
+            <Smile size={24} />
+          </button>
+
+          {showEmojiPicker && (
+            <div
+              ref={emojiPickerRef}
+              className="absolute bottom-full right-0 mb-3 z-50 origin-bottom-right animate-slide-up-fade"
+            >
+              <EmojiPicker theme={Theme.DARK} onEmojiClick={handleEmojiClick} />
+            </div>
+          )}
+        </div>
+        <div className="relative">
+          <button
+            onClick={() => {
+              setShowGifPicker((v) => !v);
+
+              if (!showGifPicker) {
+                loadTrendingGifs();
+              }
+            }}
+            disabled={isSending || disabled}
+            className="flex items-center justify-center rounded-full p-2 active:scale-95 transition"
+          >
+            <PiGif className="w-6 h-6" />
+          </button>
+
+          {showGifPicker && (
+            <div
+              ref={gifPickerRef}
+              className="absolute bottom-full right-0 mb-3 w-96 h-96 origin-bottom-right animate-slide-up-fade bg-zinc-900 rounded-xl overflow-hidden z-50 shadow-2xl"
+            >
+              <input
+                value={gifSearch}
+                onChange={(e) => {
+                  setGifSearch(e.target.value);
+                  searchGifs(e.target.value);
+                }}
+                placeholder="Search GIFs..."
+                className="w-full p-3 bg-zinc-800 text-white"
+              />
+
+              <div className="grid grid-cols-2 gap-2 p-2 overflow-y-auto h-[330px]">
+                {gifs.map((gif) => (
+                  <img
+                    key={gif.id}
+                    src={gif.images.fixed_width.url}
+                    className="cursor-pointer rounded"
+                    onClick={() => {
+                      sendGif(gif.images.original.url);
+                      setShowGifPicker(false);
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         <button
           onClick={handleSend}

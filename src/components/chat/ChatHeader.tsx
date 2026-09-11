@@ -89,7 +89,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             type="text"
             placeholder="Search"
             onClick={onToggleSearch}
-            className="h-9 w-64 rounded-lg border border-white/[0.06] bg-[#1e1f22] px-3 pr-9 text-sm text-slate-200 placeholder:text-[#72767d] outline-none transition-colors focus:border-[#FFC341]/40 focus:ring-1 focus:ring-[#FFC341]/20 cursor-pointer lg:w-72"
+            className="h-9 w-80 rounded-lg border border-white/[0.06] bg-[#1e1f22] px-3 pr-9 text-sm text-slate-200 placeholder:text-[#72767d] outline-none transition-colors focus:border-[#FFC341]/40 focus:ring-1 focus:ring-[#FFC341]/20 cursor-pointer lg:w-96"
             aria-label="Search messages"
           />
           <Search className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#72767d] transition group-focus-within:text-[#FFC341]/60" />

@@ -3,12 +3,14 @@
 import React, {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   useImperativeHandle,
   forwardRef,
 } from "react";
 import dynamic from "next/dynamic";
+import { PiGif } from "react-icons/pi";
 import MessageContentWithMentions from "./MessageContentWithMentions";
 import {
   searchDmMessages,
@@ -29,6 +31,7 @@ import { useChannelMessages } from "@/hooks/useChannelMessages";
 import { useChannelRealtime } from "@/hooks/useChannelRealtime";
 import { useChannelPermissions } from "@/hooks/useChannelPermissions";
 import { useChannelMembers } from "@/hooks/useChannelMembers";
+import { useChannels } from "@/hooks/query/useChannels";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import {
   useMentionUnreadCount,
@@ -211,6 +214,16 @@ export default forwardRef(function ChatWindow(
     validRoleNames,
     memberRoleColors,
   } = useChannelMembers({ serverId, currentUserId });
+
+  const { channels } = useChannels(serverId);
+
+  const channelNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const channel of channels) {
+      map.set(channel.id, channel.name);
+    }
+    return map;
+  }, [channels]);
 
   const {
     lastReadTimestamp,
@@ -837,33 +850,22 @@ export default forwardRef(function ChatWindow(
         return searchDmMessages(threadId, query);
       }
       if (!serverId) return [];
-      return searchServerMessages(serverId, query);
+      const results = await searchServerMessages(serverId, query);
+      return results.map((result) => ({
+        ...result,
+        channel_name:
+          result.channel_name ??
+          (result.channel_id
+            ? channelNameById.get(result.channel_id)
+            : undefined),
+      }));
     },
-    [reactionMode, threadId, serverId]
+    [reactionMode, threadId, serverId, channelNameById]
   );
 
-  const handleSearchSelect = useCallback(
-    async (result: MessageSearchResult) => {
-      if (
-        reactionMode === "channel" &&
-        result.channel_id &&
-        result.channel_id !== channelId
-      ) {
-        toast.info(
-          `This message is in #${
-            result.channel_name || "another channel"
-          }. Switch to that channel to view it.`
-        );
-        return;
-      }
-
-      const success = await scroll.scrollToMessage(result.id, { highlightMs: 1500 });
-      if (!success) {
-        toast.error("Could not find that message in the loaded history.");
-      }
-    },
-    [reactionMode, channelId, scroll]
-  );
+  const handleSearchSelect = useCallback((_result: MessageSearchResult) => {
+    return;
+  }, []);
 
   useImperativeHandle(
     ref,
@@ -913,11 +915,16 @@ export default forwardRef(function ChatWindow(
 
       if (gifMatch) {
         return gifUrl ? (
-          <img
-            src={gifUrl}
-            alt="GIF"
-            className="block max-w-full h-auto rounded-lg"
-          />
+          <div className="relative inline-block">
+            <img
+              src={gifUrl}
+              alt="GIF"
+              className="block max-w-full h-auto rounded-lg"
+            />
+            <span className="pointer-events-none absolute bottom-1.5 left-1.5 flex items-center  px-1 py-0.5 text-white">
+              <PiGif className="h-6 w-6" />
+            </span>
+          </div>
         ) : (
           <span className="break-all text-[#dbdee1]">{gifMatch[1]}</span>
         );
