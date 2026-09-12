@@ -31,7 +31,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const clearOnLogout = () => {
-      if (!tokenStore.hasRefreshToken()) setUser(null);
+      if (!tokenStore.hasSession()) setUser(null);
     };
     clearOnLogout();
     return tokenStore.subscribe(clearOnLogout);

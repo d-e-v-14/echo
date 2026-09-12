@@ -14,14 +14,12 @@ export function GuestGuard({ children }: { children: React.ReactNode }) {
     let cancelled = false;
 
     const checkAuth = async () => {
-      if (!tokenStore.hasRefreshToken()) {
-        setReady(true);
-        return;
-      }
-
       // Recovery links land on "/" with a hash session; let the page handle
       // them rather than forwarding to the app.
-      if (window.location.hash.includes("access_token")) {
+      const hashParams = new URLSearchParams(
+        window.location.hash.replace(/^#/, "")
+      );
+      if (hashParams.has("access_token") || hashParams.get("type") === "recovery") {
         setReady(true);
         return;
       }
@@ -36,7 +34,10 @@ export function GuestGuard({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Validate (and warm the in-memory access token) before navigating so
+      // Probe the session even without a localStorage token: there may be a
+      // valid httpOnly cookie session that ensureAccessToken() can fall back
+      // to. This mirrors RouteGuard so both guards agree on what "signed in"
+      // means, and warms the in-memory access token before navigating so
       // RouteGuard on the destination resolves synchronously.
       const token = await tokenStore.ensureAccessToken();
       if (cancelled) return;

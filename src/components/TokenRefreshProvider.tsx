@@ -12,11 +12,11 @@ export function TokenRefreshProvider({
 }) {
   const pathname = usePathname();
   const [hasSession, setHasSession] = useState(() =>
-    typeof window === "undefined" ? false : tokenStore.hasRefreshToken()
+    typeof window === "undefined" ? false : tokenStore.hasSession()
   );
 
   useEffect(() => {
-    const update = () => setHasSession(tokenStore.hasRefreshToken());
+    const update = () => setHasSession(tokenStore.hasSession());
     update();
     return tokenStore.subscribe(update);
   }, []);

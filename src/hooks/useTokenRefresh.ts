@@ -54,7 +54,7 @@ export const useTokenRefresh = (enabled = true) => {
       }
     };
 
-    if (!tokenStore.hasRefreshToken()) return;
+    if (!tokenStore.hasSession()) return;
 
     tokenStore.refresh().then((ok) => {
       if (cancelled) return;

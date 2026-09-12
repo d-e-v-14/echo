@@ -77,7 +77,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const [hasSession, setHasSession] = useState(false);
 
   useEffect(() => {
-    const update = () => setHasSession(tokenStore.hasRefreshToken());
+    const update = () => setHasSession(tokenStore.hasSession());
     update();
     return tokenStore.subscribe(update);
   }, []);

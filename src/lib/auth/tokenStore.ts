@@ -9,6 +9,9 @@ const REFRESH_BUFFER_MS = 5 * 60 * 1000;
 let accessToken: string | null = null;
 let accessTokenExpiry: number | null = null;
 let refreshInFlight: Promise<boolean> | null = null;
+// Set once a session is established in this tab (including cookie-only sessions
+// that never surface a refresh token in localStorage).
+let sessionEstablished = false;
 
 const sessionListeners = new Set<() => void>();
 
@@ -46,6 +49,10 @@ export const tokenStore = {
     return canUseStorage() && !!window.localStorage.getItem(REFRESH_TOKEN_KEY);
   },
 
+  hasSession(): boolean {
+    return sessionEstablished || this.hasRefreshToken();
+  },
+
   getRefreshToken(): string | null {
     return canUseStorage() ? window.localStorage.getItem(REFRESH_TOKEN_KEY) : null;
   },
@@ -55,6 +62,7 @@ export const tokenStore = {
     accessTokenExpiry = tokens.expiresIn
       ? Date.now() + tokens.expiresIn * 1000
       : null;
+    sessionEstablished = true;
     if (canUseStorage() && tokens.refreshToken) {
       window.localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
     }
@@ -160,6 +168,7 @@ export const tokenStore = {
   clear() {
     accessToken = null;
     accessTokenExpiry = null;
+    sessionEstablished = false;
     if (canUseStorage()) {
       window.localStorage.removeItem(REFRESH_TOKEN_KEY);
       window.localStorage.removeItem(USER_KEY);

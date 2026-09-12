@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import { usePathname } from "next/navigation";
 // Voice and video disabled: the global voice call context is not mounted, so
@@ -24,9 +25,15 @@ import { tokenStore } from "@/lib/auth/tokenStore";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  useInactivityLogout(
-    typeof window !== "undefined" && tokenStore.hasRefreshToken()
-  );
+  const [hasSession, setHasSession] = useState(false);
+
+  useEffect(() => {
+    const update = () => setHasSession(tokenStore.hasSession());
+    update();
+    return tokenStore.subscribe(update);
+  }, []);
+
+  useInactivityLogout(hasSession);
   return (
     <RouteGuard>
       <UserProvider>

@@ -84,8 +84,10 @@ export const logout = async () => {
 
     // Resolve a valid token before any cleanup so the backend can revoke the
     // server-side session. The access token lives in memory only, so after a
-    // cold load the first read can be null; ensureAccessToken() refreshes it.
-    const accessToken = await tokenStore.ensureAccessToken();
+    // cold load the first read can be null; reuse it when present and only
+    // refresh when there is nothing in memory.
+    const accessToken =
+      tokenStore.getAccessToken() ?? (await tokenStore.ensureAccessToken());
 
     if (typeof window !== "undefined") {
       try {

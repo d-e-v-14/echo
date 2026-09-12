@@ -184,7 +184,7 @@ export default function InvitePage() {
       return;
     }
 
-    if (!tokenStore.hasRefreshToken()) {
+    if (!tokenStore.hasSession()) {
       localStorage.setItem("redirectAfterLogin", `/invite/${code}`);
       setPageState("signIn");
       return;
