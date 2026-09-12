@@ -63,7 +63,7 @@ export default function Home() {
     let didFinish = false;
     const bgImage = new Image();
 
-    bgImage.src = "/gravitas_bg.png";
+    bgImage.src = "/gravitas_bg.webp";
 
     const finalize = () => {
       if (didFinish) return;
@@ -259,7 +259,7 @@ export default function Home() {
       <main className="relative min-h-screen w-full overflow-hidden text-white select-none">
 
         <div
-          className="fixed inset-0 -z-30 bg-[url('/gravitas_bg.png')] bg-cover bg-center"
+          className="fixed inset-0 -z-30 bg-[url('/gravitas_bg.webp')] bg-cover bg-center"
           aria-hidden="true"
         />
 
