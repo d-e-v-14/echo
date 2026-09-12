@@ -14,6 +14,7 @@ import InlineSpinner from "@/components/loading/InlineSpinner";
 import { toast } from "@/contexts/ToastContext";
 import { getAuthErrorMessage } from "@/components/toast/errorNormalizer";
 import { SignInNotice } from "@/components/SignInNotice";
+import { GuestGuard } from "@/components/GuestGuard";
 import { buildPath, isSafePath } from "@/lib/navigation/paths";
 
 Modal.setAppElement("body");
@@ -191,7 +192,7 @@ export default function Home() {
   }, []);
 
   return (
-    <>
+    <GuestGuard>
       <Suspense fallback={null}>
         <SignInNotice />
       </Suspense>
@@ -677,6 +678,6 @@ className="
         </section>
 
       </main>
-    </>
+    </GuestGuard>
   );
 }

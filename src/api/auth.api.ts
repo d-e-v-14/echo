@@ -34,7 +34,8 @@ export const login = async (identifier: string, password: string) => {
 
 export const handleOAuthLogin = async (
   accessToken: string,
-  refreshToken?: string
+  refreshToken?: string,
+  expiresIn?: number
 ) => {
   const response = await api.post(
     "/api/auth/oauth-user",
@@ -46,7 +47,9 @@ export const handleOAuthLogin = async (
     tokenStore.setTokens({
       accessToken: response.data.accessToken,
       refreshToken: response.data.refreshToken ?? refreshToken,
-      expiresIn: response.data.expiresIn,
+      // The backend's oauth-user response omits expiresIn, so fall back to the
+      // Supabase session's value supplied by the caller.
+      expiresIn: response.data.expiresIn ?? expiresIn,
     });
     if (response.data.user) {
       tokenStore.setUser(response.data.user);
@@ -79,6 +82,11 @@ export const logout = async () => {
       sessionStorage.setItem("skipGlobalLoader", "1");
     }
 
+    // Resolve a valid token before any cleanup so the backend can revoke the
+    // server-side session. The access token lives in memory only, so after a
+    // cold load the first read can be null; ensureAccessToken() refreshes it.
+    const accessToken = await tokenStore.ensureAccessToken();
+
     if (typeof window !== "undefined") {
       try {
         const { supabase } = await import("@/lib/supabaseClient");
@@ -92,7 +100,7 @@ export const logout = async () => {
     // must travel with the request (Bearer header via interceptor, body fallback,
     // or the httpOnly access cookie for web).
     const res = await api.post("/api/auth/logout", {
-      accessToken: tokenStore.getAccessToken() ?? undefined,
+      accessToken: accessToken ?? undefined,
     });
 
     return res.data;

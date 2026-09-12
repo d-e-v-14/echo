@@ -45,7 +45,8 @@ export default function OAuthCallback() {
 
         const response = await handleOAuthLogin(
           session.access_token,
-          session.refresh_token
+          session.refresh_token,
+          session.expires_in
         );
 
         tokenStore.setUser(response.user);
