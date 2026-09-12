@@ -2,15 +2,14 @@
 
 export const dynamic = "force-dynamic";
 
-import React, { Suspense, useEffect, useRef, useState } from "react";
-import SharkWithEyes from "@/components/shark";
+import React, { Suspense, useEffect, useState } from "react";
+// import SharkWithEyes from "@/components/shark";
 import PillNav from "@/components/PillNav";
 import AOS from "aos";
 import { useRouter } from "next/navigation";
 import Modal from "react-modal";
 import { FaGoogle } from "react-icons/fa";
 import { supabase } from "@/lib/supabaseClient";
-import { tokenStore } from "@/lib/auth/tokenStore";
 import InlineSpinner from "@/components/loading/InlineSpinner";
 import { toast } from "@/contexts/ToastContext";
 import { getAuthErrorMessage } from "@/components/toast/errorNormalizer";
@@ -18,6 +17,8 @@ import { SignInNotice } from "@/components/SignInNotice";
 import { buildPath, isSafePath } from "@/lib/navigation/paths";
 
 Modal.setAppElement("body");
+
+// const APK_DOWNLOAD_URL = process.env.NEXT_PUBLIC_APK_URL ?? "/echo.apk";
 
 export default function Home() {
   const router = useRouter();
@@ -28,9 +29,6 @@ export default function Home() {
   const [showPopup] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
-  const [signedIn, setSignedIn] = useState(false);
-
-  const signedInCheckedRef = useRef(false);
 
   const handleGoogleSignIn = async () => {
     if (signingIn) return;
@@ -61,32 +59,10 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (signedInCheckedRef.current) return;
-
-    signedInCheckedRef.current = true;
-
-    if (!tokenStore.hasRefreshToken()) return;
-
-    setSignedIn(true);
-
-    toast.warning(
-      "You're signed in. Please log out to visit the Google sign-in page."
-    );
-
-    const pendingRedirect = localStorage.getItem("redirectAfterLogin");
-    localStorage.removeItem("redirectAfterLogin");
-    const target =
-      pendingRedirect && isSafePath(pendingRedirect)
-        ? pendingRedirect
-        : buildPath("SERVERS");
-    router.replace(target);
-  }, [router]);
-
-  useEffect(() => {
     let didFinish = false;
     const bgImage = new Image();
 
-    bgImage.src = "/bg1.webp";
+    bgImage.src = "/gravitas_bg.png";
 
     const finalize = () => {
       if (didFinish) return;
@@ -282,7 +258,7 @@ export default function Home() {
       <main className="relative min-h-screen w-full overflow-hidden text-white select-none">
 
         <div
-          className="fixed inset-0 -z-30 bg-[url('/bg1.webp')] bg-cover bg-center"
+          className="fixed inset-0 -z-30 bg-[url('/gravitas_bg.png')] bg-cover bg-center"
           aria-hidden="true"
         />
 
@@ -297,18 +273,22 @@ export default function Home() {
           aria-hidden="true"
         />
 
-        <div className="pointer-events-none fixed inset-x-0 top-5 z-50 flex items-center justify-between px-4 sm:px-8">
-          <img
-            src="/ieee_logo.png"
-            alt="IEEE Computer Society"
-            className="h-10 w-auto sm:h-12"
-          />
+        <div className="pointer-events-none fixed inset-x-0 top-5 z-50 grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 sm:px-8 md:flex md:justify-between">
+          <div className="flex min-w-0 items-center justify-start">
+            <img
+              src="/ieee_logo.png"
+              alt="IEEE Computer Society"
+              className="h-7 w-auto max-w-full sm:h-12"
+            />
+          </div>
 
-          <img
-            src="/gravitasLogo.dc8211c7.svg"
-            alt="Gravitas"
-            className="h-10 w-auto sm:h-12"
-          />
+          <div className="flex min-w-0 items-center justify-center">
+            <img
+              src="/gravitasLogo.dc8211c7.svg"
+              alt="Gravitas"
+              className="h-7 w-auto max-w-full sm:h-12"
+            />
+          </div>
         </div>
 
         <div
@@ -376,7 +356,14 @@ export default function Home() {
                 flex w-full
                 flex-col
                 items-center
+                rounded-3xl
+                border border-white/10
+                bg-white/[0.06]
+                p-6
                 text-center
+                shadow-2xl shadow-black/30
+                backdrop-blur-xl
+                sm:p-8
                 md:items-start
                 md:text-left
               "
@@ -439,54 +426,7 @@ export default function Home() {
                  events built for builders and innovators:
                </p>
 
-              <p
-                className="
-                  mt-3
-                  text-sm
-                  leading-6
-                  text-white/55
-                  sm:text-[15px]
-                  sm:leading-7
-                  md:text-base
-                "
-              >
-                <span className="font-semibold text-white/80">Battlecode -</span>{" "}
-                pit your code against the clock in a fast-paced competition of
-                strategy and speed.
-              </p>
-
-              <p
-                className="
-                  mt-3
-                  text-sm
-                  leading-6
-                  text-white/55
-                  sm:text-[15px]
-                  sm:leading-7
-                  md:text-base
-                "
-              >
-                <span className="font-semibold text-white/80">Redefine -</span>{" "}
-                reimagine what&apos;s possible as you shape bold ideas into
-                working, real-world solutions.
-              </p>
-
-              <p
-                className="
-                  mt-3
-                  text-sm
-                  leading-6
-                  text-white/55
-                  sm:text-[15px]
-                  sm:leading-7
-                  md:text-base
-                "
-              >
-                <span className="font-semibold text-white/80">What The Flag -</span>{" "}
-                crack codes, dig through clues, and race to capture the flag
-                in a thrilling cyber-security hunt.
-              </p>
-
+              
               <div
                 className="
                   mt-8
@@ -505,28 +445,61 @@ export default function Home() {
                   "
                 >
                   <div className="flex flex-col gap-3 sm:flex-row">
-                  {signedIn ? (
-                    <div
-                      className="
-                        flex min-h-[54px]
-                        items-center
-                        justify-center
-                        gap-3
-                        rounded-xl
-                        border border-white/10
-                        bg-white/[0.06]
-                        px-5
-                        text-sm
-                        font-semibold
-                        text-white/65
-                      "
-                    >
-                      <InlineSpinner size="sm" />
+                  {isMobile ? (
+                    <>
+                      <div className="flex min-h-[54px] flex-1 flex-col items-center justify-center gap-1 rounded-xl border border-white/10 bg-white/[0.06] px-5 py-4 text-center backdrop-blur-md">
+                        <span className="text-base font-semibold text-white">
+                          Please open Echo on a laptop or desktop
+                        </span>
+                        <span className="text-sm text-white/60">
+                          Echo is currently available on the web. Visit{" "}
+                          <span className="font-medium text-white/80">
+                            echo.ieeecsvit.com
+                          </span>{" "}
+                          on a larger screen to sign in.
+                        </span>
+                      </div>
 
-                      <span>
-                        Redirecting to servers…
-                      </span>
-                    </div>
+                      {/*
+                      <a
+                        href={APK_DOWNLOAD_URL}
+                        download
+                        aria-label="Download the Echo app"
+                        className="
+                          group
+                          flex min-h-[54px]
+                          flex-1
+                          items-center
+                          justify-center
+                          gap-3
+                          rounded-xl
+                          bg-white
+                          px-5
+                          py-3
+                          text-lg
+                          font-semibold
+                          text-gray-900
+                          shadow-lg
+                          shadow-black/20
+                          transition-all
+                          duration-200
+                          hover:-translate-y-0.5
+                          hover:bg-gray-100
+                          hover:shadow-xl
+                          active:translate-y-0
+                          focus:outline-none
+                          focus:ring-2
+                          focus:ring-white/50
+                          focus:ring-offset-2
+                          focus:ring-offset-black
+                        "
+                      >
+                        <span>
+                          Download the app
+                        </span>
+                      </a>
+                      */}
+                    </>
                   ) : (
                     <button
                       type="button"
@@ -637,11 +610,12 @@ className="
             <div
               className="
                 relative
-                flex
+                hidden
                 min-h-[360px]
                 w-full
                 items-center
                 justify-center
+                md:flex
                 md:min-h-[560px]
                 lg:min-h-[650px]
               "
@@ -696,7 +670,7 @@ className="
                   xl:max-w-[700px]
                 "
               >
-<SharkWithEyes />
+                {/* <SharkWithEyes /> */}
               </div>
             </div>
           </div>

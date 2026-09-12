@@ -204,7 +204,7 @@ const PillNav: React.FC<PillNavProps> = ({
   return (
     <div className="relative w-full md:w-auto">
       <nav
-        className={`w-full md:w-max flex items-center justify-center box-border px-4 md:px-0 ${className}`}
+        className={`w-full md:w-max flex items-center justify-end md:justify-center box-border px-4 md:px-0 ${className}`}
         aria-label="Primary"
         style={cssVars}
       >
@@ -315,7 +315,7 @@ const PillNav: React.FC<PillNavProps> = ({
 
       <div
         ref={mobileMenuRef}
-        className="md:hidden absolute top-[3em] left-4 right-4 rounded-[27px] shadow-[0_8px_32px_rgba(0,0,0,0.12)] z-[998] origin-top"
+        className="md:hidden absolute top-[3em] inset-x-0 mx-auto w-[min(85vw,18rem)] rounded-[27px] shadow-[0_8px_32px_rgba(0,0,0,0.12)] z-[998] origin-top"
         style={{ ...cssVars, background: "var(--base, #f0f0f0)" }}
       >
         <ul className="list-none m-0 p-[3px] flex flex-col gap-[3px]">
