@@ -7,6 +7,8 @@ import type { EmojiClickData } from "emoji-picker-react";
 import { Theme } from "emoji-picker-react";
 import { Paperclip, Clock, Check, CircleAlert, X, Trash2, Flag, ChevronDown, Reply } from "lucide-react";
 import { safeImgSrc } from "@/lib/security/safeUrl";
+import { extractYouTubeVideo } from "@/lib/media/youtube";
+import YouTubePreview from "@/components/YouTubePreview";
 
 export interface ChatMessage {
   id?: string | number;
@@ -133,6 +135,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   >("below");
   const actionsMenuRef = useRef<HTMLDivElement>(null);
   const isGifMessage = message.content?.startsWith("[GIF]");
+  const youTubeVideo = isGifMessage
+    ? null
+    : extractYouTubeVideo(message.content);
 
   useEffect(() => {
     if (!actionsMenuOpen) return;
@@ -567,6 +572,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               ? messageRenderer(message.content)
               : renderPlainContent(message.content)}
           </div>
+
+          {youTubeVideo && <YouTubePreview video={youTubeVideo} />}
 
           {isPending && message.pendingAttachment && (
             <div className="mt-1 flex items-center gap-1 text-[11px] text-[#949ba4]">
