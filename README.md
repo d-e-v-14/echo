@@ -43,7 +43,7 @@ The product is a browser-first frontend: an App Router–based Next.js app that 
 
 ## Features
 
-### 💬 Messaging
+### Messaging
 - Real-time text channels powered by **Socket.IO**
 - Direct messages and group conversations
 - Message editing, deletion, replies, and pinned messages
@@ -55,32 +55,32 @@ The product is a browser-first frontend: an App Router–based Next.js app that 
 - File attachments rendered as downloadable cards with inline image/video previews
 - YouTube link previews
 
-### 🔊 Voice & Video
+### Voice & Video
 - Low-latency voice channels via the **Amazon Chime SDK**
 - Video calls with camera and screen-share controls
 - Minimized call bar and floating call window
 - Voice channel presence, invites, and notifications
 
-### 🏛️ Servers & Channels
+### Servers & Channels
 - Create and join servers with custom branding
 - Text and voice channels
 - Role-based permissions and self-assignable roles
 - Server settings and member management
 - Shareable invite links and invite codes
 
-### 👥 Social
+### Social
 - Friend requests, friends list, and presence
 - User profiles with avatars and customization
 - Profile settings and account management
 
-### 🛡️ Moderation & Safety
+### Moderation & Safety
 - Report user flows with a moderation queue
 - Kick/ban and member controls
 - Audit-oriented action handling
 - Strict CSP, secure cookie sessions, and route guards
 - Legal surface: Terms of Service, Privacy Policy, EULA, and Community Guidelines
 
-### ✨ Experience
+### Experience
 - Responsive, dark-themed UI built with Tailwind CSS
 - Animated landing and transitions (GSAP / AOS)
 - Emoji picker, GIF picker (Giphy), and reactions
