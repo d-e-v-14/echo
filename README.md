@@ -370,6 +370,6 @@ Echo is developed for **IEEE Computer Society, VIT**. Use of the platform and so
 
 <div align="center">
 
-Made with ❤️ for **IEEE Computer Society, VIT**
+Made for **IEEE Computer Society, VIT**
 
 </div>
