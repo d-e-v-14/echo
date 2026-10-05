@@ -134,7 +134,11 @@ npm install
 
 ### 3. Configure environment
 
-Create a `.env` file in the project root (see [Configuration](#configuration)):
+Copy the template and fill in your values (see [Configuration](#configuration)):
+
+```bash
+cp .env.example .env
+```
 
 ```dotenv
 NEXT_PUBLIC_API_URL=http://localhost:5000/
@@ -196,6 +200,12 @@ All variables are read at build time. `NEXT_PUBLIC_*` values are exposed to the 
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Browser | Supabase project URL used for authentication. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Browser | Supabase anon/public key (safe to expose; protected by Row Level Security). |
 | `NEXT_PUBLIC_CHIME_API_URL` | Yes | Browser | Endpoint that issues Amazon Chime meeting and attendee credentials. |
+| `NEXT_PUBLIC_GIPHY_API_KEY` | No | Browser | Giphy API key for the GIF picker. |
+| `NEXT_PUBLIC_SOCKET_PATH` | No | Browser | Custom Socket.IO path if the backend does not use the default. |
+| `NEXT_PUBLIC_SOCKET_WITH_CREDENTIALS` | No | Browser | Set to send credentialed requests on the Socket.IO connection. |
+| `NEXT_PUBLIC_APK_URL` | No | Browser | Android APK download URL shown on the landing page. |
+
+A ready-to-fill template is provided in [`.env.example`](.env.example). Real environment files (`.env`, `.env.*`) are git-ignored; only `.env.example` is tracked.
 
 ### Environment presets
 
@@ -308,6 +318,8 @@ Every push and pull request to `main`, `master`, `develop`, or `gravitas` runs [
 5. Build (`next build`)
 
 All five steps must pass before a change is mergeable.
+
+A second workflow, [`.github/workflows/secret-scan.yml`](.github/workflows/secret-scan.yml), runs [gitleaks](https://github.com/gitleaks/gitleaks) over the full history on every push and pull request to catch committed secrets before they land.
 
 ---
 
