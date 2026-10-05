@@ -78,7 +78,6 @@ The product is a browser-first frontend: an App Router–based Next.js app that 
 - Kick/ban and member controls
 - Audit-oriented action handling
 - Strict CSP, secure cookie sessions, and route guards
-- Legal surface: Terms of Service, Privacy Policy, EULA, and Community Guidelines
 
 ### Experience
 - Responsive, dark-themed UI built with Tailwind CSS
@@ -163,14 +162,12 @@ src/
 ├── app/                  # Next.js App Router
 │   ├── (auth)/           # Sign up, login, OAuth callback, password reset
 │   ├── (app)/            # Authenticated app: messages, servers, friends, profile
-│   ├── (legal)/          # Terms, Privacy, EULA, Community Guidelines
 │   └── layout.tsx        # Root providers + metadata
 ├── api/                  # Typed API clients (auth, channels, messages, servers, …)
 ├── components/           # UI: chat, voice/video, moderation, navigation, toast
 ├── contexts/             # React contexts (voice call, notifications, toasts, unread)
 ├── hooks/                # Reusable hooks incl. TanStack Query wrappers
-├── lib/                  # Domain logic: auth, socket, moderation, media, navigation
-└── content/              # Markdown legal documents
+└── lib/                  # Domain logic: auth, socket, moderation, media, navigation
 ```
 
 The frontend is organized by **feature/domain** rather than by file type. Each folder under `src/lib` owns a slice of behavior (`auth`, `channels`, `messages`, `dm`, `friendship`, `moderation`, `media`, `mentions`, `servers`, `socket`, `security`), and components compose those slices into screens.
@@ -342,8 +339,6 @@ Contributions are welcome from IEEE CS VIT members and the wider community.
 4. Commit with a clear [conventional commit](https://www.conventionalcommits.org/) message, e.g. `feat(chat): render link previews`.
 5. Open a pull request describing the change and linking any related issue.
 
-Please follow the project's [Community Guidelines](src/content/legal/community-guidelines.md) in all interactions.
-
 ---
 
 ## Maintainers
@@ -366,7 +361,7 @@ Built with Next.js, React, Tailwind CSS, Supabase, Socket.IO, the Amazon Chime S
 
 ## License
 
-Echo is developed for **IEEE Computer Society, VIT**. Use of the platform and source is governed by the project's [End User License Agreement](src/content/legal/eula.md) and [Terms of Service](src/content/legal/terms-of-service.md).
+Echo is developed for **IEEE Computer Society, VIT**. All rights reserved.
 
 <div align="center">
 
