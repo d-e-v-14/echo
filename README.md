@@ -2,11 +2,9 @@
 
 <img src="public/echo-logo.png" alt="Echo" width="128" />
 
-# Echo
 
-**A real-time communication platform for communities.**
 
-Servers, channels, voice & video, direct messages, and moderation — in one fast, modern web app.
+Servers, channels, voice & video, direct messages, and moderation in one fast, modern web app.
 
 **Built for [IEEE Computer Society, VIT](https://ieeecsvit.com)** · [echo.ieeecsvit.com](https://echo.ieeecsvit.com)
 
@@ -36,10 +34,10 @@ The product is a browser-first frontend: an App Router–based Next.js app that 
 
 ### Why Echo
 
-- **Real-time by default** — messages, typing indicators, presence, and calls stay in sync over Socket.IO.
-- **Community-native** — servers, channels, roles, invites, and moderation are first-class, not bolt-ons.
-- **Secure** — strict CSP, HttpOnly sessions, guarded routes, and no secrets in the client bundle.
-- **Production-ready** — typed API layer, CI on every change, containerized builds, and standalone output.
+- **Real-time by default**: messages, typing indicators, presence, and calls stay in sync over Socket.IO.
+- **Community-native**: servers, channels, roles, invites, and moderation are first-class, not bolt-ons.
+- **Secure**: strict CSP, HttpOnly sessions, guarded routes, and no secrets in the client bundle.
+- **Production-ready**: typed API layer, CI on every change, containerized builds, and standalone output.
 
 ---
 
@@ -175,7 +173,7 @@ src/
 └── content/              # Markdown legal documents
 ```
 
-The frontend is organized by **feature/domain** rather than by file type. Each folder under `src/lib` owns a slice of behavior — `auth`, `channels`, `messages`, `dm`, `friendship`, `moderation`, `media`, `mentions`, `servers`, `socket`, `security` — and components compose those slices into screens.
+The frontend is organized by **feature/domain** rather than by file type. Each folder under `src/lib` owns a slice of behavior (`auth`, `channels`, `messages`, `dm`, `friendship`, `moderation`, `media`, `mentions`, `servers`, `socket`, `security`), and components compose those slices into screens.
 
 ### Key design decisions
 
@@ -193,7 +191,7 @@ The frontend is organized by **feature/domain** rather than by file type. Each f
 
 ## Configuration
 
-All variables are read at build time. `NEXT_PUBLIC_*` values are exposed to the browser by design — never place private secrets in a `NEXT_PUBLIC_*` variable.
+All variables are read at build time. `NEXT_PUBLIC_*` values are exposed to the browser by design; never place private secrets in a `NEXT_PUBLIC_*` variable.
 
 | Variable | Required | Exposed | Description |
 | --- | :---: | :---: | --- |
@@ -261,7 +259,7 @@ docker build -f Dockerfile.production -t echo .
 docker run -p 3000:3000 --env-file .env echo
 ```
 
-The resulting image contains only the standalone server, static assets, and `public/` — no source or dev dependencies.
+The resulting image contains only the standalone server, static assets, and `public/`, with no source or dev dependencies.
 
 ---
 
@@ -273,7 +271,7 @@ Echo builds to Next.js [standalone output](https://nextjs.org/docs/app/api-refer
 
 1. Import the repository at [vercel.com/new](https://vercel.com/new).
 2. Add the environment variables from [Configuration](#configuration) for the Production and Preview environments.
-3. Deploy — the detected build command is `npm run build`.
+3. Deploy; the detected build command is `npm run build`.
 
 ### Docker / self-hosted
 
@@ -318,11 +316,11 @@ All five steps must pass before a change is mergeable.
 
 ## Security
 
-- **Content Security Policy** — a strict, environment-aware CSP is set on every route from `next.config.js`, restricting scripts, frames, workers, and connections to trusted origins.
-- **Sessions** — cookie-based, refreshed automatically; no tokens persisted in `localStorage`.
-- **Route guards** — `RouteGuard` / `GuestGuard` prevent unauthenticated access and redirect signed-in users away from guest routes.
-- **Secrets** — only public identifiers (`NEXT_PUBLIC_*`) reach the browser; the Supabase anon key is protected by Row Level Security.
-- **User content** — markdown and message content are rendered through a controlled pipeline; external embeds are limited to an allowlist.
+- **Content Security Policy**: a strict, environment-aware CSP is set on every route from `next.config.js`, restricting scripts, frames, workers, and connections to trusted origins.
+- **Sessions**: cookie-based, refreshed automatically; no tokens persisted in `localStorage`.
+- **Route guards**: `RouteGuard` / `GuestGuard` prevent unauthenticated access and redirect signed-in users away from guest routes.
+- **Secrets**: only public identifiers (`NEXT_PUBLIC_*`) reach the browser; the Supabase anon key is protected by Row Level Security.
+- **User content**: markdown and message content are rendered through a controlled pipeline; external embeds are limited to an allowlist.
 
 To report a security concern, please contact the maintainers privately rather than opening a public issue.
 
